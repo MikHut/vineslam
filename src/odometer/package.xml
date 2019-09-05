@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>odometer</name>
+  <version>0.0.0</version>
+  <description>The odometer package</description>
+
+  <maintainer email="andre.s.aguiar@inesctec.pt">André Aguiar</maintainer>
+
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>estimator</build_depend>
+  <build_depend>darknet_ros_msgs</build_depend>
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>estimator</exec_depend>
+  <exec_depend>darknet_ros_msgs</exec_depend>
+
+</package>

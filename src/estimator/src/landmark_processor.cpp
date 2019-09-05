@@ -1,0 +1,36 @@
+#include "../include/landmark_processor.hpp"
+
+LandmarkProcessor::LandmarkProcessor(int w, int h, int res)
+    : width(w), height(h), resolution(res)
+{
+}
+
+void LandmarkProcessor::updatePoses(const std::vector<Point<int>> poses)
+{
+  landmark_poses = poses;
+}
+
+cv::Mat LandmarkProcessor::buildGrid()
+{
+  /* initializes grid with cells of 1cm x 1cm dimension  */
+  int     x_origin = resolution * 100 / 2;
+  int     y_origin = resolution * 100;
+  cv::Mat grid =
+      cv::Mat::zeros(cv::Size(resolution * 100, resolution * 100), CV_64FC1);
+
+  for (auto l : landmark_poses) {
+    double orientation = atan2(height - l.y, l.x - x_origin);
+
+    std::vector<Point<double>> lines;
+    Point<double>	      pt(x_origin, y_origin);
+    do {
+      pt.x += sqrt(2) * cos(orientation);
+      pt.y -= sqrt(2) * sin(orientation);
+
+      grid.at<uchar>(pt.x, pt.y) = 255;
+    } while (pt.x > 0 && pt.x < resolution * 100 && pt.y > 0 &&
+	     pt.y < resolution * 100);
+  }
+
+  return grid;
+}

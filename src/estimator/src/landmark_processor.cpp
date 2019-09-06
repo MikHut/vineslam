@@ -7,6 +7,7 @@ LandmarkProcessor::LandmarkProcessor(int w, int h, int res)
 
 void LandmarkProcessor::updatePoses(const std::vector<Point<int>> poses)
 {
+  previous_landmark_poses = landmark_poses;
   landmark_poses = poses;
 }
 
@@ -19,19 +20,23 @@ cv::Mat LandmarkProcessor::buildGrid()
 			     cv::Scalar(255, 255, 255));
 
   for (auto l : landmark_poses) {
-    double orientation = atan2(height - l.y, l.x - x_origin);
+    double orientation = atan2(height - l.y, l.x - width / 2);
 
     std::vector<Point<double>> lines;
     Point<double>	      pt(x_origin, y_origin);
     do {
+      /* OpenCV convention (y,x) switched with the one adopted by ROS (x,y) */
+      grid.at<uchar>(pt.y, pt.x) = 0;
+
       pt.x += sqrt(2) * cos(orientation);
       pt.y -= sqrt(2) * sin(orientation);
 
-      /* OpenCV convention (y,x) switched with the one adopted by ROS (x,y) */
-      grid.at<uchar>(pt.y, pt.x) = 0;
     } while (pt.x > 0 && pt.x < resolution * 100 && pt.y > 0 &&
 	     pt.y < resolution * 100);
   }
 
   return grid;
+}
+
+void LandmarkProcessor::matchLandmarks() {
 }

@@ -1,7 +1,8 @@
 <launch>
 
   <!-- args -->
-  <arg name="bag_path" default="/home/andre/Downloads/2019-09-03-16-15-15.bag"/>
+  <arg name="bag_path"
+    default="/home/andre/Downloads/yolo_monocular/2019-09-06-11-31-12_noTF.bag"/>
 
   <!-- nodes -->
   <node pkg="rosbag" type="play" name="darknet_bag" args="$(arg bag_path)"/>  

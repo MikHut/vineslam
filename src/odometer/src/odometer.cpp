@@ -29,11 +29,12 @@ void Odometer::boxListener(const darknet_ros_msgs::BoundingBoxesConstPtr& msg)
     center_of_mass.push_back(tmp);
   }
 
-  /* grid design and publication */
+  /* grid design */
   (*processor).updatePoses(center_of_mass);
   cv::Mat grid = (*processor).buildGrid();
 
 #ifdef VISUALIZE
+  /* grid publication */
   cv::Mat concat;
   cv::hconcat(grid, last_grid, concat);
   sensor_msgs::ImagePtr img =

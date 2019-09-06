@@ -1,11 +1,15 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(odometer)
 
+add_definitions(-DVISUALIZE)
+
 add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED
                     roscpp
                     std_msgs
+		    cv_bridge
+		    image_transport
                     estimator
                     darknet_ros_msgs)
 

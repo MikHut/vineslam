@@ -15,8 +15,8 @@ cv::Mat LandmarkProcessor::buildGrid()
   /* initializes grid with cells of 1cm x 1cm dimension  */
   int     x_origin = resolution * 100 / 2;
   int     y_origin = resolution * 100;
-  cv::Mat grid =
-      cv::Mat::zeros(cv::Size(resolution * 100, resolution * 100), CV_64FC1);
+  cv::Mat grid     = cv::Mat(resolution * 100, resolution * 100, CV_8UC1,
+			     cv::Scalar(255, 255, 255));
 
   for (auto l : landmark_poses) {
     double orientation = atan2(height - l.y, l.x - x_origin);
@@ -27,7 +27,8 @@ cv::Mat LandmarkProcessor::buildGrid()
       pt.x += sqrt(2) * cos(orientation);
       pt.y -= sqrt(2) * sin(orientation);
 
-      grid.at<uchar>(pt.x, pt.y) = 255;
+      /* OpenCV convention (y,x) switched with the one adopted by ROS (x,y) */
+      grid.at<uchar>(pt.y, pt.x) = 0;
     } while (pt.x > 0 && pt.x < resolution * 100 && pt.y > 0 &&
 	     pt.y < resolution * 100);
   }

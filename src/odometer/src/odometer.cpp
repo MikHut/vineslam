@@ -4,20 +4,18 @@ Odometer::Odometer()
 {
   ros::NodeHandle local_nh("~");
 
-  /* read launch file parameters */
-  local_nh.getParam("/odometer/img_width", width);
-  local_nh.getParam("/odometer/img_height", heigth);
-  local_nh.getParam("/odometer/grid_resolution", resolution);
+  params = new parameters();
+  loadParameters(local_nh);
 
 #ifdef VISUALIZE
-  image_transport::ImageTransport it(local_nh);
-  grid_pub = it.advertise("/odometer/grid", 1);
-
-  last_grid = cv::Mat(resolution * 100, resolution * 100, CV_8UC1,
+  last_grid = cv::Mat((*params).resolution * 100, (*params).resolution * 100,
+		      CV_8UC1, cv::Scalar(255, 255, 255));
+  p_image   = cv::Mat((*params).width, (*params).height, CV_8UC1,
 		      cv::Scalar(255, 255, 255));
+  c_image   = p_image;
 #endif
 
-  processor = new LandmarkProcessor(width, heigth, resolution);
+  processor = new LandmarkProcessor(*params);
 }
 
 void Odometer::boxListener(const darknet_ros_msgs::BoundingBoxesConstPtr& msg)
@@ -31,7 +29,12 @@ void Odometer::boxListener(const darknet_ros_msgs::BoundingBoxesConstPtr& msg)
 
   /* grid design */
   (*processor).updatePoses(center_of_mass);
-  cv::Mat grid = (*processor).buildGrid();
+#ifdef VISUALIZE
+  cv::Mat grid = (*processor).buildVisualGrid();
+#endif
+
+  /* landmark matching procedure */
+  (*processor).matchLandmarks();
 
 #ifdef VISUALIZE
   /* grid publication */
@@ -45,16 +48,35 @@ void Odometer::boxListener(const darknet_ros_msgs::BoundingBoxesConstPtr& msg)
 #endif
 }
 
-int main(int argc, char** argv)
+void Odometer::imageListener(const sensor_msgs::ImageConstPtr& msg)
 {
-  ros::init(argc, argv, "odometer");
+  p_image = c_image;
+  c_image =
+      cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::MONO8)->image;
 
-  ros::NodeHandle nh;
+  std::vector<cv::DMatch>   m;
+  std::vector<cv::KeyPoint> keyPointRight;
+  std::vector<cv::KeyPoint> keyPointLeft;
+  std::vector<cv::Point2f>  vecRight;
+  std::vector<cv::Point2f>  vecLeft;
 
-  Odometer*       odometer = new Odometer();
-  ros::Subscriber box_sub  = nh.subscribe("/darknet_ros/bounding_boxes", 1000,
-					  &Odometer::boxListener, odometer);
+  for (size_t i = 0; i < (*processor).matches.size(); i++) {
+    vecRight.push_back(
+	cv::Point2f((*processor).matches[i].c.x, (*processor).matches[i].c.y));
+    vecLeft.push_back(
+	cv::Point2f((*processor).matches[i].p.x, (*processor).matches[i].p.y));
+  }
+  cv::KeyPoint::convert(vecRight, keyPointRight);
+  cv::KeyPoint::convert(vecLeft, keyPointLeft);
 
-  ros::spin();
-  return 0;
+  for (size_t j = 0; j < vecRight.size(); j++) m.push_back(cv::DMatch(j, j, 0));
+
+  cv::Mat img_matches;
+  cv::drawMatches(p_image, keyPointLeft, c_image, keyPointRight, m,
+		  img_matches);
+
+  sensor_msgs::ImagePtr img =
+      cv_bridge::CvImage(std_msgs::Header(), "bgr8", img_matches).toImageMsg();
+  matches_pub.publish(img);
 }
+

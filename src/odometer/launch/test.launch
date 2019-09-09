@@ -2,7 +2,7 @@
 
   <!-- args -->
   <arg name="bag_path"
-    default="/home/andre/Downloads/yolo_monocular/2019-09-06-11-31-12_noTF.bag"/>
+    default="/home/andre/Downloads/yolo_monocular/2019-09-06-11-30-28.bag"/>
 
   <!-- nodes -->
   <node pkg="rosbag" type="play" name="darknet_bag" args="$(arg bag_path)"/>  
@@ -10,6 +10,7 @@
     <param name="img_width"  value="1292"/>
     <param name="img_height" value="964"/>
     <param name="grid_resolution" value="10"/>
+    <param name="match_box" value="25"/>
   </node>
 
 </launch>

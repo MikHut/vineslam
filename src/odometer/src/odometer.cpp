@@ -4,7 +4,7 @@ Odometer::Odometer()
 {
   ros::NodeHandle local_nh("~");
 
-  params = new parameters();
+  params = new Parameters();
   loadParameters(local_nh);
 
 #ifdef VISUALIZE
@@ -21,23 +21,19 @@ Odometer::Odometer()
 void Odometer::boxListener(const darknet_ros_msgs::BoundingBoxesConstPtr& msg)
 {
   /* center of mass calculation */
-  std::vector<Point<int>> center_of_mass;
+  std::vector<Point<double>> center_of_mass;
   for (auto i : (*msg).bounding_boxes) {
-    Point<int> tmp((i.xmin + i.xmax) / 2, (i.ymin + i.ymax) / 2);
+    Point<double> tmp((i.xmin + i.xmax) / 2, (i.ymin + i.ymax) / 2);
     center_of_mass.push_back(tmp);
   }
 
-  /* grid design */
-  (*processor).updatePoses(center_of_mass);
-#ifdef VISUALIZE
-  cv::Mat grid = (*processor).buildVisualGrid();
-#endif
-
   /* landmark matching procedure */
+  (*processor).updatePoses(center_of_mass);
   (*processor).matchLandmarks();
 
 #ifdef VISUALIZE
-  /* grid publication */
+  /* visual grid publication */
+  cv::Mat grid = (*processor).plotGrid();
   cv::Mat concat;
   cv::hconcat(grid, last_grid, concat);
   sensor_msgs::ImagePtr img =
@@ -45,6 +41,9 @@ void Odometer::boxListener(const darknet_ros_msgs::BoundingBoxesConstPtr& msg)
   grid_pub.publish(img);
 
   last_grid = grid;
+#else
+  /* build grid */
+  (*processor).buildGrid();
 #endif
 }
 
@@ -79,4 +78,3 @@ void Odometer::imageListener(const sensor_msgs::ImageConstPtr& msg)
       cv_bridge::CvImage(std_msgs::Header(), "bgr8", img_matches).toImageMsg();
   matches_pub.publish(img);
 }
-

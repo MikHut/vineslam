@@ -29,7 +29,7 @@ private:
   cv::Mat p_image;
 
   LandmarkProcessor* processor;
-  parameters*	params;
+  Parameters*	params;
 
   void loadParameters(const ros::NodeHandle& local_nh)
   {

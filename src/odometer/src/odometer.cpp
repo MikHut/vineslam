@@ -41,9 +41,6 @@ void Odometer::boxListener(const darknet_ros_msgs::BoundingBoxesConstPtr& msg)
   grid_pub.publish(img);
 
   last_grid = grid;
-#else
-  /* build grid */
-  (*processor).buildGrid();
 #endif
 }
 

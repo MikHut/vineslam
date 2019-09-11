@@ -4,14 +4,22 @@
 #include <iostream>
 #include <vector>
 
+#define pi 3.14159265359
+
 struct Parameters {
-  int width;      /* Image width. */
-  int height;     /* Image height */
+  double h_fov;      /* Camera horizontal field of view */
+  double v_fov;      /* Camera vertical field of view */
+  double cam_height; /* Camera height (meters) */
+  int    width;      /* Image width. */
+  int    height;     /* Image height */
   int resolution; /* Grid resolution =  (resolution x 100, resolutions x 100) */
   int match_box;  /* Search box diagonal size */
 
   Parameters()
   {
+    h_fov      = pi / 2;
+    v_fov      = pi / 2;
+    cam_height = 1.0;
     width      = 1280;
     height     = 960;
     resolution = 10;

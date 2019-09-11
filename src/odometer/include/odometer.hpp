@@ -7,6 +7,7 @@
 #include <landmark_processor.hpp>
 #include <opencv2/features2d.hpp>
 #include <ros/ros.h>
+#include <sensor_msgs/PointCloud2.h>
 
 class Odometer
 {
@@ -19,10 +20,13 @@ public:
   image_transport::Publisher matches_pub;
 
 private:
-  int width;
-  int heigth;
-  int resolution;
-  int match_box;
+  double h_fov;
+  double v_fov;
+  double cam_height;
+  int    width;
+  int    heigth;
+  int    resolution;
+  int    match_box;
 
   cv::Mat last_grid;
   cv::Mat c_image;
@@ -34,6 +38,8 @@ private:
   void loadParameters(const ros::NodeHandle& local_nh)
   {
     /* read launch file parameters */
+    local_nh.getParam("/odometer/h_fov", (*params).h_fov);
+    local_nh.getParam("/odometer/v_fov", (*params).v_fov);
     local_nh.getParam("/odometer/img_width", (*params).width);
     local_nh.getParam("/odometer/img_height", (*params).height);
     local_nh.getParam("/odometer/grid_resolution", (*params).resolution);

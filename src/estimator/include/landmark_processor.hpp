@@ -10,9 +10,8 @@ class LandmarkProcessor
 {
 public:
   LandmarkProcessor(const Parameters& params);
-  void    updatePoses(const std::vector<Point<double>> poses);
+  void    updatePoses(const std::vector<Point<double>>& poses);
   cv::Mat plotGrid();
-  void    buildGrid();
   void    matchLandmarks();
 
   std::vector<Match<double>> matches;
@@ -20,5 +19,7 @@ public:
 private:
   std::vector<Point<double>> lc_pose;
   std::vector<Point<double>> lp_pose;
-  Parameters		  params;
+  Parameters		     params;
+
+  std::vector<Point<double>> computeLine(const Point<double>& landmark);
 };

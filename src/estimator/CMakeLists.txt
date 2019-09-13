@@ -19,7 +19,8 @@ include_directories(
 )
 
 add_library(estimator
-  src/landmark_processor.cpp)
+  src/landmark_processor.cpp
+  src/particle_filter.cpp)
 
 
 install(TARGETS estimator

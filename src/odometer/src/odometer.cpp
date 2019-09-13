@@ -35,7 +35,7 @@ void Odometer::boxListener(const darknet_ros_msgs::BoundingBoxesConstPtr& msg)
   /* visual grid publication */
   cv::Mat grid = (*processor).plotGrid();
   cv::Mat concat;
-  cv::hconcat(grid, last_grid, concat);
+  cv::hconcat(last_grid, grid, concat);
   sensor_msgs::ImagePtr img =
       cv_bridge::CvImage(std_msgs::Header(), "mono8", concat).toImageMsg();
   grid_pub.publish(img);

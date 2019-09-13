@@ -4,7 +4,11 @@
 #include <iostream>
 #include <vector>
 
-#define pi 3.14159265359
+#define PI 3.14159265359	 /* (radians) */
+#define RAD PI / 180		 /* one radian */
+#define TRUNK_SCOPE 7.5		 /* maximum distance of trunk detection (meters) */
+#define MAX_DXY 0.2		 /* maximum displacement per iteration (meters) */
+#define MAX_DTHETA 10 * PI / 180 /* maximum rotation per iteration (radians) */
 
 struct Parameters {
   double h_fov;      /* Camera horizontal field of view */
@@ -12,13 +16,13 @@ struct Parameters {
   double cam_height; /* Camera height (meters) */
   int    width;      /* Image width. */
   int    height;     /* Image height */
-  int resolution; /* Grid resolution =  (resolution x 100, resolutions x 100) */
-  int match_box;  /* Search box diagonal size */
+  int    resolution; /* Grid resolution =  (resolution x 100, resolutions x 100) */
+  int    match_box;  /* Search box diagonal size */
 
   Parameters()
   {
-    h_fov      = pi / 2;
-    v_fov      = pi / 2;
+    h_fov      = PI / 4;
+    v_fov      = PI / 4;
     cam_height = 1.0;
     width      = 1280;
     height     = 960;
@@ -70,16 +74,37 @@ std::ostream& operator<<(std::ostream& o, const std::vector<Point<T>>& pt)
 
 template <typename T>
 struct Match {
-  Point<T> p;
-  Point<T> c;
-  double   p_ang;
-  double   c_ang;
+  Point<T>		p;
+  Point<T>		c;
+  std::vector<Point<T>> p_line;
+  std::vector<Point<T>> c_line;
+  double		p_ang;
+  double		c_ang;
 
-  Match(const Point<T>& p, const Point<T>& c, const Parameters& params)
+  Match(const Point<T>& p, const Point<T>& c, const std::vector<Point<T>> p_line,
+	const std::vector<Point<T>> c_line, const Parameters& params)
   {
-    (*this).p     = Point<T>(p);
-    (*this).c     = Point<T>(c);
-    (*this).p_ang = atan2(params.height - p.y, p.x - params.width / 2);
-    (*this).c_ang = atan2(params.height - c.y, c.x - params.width / 2);
+    (*this).p      = Point<T>(p);
+    (*this).c      = Point<T>(c);
+    (*this).p_ang  = ((params.h_fov / 2) / params.width) * (p.x - params.width / 2);
+    (*this).c_ang  = ((params.h_fov / 2) / params.width) * (c.x - params.width / 2);
+    (*this).p_line = p_line;
+    (*this).c_line = c_line;
+  }
+};
+
+template <typename T>
+struct Particle {
+  int      id;
+  Point<T> pos;
+  double   theta;
+  double   weight;
+
+  Particle(const int& id, const Point<T>& pos, const double& theta, const double& weight)
+  {
+    (*this).id     = id;
+    (*this).pos    = pos;
+    (*this).theta  = theta;
+    (*this).weight = weight;
   }
 };

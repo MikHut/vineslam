@@ -2,9 +2,11 @@
 
   <!-- args -->
   <arg name="bag_path"
-    default="/home/andre/Downloads/yolo_monocular/2019-09-06-11-30-28.bag"/>
+    default="/home/andre/Downloads/yolo_monocular/2019-09-06-11-31-12_noTF.bag"/>
 
   <!-- nodes -->
+  <!-- <node name="republish" type="republish" pkg="image_transport" output="screen" -->
+  <!--   args="compressed in:=/image_raw raw out:=/image_raw" /> -->
   <node pkg="rosbag" type="play" name="darknet_bag" args="$(arg bag_path)"/>  
   <node pkg="odometer" type="odometer_node" name="odometer" output="screen">
     <param name="img_width"  value="1292"/>

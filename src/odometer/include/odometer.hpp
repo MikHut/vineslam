@@ -4,8 +4,9 @@
 #include <darknet_ros_msgs/BoundingBox.h>
 #include <darknet_ros_msgs/BoundingBoxes.h>
 #include <image_transport/image_transport.h>
-#include <landmark_processor.hpp>
 #include <opencv2/features2d.hpp>
+#include <particle_filter.hpp>
+#include <landmark_processor.hpp>
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
 
@@ -32,8 +33,9 @@ private:
   cv::Mat c_image;
   cv::Mat p_image;
 
-  LandmarkProcessor* processor;
-  Parameters*	params;
+  ParticleFilter* pfilter;
+  LandmarkProcessor* lprocessor;
+  Parameters*     params;
 
   void loadParameters(const ros::NodeHandle& local_nh)
   {

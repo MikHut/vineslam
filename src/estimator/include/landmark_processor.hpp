@@ -1,6 +1,7 @@
 #pragma once
 
 #include "utils.hpp"
+#include <array>
 #include <iostream>
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
@@ -10,20 +11,24 @@ class LandmarkProcessor
 {
 public:
   LandmarkProcessor(const Parameters& params);
-  void    updatePoses(const std::vector<Point<double>>& poses);
-  void    matchLandmarks();
+  void process(const std::vector<Point<double>>& poses,
+	       std::vector<Particle<double>>&    particles);
+
+  /* Only for visualization */
   cv::Mat plotGrid();
 
   std::vector<Match<double>> matches;
-  std::vector<Point<double>> projectLine(const std::vector<Point<double>>& l,
-					 const int&			   particle_id);
 
 private:
+  Parameters		     params;
   std::vector<Point<double>> lc_pose;
   std::vector<Point<double>> lp_pose;
-  Parameters		     params;
 
-  std::vector<Point<double>> computeLine(const Point<double>& landmark);
-  std::vector<Point<double>> computeLine(const Point<double>& landmark,
-					 const double&	orientation);
+  double x_start;
+  double x_end;
+
+  void	 updatePoses(const std::vector<Point<double>>& poses);
+  void	 matchLandmarks();
+  Line<double> computeLine(const Point<double>& landmark);
+  Line<double> projectLine(const Line<double>& l, const Point<double>& delta);
 };

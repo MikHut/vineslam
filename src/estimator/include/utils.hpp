@@ -4,13 +4,16 @@
 #include <iostream>
 #include <vector>
 
-#define PI 3.14159265359	 /* (radians) */
-#define RAD PI / 180		 /* one radian */
-#define TRUNK_SCOPE 7.5		 /* maximum distance of trunk detection (meters) */
-#define MAX_DXY 0.2		 /* maximum displacement per iteration (meters) */
-#define MAX_DTHETA 10 * PI / 180 /* maximum rotation per iteration (radians) */
+#define PI 3.14159265359 /* (radians) */
+#define RAD PI / 180.0   /* one radian */
+#define TRUNK_SCOPE 7.5  /* maximum distance of trunk detection (meters) */
+#define INF 1.0e6	/* hypothetic infinit */
 
-struct Parameters {
+const float MAX_DXY    = 0.2; /* maximum displacement per iteration (meters) */
+const float MAX_DTHETA = 10.0 * PI / 180.0; /* maximum rotation per iteration (radians) */
+
+struct Parameters
+{
   double h_fov;      /* Camera horizontal field of view */
   double v_fov;      /* Camera vertical field of view */
   double cam_height; /* Camera height (meters) */
@@ -32,7 +35,8 @@ struct Parameters {
 };
 
 template <typename T>
-struct Point {
+struct Point
+{
   T x;
   T y;
 
@@ -73,28 +77,66 @@ std::ostream& operator<<(std::ostream& o, const std::vector<Point<T>>& pt)
 }
 
 template <typename T>
-struct Match {
-  Point<T>		p;
-  Point<T>		c;
-  std::vector<Point<T>> p_line;
-  std::vector<Point<T>> c_line;
-  double		p_ang;
-  double		c_ang;
+struct Line
+{
+  /* ax + by = c */
+  T a;
+  T b;
+  T c;
 
-  Match(const Point<T>& p, const Point<T>& c, const std::vector<Point<T>> p_line,
-	const std::vector<Point<T>> c_line, const Parameters& params)
+  Point<T> p1;
+  Point<T> p2;
+
+  Line() {}
+
+  Line(const Point<T>& p1, const Point<T>& p2)
   {
-    (*this).p      = Point<T>(p);
-    (*this).c      = Point<T>(c);
-    (*this).p_ang  = ((params.h_fov / 2) / params.width) * (p.x - params.width / 2);
-    (*this).c_ang  = ((params.h_fov / 2) / params.width) * (c.x - params.width / 2);
+    a = p2.y - p1.y;
+    b = p1.x - p2.x;
+    c = a * p1.x - b * p1.y;
+
+    (*this).p1 = p1;
+    (*this).p2 = p2;
+  }
+
+  Point<T> intercept(const Line<T>& l2)
+  {
+    Line<T> l1  = *this;
+    double  det = l1.a * l2.b - l2.a * l1.b;
+
+    if (det == 0)
+      return Point<T>(INF, INF);
+    else
+    {
+      double x = (l2.b * l1.c - l1.b * l2.c) / det;
+      double y = (l1.a * l2.c - l2.a * l1.c) / det;
+
+      return Point<T>(x, y);
+    }
+  }
+};
+
+template <typename T>
+struct Match
+{
+  Point<T> p_pos;
+  Point<T> c_pos;
+  Line<T>  p_line;
+  Line<T>  c_line;
+
+  Match(const Point<T>& p, const Point<T>& c, const Line<T>& p_line,
+	const Line<T>& c_line)
+  {
+    (*this).p_pos  = Point<T>(p);
+    (*this).c_pos  = Point<T>(c);
     (*this).p_line = p_line;
     (*this).c_line = c_line;
   }
 };
 
 template <typename T>
-struct Particle {
+struct Particle
+{
   int      id;
   Point<T> pos;
   double   theta;

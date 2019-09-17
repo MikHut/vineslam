@@ -16,7 +16,9 @@ public:
 
 	/* Only for visualization */
 	void plotGrid(const Line<double>& l, const int& color);
+  void plotPMap(Point<double>& p, const int& color);
   cv::Mat grid;
+  cv::Mat p_map;
 
 	std::vector<Match<double>> matches;
 

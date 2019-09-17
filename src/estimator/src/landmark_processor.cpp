@@ -1,7 +1,8 @@
 #include "../include/landmark_processor.hpp"
 
 #ifdef VISUALIZE
-int color[6] = {220, 180, 140, 100, 60, 20};
+int color[20] = {190, 180, 170, 160, 150, 140, 130, 120, 110, 100,
+                 90,  80,  70,  60,  50,  40,  30,  20,  10,  0};
 #endif
 
 LandmarkProcessor::LandmarkProcessor(const Parameters& params) : params(params)
@@ -15,15 +16,12 @@ void LandmarkProcessor::process(const std::vector<Point<double>>& poses,
                                 std::vector<Particle<double>>&    particles)
 {
 #ifdef VISUALIZE
-	grid = cv::Mat(params.resolution * 100, params.resolution * 100, CV_8UC1,
-	               cv::Scalar(255, 255, 255));
+	grid  = cv::Mat(params.resolution * 100, params.resolution * 100, CV_8UC1,
+                 cv::Scalar(255, 255, 255));
+	p_map = cv::Mat(params.resolution * 100, params.resolution * 100, CV_8UC1,
+	                cv::Scalar(255, 255, 255));
 
-	int p = 10575;
-
-	std::cout << "Projecting particle number " << p << " | ";
-	std::cout << "X = " << particles[p].pos.x << "  ,  ";
-	std::cout << "Y = " << particles[p].pos.y << " | ";
-	std::cout << "Theta = " << particles[p].theta << std::endl;
+	int p = 100;
 #endif
 
 	updatePoses(poses);
@@ -34,8 +32,8 @@ void LandmarkProcessor::process(const std::vector<Point<double>>& poses,
 			Line<double> pl = matches[j].p_line;
 			Line<double> cl = matches[j].c_line;
 			Line<double> tmp =
-			    /* projectLine(matches[j], particles[i].pos, particles[i].theta); */
-			    projectLine(matches[j], particles[i].pos, PI / 6);
+			    projectLine(matches[j], particles[i].pos, particles[i].theta);
+			    /* projectLine(matches[j], particles[i].pos, 0); */
 			Point<double> X = cl.intercept(tmp);
 
 			particles[i].weight += (X.x > x_start && X.x < x_end);
@@ -45,6 +43,7 @@ void LandmarkProcessor::process(const std::vector<Point<double>>& poses,
 				plotGrid(matches[j].c_line, color[j]);
 				plotGrid(tmp, color[j]);
 			}
+			plotPMap(X, color[j]);
 #endif
 		}
 	}
@@ -144,10 +143,17 @@ void LandmarkProcessor::plotGrid(const Line<double>& l, const int& color)
 	while (pt.x >= 0 && pt.x < x_end && pt.y >= 0 &&
 	       pt.y < params.resolution * 100) {
 		pt.x += 1;
-		pt.y = (l.c - l.a * pt.x) / l.b + params.resolution * 100 / 2;
+		pt.y = (params.resolution * 100 / 2) - ((l.c - l.a * pt.x) / l.b);
 
 		cv::circle(grid, cv::Point2f(pt.x, pt.y), 1,
 		           cv::Scalar(color, color / 2, color / 3), 2);
-		/* grid.at<uchar>(pt.y, pt.x) = color; */
+	}
+}
+
+void LandmarkProcessor::plotPMap(Point<double>& p, const int& color)
+{
+	p.y = params.resolution * 100 / 2 - p.y;
+	if (p.x >= 0 && p.x < x_end && p.y >= 0 && p.y < params.resolution * 100) {
+		cv::circle(p_map, cv::Point2f(p.x, p.y), 5, cv::Scalar(color, 0, 0), 1);
 	}
 }

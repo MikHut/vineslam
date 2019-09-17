@@ -12,7 +12,7 @@ int main(int argc, char** argv)
 
 #ifdef VISUALIZE
 	image_transport::ImageTransport it(nh);
-	(*odometer).grid_pub      = it.advertise("/odometer/grid_image", 1);
+	(*odometer).grid_pub      = it.advertise("/odometer/debug", 1);
 	(*odometer).matches_pub   = it.advertise("/odometer/matches_image", 1);
 	(*odometer).particles_pub = it.advertise("/odometer/particles_image", 1);
 

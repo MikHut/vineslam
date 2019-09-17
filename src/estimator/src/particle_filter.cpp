@@ -21,11 +21,11 @@ void ParticleFilter::init()
 				theta += RAD;
 				id++;
 			}
-			theta = -MAX_DTHETA / 3;
-			y += 0.01;
+			theta = -MAX_DTHETA / 2;
+			y += 0.1;
 		}
 		y = -MAX_DXY;
-		x += 0.01;
+		x += 0.1;
 	}
 }
 
@@ -50,8 +50,11 @@ void ParticleFilter::plotParticles()
 	              cv::Scalar(0, 0, 0));
 
 	for (size_t i = 0; i < particles.size(); i++) {
-		box.at<uchar>((particles[i].pos.y + MAX_DXY) * 100,
-		              (particles[i].pos.x + MAX_DXY) * 100) =
-		    255 / 10 * particles[i].weight;
+		Point<double> pt((particles[i].pos.x + MAX_DXY) * 100,
+		                 box.rows - (particles[i].pos.y + MAX_DXY) * 100);
+		if (particles[i].weight > 0) {
+			cv::circle(box, cv::Point2f(pt.y, pt.x), 1,
+			           cv::Scalar(particles[i].weight * 40, 0, 0), 0.5);
+		}
 	}
 }

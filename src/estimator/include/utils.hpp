@@ -9,7 +9,7 @@ const float TRUNK_SCOPE =
     7.5; /* maximum distance of trunk detection (meters) */
 const float PI      = 3.14159265359; /* (radians) */
 const float RAD     = PI / 180.0;    /* one radian */
-const float MAX_DXY = 0.2; /* maximum displacement per iteration (meters) */
+const float MAX_DXY = 0.5; /* maximum displacement per iteration (meters) */
 const float MAX_DTHETA =
     10.0 * PI / 180.0; /* maximum rotation per iteration (radians) */
 
@@ -150,3 +150,11 @@ struct Particle
 		(*this).weight = weight;
 	}
 };
+
+template <typename T>
+std::ostream& operator<<(std::ostream& o, const Particle<T>& p)
+{
+	o << "(" << p.id << ") - " << p.pos << "theta = " << p.theta
+	  << "\nweight = " << p.weight << std::endl;
+	return o;
+}

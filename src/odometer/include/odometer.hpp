@@ -5,10 +5,12 @@
 #include <darknet_ros_msgs/BoundingBoxes.h>
 #include <image_transport/image_transport.h>
 #include <landmark_processor.hpp>
+#include <nav_msgs/Odometry.h>
 #include <opencv2/features2d.hpp>
 #include <particle_filter.hpp>
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <tf/transform_listener.h>
 
 class Odometer
 {
@@ -16,6 +18,7 @@ public:
 	Odometer();
 	void boxListener(const darknet_ros_msgs::BoundingBoxesConstPtr& msg);
 	void imageListener(const sensor_msgs::ImageConstPtr& msg);
+	void odomListener(const nav_msgs::OdometryConstPtr& msg);
 
 	image_transport::Publisher grid_pub;
 	image_transport::Publisher matches_pub;
@@ -29,6 +32,10 @@ private:
 	int    heigth;
 	int    resolution;
 	int    match_box;
+
+	Pose<double> last_pose;
+
+	darknet_ros_msgs::BoundingBoxes bounding_boxes;
 
 	cv::Mat last_grid;
 	cv::Mat c_image;

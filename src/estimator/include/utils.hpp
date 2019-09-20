@@ -2,35 +2,36 @@
 
 #include <cmath>
 #include <iostream>
+#include <random>
 #include <vector>
 
 const float INF = 1.0e6; /* hypothetic infinit */
 const float TRUNK_SCOPE =
-    7.5; /* maximum distance of trunk detection (meters) */
-const float PI      = 3.14159265359; /* (radians) */
-const float RAD     = PI / 180.0;    /* one radian */
-const float MAX_DXY = 0.5; /* maximum displacement per iteration (meters) */
-const float MAX_DTHETA =
-    10.0 * PI / 180.0; /* maximum rotation per iteration (radians) */
+    7.5 * 100; /* maximum distance of trunk detection (centimeters) */
+const float PI     = 3.14159265359;    /* (radians) */
+const float DEGREE = 1.0 * PI / 180.0; /* one radian */
+const float STD_XY = 0.1333; /* standard deviation of delta[x,y] (centimeters) */
+const float STD_THETA =
+    2.0 * PI / 180.0; /* standard deviation of delta_theta (radians) */
 
 struct Parameters
 {
 	double h_fov;      /* Camera horizontal field of view */
 	double v_fov;      /* Camera vertical field of view */
-	double cam_height; /* Camera height (meters) */
+	double cam_height; /* Camera height (centimenters) */
 	int    width;      /* Image width. */
 	int    height;     /* Image height */
-	int resolution; /* Grid resolution =  (resolution x 100, resolutions x 100) */
-	int match_box;  /* Search box diagonal size */
+	int    resolution; /* Grid resolution =  (resolution, resolution) cm */
+	int    match_box;  /* Search box diagonal size */
 
 	Parameters()
 	{
 		h_fov      = PI / 4;
 		v_fov      = PI / 4;
-		cam_height = 1.0;
+		cam_height = 100.0;
 		width      = 1280;
 		height     = 960;
-		resolution = 10;
+		resolution = 1000;
 		match_box  = 10;
 	}
 };
@@ -66,6 +67,29 @@ template <typename T>
 std::ostream& operator<<(std::ostream& o, const Point<T>& pt)
 {
 	o << "[x,y] = [" << pt.x << "," << pt.y << "]" << std::endl;
+	return o;
+}
+
+template <typename T>
+struct Pose
+{
+	Point<T> pos;
+	double   theta;
+
+	Pose() {}
+
+	Pose(const Point<T>& pos, const double& theta)
+	{
+		(*this).pos   = pos;
+		(*this).theta = theta;
+	}
+};
+
+template <typename T>
+std::ostream& operator<<(std::ostream& o, const Pose<T>& p)
+{
+	o << "[x,y,theta] = [" << p.pos.x << "," << p.pos.y << "," << p.yaw << "]"
+	  << std::endl;
 	return o;
 }
 
@@ -116,12 +140,37 @@ std::ostream& operator<<(std::ostream& o, const Line<T>& l)
 }
 
 template <typename T>
+struct Landmark
+{
+	int                   id;
+	std::vector<Point<T>> pos;
+
+	Landmark() {}
+
+	Landmark(const int& id, const std::vector<Point<T>>& pos)
+	{
+		(*this).id  = id;
+		(*this).pos = pos;
+	}
+
+	Landmark(const std::vector<Point<T>>& pos)
+	{
+		(*this).id  = 0;
+		(*this).pos = pos;
+	}
+};
+
+template <typename T>
 struct Match
 {
 	Point<T> p_pos;
 	Point<T> c_pos;
 	Line<T>  p_line;
 	Line<T>  c_line;
+
+	Landmark<T> l;
+
+	Match() {}
 
 	Match(const Point<T>& p, const Point<T>& c, const Line<T>& p_line,
 	      const Line<T>& c_line)
@@ -141,13 +190,15 @@ struct Particle
 	double   theta;
 	double   weight;
 
-	Particle(const int& id, const Point<T>& pos, const double& theta,
+	Particle() {}
+
+	Particle(const int& id, const Point<T>& delta_p, const double& delta_th,
 	         const double& weight)
 	{
-		(*this).id     = id;
-		(*this).pos    = pos;
-		(*this).theta  = theta;
-		(*this).weight = weight;
+		(*this).id       = id;
+		(*this).delta_p  = delta_p;
+		(*this).delta_th = delta_th;
+		(*this).weight   = weight;
 	}
 };
 

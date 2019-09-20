@@ -15,30 +15,53 @@ Odometer::Odometer()
 	c_image   = p_image;
 #endif
 
+	last_pose.pos.x = 0.0;
+	last_pose.pos.y = 0.0;
+	last_pose.theta = 0.0;
+
 	pfilter    = new ParticleFilter(*params);
 	lprocessor = (*pfilter).landm_obj;
 
 	(*pfilter).init();
+  std::cout << "end init()" << std::endl;
+}
+
+void Odometer::odomListener(const nav_msgs::OdometryConstPtr& msg)
+{
+	tf::Pose pose;
+	tf::poseMsgToTF((*msg).pose.pose, pose);
+	double yaw = tf::getYaw(pose.getRotation());
+
+	Point<double> pt((*msg).pose.pose.position.x - last_pose.pos.x,
+	                 (*msg).pose.pose.position.y - last_pose.pos.y);
+
+	/* Pose<double> delta_pose(pt, yaw - last_delta_pose.theta); */
+	Pose<double> delta_pose(Point<double>(5.0, 0), 0.00);
+
+	/* center of mass calculation */
+	std::vector<Point<double>> trunk_pos;
+	for (auto i : bounding_boxes.bounding_boxes) {
+		Point<double> tmp((i.xmin + i.xmax) / 2, (i.ymin + i.ymax) / 2);
+		trunk_pos.push_back(tmp);
+	}
+
+  (*pfilter).process(trunk_pos, delta_pose);
+
+  last_pose.pos.x = (*msg).pose.pose.position.x;
+  last_pose.pos.y = (*msg).pose.pose.position.x;
+  last_pose.theta = yaw;
 }
 
 void Odometer::boxListener(const darknet_ros_msgs::BoundingBoxesConstPtr& msg)
 {
-	/* center of mass calculation */
-	std::vector<Point<double>> center_of_mass;
-	for (auto i : (*msg).bounding_boxes) {
-		Point<double> tmp((i.xmin + i.xmax) / 2, (i.ymin + i.ymax) / 2);
-		center_of_mass.push_back(tmp);
-	}
-
-	/* compute particle filter estimator */
-	(*pfilter).process(center_of_mass);
+	bounding_boxes = *msg;
 
 #ifdef VISUALIZE
 	/* visual grid publication */
 	sensor_msgs::ImagePtr grid_img =
-	    cv_bridge::CvImage(std_msgs::Header(), "mono8", (*lprocessor).p_map).toImageMsg();
+	    cv_bridge::CvImage(std_msgs::Header(), "mono8", (*lprocessor).p_map)
+	        .toImageMsg();
 	grid_pub.publish(grid_img);
-
 
 	/* particles distribution visualization */
 	sensor_msgs::ImagePtr p_img =

@@ -9,6 +9,8 @@ find_package(catkin REQUIRED
                     roscpp
                     std_msgs
 		    sensor_msgs
+		    nav_msgs
+		    tf
 		    cv_bridge
 		    image_transport
                     estimator

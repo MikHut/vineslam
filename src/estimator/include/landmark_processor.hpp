@@ -11,14 +11,16 @@ class LandmarkProcessor
 {
 public:
 	LandmarkProcessor(const Parameters& params);
-	void process(const std::vector<Point<double>>& poses,
-	             std::vector<Particle<double>>&    particles);
+	void         updatePoses(const std::vector<Point<double>>& poses);
+	void         matchLandmarks();
+	Line<double> projectLine(const Match<double>& m, const Point<double>& delta_p,
+	                         const double& delta_th);
 
 	/* Only for visualization */
-	void plotGrid(const Line<double>& l, const int& color);
-  void plotPMap(Point<double>& p, const int& color);
-  cv::Mat grid;
-  cv::Mat p_map;
+	void    plotGrid(const Line<double>& l, const int& color);
+	void    plotPMap(Point<double>& p, const int& color);
+	cv::Mat grid;
+	cv::Mat p_map;
 
 	std::vector<Match<double>> matches;
 
@@ -30,10 +32,6 @@ private:
 	double x_start;
 	double x_end;
 
-	void         updatePoses(const std::vector<Point<double>>& poses);
-	void         matchLandmarks();
 	Line<double> computeLine(const Point<double>& landmark);
 	Line<double> computeLine(const Point<double>& landmark, const double& phi);
-	Line<double> projectLine(const Match<double>& m, const Point<double>& delta_p,
-	                         const double& delta_th);
 };

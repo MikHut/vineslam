@@ -7,6 +7,9 @@ int main(int argc, char** argv)
 
 	Odometer* odometer = new Odometer();
 
+	ros::Subscriber odom_sub =
+	    nh.subscribe("/husky_velocity_controller/odom", 1000,
+	                 &Odometer::odomListener, odometer);
 	ros::Subscriber box_sub = nh.subscribe("/darknet_ros/bounding_boxes", 1000,
 	                                       &Odometer::boxListener, odometer);
 

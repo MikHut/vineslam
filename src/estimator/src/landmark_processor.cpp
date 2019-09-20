@@ -1,52 +1,11 @@
 #include "../include/landmark_processor.hpp"
 
-#ifdef VISUALIZE
-int color[20] = {190, 180, 170, 160, 150, 140, 130, 120, 110, 100,
-                 90,  80,  70,  60,  50,  40,  30,  20,  10,  0};
-#endif
-
 LandmarkProcessor::LandmarkProcessor(const Parameters& params) : params(params)
 {
 	/* limits of landmark detection imposed by the camera FoV */
-	x_start = tan(PI / 2 - params.v_fov / 2) * params.cam_height * 100;
-	x_end   = TRUNK_SCOPE * 100;
-}
-
-void LandmarkProcessor::process(const std::vector<Point<double>>& poses,
-                                std::vector<Particle<double>>&    particles)
-{
-#ifdef VISUALIZE
-	grid  = cv::Mat(params.resolution * 100, params.resolution * 100, CV_8UC1,
-                 cv::Scalar(255, 255, 255));
-	p_map = cv::Mat(params.resolution * 100, params.resolution * 100, CV_8UC1,
-	                cv::Scalar(255, 255, 255));
-
-	int p = 100;
-#endif
-
-	updatePoses(poses);
-	matchLandmarks();
-
-	for (size_t i = 0; i < particles.size(); i++) {
-		for (size_t j = 0; j < matches.size(); j++) {
-			Line<double> pl = matches[j].p_line;
-			Line<double> cl = matches[j].c_line;
-			Line<double> tmp =
-			    projectLine(matches[j], particles[i].pos, particles[i].theta);
-			    /* projectLine(matches[j], particles[i].pos, 0); */
-			Point<double> X = cl.intercept(tmp);
-
-			particles[i].weight += (X.x > x_start && X.x < x_end);
-
-#ifdef VISUALIZE
-			if (i == p) {
-				plotGrid(matches[j].c_line, color[j]);
-				plotGrid(tmp, color[j]);
-			}
-			plotPMap(X, color[j]);
-#endif
-		}
-	}
+	x_start = tan(PI / 2 - params.v_fov / 2) * params.cam_height;
+	/* x_start = 0; */
+	x_end   = TRUNK_SCOPE;
 }
 
 void LandmarkProcessor::updatePoses(const std::vector<Point<double>>& poses)
@@ -88,8 +47,7 @@ Line<double> LandmarkProcessor::computeLine(const Point<double>& landmark)
 
 		pt.x += sqrt(2) * cos(orientation);
 		pt.y += sqrt(2) * sin(orientation);
-	} while (pt.x > 0 && pt.x < x_end &&
-	         std::fabs(pt.y) < params.resolution * 100 / 2);
+	} while (pt.x > 0 && pt.x < x_end && std::fabs(pt.y) < params.resolution / 2);
 
 	p2 = pt;
 
@@ -102,6 +60,7 @@ Line<double> LandmarkProcessor::computeLine(const Point<double>& landmark,
 	double orientation =
 	    ((params.h_fov / 2) / params.width) * (landmark.x - params.width / 2) +
 	    phi;
+
 	bool p1_flag = false;
 
 	Point<double> pt(0, 0);
@@ -116,8 +75,7 @@ Line<double> LandmarkProcessor::computeLine(const Point<double>& landmark,
 
 		pt.x += sqrt(2) * cos(orientation);
 		pt.y += sqrt(2) * sin(orientation);
-	} while (pt.x > 0 && pt.x < x_end &&
-	         std::fabs(pt.y) < params.resolution * 100 / 2);
+	} while (pt.x > 0 && pt.x < x_end && std::fabs(pt.y) < params.resolution / 2);
 
 	p2 = pt;
 
@@ -129,31 +87,31 @@ Line<double> LandmarkProcessor::projectLine(const Match<double>& m,
                                             const double&        delta_th)
 {
 	/* First rotate the line */
-	Line<double> l = computeLine(m.p_pos, delta_th);
+	Line<double> l = computeLine(m.c_pos, delta_th);
 	/* Then, translate the line */
-	Point<double> p1(l.p1.x + delta_p.x * 100, l.p1.y + delta_p.y * 100);
-	Point<double> p2(l.p2.x + delta_p.x * 100, l.p2.y + delta_p.y * 100);
+	Point<double> p1(l.p1.x + delta_p.x, l.p1.y + delta_p.y);
+	Point<double> p2(l.p2.x + delta_p.x, l.p2.y + delta_p.y);
 
 	return Line<double>(p1, p2);
 }
 
 void LandmarkProcessor::plotGrid(const Line<double>& l, const int& color)
 {
-	Point<double> pt(l.p1.x, params.resolution * 100 / 2);
-	while (pt.x >= 0 && pt.x < x_end && pt.y >= 0 &&
-	       pt.y < params.resolution * 100) {
+	double        x = (l.p1.x >= 0) ? l.p1.x : 0.0;
+	Point<double> pt(x, params.resolution / 2);
+	while (pt.x >= 0 && pt.x < x_end && pt.y >= 0 && pt.y < params.resolution) {
 		pt.x += 1;
-		pt.y = (params.resolution * 100 / 2) - ((l.c - l.a * pt.x) / l.b);
+		pt.y = (params.resolution / 2) - ((l.c - l.a * pt.x) / l.b);
 
-		cv::circle(grid, cv::Point2f(pt.x, pt.y), 1,
+		cv::circle(p_map, cv::Point2f(pt.x, pt.y), 1,
 		           cv::Scalar(color, color / 2, color / 3), 2);
 	}
 }
 
 void LandmarkProcessor::plotPMap(Point<double>& p, const int& color)
 {
-	p.y = params.resolution * 100 / 2 - p.y;
-	if (p.x >= 0 && p.x < x_end && p.y >= 0 && p.y < params.resolution * 100) {
-		cv::circle(p_map, cv::Point2f(p.x, p.y), 5, cv::Scalar(color, 0, 0), 1);
+	p.y = params.resolution / 2 - p.y;
+	if (p.x >= 0.0 && p.x < x_end && p.y >= 0 && p.y < params.resolution) {
+		cv::circle(p_map, cv::Point2f(p.x, p.y), 7, cv::Scalar(color, 0, 0), 3);
 	}
 }

@@ -12,7 +12,7 @@ const float PI     = 3.14159265359;    /* (radians) */
 const float DEGREE = 1.0 * PI / 180.0; /* one radian */
 const float STD_XY = 0.05; /* standard deviation of delta[x,y] (centimeters) */
 const float STD_THETA =
-    0.0001 * PI / 180.0; /* standard deviation of delta_theta (radians) */
+    0.001 * PI / 180.0; /* standard deviation of delta_theta (radians) */
 const float MEAN_X =
     0.1; /* initial mean for delta[x] displacement (centimeters) */
 const float MEAN_Y =
@@ -125,17 +125,25 @@ struct Line
 template <typename T>
 struct Landmark
 {
-	int      id;
-	Point<T> world_pos;
-	Point<T> image_pos;
+	int                   id;
+	Point<T>              world_pos;
+	Point<T>              image_pos;
+	std::vector<Point<T>> unc;
 
 	Landmark() {}
 
-	Landmark(const int& id, const Point<T>& world_pos, const Point<T>& image_pos)
+	Landmark(const int& id, const Point<T>& world_pos, const Point<T>& image_pos,
+	         const std::vector<Point<double>>& unc)
 	{
 		(*this).id        = id;
 		(*this).world_pos = world_pos;
 		(*this).image_pos = image_pos;
+		(*this).unc       = unc;
+	}
+
+	void updateUnc(const std::vector<Point<double>> &unc)
+	{
+		(*this).unc.insert((*this).unc.end(), unc.begin(), unc.end());
 	}
 };
 

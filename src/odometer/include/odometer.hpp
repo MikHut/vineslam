@@ -18,6 +18,7 @@ class Odometer
 {
 public:
 	Odometer();
+  ~Odometer();
 	void boxListener(const darknet_ros_msgs::BoundingBoxesConstPtr& msg);
 	void imageListener(const sensor_msgs::ImageConstPtr& msg);
 	/* void poseListener(const nav_msgs::OdometryConstPtr& msg); */

@@ -29,5 +29,7 @@ int main(int argc, char** argv)
 #endif
 
 	ros::spin();
+
+  delete odometer;
 	return 0;
 }

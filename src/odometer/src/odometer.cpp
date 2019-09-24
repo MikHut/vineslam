@@ -20,6 +20,14 @@ Odometer::Odometer()
 	init = true;
 }
 
+Odometer::~Odometer()
+{
+	for (size_t i = 0; i < (*pfilter).landmarks.size(); i++)
+		std::cout << "Landmark " << i << " is at "
+		          << (*pfilter).landmarks[i].world_pos;
+	std::cout << std::endl;
+}
+
 /* void Odometer::poseListener(const nav_msgs::OdometryConstPtr& msg) */
 void Odometer::poseListener(const geometry_msgs::PoseStampedConstPtr& msg)
 {
@@ -55,12 +63,19 @@ void Odometer::boxListener(const darknet_ros_msgs::BoundingBoxesConstPtr& msg)
 
 #ifdef VISUALIZE /* PointCloud publisher */
 	sensor_msgs::PointCloud pcl;
+	pcl.header = (*msg).header;
 	for (size_t i = 0; i < (*pfilter).landmarks.size(); i++) {
 		geometry_msgs::Point32 m_pos;
 		m_pos.x = (*pfilter).landmarks[i].world_pos.x / 100;
 		m_pos.y = (*pfilter).landmarks[i].world_pos.y / 100;
 
-		pcl.header = (*msg).header;
+		/* for (size_t j = 0; j < (*pfilter).landmarks[i].unc.size(); j++) { */
+		/* 	geometry_msgs::Point32 unc_pos; */
+		/* 	unc_pos.x = (*pfilter).landmarks[i].unc[j].x / 100; */
+		/* 	unc_pos.y = (*pfilter).landmarks[i].unc[j].y / 100; */
+		/* 	pcl.points.push_back(unc_pos); */
+		/* } */
+
 		pcl.points.push_back(m_pos);
 	}
 	pcl_pub.publish(pcl);

@@ -33,6 +33,7 @@ Line<double> LandmarkProcessor::computeLine(const Point<double>& landmark)
 {
 	double orientation =
 	    (params.h_fov / params.width) * (landmark.x - params.width / 2);
+	    /* (params.h_fov / params.width) * (params.width / 2  - landmark.x); */
 	bool p1_flag = false;
 
 	Point<double> pt(0, 0);
@@ -59,6 +60,7 @@ Line<double> LandmarkProcessor::computeLine(const Point<double>& landmark,
 {
 	double orientation =
 	    (params.h_fov / params.width) * (landmark.x - params.width / 2) +
+	    /* (params.h_fov / params.width) * (params.width / 2  - landmark.x); */
 	    phi;
 
 	bool p1_flag = false;

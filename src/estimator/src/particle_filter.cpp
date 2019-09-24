@@ -31,11 +31,6 @@ void ParticleFilter::init()
 void ParticleFilter::process(const std::vector<Point<double>>& landm_pos,
                              const Pose<double>&               delta_pose)
 {
-#ifdef VISUALIZE
-	(*landm_obj).p_map = cv::Mat(params.resolution, params.resolution, CV_8UC1,
-	                             cv::Scalar(255, 255, 255));
-#endif
-
 	predict(landm_pos, delta_pose);
 	updateWeights(delta_pose);
 	resample();
@@ -56,15 +51,11 @@ void ParticleFilter::predict(const std::vector<Point<double>>& landm_pos,
 
 	std::default_random_engine generator;
 
-  std::cout << "m.size(): " << (*landm_obj).matches.size() << std::endl;
-	std::cout << "DELTA POSE" << std::endl;
-	std::cout << delta_pose << std::endl;
-
-	std::vector<Point<double>> res;
 	for (size_t i = 0; i < (*landm_obj).matches.size(); i++) {
-		Match<double> m = (*landm_obj).matches[i];
-		(*landm_obj).plotGrid(m.p_line, i * 30);
-		Point<double> avg(0, 0);
+		Match<double>              m = (*landm_obj).matches[i];
+		Point<double>              avg(0, 0);
+		std::vector<Point<double>> all_res;
+
 		for (size_t j = 0; j < particles.size(); j++) {
 			/* add gaussian noise to each particle centered on the displacement
 			 * measurement */
@@ -76,55 +67,35 @@ void ParticleFilter::predict(const std::vector<Point<double>>& landm_pos,
 			p.theta            = 0;
 
 			Line<double>  pl  = m.p_line;
-			Line<double>  cl  = m.c_line;
 			Line<double>  tmp = (*landm_obj).projectLine(m, p.pos, p.theta);
 			Point<double> X   = pl.intercept(tmp);
 
-			if (i == 0 && j == 0) {
-				std::cout << "PREV_POS: " << m.p_pos;
-				std::cout << "PREV_INC: " << m.p_line.a / m.p_line.b << std::endl;
-				std::cout << "CURR_POS: " << m.c_pos;
-				std::cout << "CURR_INC: " << m.c_line.a / m.c_line.b << std::endl;
-				std::cout << "PROJ_INC: " << tmp.a / tmp.b << std::endl;
-			}
-
 			/* calculate trunk average position estimation */
-			avg = (X + (avg * j)) / (j + 1);
-
-#ifdef VISUALIZE
-			(*landm_obj).plotPMap(X, 200);
-#endif
+			if (X.x > 0 && X.x < 750) {
+				all_res.push_back(X);
+				avg = (X + (avg * j)) / (j + 1);
+			}
 		}
-		Point<double> p = prev_pose.pos + avg;
-		res.push_back(p);
 
-		if (i == 0)
-			std::cout << "INTERCEPTION: " << avg;
-	}
-
-	for (size_t i = 0; i < (*landm_obj).matches.size(); i++) {
-		bool   was_found = false;
-		size_t j;
-		for (j = 0; j < landmarks.size(); j++) {
-			if ((*landm_obj).matches[i].p_pos.euc_dist(landmarks[j].image_pos) <
-			    40.0) {
+		Point<double> p         = prev_pose.pos + avg;
+		bool          was_found = false;
+		size_t        k;
+		for (k = 0; k < landmarks.size(); k++) {
+			if ((*landm_obj).matches[i].p_pos.euc_dist(landmarks[k].image_pos) <
+			    10.0) {
 				was_found = true;
 				break;
 			}
 		}
 		if (was_found == true) {
-			landmarks[j].image_pos = (*landm_obj).matches[i].c_pos;
-			landmarks[j].world_pos = (landmarks[j].world_pos + res[i]) / 2;
+			landmarks[k].image_pos = (*landm_obj).matches[i].c_pos;
+			landmarks[k].world_pos = (landmarks[k].world_pos + p) / 2;
+			landmarks[k].updateUnc(all_res);
 		}
-		else {
-			Point<double> l_pos = res[i];
-			landmarks.push_back(Landmark<double>(landmarks.size(), l_pos,
-			                                     (*landm_obj).matches[i].c_pos));
-		}
+		else
+			landmarks.push_back(Landmark<double>(
+			    landmarks.size(), p, (*landm_obj).matches[i].c_pos, all_res));
 	}
-	std::cout << "land.size(): " << landmarks.size() << std::endl;
-	std::cout << std::endl << " ------ " << std::endl << std::endl;
-
 }
 
 void ParticleFilter::updateWeights(const Pose<double>& delta_pose)

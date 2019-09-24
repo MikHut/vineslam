@@ -32,7 +32,7 @@ void LandmarkProcessor::matchLandmarks()
 Line<double> LandmarkProcessor::computeLine(const Point<double>& landmark)
 {
 	double orientation =
-	    ((params.h_fov / 2) / params.width) * (landmark.x - params.width / 2);
+	    (params.h_fov / params.width) * (landmark.x - params.width / 2);
 	bool p1_flag = false;
 
 	Point<double> pt(0, 0);
@@ -58,7 +58,7 @@ Line<double> LandmarkProcessor::computeLine(const Point<double>& landmark,
                                             const double&        phi)
 {
 	double orientation =
-	    ((params.h_fov / 2) / params.width) * (landmark.x - params.width / 2) +
+	    (params.h_fov / params.width) * (landmark.x - params.width / 2) +
 	    phi;
 
 	bool p1_flag = false;
@@ -90,9 +90,8 @@ Line<double> LandmarkProcessor::projectLine(const Match<double>& m,
 	Line<double> l = computeLine(m.c_pos, delta_th);
 	/* Then, translate the line */
 	Point<double> p1(l.p1.x + delta_p.x, l.p1.y + delta_p.y);
-	Point<double> p2(l.p2.x + delta_p.x, l.p2.y + delta_p.y);
 
-	return Line<double>(p1, p2);
+	return Line<double>(p1, l.p2);
 }
 
 void LandmarkProcessor::plotGrid(const Line<double>& l, const int& color)

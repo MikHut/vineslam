@@ -8,53 +8,67 @@ Odometer::Odometer()
 	loadParameters(local_nh);
 
 #ifdef VISUALIZE
-	last_grid = cv::Mat((*params).resolution * 100, (*params).resolution * 100,
-	                    CV_8UC1, cv::Scalar(255, 255, 255));
-	p_image   = cv::Mat((*params).width, (*params).height, CV_8UC1,
-                    cv::Scalar(255, 255, 255));
-	c_image   = p_image;
+	p_image = cv::Mat((*params).width, (*params).height, CV_8UC1,
+	                  cv::Scalar(255, 255, 255));
+	c_image = p_image;
 #endif
-
-	last_pose.pos.x = 0.0;
-	last_pose.pos.y = 0.0;
-	last_pose.theta = 0.0;
 
 	pfilter    = new ParticleFilter(*params);
 	lprocessor = (*pfilter).landm_obj;
 
 	(*pfilter).init();
-  std::cout << "end init()" << std::endl;
+	init = true;
 }
 
-void Odometer::odomListener(const nav_msgs::OdometryConstPtr& msg)
+/* void Odometer::poseListener(const nav_msgs::OdometryConstPtr& msg) */
+void Odometer::poseListener(const geometry_msgs::PoseStampedConstPtr& msg)
 {
-	tf::Pose pose;
-	tf::poseMsgToTF((*msg).pose.pose, pose);
-	double yaw = tf::getYaw(pose.getRotation());
-
-	Point<double> pt((*msg).pose.pose.position.x - last_pose.pos.x,
-	                 (*msg).pose.pose.position.y - last_pose.pos.y);
-
-	/* Pose<double> delta_pose(pt, yaw - last_delta_pose.theta); */
-	Pose<double> delta_pose(Point<double>(5.0, 0), 0.00);
-
-	/* center of mass calculation */
-	std::vector<Point<double>> trunk_pos;
-	for (auto i : bounding_boxes.bounding_boxes) {
-		Point<double> tmp((i.xmin + i.xmax) / 2, (i.ymin + i.ymax) / 2);
-		trunk_pos.push_back(tmp);
-	}
-
-  (*pfilter).process(trunk_pos, delta_pose);
-
-  last_pose.pos.x = (*msg).pose.pose.position.x;
-  last_pose.pos.y = (*msg).pose.pose.position.x;
-  last_pose.theta = yaw;
+	slam_pose = (*msg).pose;
 }
 
 void Odometer::boxListener(const darknet_ros_msgs::BoundingBoxesConstPtr& msg)
 {
-	bounding_boxes = *msg;
+	tf::Pose pose;
+	tf::poseMsgToTF(slam_pose, pose);
+	double yaw = tf::getYaw(pose.getRotation());
+
+	Pose<double> delta_pose;
+	if (init == false) {
+		Point<double> pt((slam_pose.position.x - last_pose.pos.x) * 100,
+		                 (slam_pose.position.y - last_pose.pos.y) * 100);
+		delta_pose = Pose<double>(pt, yaw - last_pose.theta);
+	}
+	else {
+		init       = false;
+		delta_pose = Pose<double>(Point<double>(MEAN_X, MEAN_Y), MEAN_THETA);
+	}
+
+	/* trunks center of mass calculation */
+	std::vector<Point<double>> trunk_pos;
+	for (auto i : (*msg).bounding_boxes) {
+		Point<double> tmp((i.xmin + i.xmax) / 2, (i.ymin + i.ymax) / 2);
+		trunk_pos.push_back(tmp);
+	}
+
+	if (delta_pose.pos.x > 0.0 && delta_pose.pos.y > 0.0)
+		(*pfilter).process(trunk_pos, delta_pose);
+
+#ifdef VISUALIZE /* PointCloud publisher */
+	sensor_msgs::PointCloud pcl;
+	for (size_t i = 0; i < (*pfilter).landmarks.size(); i++) {
+		geometry_msgs::Point32 m_pos;
+		m_pos.x = (*pfilter).landmarks[i].world_pos.x / 100;
+		m_pos.y = (*pfilter).landmarks[i].world_pos.y / 100;
+
+		pcl.header = (*msg).header;
+		pcl.points.push_back(m_pos);
+	}
+	pcl_pub.publish(pcl);
+#endif
+
+	last_pose.pos.x = slam_pose.position.x;
+	last_pose.pos.y = slam_pose.position.y;
+	last_pose.theta = yaw;
 
 #ifdef VISUALIZE
 	/* visual grid publication */

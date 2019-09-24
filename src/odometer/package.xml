@@ -15,6 +15,7 @@
   <build_depend>image_transport</build_depend>
   <build_depend>estimator</build_depend>
   <build_depend>nav_msgs</build_depend>
+  <build_depend>geometry_msgs</build_depend>
   <build_depend>tf</build_depend>
   <build_depend>darknet_ros_msgs</build_depend>
   <exec_depend>roscpp</exec_depend>
@@ -23,6 +24,7 @@
   <exec_depend>image_transport</exec_depend>
   <exec_depend>estimator</exec_depend>
   <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>darknet_ros_msgs</exec_depend>
   <exec_depend>tf</exec_depend>
 

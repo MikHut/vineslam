@@ -10,9 +10,14 @@ const float TRUNK_SCOPE =
     7.5 * 100; /* maximum distance of trunk detection (centimeters) */
 const float PI     = 3.14159265359;    /* (radians) */
 const float DEGREE = 1.0 * PI / 180.0; /* one radian */
-const float STD_XY = 0.1333; /* standard deviation of delta[x,y] (centimeters) */
+const float STD_XY = 0.05; /* standard deviation of delta[x,y] (centimeters) */
 const float STD_THETA =
-    2.0 * PI / 180.0; /* standard deviation of delta_theta (radians) */
+    0.0001 * PI / 180.0; /* standard deviation of delta_theta (radians) */
+const float MEAN_X =
+    0.1; /* initial mean for delta[x] displacement (centimeters) */
+const float MEAN_Y =
+    0.0; /* initial mean for delta[y] displacement (centimeters) */
+const float MEAN_THETA = 0.0; /*initial mean for delta_theta (radians) */
 
 struct Parameters
 {
@@ -64,13 +69,6 @@ struct Point
 };
 
 template <typename T>
-std::ostream& operator<<(std::ostream& o, const Point<T>& pt)
-{
-	o << "[x,y] = [" << pt.x << "," << pt.y << "]" << std::endl;
-	return o;
-}
-
-template <typename T>
 struct Pose
 {
 	Point<T> pos;
@@ -84,14 +82,6 @@ struct Pose
 		(*this).theta = theta;
 	}
 };
-
-template <typename T>
-std::ostream& operator<<(std::ostream& o, const Pose<T>& p)
-{
-	o << "[x,y,theta] = [" << p.pos.x << "," << p.pos.y << "," << p.yaw << "]"
-	  << std::endl;
-	return o;
-}
 
 template <typename T>
 struct Line
@@ -133,30 +123,19 @@ struct Line
 };
 
 template <typename T>
-std::ostream& operator<<(std::ostream& o, const Line<T>& l)
-{
-	o << l.a << " * x + " << l.b << " * y = " << l.c << std::endl;
-	return o;
-}
-
-template <typename T>
 struct Landmark
 {
-	int                   id;
-	std::vector<Point<T>> pos;
+	int      id;
+	Point<T> world_pos;
+	Point<T> image_pos;
 
 	Landmark() {}
 
-	Landmark(const int& id, const std::vector<Point<T>>& pos)
+	Landmark(const int& id, const Point<T>& world_pos, const Point<T>& image_pos)
 	{
-		(*this).id  = id;
-		(*this).pos = pos;
-	}
-
-	Landmark(const std::vector<Point<T>>& pos)
-	{
-		(*this).id  = 0;
-		(*this).pos = pos;
+		(*this).id        = id;
+		(*this).world_pos = world_pos;
+		(*this).image_pos = image_pos;
 	}
 };
 
@@ -167,8 +146,6 @@ struct Match
 	Point<T> c_pos;
 	Line<T>  p_line;
 	Line<T>  c_line;
-
-	Landmark<T> l;
 
 	Match() {}
 
@@ -202,10 +179,83 @@ struct Particle
 	}
 };
 
+/* ----- operators ----- */
+
+template <typename T1, typename T2>
+Point<T1> operator+(const Point<T1>& p1, const Point<T2>& p2)
+{
+	return Point<T1>(p1.x + p2.x, p1.y + p2.y);
+}
+
+template <typename T1, typename T2>
+Point<T1> operator-(const Point<T1>& p1, const Point<T2>& p2)
+{
+	return Point<T1>(p1.x - p2.x, p1.y - p2.y);
+}
+
+template <typename T1, typename T2>
+Point<T1> operator/(const Point<T1>& p1, const Point<T2>& p2)
+{
+	return Point<T1>(p1.x / p2.x, p1.y / p2.y);
+}
+
+template <typename T1, typename T2>
+Point<T1> operator/(const Point<T1>& p1, const T2& c)
+{
+	return Point<T1>(p1.x / c, p1.y / c);
+}
+
+template <typename T1, typename T2>
+Point<T1> operator*(const Point<T1>& p1, const Point<T2>& p2)
+{
+	return Point<T1>(p1.x * p2.x, p1.y * p2.y);
+}
+
+template <typename T1, typename T2>
+Point<T1> operator*(const Point<T1>& p1, const T2& c)
+{
+	return Point<T1>(p1.x * c, p1.y * c);
+}
+
+template <typename T1, typename T2>
+bool operator==(const Point<T1>& p1, const Point<T2>& p2)
+{
+	return (p1.x == p2.x) && (p1.y == p2.y);
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream& o, const Point<T>& pt)
+{
+	o << "[x,y] = [" << pt.x << "," << pt.y << "]" << std::endl;
+	return o;
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream& o, const Line<T>& l)
+{
+	o << l.a << " * x + " << l.b << " * y = " << l.c << std::endl;
+	return o;
+}
+
 template <typename T>
 std::ostream& operator<<(std::ostream& o, const Particle<T>& p)
 {
 	o << "(" << p.id << ") - " << p.pos << "theta = " << p.theta
 	  << "\nweight = " << p.weight << std::endl;
+	return o;
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream& o, const Pose<T>& p)
+{
+	o << "[x,y,theta] = [" << p.pos.x << "," << p.pos.y << "," << p.theta << "]"
+	  << std::endl;
+	return o;
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream& o, const Landmark<T>& l)
+{
+	o << "[x,y] = [" << l.pos.x << "," << l.pos.y << "]" << std::endl;
 	return o;
 }

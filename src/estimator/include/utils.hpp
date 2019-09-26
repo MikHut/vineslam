@@ -10,9 +10,10 @@ const float TRUNK_SCOPE =
     7.5 * 100; /* maximum distance of trunk detection (centimeters) */
 const float PI     = 3.14159265359;    /* (radians) */
 const float DEGREE = 1.0 * PI / 180.0; /* one radian */
-const float STD_XY = 0.05; /* standard deviation of delta[x,y] (centimeters) */
+const float STD_X = 0.05; /* standard deviation of delta[x] (centimeters) */
+const float STD_Y = 0.005; /* standard deviation of delta[y] (centimeters) */
 const float STD_THETA =
-    0.001 * PI / 180.0; /* standard deviation of delta_theta (radians) */
+    0.0001 * PI / 180.0; /* standard deviation of delta_theta (radians) */
 const float MEAN_X =
     0.1; /* initial mean for delta[x] displacement (centimeters) */
 const float MEAN_Y =
@@ -111,7 +112,7 @@ struct Line
 		Line<T> l1  = *this;
 		double  det = l1.a * l2.b - l2.a * l1.b;
 
-		if (det == 0)
+		if (std::fabs(det) < 1e-3)
 			return Point<T>(INF, INF);
 		else {
 			double x = (l2.b * l1.c - l1.b * l2.c) / det;
@@ -141,7 +142,7 @@ struct Landmark
 		(*this).unc       = unc;
 	}
 
-	void updateUnc(const std::vector<Point<double>> &unc)
+	void updateUnc(const std::vector<Point<double>>& unc)
 	{
 		(*this).unc.insert((*this).unc.end(), unc.begin(), unc.end());
 	}

@@ -58,7 +58,7 @@ void Odometer::boxListener(const darknet_ros_msgs::BoundingBoxesConstPtr& msg)
 		trunk_pos.push_back(tmp);
 	}
 
-	if (delta_pose.pos.x > 0.0 && delta_pose.pos.y > 0.0)
+	if (std::fabs(delta_pose.pos.x) > 0.0 && std::fabs(delta_pose.pos.y) > 0.0)
 		(*pfilter).process(trunk_pos, delta_pose);
 
 #ifdef VISUALIZE /* PointCloud publisher */
@@ -69,12 +69,12 @@ void Odometer::boxListener(const darknet_ros_msgs::BoundingBoxesConstPtr& msg)
 		m_pos.x = (*pfilter).landmarks[i].world_pos.x / 100;
 		m_pos.y = (*pfilter).landmarks[i].world_pos.y / 100;
 
-		/* for (size_t j = 0; j < (*pfilter).landmarks[i].unc.size(); j++) { */
-		/* 	geometry_msgs::Point32 unc_pos; */
-		/* 	unc_pos.x = (*pfilter).landmarks[i].unc[j].x / 100; */
-		/* 	unc_pos.y = (*pfilter).landmarks[i].unc[j].y / 100; */
-		/* 	pcl.points.push_back(unc_pos); */
-		/* } */
+		for (size_t j = 0; j < (*pfilter).landmarks[i].unc.size(); j++) {
+			geometry_msgs::Point32 unc_pos;
+			unc_pos.x = (*pfilter).landmarks[i].unc[j].x / 100;
+			unc_pos.y = (*pfilter).landmarks[i].unc[j].y / 100;
+			pcl.points.push_back(unc_pos);
+		}
 
 		pcl.points.push_back(m_pos);
 	}

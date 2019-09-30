@@ -1,4 +1,7 @@
 #include "../include/odometer.hpp"
+#include <fstream>
+
+std::ofstream file;
 
 Odometer::Odometer()
 {
@@ -18,6 +21,8 @@ Odometer::Odometer()
 
 	(*pfilter).init();
 	init = true;
+
+	file.open("/home/andre/data.csv");
 }
 
 Odometer::~Odometer()
@@ -26,6 +31,7 @@ Odometer::~Odometer()
 		std::cout << "Landmark " << i << " is at "
 		          << (*pfilter).landmarks[i].world_pos;
 	std::cout << std::endl;
+  file.close();
 }
 
 /* void Odometer::poseListener(const nav_msgs::OdometryConstPtr& msg) */
@@ -58,8 +64,17 @@ void Odometer::boxListener(const darknet_ros_msgs::BoundingBoxesConstPtr& msg)
 		trunk_pos.push_back(tmp);
 	}
 
-	if (std::fabs(delta_pose.pos.x) > 0.0 && std::fabs(delta_pose.pos.y) > 0.0)
+	if (std::fabs(delta_pose.pos.x) > 0.0 && std::fabs(delta_pose.pos.y) > 0.0) {
 		(*pfilter).process(trunk_pos, delta_pose);
+		for (size_t i = 0; i < (*lprocessor).matches.size(); i++) {
+			file << (*lprocessor).matches[i].p_pos.x << ","
+			     << (*lprocessor).matches[i].p_pos.y << ","
+			     << (*lprocessor).matches[i].c_pos.x << ","
+			     << (*lprocessor).matches[i].c_pos.y << ","
+			     << "," << delta_pose.pos.x << "," << delta_pose.pos.y << ","
+			     << delta_pose.theta << "\n";
+		}
+	}
 
 
 #ifdef VISUALIZE /* PointCloud publisher */

@@ -59,8 +59,9 @@ Line<double> LandmarkProcessor::projectLine(const Match<double>& m,
 	Line<double> l = computeLine(m.c_pos, delta_th);
 	/* Then, translate the line */
 	Point<double> p1 = l.p1 + delta_p;
+	Point<double> p2 = l.p2 + delta_p;
 
-	return Line<double>(p1, l.p2);
+	return Line<double>(p1, p2);
 }
 
 void LandmarkProcessor::plotGrid(const Line<double>& l, const int& color)

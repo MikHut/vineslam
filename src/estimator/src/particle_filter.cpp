@@ -40,6 +40,8 @@ void ParticleFilter::process(const std::vector<Point<double>>& landm_pos,
 	updateWeights(delta_pose);
 	resample();
 
+  std::cout << "PREV_POS: " << prev_pose.pos;
+
 	prev_pose.pos = prev_pose.pos + delta_pose.pos;
 	prev_pose.theta += delta_pose.theta;
 }

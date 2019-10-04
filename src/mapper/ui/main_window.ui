@@ -69,12 +69,15 @@
           <property name="alignment">
            <set>Qt::AlignCenter</set>
           </property>
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
          </widget>
         </item>
         <item>
-         <widget class="QLabel" name="log">
-          <property name="text">
-           <string/>
+         <widget class="QPlainTextEdit" name="log">
+          <property name="textInteractionFlags">
+           <set>Qt::NoTextInteraction</set>
           </property>
          </widget>
         </item>

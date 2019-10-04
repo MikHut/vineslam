@@ -2,9 +2,6 @@
 
 LandmarkProcessor::LandmarkProcessor(const Parameters& params) : params(params)
 {
-	/* limits of landmark detection imposed by the camera FoV */
-	x_start = tan(PI / 2 - params.v_fov / 2) * params.cam_height;
-	x_end   = TRUNK_SCOPE;
 }
 
 void LandmarkProcessor::updatePoses(const std::vector<Point<double>>& poses)
@@ -78,25 +75,4 @@ Line<double> LandmarkProcessor::projectLine(const Point<double>& pos,
 	Point<double> p2 = l.p2 + delta_p;
 
 	return Line<double>(p1, p2);
-}
-
-void LandmarkProcessor::plotGrid(const Line<double>& l, const int& color)
-{
-	double        x = (l.p1.x >= 0) ? l.p1.x : 0.0;
-	Point<double> pt(x, params.resolution / 2);
-	while (pt.x >= 0 && pt.x < x_end && pt.y >= 0 && pt.y < params.resolution) {
-		pt.x += 1;
-		pt.y = ((l.c - l.a * pt.x) / l.b) + (params.resolution / 2);
-
-		cv::circle(p_map, cv::Point2f(pt.x, pt.y), 1,
-		           cv::Scalar(color, color / 2, color / 3), 2);
-	}
-}
-
-void LandmarkProcessor::plotPMap(Point<double>& p, const int& color)
-{
-	p.y = p.y + params.resolution / 2;
-	if (p.x >= 0.0 && p.x < x_end && p.y >= 0 && p.y < params.resolution) {
-		cv::circle(p_map, cv::Point2f(p.x, p.y), 7, cv::Scalar(color, 0, 0), 3);
-	}
 }

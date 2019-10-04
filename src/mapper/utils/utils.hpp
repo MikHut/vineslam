@@ -22,25 +22,25 @@ const float MEAN_THETA = 0.0; /*initial mean for delta_theta (radians) */
 
 struct Parameters
 {
-	double h_fov;      /* Camera horizontal field of view */
-	double v_fov;      /* Camera vertical field of view */
-	double cam_height; /* Camera height (centimenters) */
-	int    width;      /* Image width. */
-	int    height;     /* Image height */
-	int    resolution; /* Grid resolution =  (resolution, resolution) cm */
-	int    match_box;  /* Search box diagonal size */
-	int    rate;       /* Frequency (in frames) of landmark position estimation */
+	double h_fov;         /* Camera horizontal field of view */
+	double v_fov;         /* Camera vertical field of view */
+	double cam_height;    /* Camera height (centimenters) */
+	int    width;         /* Image width. */
+	int    height;        /* Image height */
+	int    match_box;     /* Search box diagonal size */
+	int    filter_window; /* Dimension of the window of the robot pose filter */
+	int    mapper_inc;    /* Increment between frames to use in the mapper */
 
 	Parameters()
 	{
-		h_fov      = PI / 4;
-		v_fov      = PI / 4;
-		cam_height = 100.0;
-		width      = 1280;
-		height     = 960;
-		resolution = 1000;
-		match_box  = 10;
-		rate       = 10;
+		h_fov         = PI / 4;
+		v_fov         = PI / 4;
+		cam_height    = 100.0;
+		width         = 1280;
+		height        = 960;
+		match_box     = 10;
+		filter_window = 5;
+		mapper_inc    = 20;
 	}
 };
 

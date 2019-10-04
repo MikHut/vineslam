@@ -1,30 +1,29 @@
 #pragma once
 
-#include "landmark_processor.hpp"
 #include "../../utils/utils.hpp"
+#include "landmark_processor.hpp"
 #include <iostream>
 #include <math.h>
 
-class ParticleFilter
+class Estimator
 {
 public:
-	ParticleFilter(const Parameters& params);
+	Estimator(const Parameters& params);
 	void init();
-	void process(const std::vector<Point<double>>& poses,
-	             const Pose<double>&               delta_pose);
 
-	LandmarkProcessor*            landm_obj;
-	std::vector<Particle<double>> particles;
-	cv::Mat                       box;
-	std::vector<Point<double>>    all_sols;
+	std::vector<Point<double>> all_sols;
+	void process(const std::vector<Landmark<double>>& landmarks,
+	             const std::vector<Pose<double>>&     robot_poses);
+
+	cv::Mat map;
 
 private:
+	void filterXYTheta(const std::vector<Pose<double>> robot_poses,
+	                   std::vector<Pose<double>>&      filtered_poses);
+  void drawMap(const std::vector<Pose<double>>& poses);
 	void predict(const std::vector<Point<double>>& landm_pos,
 	             const Pose<double>&               delta_pose);
-	void updateWeights(const Pose<double>& delta_pose);
-	void resample();
 
-	Parameters          params;
-	Pose<double>        prev_pose;
-	std::vector<double> weights;
+	Parameters   params;
+	Pose<double> prev_pose;
 };

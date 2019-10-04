@@ -10,15 +10,13 @@
   <!-- nodes -->
   <!-- <node name="republish" type="republish" pkg="image_transport" output="screen" -->
   <!--   args="compressed in:=/image_raw raw out:=/image_raw" /> -->
-  <node pkg="tf" type="static_transform_publisher" name="det_to_map" args="0 0 0 0 0 0 1
-    detection map 100" />
   <node pkg="rosbag" type="play" name="darknet_bag" args="--clock $(arg bag_path)"/>  
   <node pkg="mapper" type="mapper_node" name="mapper" output="screen">
     <param name="img_width"  value="1292"/>
     <param name="img_height" value="964"/>
-    <param name="grid_resolution" value="1000"/>
     <param name="match_box" value="25"/>
-    <param name="rate" value="10"/>
+    <param name="filter_window" value="5"/>
+    <param name="mapper_inc" value="20"/>
   </node>
 
 </launch>

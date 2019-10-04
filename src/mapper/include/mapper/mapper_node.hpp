@@ -5,6 +5,7 @@
 #include <ros/ros.h>
 #endif
 #include "landmark_processor.hpp"
+#include "mapper.hpp"
 #include <darknet_ros_msgs/BoundingBox.h>
 #include <darknet_ros_msgs/BoundingBoxes.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -19,7 +20,10 @@ public:
 	virtual ~Mapper() {}
 	void run();
 	void rosCommsInit();
-  void retrieveLog(std::string& log);
+	void retrieveLog(std::string& log);
+	void constructMap();
+
+	const cv::Mat exportMap();
 
 private:
 	void boxListener(const darknet_ros_msgs::BoundingBoxesConstPtr& msg);
@@ -29,12 +33,14 @@ private:
 
 	bool init;
 
-	Pose<double> last_pose;
+	Pose<double>              last_pose;
+	std::vector<Pose<double>> all_poses;
 
 	std_msgs::Header                scan_header;
 	geometry_msgs::Pose             slam_pose;
 	darknet_ros_msgs::BoundingBoxes bounding_boxes;
 
+	Estimator*         estimator;
 	LandmarkProcessor* lprocessor;
 	Parameters*        params;
 
@@ -49,11 +55,12 @@ private:
 	void loadParameters(const ros::NodeHandle& local_nh)
 	{
 		/* read launch file parameters */
-		local_nh.getParam("/odometer/h_fov", (*params).h_fov);
-		local_nh.getParam("/odometer/v_fov", (*params).v_fov);
-		local_nh.getParam("/odometer/img_width", (*params).width);
-		local_nh.getParam("/odometer/img_height", (*params).height);
-		local_nh.getParam("/odometer/grid_resolution", (*params).resolution);
-		local_nh.getParam("/odometer/match_box", (*params).match_box);
+		local_nh.getParam("/mapper/h_fov", (*params).h_fov);
+		local_nh.getParam("/mapper/v_fov", (*params).v_fov);
+		local_nh.getParam("/mapper/img_width", (*params).width);
+		local_nh.getParam("/mapper/img_height", (*params).height);
+		local_nh.getParam("/mapper/match_box", (*params).match_box);
+		local_nh.getParam("/mapper/filter_window", (*params).filter_window);
+		local_nh.getParam("/mapper/mapper_inc", (*params).mapper_inc);
 	}
 };

@@ -7,6 +7,9 @@
 #include <QStringListModel>
 #include <QThread>
 #include <geometry_msgs/Twist.h>
+#include <opencv2/core.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 #include <std_msgs/Int64.h>
 #include <string>
 
@@ -27,8 +30,10 @@ public:
 	/*! - initializes the ROS connection using the class contructor parameters */
 	bool init();
 
-  virtual void run() = 0;
-  virtual void retrieveLog(std::string &log) = 0;
+	virtual void          run()                         = 0;
+	virtual void          retrieveLog(std::string& log) = 0;
+	virtual void          constructMap()                = 0;
+	virtual const cv::Mat exportMap()                   = 0;
 
 	const std::string node_name;
 
@@ -37,8 +42,8 @@ Q_SIGNALS:
 	void rosShutdown();
 
 protected:
-	int               init_argc;
-	char**            init_argv;
+	int    init_argc;
+	char** init_argv;
 
-  virtual void rosCommsInit() = 0;
+	virtual void rosCommsInit() = 0;
 };

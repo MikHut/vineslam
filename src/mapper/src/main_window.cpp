@@ -15,11 +15,17 @@ void MainWindow::on_init_clicked()
 	(*qnode).init();
 }
 
-void MainWindow::on_draw_map_clicked() 
+void MainWindow::on_draw_map_clicked()
 {
-  std::string text;
-  (*qnode).retrieveLog(text);
-  ui.log->setText(QString::fromUtf8(text.c_str()));
+	std::string text;
+	(*qnode).retrieveLog(text);
+	ui.log->insertPlainText(QString::fromUtf8(text.c_str()));
+
+	(*qnode).constructMap();
+	cv::Mat map = (*qnode).exportMap();
+
+	QImage qmap = QImage(map.data, map.cols, map.rows, QImage::Format_RGB32);
+	ui.map->setPixmap(QPixmap::fromImage(qmap));
 }
 
 MainWindow::~MainWindow()

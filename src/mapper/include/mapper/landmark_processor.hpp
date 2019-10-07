@@ -12,7 +12,7 @@ class LandmarkProcessor
 public:
 	LandmarkProcessor(const Parameters& params);
 	void         updatePoses(const std::vector<Point<double>>& poses);
-	void         matchLandmarks(const Pose<double>& robot_pose);
+	void         matchLandmarks(const int& iter);
 	Line<double> projectLine(const Point<double>& pos,
 	                         const Point<double>& delta_p,
 	                         const double&        delta_th);

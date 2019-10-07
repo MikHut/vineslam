@@ -138,9 +138,7 @@ struct Landmark
 	int                   id;
 	Point<T>              world_pos;
 	std::vector<Point<T>> image_pos;
-
-	/* robot pose for each observation of the landmark */
-	std::vector<Pose<T>> r_pose;
+	std::vector<int>      ptr;
 
 	Landmark() {}
 

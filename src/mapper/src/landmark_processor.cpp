@@ -10,7 +10,7 @@ void LandmarkProcessor::updatePoses(const std::vector<Point<double>>& poses)
 	lc_pose = poses;
 }
 
-void LandmarkProcessor::matchLandmarks(const Pose<double>& robot_pose)
+void LandmarkProcessor::matchLandmarks(const int& iter)
 {
 	matches.clear();
 	bool was_found;
@@ -18,16 +18,18 @@ void LandmarkProcessor::matchLandmarks(const Pose<double>& robot_pose)
 	for (size_t i = 0; i < lc_pose.size(); i++) {
 		was_found = false;
 		for (size_t j = 0; j < landmarks.size(); j++) {
-			int           n      = landmarks[j].image_pos.size() - 1;
-			Point<double> p_pose = landmarks[j].image_pos[n];
+			int           n         = landmarks[j].image_pos.size() - 1;
+			int           last_iter = landmarks[j].ptr[n];
+			Point<double> p_pose    = landmarks[j].image_pos[n];
 
-			if (std::fabs(lc_pose[i].x - p_pose.x) < params.match_box) {
+			if (std::fabs(lc_pose[i].x - p_pose.x) < params.match_box &&
+			    iter - last_iter <= 5) {
 				Line<double> lp_line = computeLine(p_pose);
 				Line<double> lc_line = computeLine(lc_pose[i]);
 
 				matches.push_back(Match<double>(p_pose, lc_pose[i], lp_line, lc_line));
 				landmarks[j].image_pos.push_back(lc_pose[i]);
-				landmarks[j].r_pose.push_back(robot_pose);
+				landmarks[j].ptr.push_back(iter);
 
 				was_found = true;
 				break;
@@ -36,7 +38,7 @@ void LandmarkProcessor::matchLandmarks(const Pose<double>& robot_pose)
 
 		if (was_found == false) {
 			landmarks.push_back(Landmark<double>(landmarks.size(), lc_pose[i]));
-			landmarks[landmarks.size() - 1].r_pose.push_back(robot_pose);
+			landmarks[landmarks.size() - 1].ptr.push_back(iter);
 		}
 	}
 }
@@ -47,7 +49,7 @@ Line<double> LandmarkProcessor::computeLine(const Point<double>& landmark)
 	    -(params.h_fov / params.width) * (params.width / 2 - landmark.x);
 
 	Point<double> p1(0, 0);
-	Point<double> p2(20 * cos(orientation), 20 * sin(orientation));
+	Point<double> p2(500 * cos(orientation), 500 * sin(orientation));
 
 	return Line<double>(p1, p2);
 }
@@ -59,7 +61,7 @@ Line<double> LandmarkProcessor::computeLine(const Point<double>& landmark,
 	    -(params.h_fov / params.width) * (params.width / 2 - landmark.x);
 
 	Point<double> p1(0, 0);
-	Point<double> p2(20 * cos(orientation - phi), 20 * sin(orientation - phi));
+	Point<double> p2(500 * cos(orientation - phi), 500 * sin(orientation - phi));
 
 	return Line<double>(p1, p2);
 }

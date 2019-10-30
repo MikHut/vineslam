@@ -1,7 +1,0 @@
-classes= 81
-train  = /home/romovi/yolo_detection/Yolo-Annotation-Tool/trainvalno5k.txt
-valid = /home/romovi/yolo_detection/Yolo-Annotation-Tool/5k.txt
-names = cfg/forest-coco.names
-backup = forest/
-
-

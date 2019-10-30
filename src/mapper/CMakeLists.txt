@@ -5,15 +5,15 @@ add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED
 		    qt_build
-                    roscpp
+		    edgetpu_cpp 
+		    roscpp
                     std_msgs
 		    sensor_msgs
 		    geometry_msgs
 		    nav_msgs
 		    tf
 		    cv_bridge
-		    image_transport
-                    darknet_ros_msgs)
+		    image_transport)
 
 find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets)
 
@@ -24,9 +24,13 @@ set(CMAKE_AUTOMOC ON)
 
 catkin_package()
 
+include_directories(${CMAKE_SOURCE_DIR}/edgetpu_cpp/dep/libedgetpu)
+include_directories(benchmark /usr/local/include/benchmark)
+
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  ${edgetpu_cpp_INCLUDE_DIRS}
 )
 
 SET(${PROJECT_NAME}_HEADERS include/mapper/mapper.hpp
@@ -41,6 +45,7 @@ QT5_WRAP_UI(${PROJECT_NAME}_FORMS_HEADERS ${${PROJECT_NAME}_FORMS})
 add_executable(${PROJECT_NAME}_node ${${PROJECT_NAME}_SOURCES} ${${PROJECT_NAME}_HEADERS_MOC}
 	${${PROJECT_NAME}_FORMS_HEADERS})
 add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${QT_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_node benchmark ${catkin_LIBRARIES} ${QT_LIBRARIES}
+	${edgetpu_cpp_LIBRARIES})
 
 qt5_use_modules(${PROJECT_NAME}_node Core Gui Widgets)

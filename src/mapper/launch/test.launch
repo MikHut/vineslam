@@ -2,7 +2,7 @@
 
   <!-- args -->
   <arg name="bag_path"
-    default="/home/andre/Documents/rosbags/compact.bag"/>
+    default="/home/andre-criis/Documents/rosbags/compact.bag"/>
 
   <!-- clock -->
   <param name ="/use_sim_time" value="true"/>
@@ -17,6 +17,10 @@
     <param name="match_box" value="25"/>
     <param name="filter_window" value="5"/>
     <param name="mapper_inc" value="20"/>
+    <param name="model_path"
+      value="/home/andre-criis/Source/coral/detect/train/train_res/mv1_25-10/output_tflite_graph.tflite"/>
+    <param name="labels_path"
+      value="/home/andre-criis/Source/coral/detect/train/train_res/mv1_25-10/labels.txt"/>
   </node>
 
 </launch>

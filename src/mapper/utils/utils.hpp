@@ -31,6 +31,9 @@ struct Parameters
 	int    filter_window; /* Dimension of the window of the robot pose filter */
 	int    mapper_inc;    /* Increment between frames to use in the mapper */
 
+	std::string model;
+	std::string labels;
+
 	Parameters()
 	{
 		h_fov         = PI / 4;
@@ -41,6 +44,8 @@ struct Parameters
 		match_box     = 10;
 		filter_window = 5;
 		mapper_inc    = 20;
+		model         = "";
+		labels        = "";
 	}
 };
 

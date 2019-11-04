@@ -18,7 +18,7 @@
     <param name="filter_window" value="5"/>
     <param name="mapper_inc" value="20"/>
     <param name="model_path"
-      value="/home/andre-criis/Source/coral/detect/train/train_res/mv1_25-10/output_tflite_graph.tflite"/>
+      value="/home/andre-criis/Source/coral/detect/train/train_res/mv1_25-10/output_tflite_graph_edgetpu.tflite"/>
     <param name="labels_path"
       value="/home/andre-criis/Source/coral/detect/train/train_res/mv1_25-10/labels.txt"/>
   </node>

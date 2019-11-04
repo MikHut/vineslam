@@ -1,6 +1,5 @@
 #include "../include/mapper/mapper_node.hpp"
-#include <boost/lexical_cast.hpp>
-#include <fstream>
+#include <chrono>
 
 Mapper::Mapper(int argc, char** argv) : QNode(argc, argv, "mapper") {}
 
@@ -19,10 +18,21 @@ void Mapper::rosCommsInit()
 	img_subscriber =
 	    n.subscribe("/camera/image", 1, &Mapper::imageListener, this);
 
-	image_transport::ImageTransport it(n);
 #ifdef DEBUG
+	image_transport::ImageTransport it(n);
 	img_publisher = it.advertise("detection/image_raw", 1);
 #endif
+
+	std::unique_ptr<tflite::FlatBufferModel> model =
+	    tflite::FlatBufferModel::BuildFromFile((*params).model.c_str());
+	if (model == nullptr) {
+		std::cerr << "Fail to build FlatBufferModel from file: " << (*params).model
+		          << std::endl;
+		std::abort();
+	}
+
+	edgetpu_context = edgetpu::EdgeTpuManager::GetSingleton()->OpenDevice();
+	interpreter = coral::BuildEdgeTpuInterpreter(*model, edgetpu_context.get());
 
 	engine             = new coral::DetectionEngine((*params).model);
 	input_tensor_shape = (*engine).get_input_tensor_shape();
@@ -66,7 +76,18 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 	    in_image,
 	    {input_tensor_shape[1], input_tensor_shape[2], input_tensor_shape[3]});
 
+	std::chrono::high_resolution_clock::time_point t1 =
+	    std::chrono::high_resolution_clock::now();
+
 	auto results = (*engine).DetectWithInputTensor(input_tensor, 0.1, 10);
+
+	std::chrono::high_resolution_clock::time_point t2 =
+	    std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double> clock_b =
+	    std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+	std::cout << "DetectWithInputTensor(): " << clock_b.count() << " seconds."
+	          << std::endl;
+
 	for (auto result : results) {
 #ifdef DEBUG
 		double xmin = result.corners.xmin * (*msg).height;
@@ -76,9 +97,9 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 		double yavg = (ymin + ymax) / 2;
 
 		cv::rectangle(bboxes, cv::Point(ymin, xmin), cv::Point(ymax, xmax),
-		              cv::Scalar(255, 0, 0), 3);
+		              cv::Scalar(255, 0, 0), 2);
 		cv::line(bboxes, cv::Point(yavg, xmin), cv::Point(yavg, xmax),
-		         cv::Scalar(0, 255, 0), 3);
+		         cv::Scalar(0, 255, 0), 2);
 #endif
 	}
 

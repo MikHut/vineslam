@@ -169,12 +169,12 @@ EdgeTpuApiStatus BasicEngineNative::RunInference(const uint8_t* const input,
                                                  float const** const output,
                                                  int* const out_size) {
   BASIC_ENGINE_INIT_CHECK();
-  const auto& start_time = std::chrono::steady_clock::now();
   // Assign input data and invoke.
   uint8_t* input_tensor_ptr = interpreter_->typed_input_tensor<uint8_t>(0);
   BASIC_ENGINE_NATIVE_ENSURE(input_tensor_ptr,
                              "typed_input_tensor returns nullptr!");
   std::memcpy(input_tensor_ptr, input, in_size);
+  const auto& start_time = std::chrono::steady_clock::now();
   EDGETPU_API_ENSURE(interpreter_->Invoke() == kTfLiteOk);
   // Parse results.
   const auto& output_indices = interpreter_->outputs();
@@ -221,9 +221,6 @@ EdgeTpuApiStatus BasicEngineNative::RunInference(const uint8_t* const input,
                              "Abnormal output size!");
   (*out_size) = inference_result_.size();
   (*output) = inference_result_.data();
-  std::chrono::duration<double, std::milli> time_span =
-      std::chrono::steady_clock::now() - start_time;
-  inference_time_ = time_span.count();
   return kEdgeTpuApiOk;
 }
 

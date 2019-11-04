@@ -6,6 +6,8 @@
 #endif
 #include "landmark_processor.hpp"
 #include "mapper.hpp"
+#include <image_transport/image_transport.h>
+#include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <image_transport/image_transport.h>
 #include <sensor_msgs/Image.h>
@@ -37,6 +39,8 @@ private:
 	ros::Subscriber img_subscriber;
 	ros::Subscriber pose_subscriber;
 
+  image_transport::Publisher img_publisher;
+
 	bool init;
 
 	Pose<double>              last_pose;
@@ -49,6 +53,10 @@ private:
 	LandmarkProcessor* lprocessor;
 	Parameters*        params;
 
+	std::vector<int>        input_tensor_shape;
+	coral::DetectionEngine* engine;
+  std::unordered_map<int, std::string> labels;
+
 	void loadParameters(const ros::NodeHandle& local_nh)
 	{
 		/* read launch file parameters */
@@ -60,6 +68,6 @@ private:
 		local_nh.getParam("/mapper/filter_window", (*params).filter_window);
 		local_nh.getParam("/mapper/mapper_inc", (*params).mapper_inc);
 		local_nh.getParam("/mapper/model_path", (*params).model);
-		local_nh.getParam("/mapper/labels", (*params).labels);
+		local_nh.getParam("/mapper/labels_path", (*params).labels);
 	}
 };

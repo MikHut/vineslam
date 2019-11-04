@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.10.2)
 project(edgetpu_cpp)
 
 find_package(catkin REQUIRED)
+find_package(GTest REQUIRED)
 find_package(PythonLibs REQUIRED)
 find_package(glog 0.4.0 REQUIRED)
 
@@ -11,17 +12,18 @@ catkin_package(
 
 include_directories(src ${CATKIN_INCLUDE_DIRS})
 include_directories(${PYTHON_INCLUDE_DIRS})
+include_directories(${GTEST_INCLUDE_DIRS})
 include_directories(flatbuffers /usr/local/include/flatbuffers)
 include_directories(benchmark /usr/local/include/benchmark)
 include_directories(dep/libedgetpu)
 
 add_subdirectory(dep/abseil-cpp)
 
-add_library(classification
+add_library(classification STATIC
 	edgetpu_cpp/src/classification/engine.cc)
 target_link_libraries(classification absl::base absl::flags absl::strings)
 
-add_library(detection
+add_library(detection STATIC
 	edgetpu_cpp/src/detection/engine.cc)
 target_link_libraries(detection absl::base absl::flags absl::strings)
 
@@ -36,7 +38,7 @@ add_library(util STATIC
 	edgetpu_cpp/src/utils.cc)
 target_link_libraries(util classification detection
 	${CMAKE_SOURCE_DIR}/edgetpu_cpp/dep/libedgetpu/tensorflow/lite/tools/make/gen/linux_x86_64/lib/libtensorflow-lite.a
-	 glog::glog absl::base absl::flags absl::strings)
+  ${GTEST_LIBRARIES} glog::glog absl::base absl::flags absl::strings)
 
 add_library(posenet STATIC
 	edgetpu_cpp/src/posenet/posenet_decoder.cc

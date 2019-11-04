@@ -246,6 +246,21 @@ std::vector<uint8_t> GetInputFromImage(const std::string& image_path,
   return result;
 }
 
+std::vector<uint8_t> GetInputFromImage(std::vector<uint8_t> in,
+                                       const ImageDims& target_dims) {
+  std::vector<uint8_t> result;
+  result.resize(ImageDimsToSize(target_dims));
+  ImageDims image_dims = {480, 640, 3};
+  CHECK(!in.empty()) << "Image is empty" << std::endl;
+
+  if (target_dims[2] == 1 && (image_dims[2] == 3 || image_dims[2] == 4)) {
+    in = RgbToGrayscale(in, image_dims);
+  }
+
+  ResizeImage(image_dims, in.data(), target_dims, result.data());
+  return result;
+}
+
 std::vector<std::string> GetAllModels() {
   DIR* dirp = opendir(TestDataPath("").c_str());
   struct dirent* dp;

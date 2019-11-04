@@ -2,15 +2,15 @@
 
   <!-- args -->
   <arg name="bag_path"
-    default="/home/andre-criis/Documents/rosbags/compact.bag"/>
+    default="/home/andre-criis/Documents/rosbags/04_cores_tarde_utad.bag"/>
 
   <!-- clock -->
   <param name ="/use_sim_time" value="true"/>
 
   <!-- nodes -->
-  <!-- <node name="republish" type="republish" pkg="image_transport" output="screen" -->
-  <!--   args="compressed in:=/image_raw raw out:=/image_raw" /> -->
-  <node pkg="rosbag" type="play" name="darknet_bag" args="--clock $(arg bag_path)"/>  
+  <node name="republish" type="republish" pkg="image_transport" output="screen"
+    args="compressed in:=/output/image_raw raw out:=/camera/image" />
+  <node pkg="rosbag" type="play" name="rosbag" args="--clock $(arg bag_path)"/>  
   <node pkg="mapper" type="mapper_node" name="mapper" output="screen">
     <param name="img_width"  value="1292"/>
     <param name="img_height" value="964"/>

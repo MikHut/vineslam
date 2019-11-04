@@ -29,6 +29,8 @@ std::vector<uint8_t> GetRandomInput(std::vector<int> shape);
 // failure.
 std::vector<uint8_t> GetInputFromImage(const std::string& image_path,
                                        const ImageDims& target_dims);
+std::vector<uint8_t> GetInputFromImage(std::vector<uint8_t> in,
+                                       const ImageDims& target_dims);
 
 // Gets list of all models.
 std::vector<std::string> GetAllModels();

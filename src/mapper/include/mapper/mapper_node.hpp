@@ -52,8 +52,6 @@ private:
 	LandmarkProcessor* lprocessor;
 	Parameters*        params;
 
-	std::shared_ptr<edgetpu::EdgeTpuContext> edgetpu_context;
-	std::unique_ptr<tflite::Interpreter>     interpreter;
 	std::vector<int>                         input_tensor_shape;
 	coral::DetectionEngine*                  engine;
 	std::unordered_map<int, std::string>     labels;

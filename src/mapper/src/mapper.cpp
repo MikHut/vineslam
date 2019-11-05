@@ -8,8 +8,8 @@ Estimator::Estimator(const Parameters&        params,
 
 void Estimator::init() {}
 
-void Estimator::process(std::vector<Landmark<double>>& landmarks,
-                        const std::vector<Pose<double>>&     robot_poses)
+void Estimator::process(std::vector<Landmark<double>>&   landmarks,
+                        const std::vector<Pose<double>>& robot_poses)
 {
 	std::vector<Pose<double>> filtered_poses;
 	filterXYTheta(robot_poses, filtered_poses);
@@ -36,8 +36,8 @@ void Estimator::filterXYTheta(const std::vector<Pose<double>> robot_poses,
 	}
 }
 
-void Estimator::predict(std::vector<Landmark<double>>& landmarks,
-                        const std::vector<Pose<double>>&     robot_poses)
+void Estimator::predict(std::vector<Landmark<double>>&   landmarks,
+                        const std::vector<Pose<double>>& robot_poses)
 {
 	int min_obsvs = 10;
 	int comp      = params.filter_window;
@@ -72,7 +72,7 @@ void Estimator::predict(std::vector<Landmark<double>>& landmarks,
 			}
 			all_res.push_back(X);
 		}
-    landmarks[i].world_pos = avg;
+		landmarks[i].world_pos = avg;
 		std::cout << "RES: " << avg;
 	}
 }
@@ -89,8 +89,8 @@ void Estimator::drawMap(const std::vector<Pose<double>>& poses)
 		           cv::Scalar(200, 0, 0), 2);
 	}
 	for (size_t i = 0; i < lprocessor.landmarks.size(); i++) {
-    Point<double> pt = lprocessor.landmarks[i].world_pos;
-		cv::circle(map, cv::Point2f(pt.x, pt.y + 500), 4,
-		           cv::Scalar(200, 200, 200), 4);
+		Point<double> pt = lprocessor.landmarks[i].world_pos;
+		cv::circle(map, cv::Point2f(pt.x, pt.y + 500), 4, cv::Scalar(200, 200, 200),
+		           4);
 	}
 }

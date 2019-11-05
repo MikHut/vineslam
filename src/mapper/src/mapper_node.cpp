@@ -23,17 +23,6 @@ void Mapper::rosCommsInit()
 	img_publisher = it.advertise("detection/image_raw", 1);
 #endif
 
-	std::unique_ptr<tflite::FlatBufferModel> model =
-	    tflite::FlatBufferModel::BuildFromFile((*params).model.c_str());
-	if (model == nullptr) {
-		std::cerr << "Fail to build FlatBufferModel from file: " << (*params).model
-		          << std::endl;
-		std::abort();
-	}
-
-	edgetpu_context = edgetpu::EdgeTpuManager::GetSingleton()->OpenDevice();
-	interpreter = coral::BuildEdgeTpuInterpreter(*model, edgetpu_context.get());
-
 	engine             = new coral::DetectionEngine((*params).model);
 	input_tensor_shape = (*engine).get_input_tensor_shape();
 	labels             = coral::ReadLabelFile((*params).labels);
@@ -76,24 +65,18 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 	    in_image,
 	    {input_tensor_shape[1], input_tensor_shape[2], input_tensor_shape[3]});
 
-	std::chrono::high_resolution_clock::time_point t1 =
-	    std::chrono::high_resolution_clock::now();
-
 	auto results = (*engine).DetectWithInputTensor(input_tensor, 0.1, 10);
 
-	std::chrono::high_resolution_clock::time_point t2 =
-	    std::chrono::high_resolution_clock::now();
-	std::chrono::duration<double> clock_b =
-	    std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-	std::cout << "DetectWithInputTensor(): " << clock_b.count() << " seconds."
-	          << std::endl;
-
+	std::vector<Point<double>> trunk_pos;
 	for (auto result : results) {
-#ifdef DEBUG
 		double xmin = result.corners.xmin * (*msg).height;
 		double ymin = result.corners.ymin * (*msg).width;
 		double xmax = result.corners.xmax * (*msg).height;
 		double ymax = result.corners.ymax * (*msg).width;
+
+		Point<double> tmp((xmin + xmax) / 2, (ymin + ymax) / 2);
+		trunk_pos.push_back(tmp);
+#ifdef DEBUG
 		double yavg = (ymin + ymax) / 2;
 
 		cv::rectangle(bboxes, cv::Point(ymin, xmin), cv::Point(ymax, xmax),
@@ -101,6 +84,18 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 		cv::line(bboxes, cv::Point(yavg, xmin), cv::Point(yavg, xmax),
 		         cv::Scalar(0, 255, 0), 2);
 #endif
+	}
+
+	if (init == false) {
+		(*lprocessor).updatePoses(trunk_pos);
+		(*lprocessor).matchLandmarks(all_poses.size());
+	}
+	else {
+		for (size_t i = 0; i < trunk_pos.size(); i++) {
+			(*lprocessor).landmarks.push_back(Landmark<double>(i, trunk_pos[i]));
+			(*lprocessor).landmarks[i].ptr.push_back(0);
+		}
+		init = false;
 	}
 
 	last_pose.pos.x = slam_pose.position.x;

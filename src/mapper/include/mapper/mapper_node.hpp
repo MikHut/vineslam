@@ -11,6 +11,7 @@
 #include <image_transport/image_transport.h>
 #include <sensor_msgs/Image.h>
 #include <tf/transform_listener.h>
+#include <opencv2/features2d.hpp>
 
 /* edgetpu detection API */
 #include <detection/engine.h>
@@ -20,6 +21,7 @@
 
 class Mapper : public QNode
 {
+  Q_OBJECT
 
 public:
 	Mapper(int argc, char** argv);
@@ -31,9 +33,20 @@ public:
 
 	const cv::Mat exportMap();
 
+Q_SIGNALS:
+	void init_done();
+
 private:
 	void imageListener(const sensor_msgs::ImageConstPtr& msg);
 	void poseListener(const geometry_msgs::PoseStampedConstPtr& msg);
+#ifdef DEBUG
+  void showMatching(const sensor_msgs::ImageConstPtr& msg);
+
+  cv::Mat p_image;
+  cv::Mat c_image;
+  
+  image_transport::Publisher matches_publisher;
+#endif
 
 	ros::Subscriber img_subscriber;
 	ros::Subscriber pose_subscriber;
@@ -52,13 +65,15 @@ private:
 	LandmarkProcessor* lprocessor;
 	Parameters*        params;
 
-	std::vector<int>                         input_tensor_shape;
-	coral::DetectionEngine*                  engine;
-	std::unordered_map<int, std::string>     labels;
+	std::vector<int>                     input_tensor_shape;
+	coral::DetectionEngine*              engine;
+	std::unordered_map<int, std::string> labels;
 
 	void loadParameters(const ros::NodeHandle& local_nh)
 	{
 		/* read launch file parameters */
+		local_nh.getParam("/mapper/pose_topic", (*params).pose_topic);
+		local_nh.getParam("/mapper/image_topic", (*params).image_topic);
 		local_nh.getParam("/mapper/h_fov", (*params).h_fov);
 		local_nh.getParam("/mapper/v_fov", (*params).v_fov);
 		local_nh.getParam("/mapper/img_width", (*params).width);

@@ -31,6 +31,8 @@ struct Parameters
 	int    filter_window; /* Dimension of the window of the robot pose filter */
 	int    mapper_inc;    /* Increment between frames to use in the mapper */
 
+	std::string pose_topic;
+	std::string image_topic;
 	std::string model;
 	std::string labels;
 
@@ -46,6 +48,8 @@ struct Parameters
 		mapper_inc    = 20;
 		model         = "";
 		labels        = "";
+		pose_topic    = "";
+		image_topic   = "";
 	}
 };
 

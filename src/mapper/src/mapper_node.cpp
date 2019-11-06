@@ -14,18 +14,21 @@ void Mapper::rosCommsInit()
 	init       = true;
 
 	pose_subscriber =
-	    n.subscribe("/slam_out_pose", 1, &Mapper::poseListener, this);
+	    n.subscribe((*params).pose_topic, 1, &Mapper::poseListener, this);
 	img_subscriber =
-	    n.subscribe("/camera/image", 1, &Mapper::imageListener, this);
+	    n.subscribe((*params).image_topic, 1, &Mapper::imageListener, this);
 
 #ifdef DEBUG
 	image_transport::ImageTransport it(n);
-	img_publisher = it.advertise("detection/image_raw", 1);
+	img_publisher     = it.advertise("detection/image_raw", 1);
+	matches_publisher = it.advertise("matches/image_raw", 1);
 #endif
 
 	engine             = new coral::DetectionEngine((*params).model);
 	input_tensor_shape = (*engine).get_input_tensor_shape();
 	labels             = coral::ReadLabelFile((*params).labels);
+
+	Q_EMIT init_done();
 }
 
 void Mapper::run()
@@ -106,6 +109,8 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 	sensor_msgs::ImagePtr detection_img =
 	    cv_bridge::CvImage(std_msgs::Header(), "bgr8", bboxes).toImageMsg();
 	img_publisher.publish(detection_img);
+
+  showMatching(msg);
 #endif
 }
 

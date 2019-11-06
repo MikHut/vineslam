@@ -8,11 +8,22 @@ MainWindow::MainWindow(QNode* node, QWidget* parent)
 
 	setWindowTitle(QApplication::translate("MainWindowDesign",
 	                                       (*qnode).node_name.c_str(), 0));
+
+  QString tmp;
+  tmp = "Click on Init to setup the system.\n";
+	ui.log->insertPlainText(tmp);
 }
 
 void MainWindow::on_init_clicked()
 {
 	(*qnode).init();
+}
+
+void MainWindow::init_done_slot()
+{
+  QString tmp;
+  tmp = "All configs done. Ready to start!\n\n";
+	ui.log->insertPlainText(tmp);
 }
 
 void MainWindow::on_draw_map_clicked()

@@ -9,9 +9,9 @@
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <image_transport/image_transport.h>
+#include <opencv2/features2d.hpp>
 #include <sensor_msgs/Image.h>
 #include <tf/transform_listener.h>
-#include <opencv2/features2d.hpp>
 
 /* edgetpu detection API */
 #include <detection/engine.h>
@@ -21,7 +21,7 @@
 
 class Mapper : public QNode
 {
-  Q_OBJECT
+	Q_OBJECT
 
 public:
 	Mapper(int argc, char** argv);
@@ -40,12 +40,14 @@ private:
 	void imageListener(const sensor_msgs::ImageConstPtr& msg);
 	void poseListener(const geometry_msgs::PoseStampedConstPtr& msg);
 #ifdef DEBUG
-  void showMatching(const sensor_msgs::ImageConstPtr& msg);
+	void showMatching(cv::Mat img);
+	void showBBoxes(const sensor_msgs::ImageConstPtr& msg, cv::Mat& bboxes,
+	                std::vector<coral::DetectionCandidate> res);
 
-  cv::Mat p_image;
-  cv::Mat c_image;
-  
-  image_transport::Publisher matches_publisher;
+	cv::Mat p_image;
+	cv::Mat c_image;
+
+	image_transport::Publisher matches_publisher;
 #endif
 
 	ros::Subscriber img_subscriber;

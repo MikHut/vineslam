@@ -10,7 +10,7 @@ void Mapper::rosCommsInit()
 	params = new Parameters();
 	loadParameters(n);
 	lprocessor = new LandmarkProcessor(*params);
-	estimator  = new Estimator(*params, *lprocessor);
+	estimator  = new Estimator(*params, lprocessor);
 	init       = true;
 
 	pose_subscriber =
@@ -55,38 +55,38 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 	all_poses.push_back(Pose<double>(slam_pose.position.x * 100,
 	                                 slam_pose.position.y * 100, yaw));
 
-	/* ROS image to std::vector<uint8_t> */
+	/* Convert input image to BGR */
 	cv_bridge::CvImageConstPtr cv_ptr =
 	    cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::BGR8);
-	cv::Mat              bboxes = (*cv_ptr).image;
+	sensor_msgs::ImagePtr tmp =
+	    cv_bridge::CvImage(std_msgs::Header(), "bgr8", (*cv_ptr).image)
+	        .toImageMsg();
+
+	/* ROS image to std::vector<uint8_t> */
 	std::vector<uint8_t> in_image;
-	for (int i = 0; i < (*msg).step * (*msg).height; i++)
-		in_image.push_back((*msg).data[i]);
+	for (int i = 0; i < (*tmp).step * (*msg).height; i++)
+		in_image.push_back((*tmp).data[i]);
 
 	/* trunk detection */
 	std::vector<uint8_t> input_tensor = coral::GetInputFromImage(
 	    in_image,
-	    {input_tensor_shape[1], input_tensor_shape[2], input_tensor_shape[3]});
+	    {input_tensor_shape[1], input_tensor_shape[2], input_tensor_shape[3]},
+	    {(*msg).height, (*msg).width, 3});
 
 	auto results = (*engine).DetectWithInputTensor(input_tensor, 0.1, 10);
 
+	/* process results - calculate trunck Center of Mass */
 	std::vector<Point<double>> trunk_pos;
 	for (auto result : results) {
-		double xmin = result.corners.xmin * (*msg).height;
-		double ymin = result.corners.ymin * (*msg).width;
-		double xmax = result.corners.xmax * (*msg).height;
-		double ymax = result.corners.ymax * (*msg).width;
+		if (result.score > 0.35) {
+			double xmin = result.corners.xmin * (*msg).height;
+			double ymin = result.corners.ymin * (*msg).width;
+			double xmax = result.corners.xmax * (*msg).height;
+			double ymax = result.corners.ymax * (*msg).width;
 
-		Point<double> tmp((xmin + xmax) / 2, (ymin + ymax) / 2);
-		trunk_pos.push_back(tmp);
-#ifdef DEBUG
-		double yavg = (ymin + ymax) / 2;
-
-		cv::rectangle(bboxes, cv::Point(ymin, xmin), cv::Point(ymax, xmax),
-		              cv::Scalar(255, 0, 0), 2);
-		cv::line(bboxes, cv::Point(yavg, xmin), cv::Point(yavg, xmax),
-		         cv::Scalar(0, 255, 0), 2);
-#endif
+			Point<double> tmp((ymin + ymax) / 2, (xmin + xmax) / 2);
+			trunk_pos.push_back(tmp);
+		}
 	}
 
 	if (init == false) {
@@ -98,25 +98,24 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 			(*lprocessor).landmarks.push_back(Landmark<double>(i, trunk_pos[i]));
 			(*lprocessor).landmarks[i].ptr.push_back(0);
 		}
+#ifdef DEBUG
+		p_image = cv::Mat((*params).width, (*params).height, CV_8UC1,
+		                  cv::Scalar(255, 255, 255));
+		c_image = p_image;
+#endif
 		init = false;
 	}
 
-	last_pose.pos.x = slam_pose.position.x;
-	last_pose.pos.y = slam_pose.position.y;
-	last_pose.theta = yaw;
-
 #ifdef DEBUG
-	sensor_msgs::ImagePtr detection_img =
-	    cv_bridge::CvImage(std_msgs::Header(), "bgr8", bboxes).toImageMsg();
-	img_publisher.publish(detection_img);
-
-  showMatching(msg);
+  cv::Mat bboxes;
+	showBBoxes(msg, bboxes, results);
+	showMatching(bboxes);
 #endif
 }
 
 void Mapper::constructMap()
 {
-	(*estimator).process((*lprocessor).landmarks, all_poses);
+	(*estimator).process(all_poses);
 }
 
 const cv::Mat Mapper::exportMap()

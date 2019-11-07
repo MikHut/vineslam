@@ -25,12 +25,17 @@ std::vector<uint8_t> GetRandomInput(int n);
 // Generates a 1-d uint8 array with given input tensor shape.
 std::vector<uint8_t> GetRandomInput(std::vector<int> shape);
 
+// Decodes a bitmap into a std array
+std::vector<uint8_t> DecodeBmp(const uint8_t* input, int row_size, int width,
+                               int height, int channels, bool top_down);
+
 // Gets input from images and resizes to `target_dims`. It will crash upon
 // failure.
 std::vector<uint8_t> GetInputFromImage(const std::string& image_path,
                                        const ImageDims& target_dims);
 std::vector<uint8_t> GetInputFromImage(std::vector<uint8_t> in,
-                                       const ImageDims& target_dims);
+                                       const ImageDims& target_dims,
+                                       const ImageDims& image_dims);
 
 // Gets list of all models.
 std::vector<std::string> GetAllModels();

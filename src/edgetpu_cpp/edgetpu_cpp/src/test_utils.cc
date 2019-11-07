@@ -52,45 +52,6 @@ int ImageDimsToSize(const ImageDims& dims) {
   return size;
 }
 
-std::vector<uint8_t> DecodeBmp(const uint8_t* input, int row_size, int width,
-                               int height, int channels, bool top_down) {
-  std::vector<uint8_t> output(height * width * channels);
-  for (int i = 0; i < height; i++) {
-    int src_pos;
-    int dst_pos;
-    for (int j = 0; j < width; j++) {
-      if (!top_down) {
-        src_pos = ((height - 1 - i) * row_size) + j * channels;
-      } else {
-        src_pos = i * row_size + j * channels;
-      }
-      dst_pos = (i * width + j) * channels;
-      switch (channels) {
-        case 1:
-          output[dst_pos] = input[src_pos];
-          break;
-        case 3:
-          // BGR -> RGB
-          output[dst_pos] = input[src_pos + 2];
-          output[dst_pos + 1] = input[src_pos + 1];
-          output[dst_pos + 2] = input[src_pos];
-          break;
-        case 4:
-          // BGRA -> RGBA
-          output[dst_pos] = input[src_pos + 2];
-          output[dst_pos + 1] = input[src_pos + 1];
-          output[dst_pos + 2] = input[src_pos];
-          output[dst_pos + 3] = input[src_pos + 3];
-          break;
-        default:
-          LOG(FATAL) << "Unexpected number of channels: " << channels;
-          break;
-      }
-    }
-  }
-  return output;
-}
-
 // Reads BMP image. It will crahs upon failure.
 std::vector<uint8_t> ReadBmp(const std::string& input_bmp_name,
                              ImageDims* image_dims) {
@@ -205,6 +166,45 @@ std::vector<uint8_t> RgbToGrayscale(const std::vector<uint8_t>& in,
 
 }  // namespace
 
+std::vector<uint8_t> DecodeBmp(const uint8_t* input, int row_size, int width,
+                               int height, int channels, bool top_down) {
+  std::vector<uint8_t> output(height * width * channels);
+  for (int i = 0; i < height; i++) {
+    int src_pos;
+    int dst_pos;
+    for (int j = 0; j < width; j++) {
+      if (!top_down) {
+        src_pos = ((height - 1 - i) * row_size) + j * channels;
+      } else {
+        src_pos = i * row_size + j * channels;
+      }
+      dst_pos = (i * width + j) * channels;
+      switch (channels) {
+        case 1:
+          output[dst_pos] = input[src_pos];
+          break;
+        case 3:
+          // BGR -> RGB
+          output[dst_pos] = input[src_pos + 2];
+          output[dst_pos + 1] = input[src_pos + 1];
+          output[dst_pos + 2] = input[src_pos];
+          break;
+        case 4:
+          // BGRA -> RGBA
+          output[dst_pos] = input[src_pos + 2];
+          output[dst_pos + 1] = input[src_pos + 1];
+          output[dst_pos + 2] = input[src_pos];
+          output[dst_pos + 3] = input[src_pos + 3];
+          break;
+        default:
+          LOG(FATAL) << "Unexpected number of channels: " << channels;
+          break;
+      }
+    }
+  }
+  return output;
+}
+
 std::string TestDataPath(const std::string& name) {
   return absl::StrCat(absl::GetFlag(FLAGS_test_data_dir), "/", name);
 }
@@ -242,15 +242,17 @@ std::vector<uint8_t> GetInputFromImage(const std::string& image_path,
   if (target_dims[2] == 1 && (image_dims[2] == 3 || image_dims[2] == 4)) {
     in = RgbToGrayscale(in, image_dims);
   }
+  std::cout << image_dims[0] << "," << image_dims[1] << "," << image_dims[2] << std::endl;
+  std::cout << in.size() << std::endl;
   ResizeImage(image_dims, in.data(), target_dims, result.data());
   return result;
 }
 
 std::vector<uint8_t> GetInputFromImage(std::vector<uint8_t> in,
-                                       const ImageDims& target_dims) {
+                                       const ImageDims& target_dims,
+                                       const ImageDims& image_dims) {
   std::vector<uint8_t> result;
   result.resize(ImageDimsToSize(target_dims));
-  ImageDims image_dims = {480, 640, 3};
   CHECK(!in.empty()) << "Image is empty" << std::endl;
 
   if (target_dims[2] == 1 && (image_dims[2] == 3 || image_dims[2] == 4)) {

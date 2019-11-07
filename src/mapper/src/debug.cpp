@@ -1,33 +1,65 @@
 #include "../include/mapper/mapper_node.hpp"
 
-void Mapper::showMatching(const sensor_msgs::ImageConstPtr& msg)
+void Mapper::showBBoxes(const sensor_msgs::ImageConstPtr& msg, cv::Mat& bboxes,
+                        std::vector<coral::DetectionCandidate> res)
 {
-  p_image = c_image;
-	c_image =
-	    cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::MONO8)->image;
 
-  std::vector<cv::DMatch>   m;
-  std::vector<cv::KeyPoint> keyPointRight;
-  std::vector<cv::KeyPoint> keyPointLeft;
-  std::vector<cv::Point2f>  vecRight;
-  std::vector<cv::Point2f>  vecLeft;
+	cv_bridge::CvImageConstPtr cv_ptr =
+	    cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::BGR8);
+	bboxes = (*cv_ptr).image;
 
-  for (size_t i = 0; i < (*lprocessor).matches.size(); i++) {
-    vecRight.push_back(
-	cv::Point2f((*lprocessor).matches[i].c_pos.x, (*lprocessor).matches[i].c_pos.y));
-    vecLeft.push_back(
-	cv::Point2f((*lprocessor).matches[i].p_pos.x, (*lprocessor).matches[i].p_pos.y));
-  }
-  cv::KeyPoint::convert(vecRight, keyPointRight);
-  cv::KeyPoint::convert(vecLeft, keyPointLeft);
+	std::vector<Point<double>> trunk_pos;
+	for (auto result : res) {
+		double xmin = result.corners.xmin * (*msg).height;
+		double ymin = result.corners.ymin * (*msg).width;
+		double xmax = result.corners.xmax * (*msg).height;
+		double ymax = result.corners.ymax * (*msg).width;
+		double yavg = (ymin + ymax) / 2;
 
-  for (size_t j = 0; j < vecRight.size(); j++) m.push_back(cv::DMatch(j, j, 0));
+		Point<double> tmp((xmin + xmax) / 2, (ymin + ymax) / 2);
+		trunk_pos.push_back(tmp);
 
-  cv::Mat img_matches;
-  cv::drawMatches(p_image, keyPointLeft, c_image, keyPointRight, m,
-		  img_matches);
+		if (result.score > 0.45) {
+			cv::rectangle(bboxes, cv::Point(ymin, xmin), cv::Point(ymax, xmax),
+			              cv::Scalar(255, 0, 0), 2);
+			cv::line(bboxes, cv::Point(yavg, xmin), cv::Point(yavg, xmax),
+			         cv::Scalar(0, 255, 0), 2);
+		}
+	}
 
-  sensor_msgs::ImagePtr img =
-      cv_bridge::CvImage(std_msgs::Header(), "bgr8", img_matches).toImageMsg();
-  matches_publisher.publish(img);
+	sensor_msgs::ImagePtr detection_img =
+	    cv_bridge::CvImage(std_msgs::Header(), "bgr8", bboxes).toImageMsg();
+	img_publisher.publish(detection_img);
+}
+
+void Mapper::showMatching(cv::Mat img)
+{
+	p_image = c_image;
+	c_image = img;
+
+	std::vector<cv::DMatch>   m;
+	std::vector<cv::KeyPoint> keyPointRight;
+	std::vector<cv::KeyPoint> keyPointLeft;
+	std::vector<cv::Point2f>  vecRight;
+	std::vector<cv::Point2f>  vecLeft;
+
+	for (size_t i = 0; i < (*lprocessor).matches.size(); i++) {
+		vecRight.push_back(cv::Point2f((*lprocessor).matches[i].c_pos.x,
+		                               (*lprocessor).matches[i].c_pos.y));
+		vecLeft.push_back(cv::Point2f((*lprocessor).matches[i].p_pos.x,
+		                              (*lprocessor).matches[i].p_pos.y));
+	}
+	cv::KeyPoint::convert(vecRight, keyPointRight);
+	cv::KeyPoint::convert(vecLeft, keyPointLeft);
+
+	for (size_t j = 0; j < vecRight.size(); j++)
+		m.push_back(cv::DMatch(j, j, 0));
+
+	cv::Mat img_matches;
+	cv::drawMatches(p_image, keyPointLeft, c_image, keyPointRight, m,
+	                img_matches);
+
+	sensor_msgs::ImagePtr out_img =
+	    cv_bridge::CvImage(std_msgs::Header(), "bgr8", img_matches).toImageMsg();
+	matches_publisher.publish(out_img);
 }

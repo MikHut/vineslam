@@ -35,8 +35,9 @@ void MainWindow::on_draw_map_clicked()
 	(*qnode).constructMap();
 	cv::Mat map = (*qnode).exportMap();
 
-	QImage qmap = QImage(map.data, map.cols, map.rows, QImage::Format_RGB32);
+	QImage qmap = QImage(map.data, map.cols, map.rows, QImage::Format_RGB888);
 	ui.map->setPixmap(QPixmap::fromImage(qmap));
+  ui.map->setScaledContents(true);
 }
 
 MainWindow::~MainWindow()

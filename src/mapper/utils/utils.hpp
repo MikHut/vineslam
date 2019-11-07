@@ -156,6 +156,20 @@ struct Landmark
 		(*this).id        = id;
 		(*this).image_pos = std::vector<Point<T>>(1, image_pos);
 	}
+
+  double standardDev()
+  {
+    double mean, var;
+
+    for(size_t i = 0; i < image_pos.size(); i++)
+      mean += image_pos[i].x;
+    mean /= image_pos.size();
+
+    for(size_t i = 0; i < image_pos.size(); i++)
+      var += (image_pos[i].x - mean) * (image_pos[i].x - mean);
+    
+    return sqrt(var / image_pos.size());
+  }
 };
 
 template <typename T>

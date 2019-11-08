@@ -32,6 +32,9 @@ struct Parameters
 	int    match_box;     /* Search box diagonal size */
 	int    filter_window; /* Dimension of the window of the robot pose filter */
 	int    mapper_inc;    /* Increment between frames to use in the mapper */
+	int    min_prob;      /* Minimum trunk detection probability */
+	int    max_stdev;     /* Maximum standard deviation of trunk world position
+	                         estimation */
 
 	std::string pose_topic;
 	std::string image_topic;
@@ -47,7 +50,9 @@ struct Parameters
 		height        = 960;
 		match_box     = 10;
 		filter_window = 5;
-		mapper_inc    = 20;
+		mapper_inc    = 100;
+		min_prob      = 0.5;
+		max_stdev     = 1000;
 		model         = "";
 		labels        = "";
 		pose_topic    = "";
@@ -164,7 +169,7 @@ struct Landmark
 	void standardDev()
 	{
 		Point<double> mean = world_pos;
-		Point<double> var = Point<double>(0.0, 0.0);
+		Point<double> var  = Point<double>(0.0, 0.0);
 
 		for (size_t i = 0; i < estimations.size(); i++) {
 			var.x += (estimations[i].x - mean.x) * (estimations[i].x - mean.x);

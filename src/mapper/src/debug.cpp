@@ -19,7 +19,7 @@ void Mapper::showBBoxes(const sensor_msgs::ImageConstPtr& msg, cv::Mat& bboxes,
 		Point<double> tmp((xmin + xmax) / 2, (ymin + ymax) / 2);
 		trunk_pos.push_back(tmp);
 
-		if (result.score > 0.45) {
+		if (result.score > 0.35) {
 			cv::rectangle(bboxes, cv::Point(ymin, xmin), cv::Point(ymax, xmax),
 			              cv::Scalar(255, 0, 0), 2);
 			cv::line(bboxes, cv::Point(yavg, xmin), cv::Point(yavg, xmax),
@@ -38,25 +38,25 @@ void Mapper::showMatching(cv::Mat img)
 	c_image = img;
 
 	std::vector<cv::DMatch>   m;
-	std::vector<cv::KeyPoint> keyPointRight;
-	std::vector<cv::KeyPoint> keyPointLeft;
-	std::vector<cv::Point2f>  vecRight;
-	std::vector<cv::Point2f>  vecLeft;
+	std::vector<cv::KeyPoint> key_point_right;
+	std::vector<cv::KeyPoint> key_point_left;
+	std::vector<cv::Point2f>  vec_right;
+	std::vector<cv::Point2f>  vec_left;
 
 	for (size_t i = 0; i < (*lprocessor).matches.size(); i++) {
-		vecRight.push_back(cv::Point2f((*lprocessor).matches[i].c_pos.x,
+		vec_right.push_back(cv::Point2f((*lprocessor).matches[i].c_pos.x,
 		                               (*lprocessor).matches[i].c_pos.y));
-		vecLeft.push_back(cv::Point2f((*lprocessor).matches[i].p_pos.x,
+		vec_left.push_back(cv::Point2f((*lprocessor).matches[i].p_pos.x,
 		                              (*lprocessor).matches[i].p_pos.y));
 	}
-	cv::KeyPoint::convert(vecRight, keyPointRight);
-	cv::KeyPoint::convert(vecLeft, keyPointLeft);
+	cv::KeyPoint::convert(vec_right, key_point_right);
+	cv::KeyPoint::convert(vec_left, key_point_left);
 
-	for (size_t j = 0; j < vecRight.size(); j++)
+	for (size_t j = 0; j < vec_right.size(); j++)
 		m.push_back(cv::DMatch(j, j, 0));
 
 	cv::Mat img_matches;
-	cv::drawMatches(p_image, keyPointLeft, c_image, keyPointRight, m,
+	cv::drawMatches(p_image, key_point_left, c_image, key_point_right, m,
 	                img_matches);
 
 	sensor_msgs::ImagePtr out_img =

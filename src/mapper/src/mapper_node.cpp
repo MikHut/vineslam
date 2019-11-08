@@ -73,20 +73,19 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 	    {input_tensor_shape[1], input_tensor_shape[2], input_tensor_shape[3]},
 	    {(*msg).height, (*msg).width, 3});
 
-	auto results = (*engine).DetectWithInputTensor(input_tensor, 0.1, 10);
+	auto results =
+	    (*engine).DetectWithInputTensor(input_tensor, (*params).max_stdev, 50);
 
 	/* process results - calculate trunck Center of Mass */
 	std::vector<Point<double>> trunk_pos;
 	for (auto result : results) {
-		if (result.score > 0.35) {
-			double xmin = result.corners.xmin * (*msg).height;
-			double ymin = result.corners.ymin * (*msg).width;
-			double xmax = result.corners.xmax * (*msg).height;
-			double ymax = result.corners.ymax * (*msg).width;
+		double xmin = result.corners.xmin * (*msg).height;
+		double ymin = result.corners.ymin * (*msg).width;
+		double xmax = result.corners.xmax * (*msg).height;
+		double ymax = result.corners.ymax * (*msg).width;
 
-			Point<double> tmp((ymin + ymax) / 2, (xmin + xmax) / 2);
-			trunk_pos.push_back(tmp);
-		}
+		Point<double> tmp((ymin + ymax) / 2, (xmin + xmax) / 2);
+		trunk_pos.push_back(tmp);
 	}
 
 	if (init == false) {
@@ -123,13 +122,13 @@ const cv::Mat Mapper::exportMap()
 	return (*estimator).map;
 }
 
-const cv::Mat Mapper::exportSingleMap(const int& id) 
+const cv::Mat Mapper::exportSingleMap(const int& id)
 {
-  if(id > (*lprocessor).landmarks.size() - 1)
-    return cv::Mat();
+	if (id > (*lprocessor).landmarks.size() - 1)
+		return cv::Mat();
 
-  (*estimator).singleDraw(all_poses, id);
-  return (*estimator).single_map;
+	(*estimator).singleDraw(all_poses, id);
+	return (*estimator).single_map;
 }
 
 void Mapper::retrieveLog(std::string& log)
@@ -158,4 +157,3 @@ void Mapper::retrieveLog(std::string& log, const int& id)
 
 	log = tmp.str();
 }
-

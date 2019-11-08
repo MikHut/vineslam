@@ -9,7 +9,7 @@ void Estimator::init() {}
 
 void Estimator::process(const std::vector<Pose<double>>& robot_poses)
 {
-	std::vector<Pose<double>>  filtered_poses;
+	std::vector<Pose<double>> filtered_poses;
 	filterXYTheta(robot_poses, filtered_poses);
 	predict(filtered_poses);
 
@@ -36,8 +36,8 @@ void Estimator::filterXYTheta(const std::vector<Pose<double>> robot_poses,
 
 void Estimator::predict(const std::vector<Pose<double>>& robot_poses)
 {
-	int max_std = 1000;
-	int inc     = 100;
+	int max_std = params.max_stdev;
+	int inc     = params.mapper_inc;
 	int comp    = params.filter_window;
 
 	std::vector<Landmark<double>> final_l;
@@ -72,16 +72,16 @@ void Estimator::predict(const std::vector<Pose<double>>& robot_poses)
 		}
 		l.estimations = res;
 		l.world_pos   = avg;
-    l.standardDev();
-    if(l.stdev.x < 1000)
-		  final_l.push_back(l);
+		l.standardDev();
+		if (l.stdev.x < max_std)
+			final_l.push_back(l);
 	}
 
 	(*lprocessor).landmarks.clear();
 	(*lprocessor).landmarks = final_l;
 }
 
-void Estimator::drawMap(const std::vector<Pose<double>>&  robot_poses)
+void Estimator::drawMap(const std::vector<Pose<double>>& robot_poses)
 {
 	map = cv::Mat(500, 500, CV_8UC3, cv::Scalar(255, 255, 255));
 	for (size_t i = 0; i < robot_poses.size(); i++) {

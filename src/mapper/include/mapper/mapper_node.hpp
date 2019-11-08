@@ -85,6 +85,8 @@ private:
 		local_nh.getParam("/mapper/match_box", (*params).match_box);
 		local_nh.getParam("/mapper/filter_window", (*params).filter_window);
 		local_nh.getParam("/mapper/mapper_inc", (*params).mapper_inc);
+		local_nh.getParam("/mapper/detector_th", (*params).min_prob);
+		local_nh.getParam("/mapper/max_stdev", (*params).max_stdev);
 		local_nh.getParam("/mapper/model_path", (*params).model);
 		local_nh.getParam("/mapper/labels_path", (*params).labels);
 	}

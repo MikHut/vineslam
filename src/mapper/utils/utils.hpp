@@ -2,6 +2,8 @@
 
 #include <cmath>
 #include <iostream>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include <random>
 #include <vector>
 
@@ -145,7 +147,9 @@ template <typename T>
 struct Landmark
 {
 	int                   id;
+	Point<double>         stdev;
 	Point<T>              world_pos;
+	std::vector<Point<T>> estimations;
 	std::vector<Point<T>> image_pos;
 	std::vector<int>      ptr;
 
@@ -157,19 +161,19 @@ struct Landmark
 		(*this).image_pos = std::vector<Point<T>>(1, image_pos);
 	}
 
-  double standardDev()
-  {
-    double mean, var;
+	void standardDev()
+	{
+		Point<double> mean = world_pos;
+		Point<double> var = Point<double>(0.0, 0.0);
 
-    for(size_t i = 0; i < image_pos.size(); i++)
-      mean += image_pos[i].x;
-    mean /= image_pos.size();
+		for (size_t i = 0; i < estimations.size(); i++) {
+			var.x += (estimations[i].x - mean.x) * (estimations[i].x - mean.x);
+			var.y += (estimations[i].y - mean.y) * (estimations[i].y - mean.y);
+		}
 
-    for(size_t i = 0; i < image_pos.size(); i++)
-      var += (image_pos[i].x - mean) * (image_pos[i].x - mean);
-    
-    return sqrt(var / image_pos.size());
-  }
+		stdev.x = sqrt(var.x / estimations.size());
+		stdev.y = sqrt(var.y / estimations.size());
+	}
 };
 
 template <typename T>
@@ -211,6 +215,18 @@ struct Particle
 		(*this).weight   = weight;
 	}
 };
+
+static std::vector<cv::Scalar> colors = {
+    cv::Scalar(137, 137, 0),   cv::Scalar(0, 137, 137),
+    cv::Scalar(137, 0, 137),   cv::Scalar(20, 165, 255),
+    cv::Scalar(137, 137, 137), cv::Scalar(70, 0, 0),
+    cv::Scalar(30, 20, 100),   cv::Scalar(10, 60, 200),
+    cv::Scalar(4, 100, 40),    cv::Scalar(200, 200, 20),
+    cv::Scalar(90, 170, 150),  cv::Scalar(150, 255, 255),
+    cv::Scalar(2, 30, 60),     cv::Scalar(30, 39, 100),
+    cv::Scalar(30, 50, 2),     cv::Scalar(200, 0, 30),
+    cv::Scalar(255, 0, 0),     cv::Scalar(0, 255, 0),
+    cv::Scalar(0, 50, 10)};
 
 /* ----- operators ----- */
 

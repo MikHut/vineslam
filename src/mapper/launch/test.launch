@@ -8,7 +8,7 @@
   <node pkg="mapper" type="mapper_node" name="mapper" output="screen">
     <param name="img_width"  value="1292"/>
     <param name="img_height" value="964"/>
-    <param name="match_box" value="25"/>
+    <param name="match_box" value="40"/>
     <param name="filter_window" value="10"/>
     <param name="mapper_inc" value="20"/>
 

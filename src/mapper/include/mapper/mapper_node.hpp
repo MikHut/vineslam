@@ -29,9 +29,11 @@ public:
 	void run();
 	void rosCommsInit();
 	void retrieveLog(std::string& log);
+	void retrieveLog(std::string& log, const int& id);
 	void constructMap();
 
 	const cv::Mat exportMap();
+	const cv::Mat exportSingleMap(const int& id);
 
 Q_SIGNALS:
 	void init_done();

@@ -24,6 +24,7 @@ public Q_SLOTS:
   void on_init_clicked();
   void on_draw_map_clicked();
   void init_done_slot();
+  void on_landmark_id_valueChanged(int);
 
 private:
 	QNode* qnode;

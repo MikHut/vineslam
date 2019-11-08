@@ -107,7 +107,7 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 	}
 
 #ifdef DEBUG
-  cv::Mat bboxes;
+	cv::Mat bboxes;
 	showBBoxes(msg, bboxes, results);
 	showMatching(bboxes);
 #endif
@@ -123,14 +123,39 @@ const cv::Mat Mapper::exportMap()
 	return (*estimator).map;
 }
 
+const cv::Mat Mapper::exportSingleMap(const int& id) 
+{
+  if(id > (*lprocessor).landmarks.size() - 1)
+    return cv::Mat();
+
+  (*estimator).singleDraw(all_poses, id);
+  return (*estimator).single_map;
+}
+
 void Mapper::retrieveLog(std::string& log)
 {
 	std::ostringstream tmp;
 	for (size_t i = 0; i < (*lprocessor).landmarks.size(); i++) {
-		tmp << "Landmark " << i << " tracked "
-		    << (*lprocessor).landmarks[i].image_pos.size() << " times.";
-		tmp << "\n";
+		tmp << "Landmark " << i << ":\n"
+		    << " -  tracked " << (*lprocessor).landmarks[i].image_pos.size()
+		    << " times \n"
+		    << " -  position: " << (*lprocessor).landmarks[i].world_pos
+		    << " -  uncertainty: " << (*lprocessor).landmarks[i].stdev << "\n\n";
 	}
 
 	log = tmp.str();
 }
+
+void Mapper::retrieveLog(std::string& log, const int& id)
+{
+	std::ostringstream tmp;
+	Landmark<double>   l = (*lprocessor).landmarks[id];
+
+	tmp << "Landmark " << id << ":\n"
+	    << " -  tracked " << l.image_pos.size() << " times \n"
+	    << " -  position: " << l.world_pos << " -  uncertainty: " << l.stdev
+	    << "\n\n";
+
+	log = tmp.str();
+}
+

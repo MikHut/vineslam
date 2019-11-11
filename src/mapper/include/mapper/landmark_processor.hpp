@@ -19,20 +19,12 @@ public:
 	Line<double> computeLine(const Point<double>& landmark);
 	Line<double> computeLine(const Point<double>& landmark, const double& phi);
 
-	/* Only for visualization */
-	void    plotGrid(const Line<double>& l, const int& color);
-	void    plotPMap(Point<double>& p, const int& color);
-	cv::Mat grid;
-	cv::Mat p_map;
-
 	std::vector<Match<double>>    matches;
 	std::vector<Landmark<double>> landmarks;
+	Grid<int>                     grid;
 
 private:
 	Parameters                 params;
 	std::vector<Point<double>> lc_pose;
 	std::vector<Point<double>> lp_pose;
-
-	double x_start;
-	double x_end;
 };

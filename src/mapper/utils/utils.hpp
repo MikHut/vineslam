@@ -32,14 +32,15 @@ struct Parameters
 	int    match_box;     /* Search box diagonal size */
 	int    filter_window; /* Dimension of the window of the robot pose filter */
 	int    mapper_inc;    /* Increment between frames to use in the mapper */
-	int    min_prob;      /* Minimum trunk detection probability */
+	double min_score;     /* Minimum trunk detection probability */
 	int    max_stdev;     /* Maximum standard deviation of trunk world position
 	                         estimation */
 
-	std::string pose_topic;
-	std::string image_topic;
-	std::string model;
-	std::string labels;
+	std::string pose_topic;  /* pose ROS topic */
+	std::string image_topic; /* image ROS topic */
+	std::string model;       /* tflite model path */
+	std::string labels;      /* detection labels path */
+	std::string prediction;  /* type of predictor - 'average' or 'histogram' */
 
 	Parameters()
 	{
@@ -51,12 +52,13 @@ struct Parameters
 		match_box     = 10;
 		filter_window = 5;
 		mapper_inc    = 100;
-		min_prob      = 0.5;
+		min_score     = 0.5;
 		max_stdev     = 1000;
 		model         = "";
 		labels        = "";
 		pose_topic    = "";
 		image_topic   = "";
+		prediction    = "average";
 	}
 };
 
@@ -149,39 +151,6 @@ struct Line
 };
 
 template <typename T>
-struct Landmark
-{
-	int                   id;
-	Point<double>         stdev;
-	Point<T>              world_pos;
-	std::vector<Point<T>> estimations;
-	std::vector<Point<T>> image_pos;
-	std::vector<int>      ptr;
-
-	Landmark() {}
-
-	Landmark(const int& id, const Point<T>& image_pos)
-	{
-		(*this).id        = id;
-		(*this).image_pos = std::vector<Point<T>>(1, image_pos);
-	}
-
-	void standardDev()
-	{
-		Point<double> mean = world_pos;
-		Point<double> var  = Point<double>(0.0, 0.0);
-
-		for (size_t i = 0; i < estimations.size(); i++) {
-			var.x += (estimations[i].x - mean.x) * (estimations[i].x - mean.x);
-			var.y += (estimations[i].y - mean.y) * (estimations[i].y - mean.y);
-		}
-
-		stdev.x = sqrt(var.x / estimations.size());
-		stdev.y = sqrt(var.y / estimations.size());
-	}
-};
-
-template <typename T>
 struct Match
 {
 	Point<T> p_pos;
@@ -218,6 +187,96 @@ struct Particle
 		(*this).delta_p  = delta_p;
 		(*this).delta_th = delta_th;
 		(*this).weight   = weight;
+	}
+};
+
+template <typename T>
+struct Cell
+{
+	Point<T> index;
+	int      score;
+
+	Cell(){};
+
+	Cell(const Point<T>& index)
+	{
+		(*this).index = index;
+		score         = 0;
+	}
+};
+
+template <typename T>
+struct Grid
+{
+	int width;
+	int height;
+
+	std::vector<Cell<T>> cells;
+
+	Grid() {}
+
+	Grid(const int& width, const int& height)
+	{
+		(*this).width  = width;
+		(*this).height = height;
+		for (int i = 0; i < width; i++) {
+			for (int j = 0; j < height; j++) {
+				Point<T> index(i, j - height / 2);
+				Cell<T>  tmp(index);
+				cells.push_back(tmp);
+			}
+		}
+	}
+
+	Cell<T>& operator[](Point<T> index)
+	{
+		if (index.x > width || std::abs(index.y) > height / 2) {
+			std::cout << "Grid: index (" << index.x << "," << index.y
+			          << ") out of scope. Creating new cell with the given "
+			             "index..."
+			          << std::endl;
+			Cell<T> tmp(index);
+			cells.push_back(tmp);
+			return cells[cells.size()];
+		}
+
+		for (size_t i = 0; i < cells.size(); i++) {
+			if (cells[i].index.x == index.x && cells[i].index.y == index.y)
+				return cells[i];
+		}
+	}
+};
+
+template <typename T>
+struct Landmark
+{
+	int                   id;
+	Point<double>         stdev;
+	Point<T>              world_pos;
+	std::vector<Point<T>> estimations;
+	std::vector<Point<T>> image_pos;
+	std::vector<int>      ptr;
+
+	Landmark() {}
+
+	Landmark(const int& id, const Point<T>& image_pos)
+	{
+		(*this).id        = id;
+		(*this).image_pos = std::vector<Point<T>>(1, image_pos);
+	}
+
+	void standardDev()
+	{
+		Point<double> mean = world_pos;
+		Point<double> var  = Point<double>(0.0, 0.0);
+
+		for (size_t i = 0; i < estimations.size(); i++) {
+			var.x += (estimations[i].x - mean.x) * (estimations[i].x - mean.x);
+			var.y += (estimations[i].y - mean.y) * (estimations[i].y - mean.y);
+		}
+
+		stdev.x = sqrt(var.x / estimations.size());
+		stdev.y = sqrt(var.y / estimations.size());
 	}
 };
 

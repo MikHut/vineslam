@@ -10,12 +10,10 @@ class Estimator
 {
 public:
 	Estimator(const Parameters& params, LandmarkProcessor* lprocessor);
-	void init();
+	void process(const std::vector<Pose<double>>& robot_poses);
+	void singleDraw(const std::vector<Pose<double>>& robot_poses, const int& id);
 
 	std::vector<Point<double>> all_sols;
-	void process(const std::vector<Pose<double>>& robot_poses);
-
-	void singleDraw(const std::vector<Pose<double>>& robot_poses, const int& id);
 
 	cv::Mat map;
 	cv::Mat single_map;
@@ -23,8 +21,13 @@ public:
 private:
 	void filterXYTheta(const std::vector<Pose<double>> robot_poses,
 	                   std::vector<Pose<double>>&      filtered_poses);
-	void drawMap(const std::vector<Pose<double>>&  robot_poses);
+	void drawMap(const std::vector<Pose<double>>& robot_poses);
+	void drawHistogram(const std::vector<Pose<double>>& robot_poses);
 	void predict(const std::vector<Pose<double>>& robot_poses);
+
+	std::vector<Landmark<double>>
+	          averagePrediction(const std::vector<Pose<double>>& robot_poses);
+	Grid<int> histogramPrediction(const std::vector<Pose<double>>& robot_poses);
 
 	Parameters         params;
 	LandmarkProcessor* lprocessor;

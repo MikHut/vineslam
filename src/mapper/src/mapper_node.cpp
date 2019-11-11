@@ -74,9 +74,9 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 	    {(*msg).height, (*msg).width, 3});
 
 	auto results =
-	    (*engine).DetectWithInputTensor(input_tensor, (*params).max_stdev, 50);
+	    (*engine).DetectWithInputTensor(input_tensor, (*params).min_score, 50);
 
-	/* process results - calculate trunck Center of Mass */
+	/* process results - calculate trunk Center of Mass */
 	std::vector<Point<double>> trunk_pos;
 	for (auto result : results) {
 		double xmin = result.corners.xmin * (*msg).height;

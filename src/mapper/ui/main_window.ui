@@ -94,6 +94,13 @@
             </property>
            </widget>
           </item>
+          <item>
+           <widget class="QPushButton" name="exit">
+            <property name="text">
+             <string>Quit</string>
+            </property>
+           </widget>
+          </item>
          </layout>
         </widget>
        </widget>
@@ -185,5 +192,22 @@
   </action>
  </widget>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>action_Quit</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindowDesign</receiver>
+   <slot>close()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>504</x>
+     <y>354</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

@@ -21,11 +21,17 @@ public:
 	Ui::MainWindowDesign ui;
 
 public Q_SLOTS:
-  void on_init_clicked();
-  void on_draw_map_clicked();
-  void init_done_slot();
-  void on_landmark_id_valueChanged(int);
+	void on_init_clicked();
+	void on_draw_map_clicked();
+	void init_done_slot();
+	void on_landmark_id_valueChanged(int);
+	void on_m_clicked();
+	void on_dm_clicked();
+	void on_cm_clicked();
+	void on_mm_clicked();
 
 private:
 	QNode* qnode;
+
+	float scale;
 };

@@ -13,10 +13,13 @@ public:
 	void process(const std::vector<Pose<double>>& robot_poses);
 	void singleDraw(const std::vector<Pose<double>>& robot_poses, const int& id);
 
-	std::vector<Point<double>> all_sols;
+	std::vector<Point<double>>    all_sols;
+	std::vector<Landmark<double>> m_landmarks;
 
 	cv::Mat map;
 	cv::Mat single_map;
+
+	float scaler;
 
 private:
 	void filterXYTheta(const std::vector<Pose<double>> robot_poses,

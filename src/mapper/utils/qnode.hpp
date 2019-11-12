@@ -30,12 +30,12 @@ public:
 	/*! - initializes the ROS connection using the class contructor parameters */
 	bool init();
 
-	virtual void          run()                                        = 0;
-	virtual void          retrieveLog(std::string& log)                = 0;
-	virtual void          retrieveLog(std::string& log, const int& id) = 0;
-	virtual void          constructMap()                               = 0;
-	virtual const cv::Mat exportMap()                                  = 0;
-	virtual const cv::Mat exportSingleMap(const int& id)               = 0;
+	virtual void          run()                                               = 0;
+	virtual void          retrieveLog(std::string& log)                       = 0;
+	virtual void          retrieveLog(std::string& log, const int& id)        = 0;
+	virtual void          constructMap(const float& scaler)                   = 0;
+	virtual const cv::Mat exportMap()                                         = 0;
+	virtual const cv::Mat exportSingleMap(const int& id, const float& scaler) = 0;
 
 	const std::string node_name;
 

@@ -35,13 +35,14 @@ void Estimator::predict(const std::vector<Pose<double>>& robot_poses)
 	std::vector<Landmark<double>> final_l;
 
 	if (params.prediction == "histogram") {
+		(*lprocessor).grid.clean();
 		(*lprocessor).grid = histogramPrediction(robot_poses);
-		drawMap(robot_poses);
+		drawHistogram(robot_poses);
 	}
 	else {
 		final_l = averagePrediction(robot_poses);
-		(*lprocessor).landmarks.clear();
-		(*lprocessor).landmarks = final_l;
+		m_landmarks.clear();
+		m_landmarks = final_l;
 		drawMap(robot_poses);
 	}
 }
@@ -83,6 +84,7 @@ Estimator::averagePrediction(const std::vector<Pose<double>>& robot_poses)
 
 			res.push_back(X);
 		}
+
 		l.estimations = res;
 		l.world_pos   = avg;
 		l.standardDev();
@@ -122,7 +124,7 @@ Estimator::histogramPrediction(const std::vector<Pose<double>>& robot_poses)
 			    (*lprocessor).projectLine(X_curr, delta_p.pos, delta_p.theta);
 			Point<double> X = l_prev.intercept(l_proj);
 
-			Point<int> index(std::round(X.x / 10), std::round(X.y / 10));
+			Point<int> index(std::round(X.x), std::round(X.y));
 			grid[index].score++;
 		}
 	}
@@ -132,72 +134,92 @@ Estimator::histogramPrediction(const std::vector<Pose<double>>& robot_poses)
 
 void Estimator::drawMap(const std::vector<Pose<double>>& robot_poses)
 {
-	map = cv::Mat(500, 500, CV_8UC3, cv::Scalar(255, 255, 255));
+	int width  = 500;
+	int height = 500;
+
+	map = cv::Mat(width, height, CV_8UC3, cv::Scalar(255, 255, 255));
+
 	for (size_t i = 0; i < robot_poses.size(); i++) {
-		cv::circle(map,
-		           cv::Point(robot_poses[i].pos.x / 10 + 100,
-		                     robot_poses[i].pos.y / 10 + 250),
-		           2, cv::Scalar(0, 0, 0), 2);
+		Point<double> pt(robot_poses[i].pos.x / scaler + width / 5,
+		                 robot_poses[i].pos.y / scaler + height / 2);
+
+		if (pt.x > 0 && pt.y > 0 && pt.x < width && pt.y < height)
+			cv::circle(map, cv::Point(pt.x, pt.y), 2, cv::Scalar(0, 0, 0), 2);
 	}
-	std::vector<Landmark<double>> l = (*lprocessor).landmarks;
+
+	std::vector<Landmark<double>> l = m_landmarks;
 	for (size_t i = 0; i < l.size(); i++) {
 		for (size_t j = 0; j < l[i].estimations.size(); j++) {
-			cv::circle(map,
-			           cv::Point(l[i].estimations[j].x / 10 + 100,
-			                     l[i].estimations[j].y / 10 + 250),
-			           2, colors[i], 2);
+			Point<double> pt(l[i].estimations[j].x / scaler + width / 5,
+			                 l[i].estimations[j].y / scaler + height / 2);
+
+			if (pt.x > 0 && pt.y > 0 && pt.x < width && pt.y < height)
+				cv::circle(map, cv::Point(pt.x, pt.y), 2, colors[i], 2);
 		}
 	}
+
 	for (size_t i = 0; i < l.size(); i++) {
-		Point<double> pt = l[i].world_pos;
-		cv::circle(map, cv::Point(pt.x / 10 + 100, pt.y / 10 + 250), 4,
-		           cv::Scalar(0, 0, 255), 2);
+		Point<double> pt =
+		    l[i].world_pos / scaler + Point<double>(width / 5, height / 2);
+		if (pt.x > 0 && pt.y > 0 && pt.x < width && pt.y < height)
+			cv::circle(map, cv::Point(pt.x, pt.y), 4, cv::Scalar(0, 0, 255), 2);
 	}
 }
 
 void Estimator::singleDraw(const std::vector<Pose<double>>& robot_poses,
                            const int&                       id)
 {
-	single_map = cv::Mat(500, 500, CV_8UC3, cv::Scalar(255, 255, 255));
+	int width  = 500;
+	int height = 500;
+
+	single_map = cv::Mat(width, height, CV_8UC3, cv::Scalar(255, 255, 255));
+
 	for (size_t i = 0; i < robot_poses.size(); i++) {
-		cv::circle(single_map,
-		           cv::Point(robot_poses[i].pos.x / 10 + 100,
-		                     robot_poses[i].pos.y / 10 + 250),
-		           2, cv::Scalar(0, 0, 0), 2);
+		Point<double> pt(robot_poses[i].pos.x / scaler + width / 5,
+		                 robot_poses[i].pos.y / scaler + height / 2);
+
+		if (pt.x > 0 && pt.y > 0 && pt.x < width && pt.y < height)
+			cv::circle(single_map, cv::Point(pt.x, pt.y), 2, cv::Scalar(0, 0, 0), 2);
 	}
-	Landmark<double> l = (*lprocessor).landmarks[id];
+
+	Landmark<double> l = m_landmarks[id];
 	for (size_t j = 0; j < l.estimations.size(); j++) {
-		cv::circle(
-		    single_map,
-		    cv::Point(l.estimations[j].x / 10 + 100, l.estimations[j].y / 10 + 250),
-		    2, colors[id], 2);
+		Point<double> pt(l.estimations[j].x / scaler + width / 5,
+		                 l.estimations[j].y / scaler + height / 2);
+
+		if (pt.x > 0 && pt.y > 0 && pt.x < width && pt.y < height)
+			cv::circle(single_map, cv::Point(pt.x, pt.y), 2, colors[id], 2);
 	}
-	Point<double> pt = l.world_pos;
-	cv::circle(single_map, cv::Point(pt.x / 10 + 100, pt.y / 10 + 250), 4,
-	           cv::Scalar(0, 0, 255), 2);
+
+	Point<double> pt =
+	    l.world_pos / scaler + Point<double>(width / 5, height / 2);
+	if (pt.x > 0 && pt.y > 0 && pt.x < width && pt.y < height)
+		cv::circle(single_map, cv::Point(pt.x, pt.y), 4, cv::Scalar(0, 0, 255), 2);
 }
 
 void Estimator::drawHistogram(const std::vector<Pose<double>>& robot_poses)
 {
-  Grid<int> grid = (*lprocessor).grid;
+	Grid<int> grid = (*lprocessor).grid;
 	map = cv::Mat(grid.width, grid.height, CV_8UC3, cv::Scalar(255, 255, 255));
 
 	for (size_t i = 0; i < robot_poses.size(); i++) {
-		cv::circle(map,
-		           cv::Point(robot_poses[i].pos.x / 10 + 100,
-		                     robot_poses[i].pos.y / 10 + grid.height / 2),
-		           2, cv::Scalar(0, 0, 0), 2);
+		Point<double> pt(robot_poses[i].pos.x / scaler + grid.width / 5,
+		                 robot_poses[i].pos.y / scaler + grid.height / 2);
+
+		if (pt.x > 0 && pt.y > 0 && pt.x < grid.width && pt.y < grid.height)
+			cv::circle(map, cv::Point(pt.x, pt.y), 2, cv::Scalar(0, 0, 0), 2);
 	}
 
 	std::vector<Cell<int>> cells = (*lprocessor).grid.cells;
 	for (size_t i = 0; i < cells.size(); i++) {
-		int score = cells[i].score;
-    /* if(score > 0) { */
-      std::cout << score << std::endl << cells[i].index;
-    /* } */
-		cv::circle(
-		    map,
-		    cv::Point(cells[i].index.x + 100, cells[i].index.x + grid.height / 2),
-		    2, cv::Scalar(255 / score, 150 / score, 50 / score), 2);
+		int        score = cells[i].score;
+		Point<int> pt(cells[i].index.x / scaler + grid.width / 5,
+		              cells[i].index.y / scaler + grid.height / 2);
+
+		if (score > 0 && pt.x > 0 && pt.y > 0 && pt.x < grid.width &&
+		    pt.y < grid.height) {
+			cv::circle(map, cv::Point(pt.x, pt.y), 2,
+			           cv::Scalar(255 / score, 150 / score, 50 / score), 2);
+		}
 	}
 }

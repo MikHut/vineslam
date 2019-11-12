@@ -12,8 +12,8 @@
     <param name="filter_window" value="10"/>
     <param name="mapper_inc" value="100"/>
     <param name="detector_th" value="0.35"/>
-    <param name="max_stdev" value="500"/>
-    <param name="prediction" value="histogram"/>
+    <param name="max_stdev" value="10000"/>
+    <param name="prediction" value="average"/>
 
     <param name="pose_topic" value="/slam_out_pose"/>
     <param name="image_topic" value="/camera/image_raw"/>

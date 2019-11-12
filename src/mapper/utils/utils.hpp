@@ -62,6 +62,8 @@ struct Parameters
 	}
 };
 
+/* structures */
+
 template <typename T>
 struct Point
 {
@@ -228,15 +230,14 @@ struct Grid
 		}
 	}
 
+	void clean() { cells.clear(); }
+
 	Cell<T>& operator[](Point<T> index)
 	{
 		if (index.x > width || std::abs(index.y) > height / 2) {
 			std::cout << "Grid: index (" << index.x << "," << index.y
-			          << ") out of scope. Creating new cell with the given "
-			             "index..."
+			          << ") out of scope. Returning last grid element..."
 			          << std::endl;
-			Cell<T> tmp(index);
-			cells.push_back(tmp);
 			return cells[cells.size()];
 		}
 

@@ -23,7 +23,7 @@ void LandmarkProcessor::matchLandmarks(const int& iter)
 			Point<double> p_pose    = landmarks[j].image_pos[n];
 
 			if (std::fabs(lc_pose[i].x - p_pose.x) < params.match_box &&
-			    iter - last_iter <= 5) {
+			    iter - last_iter <= 5 && iter - last_iter > 0) {
 				Line<double> lp_line = computeLine(p_pose);
 				Line<double> lc_line = computeLine(lc_pose[i]);
 

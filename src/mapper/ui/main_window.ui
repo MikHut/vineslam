@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1010</width>
-    <height>710</height>
+    <width>1041</width>
+    <height>713</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -29,7 +29,7 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>991</width>
+         <width>1021</width>
          <height>671</height>
         </rect>
        </property>
@@ -58,7 +58,7 @@
           <rect>
            <x>660</x>
            <y>0</y>
-           <width>321</width>
+           <width>352</width>
            <height>631</height>
           </rect>
          </property>
@@ -78,6 +78,56 @@
            </widget>
           </item>
           <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_2">
+            <property name="spacing">
+             <number>6</number>
+            </property>
+            <property name="sizeConstraint">
+             <enum>QLayout::SetMinimumSize</enum>
+            </property>
+            <property name="leftMargin">
+             <number>17</number>
+            </property>
+            <property name="topMargin">
+             <number>5</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="QRadioButton" name="m">
+              <property name="text">
+               <string>m</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QRadioButton" name="dm">
+              <property name="text">
+               <string>dm</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QRadioButton" name="cm">
+              <property name="text">
+               <string>cm</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QRadioButton" name="mm">
+              <property name="text">
+               <string>mm</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
            <widget class="QLabel" name="log_label">
             <property name="text">
              <string>Log</string>
@@ -91,13 +141,6 @@
            <widget class="QPlainTextEdit" name="log">
             <property name="textInteractionFlags">
              <set>Qt::NoTextInteraction</set>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="exit">
-            <property name="text">
-             <string>Quit</string>
             </property>
            </widget>
           </item>
@@ -192,22 +235,5 @@
   </action>
  </widget>
  <resources/>
- <connections>
-  <connection>
-   <sender>action_Quit</sender>
-   <signal>triggered()</signal>
-   <receiver>MainWindowDesign</receiver>
-   <slot>close()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>-1</x>
-     <y>-1</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>504</x>
-     <y>354</y>
-    </hint>
-   </hints>
-  </connection>
- </connections>
+ <connections/>
 </ui>

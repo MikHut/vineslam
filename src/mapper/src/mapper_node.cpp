@@ -112,8 +112,9 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 #endif
 }
 
-void Mapper::constructMap()
+void Mapper::constructMap(const float& scaler)
 {
+  (*estimator).scaler = scaler;
 	(*estimator).process(all_poses);
 }
 
@@ -122,11 +123,12 @@ const cv::Mat Mapper::exportMap()
 	return (*estimator).map;
 }
 
-const cv::Mat Mapper::exportSingleMap(const int& id)
+const cv::Mat Mapper::exportSingleMap(const int& id, const float& scaler)
 {
-	if (id > (*lprocessor).landmarks.size() - 1)
+	if (id > (*estimator).m_landmarks.size() - 1)
 		return cv::Mat();
 
+  (*estimator).scaler = scaler;
 	(*estimator).singleDraw(all_poses, id);
 	return (*estimator).single_map;
 }
@@ -134,12 +136,12 @@ const cv::Mat Mapper::exportSingleMap(const int& id)
 void Mapper::retrieveLog(std::string& log)
 {
 	std::ostringstream tmp;
-	for (size_t i = 0; i < (*lprocessor).landmarks.size(); i++) {
+	for (size_t i = 0; i < (*estimator).m_landmarks.size(); i++) {
 		tmp << "Landmark " << i << ":\n"
-		    << " -  tracked " << (*lprocessor).landmarks[i].image_pos.size()
+		    << " -  tracked " << (*estimator).m_landmarks[i].image_pos.size()
 		    << " times \n"
-		    << " -  position: " << (*lprocessor).landmarks[i].world_pos
-		    << " -  uncertainty: " << (*lprocessor).landmarks[i].stdev << "\n\n";
+		    << " -  position: " << (*estimator).m_landmarks[i].world_pos
+		    << " -  uncertainty: " << (*estimator).m_landmarks[i].stdev << "\n\n";
 	}
 
 	log = tmp.str();
@@ -148,7 +150,7 @@ void Mapper::retrieveLog(std::string& log)
 void Mapper::retrieveLog(std::string& log, const int& id)
 {
 	std::ostringstream tmp;
-	Landmark<double>   l = (*lprocessor).landmarks[id];
+	Landmark<double>   l = (*estimator).m_landmarks[id];
 
 	tmp << "Landmark " << id << ":\n"
 	    << " -  tracked " << l.image_pos.size() << " times \n"

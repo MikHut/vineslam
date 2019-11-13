@@ -232,31 +232,27 @@ struct Grid
 
 	void clean() { cells.clear(); }
 
-	Cell<T>& operator[](Point<T> index)
+	int arrayIndex(Point<T> index)
 	{
-		if (index.x > width || std::abs(index.y) > height / 2) {
-			std::cout << "Grid: index (" << index.x << "," << index.y
-			          << ") out of scope. Returning last grid element..."
-			          << std::endl;
-			return cells[cells.size()];
-		}
-
 		for (size_t i = 0; i < cells.size(); i++) {
 			if (cells[i].index.x == index.x && cells[i].index.y == index.y)
-				return cells[i];
+				return i;
 		}
+
+		return -1;
 	}
 };
 
 template <typename T>
 struct Landmark
 {
-	int                   id;
-	Point<double>         stdev;
-	Point<T>              world_pos;
-	std::vector<Point<T>> estimations;
-	std::vector<Point<T>> image_pos;
-	std::vector<int>      ptr;
+	int                    id;
+	Point<double>          stdev;
+	Point<T>               world_pos;
+	std::vector<Point<T>>  estimations;
+	std::vector<Point<T>>  image_pos;
+	std::vector<Cell<int>> cells;
+	std::vector<int>       ptr;
 
 	Landmark() {}
 
@@ -278,6 +274,19 @@ struct Landmark
 
 		stdev.x = sqrt(var.x / estimations.size());
 		stdev.y = sqrt(var.y / estimations.size());
+	}
+
+	Point<T> maxScore()
+	{
+		Point<T> index;
+		int      max = 0;
+		for (size_t i = 0; i < cells.size(); i++) {
+			if (cells[i].score > max) {
+				max   = cells[i].score;
+				index = Point<T>((T)cells[i].index.x, (T)cells[i].index.y);
+			}
+		}
+    return index;
 	}
 };
 

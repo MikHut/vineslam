@@ -29,8 +29,9 @@ private:
 	void predict(const std::vector<Pose<double>>& robot_poses);
 
 	std::vector<Landmark<double>>
-	          averagePrediction(const std::vector<Pose<double>>& robot_poses);
-	Grid<int> histogramPrediction(const std::vector<Pose<double>>& robot_poses);
+	averagePrediction(const std::vector<Pose<double>>& robot_poses);
+	std::vector<Landmark<double>>
+	histogramPrediction(const std::vector<Pose<double>>& robot_poses);
 
 	Parameters         params;
 	LandmarkProcessor* lprocessor;

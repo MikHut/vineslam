@@ -5,6 +5,8 @@ MainWindow::MainWindow(QNode* node, QWidget* parent)
 {
 	ui.setupUi(this);
 	ui.tabWidget->setCurrentIndex(0);
+  ui.draw_map->setEnabled(false);
+  ui.export_map->setEnabled(false);
 	connect(ui.actionAbout_Qt, SIGNAL(triggered(bool)), qApp, SLOT(aboutQt()));
 
 	setWindowTitle(QApplication::translate("MainWindowDesign",
@@ -27,6 +29,8 @@ void MainWindow::init_done_slot()
 	QString tmp;
 	tmp = "All configs done. Ready to start!\n\n";
 	ui.log->insertPlainText(tmp);
+  ui.draw_map->setEnabled(true);
+  ui.export_map->setEnabled(true);
 }
 
 void MainWindow::on_draw_map_clicked()
@@ -42,6 +46,16 @@ void MainWindow::on_draw_map_clicked()
 	QImage qmap = QImage(map.data, map.cols, map.rows, QImage::Format_RGB888);
 	ui.map->setPixmap(QPixmap::fromImage(qmap));
 	ui.map->setScaledContents(true);
+}
+
+void MainWindow::on_export_map_clicked() 
+{
+  (*qnode).saveMap();
+
+	std::string text = "Map saved to \n";
+	(*qnode).retrieveLog(text);
+	ui.log->clear();
+	ui.log->insertPlainText(QString::fromUtf8(text.c_str()));
 }
 
 void MainWindow::on_landmark_id_valueChanged(int id)

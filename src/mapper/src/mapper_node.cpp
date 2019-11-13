@@ -159,3 +159,16 @@ void Mapper::retrieveLog(std::string& log, const int& id)
 
 	log = tmp.str();
 }
+
+void Mapper::saveMap()
+{
+  std::ofstream map_file;
+  map_file.open("map.txt");
+
+  for(size_t i = 0; i < (*estimator).m_landmarks.size(); i++) {
+    Point<double> pt = (*estimator).m_landmarks[i].world_pos;
+    map_file << i << " " << pt.x << " " << pt.y << "\n";
+  }
+
+  map_file.close();
+}

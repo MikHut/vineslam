@@ -12,6 +12,7 @@
 #include <opencv2/features2d.hpp>
 #include <sensor_msgs/Image.h>
 #include <tf/transform_listener.h>
+#include <fstream>
 
 /* edgetpu detection API */
 #include <detection/engine.h>
@@ -34,6 +35,8 @@ public:
 
 	const cv::Mat exportMap();
 	const cv::Mat exportSingleMap(const int& id, const float& scaler);
+
+	void saveMap();
 
 Q_SIGNALS:
 	void init_done();

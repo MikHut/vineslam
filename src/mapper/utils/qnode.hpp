@@ -34,6 +34,7 @@ public:
 	virtual void          retrieveLog(std::string& log)                       = 0;
 	virtual void          retrieveLog(std::string& log, const int& id)        = 0;
 	virtual void          constructMap(const float& scaler)                   = 0;
+	virtual void          saveMap()                                           = 0;
 	virtual const cv::Mat exportMap()                                         = 0;
 	virtual const cv::Mat exportSingleMap(const int& id, const float& scaler) = 0;
 

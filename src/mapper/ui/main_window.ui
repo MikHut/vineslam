@@ -72,6 +72,9 @@
           </item>
           <item>
            <widget class="QPushButton" name="draw_map">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
             <property name="text">
              <string>Draw map</string>
             </property>
@@ -126,6 +129,13 @@
              </widget>
             </item>
            </layout>
+          </item>
+          <item>
+           <widget class="QPushButton" name="export_map">
+            <property name="text">
+             <string>Export map</string>
+            </property>
+           </widget>
           </item>
           <item>
            <widget class="QLabel" name="log_label">

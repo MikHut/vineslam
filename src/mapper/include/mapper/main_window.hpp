@@ -23,6 +23,7 @@ public:
 public Q_SLOTS:
 	void on_init_clicked();
 	void on_draw_map_clicked();
+	void on_export_map_clicked();
 	void init_done_slot();
 	void on_landmark_id_valueChanged(int);
 	void on_m_clicked();

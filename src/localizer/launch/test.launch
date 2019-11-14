@@ -1,0 +1,10 @@
+<launch>
+  <node pkg="localizer" type="localizer_node" name="localizer" output="screen">
+    <param name="img_width"  value="1292"/>
+    <param name="img_height" value="964"/>
+
+    <param name="pose_topic" value="/slam_out_pose"/>
+    <param name="image_topic" value="/camera/image_raw"/>
+    <param name="map_file" value="/home/andre-criis/map.txt"/>
+  </node>
+</launch>

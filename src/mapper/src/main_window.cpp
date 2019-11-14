@@ -30,6 +30,7 @@ void MainWindow::init_done_slot()
 	QString tmp;
 	tmp = "All configs done. Ready to start!\n\n";
 	ui.log->insertPlainText(tmp);
+  ui.init->setEnabled(false);
   ui.draw_map->setEnabled(true);
   ui.export_map->setEnabled(true);
 

@@ -35,7 +35,9 @@ public:
 	virtual void          retrieveLog(std::string& log, const int& id)        = 0;
 	virtual void          constructMap(const float& scaler)                   = 0;
 	virtual void          saveMap()                                           = 0;
+	virtual bool          histogramType()                                     = 0;
 	virtual const cv::Mat exportMap()                                         = 0;
+	virtual const cv::Mat exportHistogram()                                   = 0;
 	virtual const cv::Mat exportSingleMap(const int& id, const float& scaler) = 0;
 
 	const std::string node_name;

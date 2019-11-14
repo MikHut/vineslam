@@ -123,6 +123,10 @@ const cv::Mat Mapper::exportMap()
 	return (*estimator).map;
 }
 
+const cv::Mat Mapper::exportHistogram()
+{
+	return (*estimator).histogram;
+}
 const cv::Mat Mapper::exportSingleMap(const int& id, const float& scaler)
 {
 	if (id > (*estimator).m_landmarks.size() - 1)
@@ -163,7 +167,7 @@ void Mapper::retrieveLog(std::string& log, const int& id)
 void Mapper::saveMap()
 {
   std::ofstream map_file;
-  map_file.open("map.txt");
+  map_file.open("/home/andre-criis/map.txt");
 
   for(size_t i = 0; i < (*estimator).m_landmarks.size(); i++) {
     Point<double> pt = (*estimator).m_landmarks[i].world_pos;
@@ -171,4 +175,9 @@ void Mapper::saveMap()
   }
 
   map_file.close();
+}
+
+bool Mapper::histogramType()
+{
+  return (*params).prediction == "histogram";
 }

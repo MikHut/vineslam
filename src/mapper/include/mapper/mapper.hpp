@@ -18,6 +18,7 @@ public:
 
 	cv::Mat map;
 	cv::Mat single_map;
+	cv::Mat histogram;
 
 	float scaler;
 

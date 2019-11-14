@@ -71,16 +71,6 @@
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="draw_map">
-            <property name="enabled">
-             <bool>true</bool>
-            </property>
-            <property name="text">
-             <string>Draw map</string>
-            </property>
-           </widget>
-          </item>
-          <item>
            <layout class="QHBoxLayout" name="horizontalLayout_2">
             <property name="spacing">
              <number>6</number>
@@ -131,6 +121,30 @@
            </layout>
           </item>
           <item>
+           <layout class="QHBoxLayout" name="horizontalLayout">
+            <property name="topMargin">
+             <number>5</number>
+            </property>
+            <item>
+             <widget class="QPushButton" name="draw_map">
+              <property name="enabled">
+               <bool>true</bool>
+              </property>
+              <property name="text">
+               <string>Draw map</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="draw_histogram">
+              <property name="text">
+               <string>Draw histogram</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
            <widget class="QPushButton" name="export_map">
             <property name="text">
              <string>Export map</string>
@@ -166,7 +180,7 @@
           <rect>
            <x>660</x>
            <y>0</y>
-           <width>321</width>
+           <width>351</width>
            <height>631</height>
           </rect>
          </property>

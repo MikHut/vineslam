@@ -6,6 +6,7 @@ MainWindow::MainWindow(QNode* node, QWidget* parent)
 	ui.setupUi(this);
 	ui.tabWidget->setCurrentIndex(0);
   ui.draw_map->setEnabled(false);
+  ui.draw_histogram->setEnabled(false);
   ui.export_map->setEnabled(false);
 	connect(ui.actionAbout_Qt, SIGNAL(triggered(bool)), qApp, SLOT(aboutQt()));
 
@@ -31,6 +32,9 @@ void MainWindow::init_done_slot()
 	ui.log->insertPlainText(tmp);
   ui.draw_map->setEnabled(true);
   ui.export_map->setEnabled(true);
+
+  if((*qnode).histogramType() == true)
+    ui.draw_histogram->setEnabled(true);
 }
 
 void MainWindow::on_draw_map_clicked()
@@ -48,14 +52,28 @@ void MainWindow::on_draw_map_clicked()
 	ui.map->setScaledContents(true);
 }
 
-void MainWindow::on_export_map_clicked() 
+void MainWindow::on_draw_histogram_clicked() 
 {
-  (*qnode).saveMap();
+	(*qnode).constructMap(scale);
+	cv::Mat hist = (*qnode).exportHistogram();
 
-	std::string text = "Map saved to \n";
+	std::string text;
 	(*qnode).retrieveLog(text);
 	ui.log->clear();
 	ui.log->insertPlainText(QString::fromUtf8(text.c_str()));
+
+	QImage qhist = QImage(hist.data, hist.cols, hist.rows, QImage::Format_RGB888);
+	ui.map->setPixmap(QPixmap::fromImage(qhist));
+	ui.map->setScaledContents(true);
+}
+
+void MainWindow::on_export_map_clicked() 
+{
+	std::string text = "Map saved to /home/user/map.txt\n";
+	ui.log->clear();
+	ui.log->insertPlainText(QString::fromUtf8(text.c_str()));
+
+  (*qnode).saveMap();
 }
 
 void MainWindow::on_landmark_id_valueChanged(int id)

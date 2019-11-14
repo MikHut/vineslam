@@ -34,9 +34,11 @@ public:
 	void constructMap(const float& scaler);
 
 	const cv::Mat exportMap();
+	const cv::Mat exportHistogram();
 	const cv::Mat exportSingleMap(const int& id, const float& scaler);
 
 	void saveMap();
+  bool histogramType();
 
 Q_SIGNALS:
 	void init_done();

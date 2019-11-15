@@ -6,6 +6,7 @@ add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED
 		    roscpp
+		    edgetpu_cpp 
                     std_msgs
 		    sensor_msgs
 		    geometry_msgs
@@ -21,11 +22,14 @@ catkin_package()
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  ${edgetpu_cpp_INCLUDE_DIRS}
 )
 
-SET(${PROJECT_NAME}_SOURCES src/main.cpp src/localizer_node.cpp)
+include_directories(${CMAKE_SOURCE_DIR}/edgetpu_cpp/dep/libedgetpu)
+
+SET(${PROJECT_NAME}_SOURCES src/main.cpp src/localizer_node.cpp src/particle_filter.cpp)
 
 add_executable(${PROJECT_NAME}_node ${${PROJECT_NAME}_SOURCES})
 add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(${PROJECT_NAME}_node benchmark ${catkin_LIBRARIES}
-	${OpenCV_LIBRARIES})
+	${OpenCV_LIBRARIES} ${edgetpu_cpp_LIBRARIES})

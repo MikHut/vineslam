@@ -32,7 +32,7 @@ struct Parameters
 
 	Parameters()
 	{
-		h_fov         = PI / 4;
+		h_fov         = PI / 2;
 		v_fov         = PI / 4;
 		cam_height    = 100.0;
 		width         = 1280;

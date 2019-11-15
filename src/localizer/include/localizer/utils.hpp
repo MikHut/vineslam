@@ -5,30 +5,39 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <vector>
 
-const float INF = 1.0e6;         /* hypothetic infinit */
-const float PI  = 3.14159265359; /* (radians) */
+const float INF       = 1.0e6;         /* hypothetic infinit */
+const float PI        = 3.14159265359; /* (radians) */
+const float STD_XY    = 1.0;    /* position standard deviation (meters) */
+const float STD_THETA = 0.1745; /* orientation standard deviation (radians) */
+
 struct Parameters
 {
 	double h_fov;      /* Camera horizontal field of view */
 	double v_fov;      /* Camera vertical field of view */
 	double cam_height; /* Camera height (centimenters) */
+	double min_score;  /* Minimum trunk detection probability */
 	int    width;      /* Image width. */
 	int    height;     /* Image height */
 
 	std::string pose_topic;  /* pose ROS topic */
 	std::string image_topic; /* image ROS topic */
 	std::string map_file;    /* map file containing the landmarks position */
+	std::string model;       /* tflite model path */
+	std::string labels;      /* detection labels path */
 
 	Parameters()
 	{
-		h_fov       = PI / 4;
-		v_fov       = PI / 4;
+		h_fov       = PI / 2;
+		v_fov       = PI / 2;
 		cam_height  = 100.0;
 		width       = 1280;
 		height      = 960;
+		min_score   = 0.35;
 		pose_topic  = "";
 		image_topic = "";
 		map_file    = "";
+		model       = "";
+		labels      = "";
 	}
 };
 
@@ -298,5 +307,13 @@ std::ostream& operator<<(std::ostream& o, const Pose<T>& p)
 {
 	o << "[x,y,theta] = [" << p.pos.x << "," << p.pos.y << "," << p.theta << "]"
 	  << std::endl;
+	return o;
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream& o, const Landmark<T>& l)
+{
+	o << "id: " << l.id << "\n[x,y] = [" << l.world_pos.x << ","
+	  << l.world_pos.y << "]" << std::endl;
 	return o;
 }

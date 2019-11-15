@@ -1,10 +1,18 @@
 #pragma once
 
+#include "particle_filter.hpp"
 #include "utils.hpp"
+#include <cv_bridge/cv_bridge.h>
 #include <fstream>
 #include <iostream>
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
+
+/* edgetpu detection API */
+#include <detection/engine.h>
+#include <examples/label_utils.h>
+#include <examples/model_utils.h>
+#include <test_utils.h>
 
 class Localizer
 {
@@ -19,6 +27,11 @@ private:
 	Parameters*     params;
 
 	std::vector<Landmark<double>> landmarks;
+	ParticleFilter*               pfilter;
+
+	std::vector<int>                     input_tensor_shape;
+	coral::DetectionEngine*              engine;
+	std::unordered_map<int, std::string> labels;
 
 	void loadParameters(const ros::NodeHandle& local_nh)
 	{
@@ -30,6 +43,9 @@ private:
 		local_nh.getParam("/localizer/v_fov", (*params).v_fov);
 		local_nh.getParam("/localizer/img_width", (*params).width);
 		local_nh.getParam("/localizer/img_height", (*params).height);
+		local_nh.getParam("/localizer/model_path", (*params).model);
+		local_nh.getParam("/localizer/labels_path", (*params).labels);
+		local_nh.getParam("/localizer/detector_th", (*params).min_score);
 	}
 
 	void loadLandmarks(const std::string& path)

@@ -15,7 +15,7 @@ public:
 	std::vector<Particle<double>> particles;
 
 private:
-	void predict(const std::vector<Point<double>>& land_poses);
+	void predict(const std::vector<Point<double>>& land_pos);
 	void updateWeights();
 	void resample();
 

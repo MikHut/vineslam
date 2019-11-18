@@ -43,6 +43,7 @@ private:
 		local_nh.getParam("/localizer/v_fov", (*params).v_fov);
 		local_nh.getParam("/localizer/img_width", (*params).width);
 		local_nh.getParam("/localizer/img_height", (*params).height);
+		local_nh.getParam("/localizer/scaler", (*params).scaler);
 		local_nh.getParam("/localizer/model_path", (*params).model);
 		local_nh.getParam("/localizer/labels_path", (*params).labels);
 		local_nh.getParam("/localizer/detector_th", (*params).min_score);

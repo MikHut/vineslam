@@ -7,7 +7,7 @@
 
 const float INF       = 1.0e6;         /* hypothetic infinit */
 const float PI        = 3.14159265359; /* (radians) */
-const float STD_XY    = 1.0;    /* position standard deviation (meters) */
+const float STD_XY    = 0.3;    /* position standard deviation (meters) */
 const float STD_THETA = 0.1745; /* orientation standard deviation (radians) */
 
 struct Parameters
@@ -18,6 +18,7 @@ struct Parameters
 	double min_score;  /* Minimum trunk detection probability */
 	int    width;      /* Image width. */
 	int    height;     /* Image height */
+	int    scaler;     /* Convert meter to the unit of the map */
 
 	std::string pose_topic;  /* pose ROS topic */
 	std::string image_topic; /* image ROS topic */
@@ -33,6 +34,7 @@ struct Parameters
 		width       = 1280;
 		height      = 960;
 		min_score   = 0.35;
+		scaler      = 1;
 		pose_topic  = "";
 		image_topic = "";
 		map_file    = "";
@@ -138,6 +140,7 @@ struct Particle
 	Point<T> pos;
 	double   theta;
 	double   weight;
+	double   r_error;
 
 	Particle() {}
 
@@ -148,6 +151,7 @@ struct Particle
 		(*this).delta_p  = delta_p;
 		(*this).delta_th = delta_th;
 		(*this).weight   = weight;
+		(*this).r_error  = 0.0;
 	}
 };
 
@@ -291,7 +295,7 @@ template <typename T>
 std::ostream& operator<<(std::ostream& o, const Particle<T>& p)
 {
 	o << "(" << p.id << ") - " << p.pos << "theta = " << p.theta
-	  << "\nweight = " << p.weight << std::endl;
+	  << "\nweight = " << p.weight << "\nr_error = " << p.r_error << std::endl;
 	return o;
 }
 
@@ -313,7 +317,7 @@ std::ostream& operator<<(std::ostream& o, const Pose<T>& p)
 template <typename T>
 std::ostream& operator<<(std::ostream& o, const Landmark<T>& l)
 {
-	o << "id: " << l.id << "\n[x,y] = [" << l.world_pos.x << ","
-	  << l.world_pos.y << "]" << std::endl;
+	o << "id: " << l.id << "\n[x,y] = [" << l.world_pos.x << "," << l.world_pos.y
+	  << "]" << std::endl;
 	return o;
 }

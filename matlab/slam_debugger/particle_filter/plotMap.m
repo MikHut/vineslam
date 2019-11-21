@@ -1,4 +1,4 @@
-function plotMap(particle, w_pos)
+function plotMap(particle, w_pos, min_lim, max_lim)
     global img_w;
 
     figure(2)
@@ -11,6 +11,6 @@ function plotMap(particle, w_pos)
     l_min = computeLine(0,     particle.pose(3), particle.pose(1:2));
     l_max = computeLine(img_w, particle.pose(3), particle.pose(1:2));
     
-    plotLine(l_min, [0 -10], [100 10]);
-    plotLine(l_max, [0 -10], [100 10]);
+    plotLine(l_min, min_lim, max_lim);
+    plotLine(l_max, min_lim, max_lim);
 end

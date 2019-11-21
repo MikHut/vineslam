@@ -13,7 +13,7 @@ function particles = updateWeights(particles)
         if w_sum > 0
             particles(i).w = particles(i).w / w_sum;
         else
-            particles(i).w  = 0;
+            particles(i).w  = 1/length(particles);
         end
     end
 end

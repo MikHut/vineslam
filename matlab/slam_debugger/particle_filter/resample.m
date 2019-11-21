@@ -1,10 +1,12 @@
 function particles = resample(particles)
 
-M = length(particles);
-Q = zeros(M);
-for i = 1:M
-    Q(i) = sum(Q(1:i)) + particles(i).w;
+for i = 1:length(particles)
+    w(i) = particles(i).w;
 end
+
+M = length(w);
+Q = cumsum(w);
+
 Q(M) = 1;
 
 i=1;
@@ -24,3 +26,7 @@ for i = 1:M
     particles(i).w       = particles(indx(i)).w;
     particles(i).r_error = particles(indx(i)).r_error;    
 end
+% 
+% particles(:).w
+% particles(:).pose
+% indx(1,:)'

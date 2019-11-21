@@ -1,6 +1,8 @@
 #include "../include/mapper/mapper_node.hpp"
 #include <chrono>
 
+std::ofstream outfile1, outfile2;
+
 Mapper::Mapper(int argc, char** argv) : QNode(argc, argv, "mapper") {}
 
 void Mapper::rosCommsInit()
@@ -28,6 +30,9 @@ void Mapper::rosCommsInit()
 	input_tensor_shape = (*engine).get_input_tensor_shape();
 	labels             = coral::ReadLabelFile((*params).labels);
 
+  outfile1.open("/home/andre-criis/detections.csv");
+  outfile2.open("/home/andre-criis/poses.csv");
+
 	Q_EMIT init_done();
 }
 
@@ -35,6 +40,8 @@ void Mapper::run()
 {
 	ros::spin();
 	std::cout << "Ros shutdown, proceeding to close the gui." << std::endl;
+  outfile1.close();
+  outfile2.close();
 	Q_EMIT
 	rosShutdown();
 }
@@ -54,6 +61,8 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 
 	all_poses.push_back(Pose<double>(slam_pose.position.x * 100,
 	                                 slam_pose.position.y * 100, yaw));
+
+  outfile2 << slam_pose.position.x << slam_pose.position.y << yaw << "\n";
 
 	/* Convert input image to BGR */
 	cv_bridge::CvImageConstPtr cv_ptr =
@@ -86,7 +95,9 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 
 		Point<double> tmp((ymin + ymax) / 2, (xmin + xmax) / 2);
 		trunk_pos.push_back(tmp);
+    outfile1 << tmp.x << ",";
 	}
+  outfile1 << "\n";
 
 	if (init == false) {
 		(*lprocessor).updatePoses(trunk_pos);
@@ -112,9 +123,12 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 #endif
 }
 
-void Mapper::constructMap(const float& scaler)
+void Mapper::constructMap(const float& scaler, const int& map_width,
+                          const int& map_heigth)
 {
-  (*estimator).scaler = scaler;
+	(*estimator).map_width  = map_width;
+	(*estimator).map_heigth = map_heigth;
+	(*estimator).scaler     = scaler;
 	(*estimator).process(all_poses);
 }
 
@@ -127,14 +141,24 @@ const cv::Mat Mapper::exportHistogram()
 {
 	return (*estimator).histogram;
 }
-const cv::Mat Mapper::exportSingleMap(const int& id, const float& scaler)
+const cv::Mat Mapper::exportSingleMap(const int& id, const float& scaler,
+                                      const int& map_width,
+                                      const int& map_heigth)
 {
 	if (id > (*estimator).m_landmarks.size() - 1)
 		return cv::Mat();
 
-  (*estimator).scaler = scaler;
+	(*estimator).map_width  = map_width;
+	(*estimator).map_heigth = map_heigth;
+	(*estimator).scaler = scaler;
 	(*estimator).singleDraw(all_poses, id);
 	return (*estimator).single_map;
+}
+
+const cv::Mat Mapper::filterMap()
+{
+  (*estimator).filterMap(all_poses);
+  return (*estimator).map;
 }
 
 void Mapper::retrieveLog(std::string& log)
@@ -166,18 +190,18 @@ void Mapper::retrieveLog(std::string& log, const int& id)
 
 void Mapper::saveMap()
 {
-  std::ofstream map_file;
-  map_file.open("/home/andre-criis/map.txt");
+	std::ofstream map_file;
+	map_file.open("/home/andre-criis/map.txt");
 
-  for(size_t i = 0; i < (*estimator).m_landmarks.size(); i++) {
-    Point<double> pt = (*estimator).m_landmarks[i].world_pos;
-    map_file << i << " " << pt.x << " " << pt.y << "\n";
-  }
+	for (size_t i = 0; i < (*estimator).m_landmarks.size(); i++) {
+		Point<double> pt = (*estimator).m_landmarks[i].world_pos;
+		map_file << i << " " << pt.x << " " << pt.y << "\n";
+	}
 
-  map_file.close();
+	map_file.close();
 }
 
 bool Mapper::histogramType()
 {
-  return (*params).prediction == "histogram";
+	return (*params).prediction == "histogram";
 }

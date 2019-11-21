@@ -12,6 +12,7 @@ public:
 	Estimator(const Parameters& params, LandmarkProcessor* lprocessor);
 	void process(const std::vector<Pose<double>>& robot_poses);
 	void singleDraw(const std::vector<Pose<double>>& robot_poses, const int& id);
+  void filterMap(const std::vector<Pose<double>>& robot_poses);
 
 	std::vector<Point<double>>    all_sols;
 	std::vector<Landmark<double>> m_landmarks;
@@ -21,6 +22,8 @@ public:
 	cv::Mat histogram;
 
 	float scaler;
+  int   map_width;
+  int   map_heigth;
 
 private:
 	void filterXYTheta(const std::vector<Pose<double>> robot_poses,

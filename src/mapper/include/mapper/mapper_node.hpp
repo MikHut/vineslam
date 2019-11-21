@@ -7,12 +7,12 @@
 #include "landmark_processor.hpp"
 #include "mapper.hpp"
 #include <cv_bridge/cv_bridge.h>
+#include <fstream>
 #include <geometry_msgs/PoseStamped.h>
 #include <image_transport/image_transport.h>
 #include <opencv2/features2d.hpp>
 #include <sensor_msgs/Image.h>
 #include <tf/transform_listener.h>
-#include <fstream>
 
 /* edgetpu detection API */
 #include <detection/engine.h>
@@ -31,14 +31,17 @@ public:
 	void rosCommsInit();
 	void retrieveLog(std::string& log);
 	void retrieveLog(std::string& log, const int& id);
-	void constructMap(const float& scaler);
+	void constructMap(const float& scaler, const int& map_width,
+	                  const int& map_heigth);
 
+  const cv::Mat filterMap();
 	const cv::Mat exportMap();
 	const cv::Mat exportHistogram();
-	const cv::Mat exportSingleMap(const int& id, const float& scaler);
+	const cv::Mat exportSingleMap(const int& id, const float& scaler,
+	                              const int& map_width, const int& map_heigth);
 
 	void saveMap();
-  bool histogramType();
+	bool histogramType();
 
 Q_SIGNALS:
 	void init_done();
@@ -95,5 +98,6 @@ private:
 		local_nh.getParam("/mapper/model_path", (*params).model);
 		local_nh.getParam("/mapper/labels_path", (*params).labels);
 		local_nh.getParam("/mapper/prediction", (*params).prediction);
+		local_nh.getParam("/mapper/vineyard_height", (*params).vineyard_height);
 	}
 };

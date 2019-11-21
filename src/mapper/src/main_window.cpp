@@ -7,6 +7,7 @@ MainWindow::MainWindow(QNode* node, QWidget* parent)
 	ui.tabWidget->setCurrentIndex(0);
   ui.draw_map->setEnabled(false);
   ui.draw_histogram->setEnabled(false);
+  ui.filter_map->setEnabled(false);
   ui.export_map->setEnabled(false);
 	connect(ui.actionAbout_Qt, SIGNAL(triggered(bool)), qApp, SLOT(aboutQt()));
 
@@ -16,6 +17,8 @@ MainWindow::MainWindow(QNode* node, QWidget* parent)
 	QString tmp;
 	tmp = "Click on Init to setup the system.\n";
 	ui.log->insertPlainText(tmp);
+  ui.map_width->setText("1000");
+  ui.map_height->setText("1000");
 
   scale = 1;
 }
@@ -32,6 +35,7 @@ void MainWindow::init_done_slot()
 	ui.log->insertPlainText(tmp);
   ui.init->setEnabled(false);
   ui.draw_map->setEnabled(true);
+  ui.filter_map->setEnabled(true);
   ui.export_map->setEnabled(true);
 
   if((*qnode).histogramType() == true)
@@ -40,7 +44,10 @@ void MainWindow::init_done_slot()
 
 void MainWindow::on_draw_map_clicked()
 {
-	(*qnode).constructMap(scale);
+  int w = ui.map_width->text().toInt();
+  int h = ui.map_height->text().toInt();
+
+	(*qnode).constructMap(scale, w, h);
 	cv::Mat map = (*qnode).exportMap();
 
 	std::string text;
@@ -55,7 +62,10 @@ void MainWindow::on_draw_map_clicked()
 
 void MainWindow::on_draw_histogram_clicked() 
 {
-	(*qnode).constructMap(scale);
+  int w = ui.map_width->text().toInt();
+  int h = ui.map_height->text().toInt();
+
+	(*qnode).constructMap(scale, w, h);
 	cv::Mat hist = (*qnode).exportHistogram();
 
 	std::string text;
@@ -79,7 +89,10 @@ void MainWindow::on_export_map_clicked()
 
 void MainWindow::on_landmark_id_valueChanged(int id)
 {
-	cv::Mat map = (*qnode).exportSingleMap(id, scale);
+  int w = ui.map_width->text().toInt();
+  int h = ui.map_height->text().toInt();
+
+	cv::Mat map = (*qnode).exportSingleMap(id, scale, w, h);
 
 	ui.log_estimation->clear();
 	if (map.cols == 0 || map.rows == 0) {
@@ -97,6 +110,19 @@ void MainWindow::on_landmark_id_valueChanged(int id)
 	ui.debug_map->setScaledContents(true);
 }
 
+void MainWindow::on_filter_map_clicked() 
+{
+  cv::Mat map = (*qnode).filterMap();
+
+	QImage qmap = QImage(map.data, map.cols, map.rows, QImage::Format_RGB888);
+	ui.map->setPixmap(QPixmap::fromImage(qmap));
+	ui.map->setScaledContents(true);
+
+	std::string text;
+	(*qnode).retrieveLog(text);
+	ui.log->clear();
+	ui.log->insertPlainText(QString::fromUtf8(text.c_str()));
+}
 
 void MainWindow::on_m_clicked()
 {

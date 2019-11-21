@@ -121,6 +121,37 @@
            </layout>
           </item>
           <item>
+           <widget class="QLabel" name="label">
+            <property name="text">
+             <string>Image map dimensions</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_3">
+            <property name="topMargin">
+             <number>5</number>
+            </property>
+            <item>
+             <widget class="QLineEdit" name="map_width">
+              <property name="alignment">
+               <set>Qt::AlignCenter</set>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="map_height">
+              <property name="alignment">
+               <set>Qt::AlignCenter</set>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
            <layout class="QHBoxLayout" name="horizontalLayout">
             <property name="topMargin">
              <number>5</number>
@@ -143,6 +174,13 @@
              </widget>
             </item>
            </layout>
+          </item>
+          <item>
+           <widget class="QPushButton" name="filter_map">
+            <property name="text">
+             <string>Filter map</string>
+            </property>
+           </widget>
           </item>
           <item>
            <widget class="QPushButton" name="export_map">

@@ -2,7 +2,7 @@ function plotParticles(particles, gt)
     figure(1)
     hold on
     grid on
-    xlim([0, 100])
+    xlim([0, 300])
     ylim([-50, 50])
     
     for i = 1:length(particles)

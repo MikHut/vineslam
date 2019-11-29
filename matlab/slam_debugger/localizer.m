@@ -4,7 +4,7 @@ clear
 
 % load functions
 addpath('utils');
-addpath('particle_filter');
+addpath('localizer_pf');
 
 % GLOBAL VARS
 global h_fov
@@ -20,21 +20,30 @@ img_h = 964;
 % read input vars
 M = csvread('/home/andre-criis/Source/agrobvslam/matlab/slam_debugger/data/detections.csv', 0, 0);
 GT = csvread('/home/andre-criis/Source/agrobvslam/matlab/slam_debugger/data/poses.csv', 0, 0);
-trunk_pos = [68 -10
-             99, 3
-             120, -9
-             130, 5
-             131, -6
-             144, 6
-             179, 9
-             407, 16];
+trunk_pos = [37, -15;
+             74, -10;
+             68, -10
+             99,   3;
+             120, -9;
+             130,  5;
+             131, -6;
+             144,  6;
+             179,  9;
+             199,  6;
+             224,  6;
+             232,  6;
+             331, -12;
+             341, -15,
+             358,  -9;
+             407,  16;
+             467, -19];
               
         
 % particle filter vars
-n_particles = 200;
+n_particles = 50;
 c_mean = [0 0 0];
 p_mean = [0 0 0];
-std    = [2 2 0.1]; % [x y] in dm and theta in radians
+std    = [0.5 0.5 0.01]; % [x y] in dm and theta in radians
 n_obsv = 0;
 
 % init particles
@@ -46,11 +55,11 @@ gt_last = [0,0,0];
 for it = 1:size(M,1)
     cols    = M(it,:);
     gt      = GT(it,:) .* 10;
-    vt_real = gt-gt_last;
+    vt_real = gt - gt_last;
     gt_last = gt;
 
     vel = [norm(vt_real(1:2)), 0, 0];
-    mag  = vel .* 0.1;
+    mag = vel .* 1;
     if n_obsv == 0
         mag = [2,2,0.1];
     end

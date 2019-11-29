@@ -14,6 +14,7 @@ find_package(catkin REQUIRED
 		    nav_msgs
 		    tf
 		    cv_bridge
+		    image_geometry
 		    image_transport)
 
 find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets)

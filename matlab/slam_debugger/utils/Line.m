@@ -23,5 +23,9 @@ classdef Line
         function y = getY(x)
             y = (l.c - l.a * x) / l.b;
         end
+        function d = dist(obj,x)
+            den = sqrt((obj.a * obj.a) + (obj.b * obj.b));
+            d   = abs(obj.a * x(1) + obj.b * x(2) - obj.c) / den;
+        end
     end 
 end

@@ -1,8 +1,6 @@
 #include "../include/mapper/mapper_node.hpp"
 #include <chrono>
 
-std::ofstream outfile1, outfile2;
-
 Mapper::Mapper(int argc, char** argv) : QNode(argc, argv, "mapper") {}
 
 void Mapper::rosCommsInit()
@@ -24,14 +22,12 @@ void Mapper::rosCommsInit()
 	image_transport::ImageTransport it(n);
 	img_publisher     = it.advertise("detection/image_raw", 1);
 	matches_publisher = it.advertise("matches/image_raw", 1);
+	ground_publisher  = it.advertise("ground/image_raw", 1);
 #endif
 
 	engine             = new coral::DetectionEngine((*params).model);
 	input_tensor_shape = (*engine).get_input_tensor_shape();
 	labels             = coral::ReadLabelFile((*params).labels);
-
-  outfile1.open("/home/andre-criis/detections.csv");
-  outfile2.open("/home/andre-criis/poses.csv");
 
 	Q_EMIT init_done();
 }
@@ -40,8 +36,6 @@ void Mapper::run()
 {
 	ros::spin();
 	std::cout << "Ros shutdown, proceeding to close the gui." << std::endl;
-  outfile1.close();
-  outfile2.close();
 	Q_EMIT
 	rosShutdown();
 }
@@ -61,8 +55,6 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 
 	all_poses.push_back(Pose<double>(slam_pose.position.x * 100,
 	                                 slam_pose.position.y * 100, yaw));
-
-  outfile2 << slam_pose.position.x << slam_pose.position.y << yaw << "\n";
 
 	/* Convert input image to BGR */
 	cv_bridge::CvImageConstPtr cv_ptr =
@@ -94,10 +86,9 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 		double ymax = result.corners.ymax * (*msg).width;
 
 		Point<double> tmp((ymin + ymax) / 2, (xmin + xmax) / 2);
-		trunk_pos.push_back(tmp);
-    outfile1 << tmp.x << ",";
+    if(result.label == 0)
+		  trunk_pos.push_back(tmp);
 	}
-  outfile1 << "\n";
 
 	if (init == false) {
 		(*lprocessor).updatePoses(trunk_pos);
@@ -120,6 +111,7 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 	cv::Mat bboxes;
 	showBBoxes(msg, bboxes, results);
 	showMatching(bboxes);
+	/* showGroundPlane((*cv_ptr).image, trunk_pos); */
 #endif
 }
 
@@ -150,15 +142,15 @@ const cv::Mat Mapper::exportSingleMap(const int& id, const float& scaler,
 
 	(*estimator).map_width  = map_width;
 	(*estimator).map_heigth = map_heigth;
-	(*estimator).scaler = scaler;
+	(*estimator).scaler     = scaler;
 	(*estimator).singleDraw(all_poses, id);
 	return (*estimator).single_map;
 }
 
 const cv::Mat Mapper::filterMap()
 {
-  (*estimator).filterMap(all_poses);
-  return (*estimator).map;
+	(*estimator).filterMap(all_poses);
+	return (*estimator).map;
 }
 
 void Mapper::retrieveLog(std::string& log)

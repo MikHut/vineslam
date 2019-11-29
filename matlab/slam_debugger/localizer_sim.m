@@ -4,7 +4,7 @@ clear
 
 % load functions
 addpath('utils');
-addpath('particle_filter');
+addpath('localizer_pf');
 
 % GLOBAL VARS
 global h_fov
@@ -25,22 +25,24 @@ trunk_pos = [15,  -6;
              30,  -6;
              45,  -6;
              %60,  -6;
-             %75,  -6;
+             75,  -6;
              90,  -6;
              105, -6;
              15,  +6;
-             30,  +6;
+             %30,  +6;
              45,  +6;
              %60,  +6;
-             %75,  +6;
+             75,  +6;
              90,  +6;
              105, +6];
+         
+map_std = (rand(size(trunk_pos,1), 2) - [0.5 0.5]) * 10;
 
 N = length(robot_x);
 k = 1;
 for i = 1:N
     for j = 1:size(trunk_pos,1)
-        pt = (trunk_pos(j,:) + (rand(1) - 0.5)*1) - [robot_x(i), robot_y(i)];
+        pt = (trunk_pos(j,:) + map_std(j,:)) - [robot_x(i), robot_y(i)];
         th = atan2(pt(2), pt(1));
         
         abs_min_thtol = -h_fov/2 + robot_th(i);
@@ -74,14 +76,15 @@ for it = 1:N
     vt_real = gt - gt_last;
     gt_last = gt;
     
-    vel = [norm(vt_real(1:2)), 0, 0];
-    mag  = vel .* 1;
+    vel    = [norm(vt_real(1:2)), 0, 0];
+    mag    = vel .* 1;
+    mag(3) = 0.1;
     if n_obsv == 0
         mag = [2,2,0.1];
     end
 
     % prediction
-    [particles, n_obsv] = predict(particles, cols, trunk_pos, vel, mag);
+    [particles, n_obsv] = predict(particles, cols, trunk_pos, map_std, vel, mag);
     particles = updateWeights(particles);
     if n_obsv > 0
         particles = resample(particles);
@@ -97,6 +100,7 @@ for it = 1:N
     c_mean(2) = c_mean(2) / length(particles);
     c_mean(3) = c_mean(3) / length(particles);
     
+%     particles(:).w
     n_obsv
     
     % calculate error from previous estimation

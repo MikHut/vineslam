@@ -6,22 +6,26 @@
   <!-- <node name="republish" type="republish" pkg="image_transport" output="screen" -->
   <!--   args="compressed in:=/output/image_raw raw out:=/camera/image" /> -->
   <node pkg="mapper" type="mapper_node" name="mapper" output="screen">
-    <param name="img_width"  value="1292"/>
-    <param name="img_height" value="964"/>
-    <param name="match_box" value="25"/>
-    <param name="filter_window" value="5"/>
-    <param name="mapper_inc" value="60"/>
-    <param name="detector_th" value="0.35"/>
-    <param name="max_stdev" value="20"/>
-    <param name="prediction" value="histogram"/>
-    <param name="vineyard_height" value="200"/>
+    <param name="img_width"         value="1292"/>
+    <param name="img_height"        value="964"/>
+    <param name="cam_height"        value="100"/>
+    <param name="cam_pitch"         value="0"/>
+    <param name="cam_vfocal"        value="562"/>
+    <param name="cam_hfocal"        value="753"/>
+    <param name="match_box"         value="25"/>
+    <param name="filter_window"     value="5"/>
+    <param name="mapper_inc"        value="60"/>
+    <param name="detector_th"       value="0.5"/>
+    <param name="max_stdev"         value="100"/>
+    <param name="prediction"        value="average"/>
+    <param name="vineyard_height"   value="200"/>
 
-    <param name="pose_topic" value="/slam_out_pose"/>
+    <param name="pose_topic"  value="/slam_out_pose"/>
     <param name="image_topic" value="/camera/image_raw"/>
     <param name="model_path"
-      value="/home/andre-criis/Source/coral/detect/train/train_res/mv1_11-11/output_tflite_graph_edgetpu.tflite"/>
+      value="/home/andre-criis/Source/coral/detect/train/train_res/mv1_28-11/output_tflite_graph_edgetpu.tflite"/>
     <param name="labels_path"
-      value="/home/andre-criis/Source/coral/detect/train/train_res/mv1_11-11/labels.txt"/>
+      value="/home/andre-criis/Source/coral/detect/train/train_res/mv1_28-11/labels.txt"/>
   </node>
 
 </launch>

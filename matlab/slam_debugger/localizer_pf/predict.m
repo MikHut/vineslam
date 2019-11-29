@@ -1,4 +1,4 @@
-function [particles, n_obsv] = predict(in_particles, img_pos, world_pos, vel, mag)
+function [particles, n_obsv] = predict(in_particles, img_pos, world_pos, det_std, vel, mag)
     global h_fov;
     
     M = length(in_particles);
@@ -6,8 +6,6 @@ function [particles, n_obsv] = predict(in_particles, img_pos, world_pos, vel, ma
     % inovate particles
     particles = in_particles;
     for i = 1:M
-        particles(i).vel = particles(i).pose - particles(i).last_pose; 
-
         std = [(rand(1) - .5) * mag(1), (rand(1) - .5)  * mag(2), (rand(1) - .5)  * mag(3)];
         X = in_particles(i).pose;
 
@@ -17,15 +15,13 @@ function [particles, n_obsv] = predict(in_particles, img_pos, world_pos, vel, ma
         vy = (vel(1) + std(1)) * sin(particles(i).pose(3));
         particles(i).pose(1) = X(1) + vx;
         particles(i).pose(2) = X(2) + vy;
-       
-        particles(i).last_pose = particles(i).pose;     
     end
     
     % prediction loop
     n_obsv = 0;
     for i = 1:M
-        n_corr = 0;
-        particles(i).r_error = 0;
+        particles(i).r_error = [];
+        particles(i).r_std   = [];      
         
         for j = 1:size(world_pos, 1)
             m_world_pos = world_pos(j,:);
@@ -44,22 +40,19 @@ function [particles, n_obsv] = predict(in_particles, img_pos, world_pos, vel, ma
             
             % search for correspondences and calculate the reprojection
             % error
+            n = 0;
             for k = 1:length(img_pos)
                 if img_pos(k) == 0
                     continue;
                 end
                 r_error = sqrt((img_pos(k) - col) * (img_pos(k) - col));
                 if r_error < 5
-                    n_corr = n_corr + 1;
-                    particles(i).r_error = particles(i).r_error + r_error;
+                    n = n + 1;
                     n_obsv = n_obsv + 1;
+                    particles(i).r_error(n) = r_error;
+                    particles(i).r_std(n)   = sqrt((det_std(j,1) - det_std(j,2)) * (det_std(j,1) - det_std(j,2)));
                 end
             end
-        end
-        if n_corr == 0
-            particles(i).r_error = 1e6;
-        else
-            particles(i).r_error = particles(i).r_error / (n_corr * n_corr);
         end
     end
 end

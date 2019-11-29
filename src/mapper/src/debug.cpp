@@ -19,9 +19,9 @@ void Mapper::showBBoxes(const sensor_msgs::ImageConstPtr& msg, cv::Mat& bboxes,
 		Point<double> tmp((xmin + xmax) / 2, (ymin + ymax) / 2);
 		trunk_pos.push_back(tmp);
 
-		if (result.score > 0.35) {
+		if (result.score > (*params).min_score) {
 			cv::rectangle(bboxes, cv::Point(ymin, xmin), cv::Point(ymax, xmax),
-			              cv::Scalar(255, 0, 0), 2);
+			              colors[result.label], 2);
 			cv::line(bboxes, cv::Point(yavg, xmin), cv::Point(yavg, xmax),
 			         cv::Scalar(0, 255, 0), 2);
 		}
@@ -45,9 +45,9 @@ void Mapper::showMatching(cv::Mat img)
 
 	for (size_t i = 0; i < (*lprocessor).matches.size(); i++) {
 		vec_right.push_back(cv::Point2f((*lprocessor).matches[i].c_pos.x,
-		                               (*lprocessor).matches[i].c_pos.y));
+		                                (*lprocessor).matches[i].c_pos.y));
 		vec_left.push_back(cv::Point2f((*lprocessor).matches[i].p_pos.x,
-		                              (*lprocessor).matches[i].p_pos.y));
+		                               (*lprocessor).matches[i].p_pos.y));
 	}
 	cv::KeyPoint::convert(vec_right, key_point_right);
 	cv::KeyPoint::convert(vec_left, key_point_left);
@@ -62,4 +62,13 @@ void Mapper::showMatching(cv::Mat img)
 	sensor_msgs::ImagePtr out_img =
 	    cv_bridge::CvImage(std_msgs::Header(), "bgr8", img_matches).toImageMsg();
 	matches_publisher.publish(out_img);
+}
+
+void Mapper::showGroundPlane(const cv::Mat&                    img,
+                             const std::vector<Point<double>>& pt)
+{
+	cv::Mat               ground = (*lprocessor).projectToGround(img, pt);
+	sensor_msgs::ImagePtr ground_img =
+	    cv_bridge::CvImage(std_msgs::Header(), "bgr8", ground).toImageMsg();
+	ground_publisher.publish(ground_img);
 }

@@ -156,18 +156,47 @@ Estimator::histogramPrediction(const std::vector<Pose<double>>& robot_poses)
 
 void Estimator::filterMap(const std::vector<Pose<double>>& robot_poses)
 {
-	/* float max_lim = (params.vineyard_height / scaler) / 2; */
-  /* float min_lim = max_lim - max_lim * 0.85; */
+	for (size_t i = 0; i < m_landmarks.size() - 3; i++) {
+		std::vector<Landmark<double>> l;
+		l.push_back(m_landmarks[i]);
 
-	/* for (size_t i = 0; i < m_landmarks.size(); i++) { */
-	/* 	Landmark<double> l = m_landmarks[i]; */
+		int k = 0, n = 1;
+		while (k < 3 && (i + n) < m_landmarks.size()) {
+			Landmark<double> l1 = m_landmarks[i + n];
+			if (l1.world_pos.y * l[0].world_pos.y > 0) {
+				l.push_back(m_landmarks[i + n]);
+				k++;
+			}
+			n++;
+		}
 
-	/* 	int it = l.ptr[l.ptr.size() / 2]; */
-	/* 	if (std::fabs(l.world_pos.y - robot_poses[it].pos.y) > max_lim || */
-	/* 	    std::fabs(l.world_pos.y - robot_poses[it].pos.y) < min_lim) */
-	/* 		m_landmarks.erase(m_landmarks.begin(), m_landmarks.begin() + i); */
-	/* } */
-	/* drawMap(robot_poses); */
+		/* Compute line that represents the landmark uncertainty */
+		int           m   = l[0].estimations.size() / 2;
+		Point<double> min = l[0].estimations[m - 2];
+		Point<double> max = l[0].estimations[m + 2];
+		Line<double>  unc_l(min, max);
+
+		/* Compute average of a 4-size window of landmarks */
+		double avg = 0;
+		for (size_t j = 0; j < l.size(); j++)
+			avg += l[j].world_pos.y;
+		avg /= l.size();
+		Line<double> avg_l(Point<double>(0, avg), Point<double>(500, avg));
+
+		/* Update landmark position - filtered */
+		Point<double> filt_pos = avg_l.intercept(unc_l);
+		double        closest  = INF;
+		for (size_t j = 0; j < l[0].estimations.size(); j++) {
+			Point<double> pt   = l[0].estimations[j];
+			double        dist = pt.euc_dist(filt_pos);
+			if (dist < closest) {
+				closest  = dist;
+				filt_pos = pt;
+			}
+		}
+		m_landmarks[i].world_pos = filt_pos;
+	}
+	drawMap(robot_poses);
 }
 
 void Estimator::drawMap(const std::vector<Pose<double>>& robot_poses)

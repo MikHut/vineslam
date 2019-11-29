@@ -34,7 +34,7 @@ public:
 	void constructMap(const float& scaler, const int& map_width,
 	                  const int& map_heigth);
 
-  const cv::Mat filterMap();
+	const cv::Mat filterMap();
 	const cv::Mat exportMap();
 	const cv::Mat exportHistogram();
 	const cv::Mat exportSingleMap(const int& id, const float& scaler,
@@ -53,17 +53,23 @@ private:
 	void showMatching(cv::Mat img);
 	void showBBoxes(const sensor_msgs::ImageConstPtr& msg, cv::Mat& bboxes,
 	                std::vector<coral::DetectionCandidate> res);
+	void showGroundPlane(const cv::Mat&                    img,
+	                     const std::vector<Point<double>>& pt);
 
 	cv::Mat p_image;
 	cv::Mat c_image;
 
 	image_transport::Publisher matches_publisher;
+	image_transport::Publisher ground_publisher;
+	image_transport::Publisher img_publisher;
+
+	cv::Mat x_lut;
+	cv::Mat y_lut;
 #endif
 
 	ros::Subscriber img_subscriber;
 	ros::Subscriber pose_subscriber;
 
-	image_transport::Publisher img_publisher;
 
 	bool init;
 
@@ -90,6 +96,12 @@ private:
 		local_nh.getParam("/mapper/v_fov", (*params).v_fov);
 		local_nh.getParam("/mapper/img_width", (*params).width);
 		local_nh.getParam("/mapper/img_height", (*params).height);
+		local_nh.getParam("/mapper/cam_height", (*params).cam_height);
+		local_nh.getParam("/mapper/cam_roll", (*params).cam_roll);
+		local_nh.getParam("/mapper/cam_pitch", (*params).cam_pitch);
+		local_nh.getParam("/mapper/cam_yaw", (*params).cam_yaw);
+		local_nh.getParam("/mapper/cam_vfocal", (*params).cam_vf);
+		local_nh.getParam("/mapper/cam_hfocal", (*params).cam_hf);
 		local_nh.getParam("/mapper/match_box", (*params).match_box);
 		local_nh.getParam("/mapper/filter_window", (*params).filter_window);
 		local_nh.getParam("/mapper/mapper_inc", (*params).mapper_inc);

@@ -19,6 +19,9 @@ public:
 	Line<double> computeLine(const Point<double>& landmark);
 	Line<double> computeLine(const Point<double>& landmark, const double& phi);
 
+	cv::Mat projectToGround(const cv::Mat&                    in,
+	                        const std::vector<Point<double>>& pt);
+
 	std::vector<Match<double>>    matches;
 	std::vector<Landmark<double>> landmarks;
 	Grid<int>                     grid;

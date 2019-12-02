@@ -17,7 +17,7 @@ function l = correspond(r,col,L)
                 d = line.dist(L(i,j,:));
                 if d < min
                     min = d;
-                    l = L(i,j,:);
+                    l = [L(i,j,1), L(i,j,2)]';
                 end
             end
         end

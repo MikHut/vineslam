@@ -19,10 +19,12 @@ function [l,P] = correct(r,l,z,P,R)
         -(l(2) - r(2))/(d*d),(l(1) - r(1))/(d*d)];
     
     % kalman gain calculation
-    K = P * G^T * (G * P * G^T + R);
+    K = P * G' * pinv(G * P * G' + R)
     
     % state correction
-    l = l + K * (z - z_);
+    z_diff = (z - z_);
+    z_diff(2) = NormalizeAng(z_diff(2));
+    l = l + K * z_diff;
     
     % covariance atualization
     P = (eye(2) - K*G) * P;

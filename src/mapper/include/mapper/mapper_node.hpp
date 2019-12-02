@@ -13,6 +13,7 @@
 #include <opencv2/features2d.hpp>
 #include <sensor_msgs/Image.h>
 #include <tf/transform_listener.h>
+#include <std_msgs/UInt32MultiArray.h>
 
 /* edgetpu detection API */
 #include <detection/engine.h>
@@ -53,8 +54,6 @@ private:
 	void showMatching(cv::Mat img);
 	void showBBoxes(const sensor_msgs::ImageConstPtr& msg, cv::Mat& bboxes,
 	                std::vector<coral::DetectionCandidate> res);
-	void showGroundPlane(const cv::Mat&                    img,
-	                     const std::vector<Point<double>>& pt);
 
 	cv::Mat p_image;
 	cv::Mat c_image;
@@ -65,6 +64,10 @@ private:
 
 	cv::Mat x_lut;
 	cv::Mat y_lut;
+
+  ros::Publisher bhist_pub;
+  ros::Publisher ghist_pub;
+  ros::Publisher rhist_pub;
 #endif
 
 	ros::Subscriber img_subscriber;
@@ -97,11 +100,6 @@ private:
 		local_nh.getParam("/mapper/img_width", (*params).width);
 		local_nh.getParam("/mapper/img_height", (*params).height);
 		local_nh.getParam("/mapper/cam_height", (*params).cam_height);
-		local_nh.getParam("/mapper/cam_roll", (*params).cam_roll);
-		local_nh.getParam("/mapper/cam_pitch", (*params).cam_pitch);
-		local_nh.getParam("/mapper/cam_yaw", (*params).cam_yaw);
-		local_nh.getParam("/mapper/cam_vfocal", (*params).cam_vf);
-		local_nh.getParam("/mapper/cam_hfocal", (*params).cam_hf);
 		local_nh.getParam("/mapper/match_box", (*params).match_box);
 		local_nh.getParam("/mapper/filter_window", (*params).filter_window);
 		local_nh.getParam("/mapper/mapper_inc", (*params).mapper_inc);

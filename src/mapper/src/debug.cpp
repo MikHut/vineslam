@@ -63,12 +63,3 @@ void Mapper::showMatching(cv::Mat img)
 	    cv_bridge::CvImage(std_msgs::Header(), "bgr8", img_matches).toImageMsg();
 	matches_publisher.publish(out_img);
 }
-
-void Mapper::showGroundPlane(const cv::Mat&                    img,
-                             const std::vector<Point<double>>& pt)
-{
-	cv::Mat               ground = (*lprocessor).projectToGround(img, pt);
-	sensor_msgs::ImagePtr ground_img =
-	    cv_bridge::CvImage(std_msgs::Header(), "bgr8", ground).toImageMsg();
-	ground_publisher.publish(ground_img);
-}

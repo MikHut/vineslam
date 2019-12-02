@@ -19,7 +19,7 @@ function [l,P] = correct(r,l,z,P,R)
         -(l(2) - r(2))/(d*d),(l(1) - r(1))/(d*d)];
     
     % kalman gain calculation
-    K = P * G' * pinv(G * P * G' + R)
+    K = P * G' * pinv(G * P * G' + R);
     
     % state correction
     z_diff = (z - z_);

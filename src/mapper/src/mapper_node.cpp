@@ -23,6 +23,10 @@ void Mapper::rosCommsInit()
 	img_publisher     = it.advertise("detection/image_raw", 1);
 	matches_publisher = it.advertise("matches/image_raw", 1);
 	ground_publisher  = it.advertise("ground/image_raw", 1);
+
+	bhist_pub  = n.advertise<std_msgs::UInt32MultiArray>("histogram/blue", 1);
+	ghist_pub  = n.advertise<std_msgs::UInt32MultiArray>("histogram/green", 1);
+	rhist_pub  = n.advertise<std_msgs::UInt32MultiArray>("histogram/red", 1);
 #endif
 
 	engine             = new coral::DetectionEngine((*params).model);
@@ -111,7 +115,6 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 	cv::Mat bboxes;
 	showBBoxes(msg, bboxes, results);
 	showMatching(bboxes);
-	/* showGroundPlane((*cv_ptr).image, trunk_pos); */
 #endif
 }
 

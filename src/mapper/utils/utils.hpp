@@ -15,11 +15,6 @@ struct Parameters
 	double h_fov;           /* Camera horizontal field of view (radians) */
 	double v_fov;           /* Camera vertical field of view (radians) */
 	double cam_height;      /* Camera height (centimenters) */
-	double cam_roll;        /* Camera roll (radians) */
-	double cam_pitch;       /* Camera pitch (radians) */
-	double cam_yaw;         /* Camera yaw (radians) */
-	int    cam_vf;          /* Camera vertical focal length (pixels) */
-	int    cam_hf;          /* Camera horizontal focal length (pixels) */
 	int    width;           /* Image width. */
 	int    height;          /* Image height */
 	int    match_box;       /* Search box diagonal size */
@@ -41,13 +36,8 @@ struct Parameters
 		h_fov           = PI / 2;
 		v_fov           = PI / 4;
 		cam_height      = 100.0;
-		cam_roll        = 0.0;
-		cam_pitch       = 0.0;
-		cam_yaw         = 0.0;
 		width           = 1280;
 		height          = 960;
-		cam_hf          = width / 2;
-		cam_vf          = height / 2;
 		match_box       = 10;
 		filter_window   = 5;
 		mapper_inc      = 100;

@@ -31,7 +31,7 @@ std_th = 25;
 
 % perform first iteration - find a correspondence between the landmark
 % observation on image and the initial map
-j     = 28;
+j     = 114;
 iters = nonzeros(iters(j,:));
 obsv  = nonzeros(obsv(j,:));
 l     = correspond([r_pose(iters(1)+1,1); r_pose(iters(1)+1,2); r_pose(iters(1)+1,3)], obsv(1), L);
@@ -79,22 +79,33 @@ for i = (inc + 1 + filter_dim):(N-1)
     abs_min_thtol = -h_fov/2 + c_robot_th;
     abs_max_thtol = +h_fov/2 + c_robot_th;
     is_inside = ~(th < abs_min_thtol || th > abs_max_thtol || norm([c_robot_x, c_robot_y] - [x,y]) > 4);
+    [c_robot_x, c_robot_y]
+    [x,y]
+    norm([c_robot_x, c_robot_y] - [x,y])
     
     dist_y   = (y - l(2)) * (y - l(2));
     dist_th  = NormalizeAng(atan2(y,x) - atan2(l(2),l(1)));
     R = [~is_inside*1000 + dist_y, 0;
          0, ~is_inside*1000 + std_th*(dist_th*dist_th)];
     
-    [x, y]
     % kalman filter invocation
     r = [c_robot_x, c_robot_y, c_robot_th]';
-    [l,P] = kf(r,l,z,P,R)
+    [l,P] = kf(r,l,z,P,R);
+    X(i -  inc - filter_dim,:) = l;
     figure(1)
     plot(l(1), l(2), 'ro', 'MarkerSize', 2, 'LineWidth', 2);
+    plot(p_robot_x, p_robot_y, 'ko', 'MarkerSize', 2, 'LineWidth', 2);
     
     figure(2)
     hold on
     plot(x, y, 'ko', 'MarkerSize', 2, 'LineWidth', 2);
  
-%    pause();
+    %pause();
 end
+
+std_x = std(X(:,1));
+std_y = std(X(:,2));
+mean_x = mean(X(:,1));
+mean_y = mean(X(:,2));
+figure(1)
+plot(std_x*cos(0:0.01:2*pi)+mean_x, std_y*sin(0:0.01:2*pi)+mean_y, 'ko', 'MarkerSize', 1, 'LineWidth', 1);

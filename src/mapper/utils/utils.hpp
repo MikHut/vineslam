@@ -6,49 +6,53 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <random>
 #include <vector>
+#include <eigen3/Eigen/Dense>
 
 const float INF = 1.0e6;         /* hypothetic infinit */
 const float PI  = 3.14159265359; /* (radians) */
 
 struct Parameters
 {
-	double h_fov;           /* Camera horizontal field of view (radians) */
-	double v_fov;           /* Camera vertical field of view (radians) */
-	double cam_height;      /* Camera height (centimenters) */
-	int    width;           /* Image width. */
-	int    height;          /* Image height */
-	int    match_box;       /* Search box diagonal size */
-	int    filter_window;   /* Dimension of the window of the robot pose filter */
-	int    mapper_inc;      /* Increment between frames to use in the mapper */
-	double min_score;       /* Minimum trunk detection probability */
-	double vineyard_height; /* Vineyard height in centimeters */
-	int    max_stdev;       /* Maximum standard deviation of trunk world position
-	                           estimation */
+	double h_fov;         /* Camera horizontal field of view (radians) */
+	double v_fov;         /* Camera vertical field of view (radians) */
+	double cam_height;    /* Camera height (meters) */
+	int    width;         /* Image width */
+	int    height;        /* Image height */
+	int    match_box;     /* Search box diagonal size */
+	int    filter_window; /* Dimension of the window of the robot pose filter */
+	int    mapper_inc;    /* Increment between frames to use in the mapper */
+	double min_score;     /* Minimum trunk detection probability */
+	int    max_stdev;     /* Maximum standard deviation of trunk world position
+	                         estimation */
+	double vine_x;        /* Distance between vines in (meters) */
+	double vine_y;        /* Vineyard height in (meters) */
 
 	std::string pose_topic;  /* pose ROS topic */
 	std::string image_topic; /* image ROS topic */
 	std::string model;       /* tflite model path */
 	std::string labels;      /* detection labels path */
-	std::string prediction;  /* type of predictor - 'average' or 'histogram' */
+	std::string prediction;  /* type of predictor - 'average' or 'histogram'
+	                            or 'kf' */
 
 	Parameters()
 	{
-		h_fov           = PI / 2;
-		v_fov           = PI / 4;
-		cam_height      = 100.0;
-		width           = 1280;
-		height          = 960;
-		match_box       = 10;
-		filter_window   = 5;
-		mapper_inc      = 100;
-		min_score       = 0.5;
-		max_stdev       = 1000;
-		vineyard_height = 150;
-		model           = "";
-		labels          = "";
-		pose_topic      = "";
-		image_topic     = "";
-		prediction      = "average";
+		h_fov         = PI / 2;
+		v_fov         = PI / 4;
+		cam_height    = 1.0;
+		width         = 1280;
+		height        = 960;
+		match_box     = 10;
+		filter_window = 5;
+		mapper_inc    = 50;
+		min_score     = 0.5;
+		max_stdev     = 10;
+		model         = "";
+		labels        = "";
+		pose_topic    = "";
+		image_topic   = "";
+		prediction    = "kf";
+		vine_x        = 1;
+		vine_y        = 1.6;
 	}
 };
 
@@ -79,6 +83,13 @@ struct Point
 		return sqrt(((*this).x - pt.x) * ((*this).x - pt.x) +
 		            ((*this).y - pt.y) * ((*this).y - pt.y));
 	}
+
+  Eigen::VectorXd eig()
+  {
+    Eigen::VectorXd vec(2,1);
+    vec << x, y;
+    return vec;
+  }
 };
 
 template <typename T>
@@ -139,6 +150,12 @@ struct Line
 
 			return Point<T>(x, y);
 		}
+	}
+
+	double dist(const Point<double>& p)
+	{
+		double den = sqrt((a * a + b * b));
+		return std::fabs(a * p.x + b * p.y - c) / den;
 	}
 };
 

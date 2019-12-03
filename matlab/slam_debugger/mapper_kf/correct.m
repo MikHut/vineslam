@@ -8,23 +8,31 @@ function [l,P] = correct(r,l,z,P,R)
     % - R: covariance of the previous observation
 
     
-    % observation vector calculation
+    % observation model
+    l - r(1:2)
     d   = sqrt((l(1) - r(1)) * (l(1) - r(1)) + (l(2) - r(2)) * (l(2) - r(2)));
     phi = atan2(l(2) - r(2), l(1) - r(1)) - r(3);
     z_ = [d;
           phi];
+    z_(2) = NormalizeAng(z_(2));
     
     % jacobian of the observations model in relation with l
     G = [(l(1) - r(1))/d,    (l(2) - r(2))/d;
         -(l(2) - r(2))/(d*d),(l(1) - r(1))/(d*d)];
     
     % kalman gain calculation
-    K = P * G' * pinv(G * P * G' + R);
+    R
+    P
+    K = P * G' * pinv(G * P * G' + R)
     
     % state correction
+    z
+    z_
     z_diff = (z - z_);
     z_diff(2) = NormalizeAng(z_diff(2));
-    l = l + K * z_diff;
+    z_diff
+    K * z_diff
+    l = l + K * z_diff
     
     % covariance atualization
     P = (eye(2) - K*G) * P;

@@ -40,8 +40,13 @@ void Estimator::predict(const std::vector<Pose<double>>& robot_poses)
 		m_landmarks = final_l;
 		drawHistogram(robot_poses);
 	}
-	else {
+	else if (params.prediction == "average") {
 		final_l = averagePrediction(robot_poses);
+		m_landmarks.clear();
+		m_landmarks = final_l;
+	}
+	else {
+		final_l = kfPrediction(robot_poses);
 		m_landmarks.clear();
 		m_landmarks = final_l;
 	}
@@ -101,7 +106,7 @@ Estimator::histogramPrediction(const std::vector<Pose<double>>& robot_poses)
 {
 	Grid<int> grid(map_width, map_heigth);
 
-	int max_std = params.max_stdev / scaler;
+	int max_std = params.max_stdev * scaler;
 	int inc     = params.mapper_inc;
 	int comp    = params.filter_window;
 
@@ -128,7 +133,7 @@ Estimator::histogramPrediction(const std::vector<Pose<double>>& robot_poses)
 			    (*lprocessor).projectLine(X_curr, delta_p.pos, delta_p.theta);
 			Point<double> X = l_prev.intercept(l_proj);
 
-			X = (robot_poses[k - inc].pos + X) / scaler;
+			X = (robot_poses[k - inc].pos + X) * scaler;
 			Point<int> index(std::round(X.x), std::round(X.y));
 
 			res.push_back(X);
@@ -152,6 +157,103 @@ Estimator::histogramPrediction(const std::vector<Pose<double>>& robot_poses)
 	(*lprocessor).grid = grid;
 
 	return final_l;
+}
+
+std::vector<Landmark<double>>
+Estimator::kfPrediction(const std::vector<Pose<double>>& robot_poses)
+{
+	int inc  = params.mapper_inc;
+	int comp = params.filter_window;
+
+	std::vector<Landmark<double>> final_l;
+
+	std::vector<Point<double>> map = initMap(100, 4);
+
+	for (size_t i = 0; i < (*lprocessor).landmarks.size(); i++) {
+		if ((*lprocessor).landmarks[i].image_pos.size() < inc)
+			continue;
+
+		Landmark<double> l = (*lprocessor).landmarks[i];
+
+		/* find map landmark correspondence */
+		Point<double> tmp = correspond(robot_poses[0].pos, l.image_pos[0].x, map);
+
+		/* initialize kalman filter */
+		VectorXd TH  = tmp.eig();
+		MatrixXd P(2, 2);
+		P << 0.4, 0, 0, 0.2;
+		KF kf(TH, P, params);
+
+		for (size_t j = inc + comp; j < l.image_pos.size(); j++) {
+			/* extraction of the observation */
+			Point<double> X_prev = l.image_pos[j - inc];
+			Point<double> X_curr = l.image_pos[j];
+
+			int          k       = l.ptr[j - comp];
+			Pose<double> delta_p = robot_poses[k] - robot_poses[k - inc];
+
+			Line<double> l_prev = (*lprocessor).computeLine(X_prev);
+			Line<double> l_proj =
+			    (*lprocessor).projectLine(X_curr, delta_p.pos, delta_p.theta);
+			Point<double> X = l_prev.intercept(l_proj);
+
+			VectorXd z(2, 1);
+			z << sqrt((X.x * X.x) + (X.y * X.y)), atan2(X.y, X.x);
+
+      /* kalman filter invocation */
+      Point<double> s = robot_poses[k - inc].pos;
+			kf.process(s.eig(), z);
+      /* TH = kf.getState(); */
+		}
+	}
+
+	return final_l;
+}
+
+std::vector<Point<double>> Estimator::initMap(const int& N_x, const int& N_y)
+{
+	double x_inc = params.vine_x;
+	double y_inc = params.vine_y;
+
+	std::vector<double> c_index;
+
+	double y = (1 - N_y) * y_inc + y_inc / 2;
+	for (int i = 0; i < (N_y - 1) * 2; i++) {
+		c_index.push_back(y);
+		y += y_inc;
+	}
+
+	std::vector<Point<double>> map;
+	for (size_t i = 0; i < c_index.size(); i++) {
+		for (int j = 0; j < N_x; j++) {
+			Point<double> pt(-N_x / 2 + j * x_inc, c_index[i]);
+			map.push_back(pt);
+		}
+	}
+
+	return map;
+}
+
+Point<double> Estimator::correspond(const Point<double>& r, const int& col,
+                                    const std::vector<Point<double>>& map)
+{
+	double th    = columnToTheta(col);
+	double y_len = params.vine_y;
+	double min   = INF;
+
+	Point<double> l(0, 0);
+	Line<double>  line(r, Point<double>(10 * cos(th), 10 * sin(th)));
+	for (size_t i = 0; i < map.size(); i++) {
+		if (std::fabs(r.y - map[i].y) < y_len && (map[i].x - r.x) > 0) {
+			double d = line.dist(map[i]);
+			if (d < min) {
+				min = d;
+				l   = map[i];
+			}
+		}
+	}
+
+	return l;
 }
 
 void Estimator::filterMap(const std::vector<Pose<double>>& robot_poses)
@@ -214,8 +316,8 @@ void Estimator::drawMap(const std::vector<Pose<double>>& robot_poses)
 
 
 	for (size_t i = 0; i < robot_poses.size(); i++) {
-		Point<double> pt(robot_poses[i].pos.x / scaler + width / 10,
-		                 robot_poses[i].pos.y / scaler + height / 2);
+		Point<double> pt(robot_poses[i].pos.x * scaler + width / 10,
+		                 robot_poses[i].pos.y * scaler + height / 2);
 
 		if (pt.x > 0 && pt.y > 0 && pt.x < width && pt.y < height)
 			cv::circle(map, cv::Point(pt.x, pt.y), 2, cv::Scalar(0, 0, 0), 2);
@@ -224,8 +326,8 @@ void Estimator::drawMap(const std::vector<Pose<double>>& robot_poses)
 	std::vector<Landmark<double>> l = m_landmarks;
 	for (size_t i = 0; i < l.size(); i++) {
 		for (size_t j = 0; j < l[i].estimations.size(); j++) {
-			Point<double> pt(l[i].estimations[j].x / m_scaler + width / 10,
-			                 l[i].estimations[j].y / m_scaler + height / 2);
+			Point<double> pt(l[i].estimations[j].x * m_scaler + width / 10,
+			                 l[i].estimations[j].y * m_scaler + height / 2);
 
 			if (pt.x > 0 && pt.y > 0 && pt.x < width && pt.y < height)
 				cv::circle(map, cv::Point(pt.x, pt.y), 2, colors[i], 2);
@@ -234,7 +336,7 @@ void Estimator::drawMap(const std::vector<Pose<double>>& robot_poses)
 
 	for (size_t i = 0; i < l.size(); i++) {
 		Point<double> pt =
-		    l[i].world_pos / m_scaler + Point<double>(width / 10, height / 2);
+		    l[i].world_pos * m_scaler + Point<double>(width / 10, height / 2);
 		if (pt.x > 0 && pt.y > 0 && pt.x < width && pt.y < height)
 			cv::circle(map, cv::Point(pt.x, pt.y), 4, cv::Scalar(0, 0, 255), 2);
 	}
@@ -249,8 +351,8 @@ void Estimator::singleDraw(const std::vector<Pose<double>>& robot_poses,
 	single_map = cv::Mat(width, height, CV_8UC3, cv::Scalar(255, 255, 255));
 
 	for (size_t i = 0; i < robot_poses.size(); i++) {
-		Point<double> pt(robot_poses[i].pos.x / scaler + width / 10,
-		                 robot_poses[i].pos.y / scaler + height / 2);
+		Point<double> pt(robot_poses[i].pos.x * scaler + width / 10,
+		                 robot_poses[i].pos.y * scaler + height / 2);
 
 		if (pt.x > 0 && pt.y > 0 && pt.x < width && pt.y < height)
 			cv::circle(single_map, cv::Point(pt.x, pt.y), 2, cv::Scalar(0, 0, 0), 2);
@@ -272,7 +374,7 @@ void Estimator::singleDraw(const std::vector<Pose<double>>& robot_poses,
 		m_scaler = 1;
 
 	Point<double> pt =
-	    l.world_pos / m_scaler + Point<double>(width / 10, height / 2);
+	    l.world_pos * m_scaler + Point<double>(width / 10, height / 2);
 	if (pt.x > 0 && pt.y > 0 && pt.x < width && pt.y < height)
 		cv::circle(single_map, cv::Point(pt.x, pt.y), 4, cv::Scalar(0, 0, 255), 2);
 }
@@ -287,8 +389,8 @@ void Estimator::drawHistogram(const std::vector<Pose<double>>& robot_poses)
 	histogram = cv::Mat(width, height, CV_8UC3, cv::Scalar(255, 255, 255));
 
 	for (size_t i = 0; i < robot_poses.size(); i++) {
-		Point<double> pt(robot_poses[i].pos.x / scaler + width / 10,
-		                 robot_poses[i].pos.y / scaler + height / 2);
+		Point<double> pt(robot_poses[i].pos.x * scaler + width / 10,
+		                 robot_poses[i].pos.y * scaler + height / 2);
 
 		if (pt.x > 0 && pt.y > 0 && pt.x < width && pt.y < height)
 			cv::circle(histogram, cv::Point(pt.x, pt.y), 2, cv::Scalar(0, 0, 0), 2);

@@ -2,7 +2,7 @@ function plotMap(L,r,P)
     % this function plots the landmarks on the map
     
     figure(1)
-    xlim([-20, 20])
+    xlim([-40, 40])
     ylim([-20, 20])
     hold on
     grid on
@@ -15,4 +15,3 @@ function plotMap(L,r,P)
         end
     end
 end
-

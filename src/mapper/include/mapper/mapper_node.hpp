@@ -108,6 +108,7 @@ private:
 		local_nh.getParam("/mapper/model_path", (*params).model);
 		local_nh.getParam("/mapper/labels_path", (*params).labels);
 		local_nh.getParam("/mapper/prediction", (*params).prediction);
-		local_nh.getParam("/mapper/vineyard_height", (*params).vineyard_height);
+		local_nh.getParam("/mapper/vine_x", (*params).vine_x);
+		local_nh.getParam("/mapper/vine_y", (*params).vine_y);
 	}
 };

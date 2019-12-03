@@ -9,9 +9,6 @@ function l = correspond(r,col,L)
     line = Line(r(1), r(2), 10 * cos(th), 10 * sin(th));
     plotLine(line, [r(1)-20, r(2)-10], [r(1) + 20, r(2) + 10]);
     
-    th*180/pi
-    atan(line.a/line.c)*180/pi
-    pause()
     y_length = L(2,1,2) - L(1,1,2);
     min = 1e6;
     for i = 1:size(L,1)

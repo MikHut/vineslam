@@ -57,8 +57,8 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 	if (yaw != yaw) // check if it is NaN
 		yaw = 0;
 
-	all_poses.push_back(Pose<double>(slam_pose.position.x * 100,
-	                                 slam_pose.position.y * 100, yaw));
+	all_poses.push_back(Pose<double>(slam_pose.position.x,
+	                                 slam_pose.position.y, yaw));
 
 	/* Convert input image to BGR */
 	cv_bridge::CvImageConstPtr cv_ptr =

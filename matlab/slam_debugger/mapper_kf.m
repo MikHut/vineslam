@@ -23,18 +23,20 @@ iters  = csvread('/home/andre-criis/Source/agrobvslam/matlab/slam_debugger/data/
 r_pose = csvread('/home/andre-criis/Source/agrobvslam/matlab/slam_debugger/data/poses.csv', 0, 0);
 
 % iniliaze map and covariance of the map
-L = init(50,4); % array that contains the observations for the EKF
-P = [0.8, 0;
-     0, 0.5];
+L = init(100,4); % array that contains the observations for the EKF
+P = [0.6, 0;
+     0, 0.4];
 plotMap(L, [0,0], P);
 std_th = 25;
-
+std_y  = 4;
+pause()
 % perform first iteration - find a correspondence between the landmark
 % observation on image and the initial map
-j     = 114;
+j     = 8;
 iters = nonzeros(iters(j,:));
 obsv  = nonzeros(obsv(j,:));
-l     = correspond([r_pose(iters(1)+1,1); r_pose(iters(1)+1,2); r_pose(iters(1)+1,3)], obsv(1), L);
+l_    = correspond([sum(r_pose(iters(1:4)+1,1))/4; sum(r_pose(iters(1:4)+1,2))/4; sum(r_pose(iters(1:4)+1,3))/4], sum(obsv(1:4)/4), L)
+l = l_;
 
 % filter the robot pose
 filter_dim = 5;
@@ -78,18 +80,15 @@ for i = (inc + 1 + filter_dim):(N-1)
     th = z(2);
     abs_min_thtol = -h_fov/2 + c_robot_th;
     abs_max_thtol = +h_fov/2 + c_robot_th;
-    is_inside = ~(th < abs_min_thtol || th > abs_max_thtol || norm([c_robot_x, c_robot_y] - [x,y]) > 4);
-    [c_robot_x, c_robot_y]
-    [x,y]
-    norm([c_robot_x, c_robot_y] - [x,y])
+    is_inside = ~(th < abs_min_thtol || th > abs_max_thtol || norm([p_robot_x, p_robot_y] - [x,y]) > 4);
     
-    dist_y   = (y - l(2)) * (y - l(2));
-    dist_th  = NormalizeAng(atan2(y,x) - atan2(l(2),l(1)));
-    R = [~is_inside*1000 + dist_y, 0;
+    dist_y   = (y - l_(2));
+    dist_th  = NormalizeAng(atan2(y,x) - atan2(l_(2),l_(1)));
+    R = [~is_inside*1000 + std_y * (dist_y * dist_y), 0;
          0, ~is_inside*1000 + std_th*(dist_th*dist_th)];
     
     % kalman filter invocation
-    r = [c_robot_x, c_robot_y, c_robot_th]';
+    r = [p_robot_x, p_robot_y, p_robot_th]';
     [l,P] = kf(r,l,z,P,R);
     X(i -  inc - filter_dim,:) = l;
     figure(1)
@@ -99,6 +98,7 @@ for i = (inc + 1 + filter_dim):(N-1)
     figure(2)
     hold on
     plot(x, y, 'ko', 'MarkerSize', 2, 'LineWidth', 2);
+    Y(i - inc - filter_dim,:) = [x,y];
  
     %pause();
 end
@@ -108,4 +108,11 @@ std_y = std(X(:,2));
 mean_x = mean(X(:,1));
 mean_y = mean(X(:,2));
 figure(1)
+plot(std_x*cos(0:0.01:2*pi)+mean_x, std_y*sin(0:0.01:2*pi)+mean_y, 'ko', 'MarkerSize', 1, 'LineWidth', 1);
+
+std_x = std(Y(:,1));
+std_y = std(Y(:,2));
+mean_x = mean(Y(:,1));
+mean_y = mean(Y(:,2));
+figure(2)
 plot(std_x*cos(0:0.01:2*pi)+mean_x, std_y*sin(0:0.01:2*pi)+mean_y, 'ko', 'MarkerSize', 1, 'LineWidth', 1);

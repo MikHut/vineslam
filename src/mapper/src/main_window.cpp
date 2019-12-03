@@ -20,7 +20,7 @@ MainWindow::MainWindow(QNode* node, QWidget* parent)
   ui.map_width->setText("1000");
   ui.map_height->setText("1000");
 
-  scale = 1;
+  scale = 100;
 }
 
 void MainWindow::on_init_clicked()
@@ -126,7 +126,7 @@ void MainWindow::on_filter_map_clicked()
 
 void MainWindow::on_m_clicked()
 {
-  scale = 100;
+  scale = 1;
 }
 
 void MainWindow::on_dm_clicked()
@@ -136,12 +136,12 @@ void MainWindow::on_dm_clicked()
 
 void MainWindow::on_cm_clicked()
 {
-  scale = 1;
+  scale = 100;
 }
 
 void MainWindow::on_mm_clicked()
 {
-  scale = 0.1;
+  scale = 1000;
 }
 
 MainWindow::~MainWindow()

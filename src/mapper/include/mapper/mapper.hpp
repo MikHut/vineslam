@@ -12,7 +12,7 @@ public:
 	Estimator(const Parameters& params, LandmarkProcessor* lprocessor);
 	void process(const std::vector<Pose<double>>& robot_poses);
 	void singleDraw(const std::vector<Pose<double>>& robot_poses, const int& id);
-  void filterMap(const std::vector<Pose<double>>& robot_poses);
+	void filterMap(const std::vector<Pose<double>>& robot_poses);
 
 	std::vector<Point<double>>    all_sols;
 	std::vector<Landmark<double>> m_landmarks;
@@ -22,8 +22,8 @@ public:
 	cv::Mat histogram;
 
 	float scaler;
-  int   map_width;
-  int   map_heigth;
+	int   map_width;
+	int   map_heigth;
 
 private:
 	void filterXYTheta(const std::vector<Pose<double>> robot_poses,
@@ -36,6 +36,16 @@ private:
 	averagePrediction(const std::vector<Pose<double>>& robot_poses);
 	std::vector<Landmark<double>>
 	histogramPrediction(const std::vector<Pose<double>>& robot_poses);
+	std::vector<Landmark<double>>
+	kfPrediction(const std::vector<Pose<double>>& robot_poses);
+
+	std::vector<Point<double>> initMap(const int& N_x, const int& N_y);
+	Point<double>              correspond(const Point<double>& r, const int& col,
+	                                      const std::vector<Point<double>>& map);
+	double columnToTheta(const int& col)
+	{
+		return (-params.h_fov / params.width) * (params.width / 2 - col);
+	}
 
 	Parameters         params;
 	LandmarkProcessor* lprocessor;

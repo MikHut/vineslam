@@ -9,7 +9,8 @@ void Estimator::process(const std::vector<Pose<double>>& robot_poses)
 {
 	std::vector<Pose<double>> filtered_poses;
 	filterXYTheta(robot_poses, filtered_poses);
-	predict(filtered_poses);
+	/* predict(filtered_poses); */
+	predict(robot_poses);
 }
 
 void Estimator::filterXYTheta(const std::vector<Pose<double>> robot_poses,
@@ -56,9 +57,9 @@ void Estimator::predict(const std::vector<Pose<double>>& robot_poses)
 std::vector<Landmark<double>>
 Estimator::averagePrediction(const std::vector<Pose<double>>& robot_poses)
 {
-	int max_std = params.max_stdev;
-	int inc     = params.mapper_inc;
-	int comp    = params.filter_window;
+	double max_std = params.max_stdev;
+	int    inc     = params.mapper_inc;
+	int    comp    = params.filter_window;
 
 	std::vector<Landmark<double>> final_l;
 
@@ -99,9 +100,9 @@ Estimator::histogramPrediction(const std::vector<Pose<double>>& robot_poses)
 {
 	Grid<int> grid(map_width, map_heigth);
 
-	int max_std = params.max_stdev * scaler;
-	int inc     = params.mapper_inc;
-	int comp    = params.filter_window;
+	double max_std = params.max_stdev * scaler;
+	int    inc     = params.mapper_inc;
+	int    comp    = params.filter_window;
 
 	std::vector<Landmark<double>> final_l;
 
@@ -148,9 +149,9 @@ Estimator::histogramPrediction(const std::vector<Pose<double>>& robot_poses)
 std::vector<Landmark<double>>
 Estimator::kfPrediction(const std::vector<Pose<double>>& robot_poses)
 {
-	int max_std = params.max_stdev;
-	int inc     = params.mapper_inc;
-	int comp    = params.filter_window;
+	double max_std = params.max_stdev;
+	int    inc     = params.mapper_inc;
+	int    comp    = params.filter_window;
 
 	std::vector<Landmark<double>> final_l;
 
@@ -163,12 +164,13 @@ Estimator::kfPrediction(const std::vector<Pose<double>>& robot_poses)
 		Landmark<double> l = (*lprocessor).landmarks[i];
 
 		/* find map landmark correspondence */
-		Point<double> tmp = correspond(robot_poses[l.ptr[0]].pos, l.image_pos[0].x, map);
+		Point<double> tmp =
+		    correspond(robot_poses[l.ptr[0]].pos, l.image_pos[0].x, map);
 
 		/* initialize kalman filter */
 		VectorXd TH = tmp.eig();
 		MatrixXd P(2, 2);
-		P << 0.4, 0, 0, 0.2;
+		P << params.vine_std_x, 0, 0, params.vine_std_y;
 		KF kf(TH, P, params);
 
 		Point<double>              avg(0, 0);
@@ -201,7 +203,8 @@ Estimator::kfPrediction(const std::vector<Pose<double>>& robot_poses)
 		l.world_pos   = avg;
 		l.standardDev();
 
-		final_l.push_back(l);
+		if (res.size() > 0 && l.stdev.x < max_std && l.stdev.y < max_std)
+			final_l.push_back(l);
 	}
 
 	return final_l;
@@ -239,7 +242,7 @@ std::vector<Point<double>> Estimator::initMap(const int& N_x, const int& N_y)
 
 	std::vector<Point<double>> map;
 	for (size_t i = 0; i < c_index.size(); i++) {
-		for (int j = 0; j < N_x; j++) {
+		for (int j = 0; j < N_x / x_inc; j++) {
 			Point<double> pt(-N_x / 2 + j * x_inc, c_index[i]);
 			map.push_back(pt);
 		}

@@ -1,12 +1,12 @@
 #pragma once
 
 #include <cmath>
+#include <eigen3/Eigen/Dense>
 #include <iostream>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <random>
 #include <vector>
-#include <eigen3/Eigen/Dense>
 
 const float INF = 1.0e6;         /* hypothetic infinit */
 const float PI  = 3.14159265359; /* (radians) */
@@ -22,11 +22,14 @@ struct Parameters
 	int    filter_window; /* Dimension of the window of the robot pose filter */
 	int    mapper_inc;    /* Increment between frames to use in the mapper */
 	double min_score;     /* Minimum trunk detection probability */
-	int    max_stdev;     /* Maximum standard deviation of trunk world position
-	                         estimation */
+	double max_stdev;     /* Maximum standard deviation of trunk world position
+	                      estimation */
 	double vine_x;        /* Distance between vines in (meters) */
 	double vine_y;        /* Vineyard height in (meters) */
+  double vine_std_x;    /* X standard deviation of the vine map (meters) */
+  double vine_std_y;    /* Y standard deviation of the vine map (meters) */
 
+	std::string online;      /* type of mapping (online/offline) */
 	std::string pose_topic;  /* pose ROS topic */
 	std::string image_topic; /* image ROS topic */
 	std::string model;       /* tflite model path */
@@ -37,7 +40,7 @@ struct Parameters
 	Parameters()
 	{
 		h_fov         = PI / 2;
-		v_fov         = PI / 4;
+		v_fov         = PI / 2;
 		cam_height    = 1.0;
 		width         = 1280;
 		height        = 960;
@@ -50,9 +53,12 @@ struct Parameters
 		labels        = "";
 		pose_topic    = "";
 		image_topic   = "";
+		image_topic   = "true";
 		prediction    = "kf";
-		vine_x        = 1;
+		vine_x        = 0.5;
 		vine_y        = 1.6;
+    vine_std_x    = 0.3;
+    vine_std_y    = 0.4;
 	}
 };
 
@@ -84,12 +90,12 @@ struct Point
 		            ((*this).y - pt.y) * ((*this).y - pt.y));
 	}
 
-  Eigen::VectorXd eig()
-  {
-    Eigen::VectorXd vec(2,1);
-    vec << x, y;
-    return vec;
-  }
+	Eigen::VectorXd eig()
+	{
+		Eigen::VectorXd vec(2, 1);
+		vec << x, y;
+		return vec;
+	}
 };
 
 template <typename T>

@@ -12,8 +12,8 @@
 #include <image_transport/image_transport.h>
 #include <opencv2/features2d.hpp>
 #include <sensor_msgs/Image.h>
-#include <tf/transform_listener.h>
 #include <std_msgs/UInt32MultiArray.h>
+#include <tf/transform_listener.h>
 
 /* edgetpu detection API */
 #include <detection/engine.h>
@@ -59,15 +59,7 @@ private:
 	cv::Mat c_image;
 
 	image_transport::Publisher matches_publisher;
-	image_transport::Publisher ground_publisher;
 	image_transport::Publisher img_publisher;
-
-	cv::Mat x_lut;
-	cv::Mat y_lut;
-
-  ros::Publisher bhist_pub;
-  ros::Publisher ghist_pub;
-  ros::Publisher rhist_pub;
 #endif
 
 	ros::Subscriber img_subscriber;
@@ -93,6 +85,7 @@ private:
 	void loadParameters(const ros::NodeHandle& local_nh)
 	{
 		/* read launch file parameters */
+		local_nh.getParam("/mapper/online", (*params).online);
 		local_nh.getParam("/mapper/pose_topic", (*params).pose_topic);
 		local_nh.getParam("/mapper/image_topic", (*params).image_topic);
 		local_nh.getParam("/mapper/h_fov", (*params).h_fov);
@@ -110,5 +103,7 @@ private:
 		local_nh.getParam("/mapper/prediction", (*params).prediction);
 		local_nh.getParam("/mapper/vine_x", (*params).vine_x);
 		local_nh.getParam("/mapper/vine_y", (*params).vine_y);
+		local_nh.getParam("/mapper/vine_std_x", (*params).vine_std_x);
+		local_nh.getParam("/mapper/vine_std_y", (*params).vine_std_y);
 	}
 };

@@ -24,7 +24,7 @@ r_pose = csvread('/home/andre-criis/Source/agrobvslam/matlab/slam_debugger/data/
 
 % iniliaze map and covariance of the map
 L = init(100,4); % array that contains the observations for the EKF
-P = [0.6, 0;
+P = [0.3, 0;
      0, 0.4];
 plotMap(L, [0,0], P);
 std_th = 25;

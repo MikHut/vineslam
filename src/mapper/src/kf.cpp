@@ -16,7 +16,7 @@ void KF::computeR(const VectorXd& s, const VectorXd& z)
 {
 	double x  = z[0] * cos(z[1]) + s[0];
 	double y  = z[1] * sin(z[1]) + s[1];
-	double th = z[1];
+	double th = normalizeAngle(z[1]);
 
 	VectorXd dt(2, 1);
 	dt << s[0] - x, s[1] - y;
@@ -26,7 +26,7 @@ void KF::computeR(const VectorXd& s, const VectorXd& z)
 	bool is_inside = !(th < abs_min_thtol || th > abs_max_thtol || dt.norm() > 4);
 
 	double dist_y  = y - X0[1];
-	double dist_th = normalizeAngle(atan2(y, x) - atan2(X0[1], X0[2]));
+	double dist_th = normalizeAngle(atan2(y, x) - atan2(X0[1], X0[0]));
 
 	R = MatrixXd(2, 2);
 	R << (!is_inside) * 1000 + std_y * pow(dist_y, 2), 0, 0,
@@ -46,26 +46,18 @@ void KF::correct(const VectorXd& s, const VectorXd& z)
 
 	VectorXd z_(2, 1);
 	z_ << d, normalizeAngle(phi);
-	/* std::cout << z << std::endl; */
-	/* std::cout << z_ << std::endl; */
 
 	MatrixXd G(2, 2);
 	G << (X[0] - s[0]) / d, +(X[1] - s[1]) / d, -(X[1] - s[1]) / pow(d, 2),
 	    (X[0] - s[0]) / pow(d, 2);
-	/* std::cout << G << std::endl; */
 
 	K = P * G.transpose() * (G * P * G.transpose() + R).inverse();
-	/* std::cout << K << std::endl; */
 
 	VectorXd z_diff = z - z_;
 	z_diff[1]       = normalizeAngle(z_diff[1]);
 
 	X = X + K * z_diff;
 	P = (MatrixXd::Identity(2, 2) - K * G) * P;
-	/* std::cout << P << std::endl; */
-	/* std::cout << X << std::endl; */
-
-	/* std::cout << std::endl; */
 }
 
 VectorXd KF::getState() const

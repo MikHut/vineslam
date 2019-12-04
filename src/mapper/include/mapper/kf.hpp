@@ -4,7 +4,7 @@
 
 #define PI 3.14159265359
 
-const double std_y  = 25;
+const double std_y  = 1;
 const double std_th = 4;
 
 using Eigen::MatrixXd;

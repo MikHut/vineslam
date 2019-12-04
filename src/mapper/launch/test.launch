@@ -9,15 +9,18 @@
     <param name="img_width"         value="1292"/>
     <param name="img_height"        value="964"/>
     <param name="cam_height"        value="1"/>
-    <param name="match_box"         value="25"/>
+    <param name="match_box"         value="15"/>
     <param name="filter_window"     value="5"/>
-    <param name="mapper_inc"        value="60"/>
-    <param name="detector_th"       value="0.35"/>
-    <param name="max_stdev"         value="1"/>
+    <param name="mapper_inc"        value="10"/>
+    <param name="detector_th"       value="0.5"/>
+    <param name="max_stdev"         value="0.3"/>
     <param name="prediction"        value="kf"/>
-    <param name="vine_x"            value="1"/>
+    <param name="vine_x"            value="0.5"/>
     <param name="vine_y"            value="1.6"/>
+    <param name="vine_std_x"        value="0.5"/>
+    <param name="vine_std_y"        value="1.6"/>
 
+    <param name="online"  value="true"/>
     <param name="pose_topic"  value="/slam_out_pose"/>
     <param name="image_topic" value="/camera/image_raw"/>
     <param name="model_path"

@@ -12,7 +12,6 @@ public:
 	Estimator(const Parameters& params, LandmarkProcessor* lprocessor);
 	void process(const std::vector<Pose<double>>& robot_poses);
 	void singleDraw(const std::vector<Pose<double>>& robot_poses, const int& id);
-	void filterMap(const std::vector<Pose<double>>& robot_poses);
 
 	std::vector<Point<double>>    all_sols;
 	std::vector<Landmark<double>> m_landmarks;
@@ -39,9 +38,13 @@ private:
 	std::vector<Landmark<double>>
 	kfPrediction(const std::vector<Pose<double>>& robot_poses);
 
+	Point<double> processObsv(const Landmark<double>& l, const int& it,
+	                          const Pose<double>& delta_p);
+
 	std::vector<Point<double>> initMap(const int& N_x, const int& N_y);
 	Point<double>              correspond(const Point<double>& r, const int& col,
 	                                      const std::vector<Point<double>>& map);
+
 	double columnToTheta(const int& col)
 	{
 		return (-params.h_fov / params.width) * (params.width / 2 - col);

@@ -9,8 +9,7 @@ void KF::process(const VectorXd& s, const VectorXd& z)
 {
 	computeR(s, z);
 	predict();
-  std::cout << R << std::endl << P << std::endl << X << std::endl << std::endl;
-	/* correct(s, z); */
+	correct(s, z);
 }
 
 void KF::computeR(const VectorXd& s, const VectorXd& z)
@@ -45,23 +44,28 @@ void KF::correct(const VectorXd& s, const VectorXd& z)
 	double d   = sqrt(pow(X[0] - s[0], 2) + pow(X[1] - s[1], 2));
 	double phi = atan2(X[1] - s[1], X[0] - s[0]) - s[2];
 
-	VectorXd z_;
-	z_(1, 1) = d;
-	z_(2, 1) = normalizeAngle(phi);
+	VectorXd z_(2, 1);
+	z_ << d, normalizeAngle(phi);
+	/* std::cout << z << std::endl; */
+	/* std::cout << z_ << std::endl; */
 
-	MatrixXd G;
-	G(1, 1) = +(X[0] - s[0]) / d;
-	G(1, 2) = +(X[1] - s[1]) / d;
-	G(2, 1) = -(X[1] - s[1]) / pow(d, 2);
-	G(2, 2) = +(X[0] - s[0]) / pow(d, 2);
+	MatrixXd G(2, 2);
+	G << (X[0] - s[0]) / d, +(X[1] - s[1]) / d, -(X[1] - s[1]) / pow(d, 2),
+	    (X[0] - s[0]) / pow(d, 2);
+	/* std::cout << G << std::endl; */
 
 	K = P * G.transpose() * (G * P * G.transpose() + R).inverse();
+	/* std::cout << K << std::endl; */
 
 	VectorXd z_diff = z - z_;
 	z_diff[1]       = normalizeAngle(z_diff[1]);
 
 	X = X + K * z_diff;
 	P = (MatrixXd::Identity(2, 2) - K * G) * P;
+	/* std::cout << P << std::endl; */
+	/* std::cout << X << std::endl; */
+
+	/* std::cout << std::endl; */
 }
 
 VectorXd KF::getState() const

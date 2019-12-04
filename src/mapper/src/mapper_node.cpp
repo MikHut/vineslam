@@ -152,8 +152,6 @@ const cv::Mat Mapper::exportSingleMap(const int& id, const float& scaler,
 
 const cv::Mat Mapper::filterMap()
 {
-	(*estimator).filterMap(all_poses);
-	return (*estimator).map;
 }
 
 void Mapper::retrieveLog(std::string& log)

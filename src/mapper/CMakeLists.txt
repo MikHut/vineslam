@@ -42,7 +42,7 @@ SET(${PROJECT_NAME}_HEADERS include/mapper/mapper.hpp
 	include/mapper/main_window.hpp include/mapper/mapper_node.hpp
 	include/mapper/kf.hpp)
 SET(${PROJECT_NAME}_SOURCES src/main_window.cpp src/mapper_node.cpp src/mapper.cpp
-	src/landmark_processor.cpp src/debug.cpp utils/qnode.cpp src/main.cpp src/kf.cpp)
+	src/landmark_processor.cpp src/debug.cpp src/draw.cpp utils/qnode.cpp src/main.cpp src/kf.cpp)
 SET(${PROJECT_NAME}_FORMS   ui/main_window.ui)
 QT5_WRAP_CPP(${PROJECT_NAME}_HEADERS_MOC ${${PROJECT_NAME}_HEADERS})
 QT5_WRAP_UI(${PROJECT_NAME}_FORMS_HEADERS ${${PROJECT_NAME}_FORMS})

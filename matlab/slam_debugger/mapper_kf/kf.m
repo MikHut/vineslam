@@ -8,7 +8,7 @@ function [l,P] = kf(r,l,z,P,R)
     % - P: covariance of the previous state estimation
     % - R: covariance of the previous observation
 
-    [l,P] = predict(l,P);
-    [l,P] = correct(r,l,z,P,R);
+    [l,P] = kf_predict(l,P);
+    [l,P] = kf_correct(r,l,z,P,R);
 end
 

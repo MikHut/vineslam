@@ -1,4 +1,4 @@
-function [l,P] = correct(r,l,z,P,R)
+function [l,P] = kf_correct(r,l,z,P,R)
     % this function the correction step of the Kalman Filter
     % - r = [r_x,r_y,r_th]: robot pose
     % - l = [l_x,l_y]: landmark position - previous state estimation
@@ -9,7 +9,6 @@ function [l,P] = correct(r,l,z,P,R)
 
     
     % observation model
-    l - r(1:2)
     d   = sqrt((l(1) - r(1)) * (l(1) - r(1)) + (l(2) - r(2)) * (l(2) - r(2)));
     phi = atan2(l(2) - r(2), l(1) - r(1)) - r(3);
     z_ = [d;
@@ -21,18 +20,12 @@ function [l,P] = correct(r,l,z,P,R)
         -(l(2) - r(2))/(d*d),(l(1) - r(1))/(d*d)];
     
     % kalman gain calculation
-    R
-    P
-    K = P * G' * pinv(G * P * G' + R)
+    K = P * G' * pinv(G * P * G' + R);
     
     % state correction
-    z
-    z_
     z_diff = (z - z_);
     z_diff(2) = NormalizeAng(z_diff(2));
-    z_diff
-    K * z_diff
-    l = l + K * z_diff
+    l = l + K * z_diff;
     
     % covariance atualization
     P = (eye(2) - K*G) * P;

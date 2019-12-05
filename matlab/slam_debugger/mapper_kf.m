@@ -22,48 +22,42 @@ obsv   = csvread('/home/andre-criis/Source/agrobvslam/matlab/slam_debugger/data/
 iters  = csvread('/home/andre-criis/Source/agrobvslam/matlab/slam_debugger/data/iterations.csv', 0, 0);
 r_pose = csvread('/home/andre-criis/Source/agrobvslam/matlab/slam_debugger/data/poses.csv', 0, 0);
 
-% iniliaze map and covariance of the map
-L = init(100,4); % array that contains the observations for the EKF
+% iniliaze covariance
 P = [0.3, 0;
      0, 0.4];
-plotMap(L, [0,0], P);
 std_th = 25;
 std_y  = 4;
-pause()
+
 % perform first iteration - find a correspondence between the landmark
 % observation on image and the initial map
-j     = 8;
+j     = 144;
 iters = nonzeros(iters(j,:));
 obsv  = nonzeros(obsv(j,:));
-l_    = correspond([sum(r_pose(iters(1:4)+1,1))/4; sum(r_pose(iters(1:4)+1,2))/4; sum(r_pose(iters(1:4)+1,3))/4], sum(obsv(1:4)/4), L)
-l = l_;
+
 
 % filter the robot pose
-filter_dim = 5;
 robot_x_   = r_pose(iters(:)+1,1);
 robot_y_   = r_pose(iters(:)+1,2);
 robot_th_  = r_pose(iters(:)+1,3);
-for i=5:length(iters)
-    robot_x_(i)  = (robot_x_(i)  + robot_x_(i-1)  + robot_x_(i-2)  + robot_x_(i-3)  + robot_x_(i-4))  / 5; 
-    robot_y_(i)  = (robot_y_(i)  + robot_y_(i-1)  + robot_y_(i-2)  + robot_y_(i-3)  + robot_y_(i-4))  / 5;
-    robot_th_(i) = (robot_th_(i) + robot_th_(i-1) + robot_th_(i-2) + robot_th_(i-3) + robot_th_(i-4)) / 5;
-end   
+
+l  = predictDetection(obsv(1),-0.6,[robot_x_(1),robot_y_(1)])';
+l_ = l';
 
 % loop vars
-inc   = 50; 
+inc   = 1; 
 N     = length(obsv);
 
 figure(2)
 hold on
 grid on
 % loop
-for i = (inc + 1 + filter_dim):(N-1)
-    p_robot_x  = robot_x_(i -  inc - filter_dim);
-    p_robot_y  = robot_y_(i -  inc - filter_dim);
-    p_robot_th = robot_th_(i -  inc - filter_dim);
-    c_robot_x  = robot_x_(i - filter_dim);
-    c_robot_y  = robot_y_(i - filter_dim);
-    c_robot_th = robot_th_(i - filter_dim);
+for i = (inc + 1):(N-1)
+    p_robot_x  = robot_x_(i -  inc);
+    p_robot_y  = robot_y_(i -  inc);
+    p_robot_th = robot_th_(i -  inc);
+    c_robot_x  = robot_x_(i);
+    c_robot_y  = robot_y_(i);
+    c_robot_th = robot_th_(i);
     
     % calculation of the observation using the detection and the robot
     % movement
@@ -78,8 +72,8 @@ for i = (inc + 1 + filter_dim):(N-1)
     x  = z(1) * cos(z(2)) + p_robot_x;
     y  = z(1) * sin(z(2)) + p_robot_y;
     th = z(2);
-    abs_min_thtol = -h_fov/2 + c_robot_th;
-    abs_max_thtol = +h_fov/2 + c_robot_th;
+    abs_min_thtol = -h_fov/2 + p_robot_th;
+    abs_max_thtol = +h_fov/2 + p_robot_th;
     is_inside = ~(th < abs_min_thtol || th > abs_max_thtol || norm([p_robot_x, p_robot_y] - [x,y]) > 4);
     
     dist_y   = (y - l_(2));
@@ -90,7 +84,7 @@ for i = (inc + 1 + filter_dim):(N-1)
     % kalman filter invocation
     r = [p_robot_x, p_robot_y, p_robot_th]';
     [l,P] = kf(r,l,z,P,R);
-    X(i -  inc - filter_dim,:) = l;
+    X(i -  inc,:) = l;
     figure(1)
     plot(l(1), l(2), 'ro', 'MarkerSize', 2, 'LineWidth', 2);
     plot(p_robot_x, p_robot_y, 'ko', 'MarkerSize', 2, 'LineWidth', 2);
@@ -98,9 +92,7 @@ for i = (inc + 1 + filter_dim):(N-1)
     figure(2)
     hold on
     plot(x, y, 'ko', 'MarkerSize', 2, 'LineWidth', 2);
-    Y(i - inc - filter_dim,:) = [x,y];
- 
-    %pause();
+    Y(i - inc,:) = [x,y];
 end
 
 std_x = std(X(:,1));

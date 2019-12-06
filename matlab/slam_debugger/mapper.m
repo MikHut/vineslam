@@ -11,22 +11,18 @@ global h_fov
 global v_fov
 global img_w
 global img_h
-global std_th
-global std_y
 
 h_fov = pi/2;
 v_fov = pi/2;
 img_w = 1292;
 img_h = 964;
-std_th = 25;
-std_y  = 4;
 
 % input vars
 obsv   = csvread('/home/andre-criis/Source/agrobvslam/matlab/slam_debugger/data/image_pos.csv', 0, 0);
 iters  = csvread('/home/andre-criis/Source/agrobvslam/matlab/slam_debugger/data/iterations.csv', 0, 0);
 r_pose = csvread('/home/andre-criis/Source/agrobvslam/matlab/slam_debugger/data/poses.csv', 0, 0);
 
-j   = 172;
+j   = 144;
 inc = 10;
 
 iters = nonzeros(iters(j,:));
@@ -49,11 +45,12 @@ for i = inc+1:length(obsv)
     p_obsv = obsv(i-inc);
     
     [p, TH, P] = pf_predict(p, c_pose, p_pose, c_obsv, p_obsv, P);
+    P = [0.3, 0;
+         0, 0.4];
     
     if p(1).cov < 1e3
         p = pf_update(p);
         p = pf_resample(p);
-        p.w
     end
     
     pause(0.5);

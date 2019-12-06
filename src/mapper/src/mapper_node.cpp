@@ -1,10 +1,8 @@
 #include "../include/mapper/mapper_node.hpp"
-#include <chrono>
 
-Mapper::Mapper(int argc, char** argv) : QNode(argc, argv, "mapper") {}
-
-void Mapper::rosCommsInit()
+Mapper::Mapper(int argc, char** argv)
 {
+  ros::init(argc, argv, "mapper");
 	ros::NodeHandle n;
 
 	params = new Parameters();
@@ -28,15 +26,14 @@ void Mapper::rosCommsInit()
 	input_tensor_shape = (*engine).get_input_tensor_shape();
 	labels             = coral::ReadLabelFile((*params).labels);
 
-	Q_EMIT init_done();
+	run();
 }
 
 void Mapper::run()
 {
 	ros::spin();
-	std::cout << "Ros shutdown, proceeding to close the gui." << std::endl;
-	Q_EMIT
-	rosShutdown();
+	std::cout << "Ros shutdown, saving the map." << std::endl;
+	saveMap();
 }
 
 void Mapper::poseListener(const geometry_msgs::PoseStampedConstPtr& msg)
@@ -52,8 +49,8 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 	if (yaw != yaw) // check if it is NaN
 		yaw = 0;
 
-	all_poses.push_back(Pose<double>(slam_pose.position.x,
-	                                 slam_pose.position.y, yaw));
+	all_poses.push_back(
+	    Pose<double>(slam_pose.position.x, slam_pose.position.y, yaw));
 
 	/* Convert input image to BGR */
 	cv_bridge::CvImageConstPtr cv_ptr =
@@ -85,13 +82,16 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 		double ymax = result.corners.ymax * (*msg).width;
 
 		Point<double> tmp((ymin + ymax) / 2, (xmin + xmax) / 2);
-    if(result.label == 0)
-		  trunk_pos.push_back(tmp);
+		if (result.label == 0)
+			trunk_pos.push_back(tmp);
 	}
 
 	if (init == false) {
-		(*lprocessor).updatePoses(trunk_pos);
-		(*lprocessor).matchLandmarks(all_poses.size());
+    std::vector<int> index;
+		(*lprocessor).updateDetections(trunk_pos);
+		(*lprocessor).matchLandmarks(all_poses.size(), index);
+
+    (*estimator).process(all_poses, index);
 	}
 	else {
 		for (size_t i = 0; i < trunk_pos.size(); i++) {
@@ -113,83 +113,15 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 #endif
 }
 
-void Mapper::constructMap(const float& scaler, const int& map_width,
-                          const int& map_heigth)
-{
-	(*estimator).map_width  = map_width;
-	(*estimator).map_heigth = map_heigth;
-	(*estimator).scaler     = scaler;
-	(*estimator).process(all_poses);
-}
-
-const cv::Mat Mapper::exportMap()
-{
-	return (*estimator).map;
-}
-
-const cv::Mat Mapper::exportHistogram()
-{
-	return (*estimator).histogram;
-}
-const cv::Mat Mapper::exportSingleMap(const int& id, const float& scaler,
-                                      const int& map_width,
-                                      const int& map_heigth)
-{
-	if (id > (*estimator).m_landmarks.size() - 1)
-		return cv::Mat();
-
-	(*estimator).map_width  = map_width;
-	(*estimator).map_heigth = map_heigth;
-	(*estimator).scaler     = scaler;
-	(*estimator).singleDraw(all_poses, id);
-	return (*estimator).single_map;
-}
-
-const cv::Mat Mapper::filterMap()
-{
-}
-
-void Mapper::retrieveLog(std::string& log)
-{
-	std::ostringstream tmp;
-	for (size_t i = 0; i < (*estimator).m_landmarks.size(); i++) {
-		tmp << "Landmark " << i << ":\n"
-		    << " -  tracked " << (*estimator).m_landmarks[i].image_pos.size()
-		    << " times \n"
-		    << " -  position: " << (*estimator).m_landmarks[i].world_pos
-		    << " -  uncertainty: " << (*estimator).m_landmarks[i].stdev << "\n\n";
-	}
-
-	log = tmp.str();
-}
-
-void Mapper::retrieveLog(std::string& log, const int& id)
-{
-	std::ostringstream tmp;
-	Landmark<double>   l = (*estimator).m_landmarks[id];
-
-	tmp << "Landmark " << id << ":\n"
-	    << " -  tracked " << l.image_pos.size() << " times \n"
-	    << " -  position: " << l.world_pos << " -  uncertainty: " << l.stdev
-	    << "\n\n";
-
-	log = tmp.str();
-}
-
 void Mapper::saveMap()
 {
 	std::ofstream map_file;
 	map_file.open("/home/andre-criis/map.txt");
 
-	for (size_t i = 0; i < (*estimator).m_landmarks.size(); i++) {
-		Point<double> pt = (*estimator).m_landmarks[i].world_pos;
+	for (size_t i = 0; i < (*lprocessor).landmarks.size(); i++) {
+		Point<double> pt = (*lprocessor).landmarks[i].world_pos;
 		map_file << i << " " << pt.x << " " << pt.y << "\n";
 	}
 
 	map_file.close();
-}
-
-bool Mapper::histogramType()
-{
-	return (*params).prediction == "histogram";
 }

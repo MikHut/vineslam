@@ -1,31 +1,24 @@
 #pragma once
 
-#include "../../utils/utils.hpp"
-#include "kf.hpp"
-#include <array>
+#include "pf.hpp"
+#include "utils.hpp"
 #include <iostream>
-#include <opencv2/core.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/imgproc.hpp>
 
 class LandmarkProcessor
 {
 public:
 	LandmarkProcessor(const Parameters& params);
-	void         updatePoses(const std::vector<Point<double>>& poses);
-	void         matchLandmarks(const int& iter);
-	Line<double> projectLine(const Point<double>& pos,
-	                         const Point<double>& delta_p,
-	                         const double&        delta_th);
-	Line<double> computeLine(const Point<double>& landmark);
-	Line<double> computeLine(const Point<double>& landmark, const double& phi);
+	void updateDetections(const std::vector<Point<double>>& detections);
+	void matchLandmarks(const int& iter, std::vector<int>& index);
+
+  Line<double> computeLine(const Point<double>& landmark);
 
 	std::vector<Match<double>>    matches;
 	std::vector<Landmark<double>> landmarks;
-	Grid<int>                     grid;
+	std::vector<PF>               pf;
 
 private:
 	Parameters                 params;
-	std::vector<Point<double>> lc_pose;
-	std::vector<Point<double>> lp_pose;
+	std::vector<Point<double>> lc_pos;
+	std::vector<Point<double>> lp_pos;
 };

@@ -5,10 +5,10 @@ KF::KF(const VectorXd& X0, const MatrixXd& P0, const Parameters& params)
 {
 }
 
-void KF::process(const VectorXd& X_, const VectorXd& s, const VectorXd& z)
+void KF::process(const VectorXd& X, const VectorXd& s, const VectorXd& z)
 {
 	computeR(s, z);
-	predict(X_);
+	predict(X);
 	correct(s, z);
 }
 

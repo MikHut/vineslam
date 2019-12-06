@@ -1,9 +1,5 @@
 #pragma once
 
-#ifndef Q_MOC_RUN
-#include "../../utils/qnode.hpp"
-#include <ros/ros.h>
-#endif
 #include "landmark_processor.hpp"
 #include "mapper.hpp"
 #include <cv_bridge/cv_bridge.h>
@@ -11,6 +7,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <image_transport/image_transport.h>
 #include <opencv2/features2d.hpp>
+#include <ros/ros.h>
 #include <sensor_msgs/Image.h>
 #include <std_msgs/UInt32MultiArray.h>
 #include <tf/transform_listener.h>
@@ -21,31 +18,14 @@
 #include <examples/model_utils.h>
 #include <test_utils.h>
 
-class Mapper : public QNode
+class Mapper
 {
-	Q_OBJECT
 
 public:
 	Mapper(int argc, char** argv);
-	virtual ~Mapper() {}
+
 	void run();
-	void rosCommsInit();
-	void retrieveLog(std::string& log);
-	void retrieveLog(std::string& log, const int& id);
-	void constructMap(const float& scaler, const int& map_width,
-	                  const int& map_heigth);
-
-	const cv::Mat filterMap();
-	const cv::Mat exportMap();
-	const cv::Mat exportHistogram();
-	const cv::Mat exportSingleMap(const int& id, const float& scaler,
-	                              const int& map_width, const int& map_heigth);
-
 	void saveMap();
-	bool histogramType();
-
-Q_SIGNALS:
-	void init_done();
 
 private:
 	void imageListener(const sensor_msgs::ImageConstPtr& msg);
@@ -64,7 +44,6 @@ private:
 
 	ros::Subscriber img_subscriber;
 	ros::Subscriber pose_subscriber;
-
 
 	bool init;
 
@@ -85,7 +64,6 @@ private:
 	void loadParameters(const ros::NodeHandle& local_nh)
 	{
 		/* read launch file parameters */
-		local_nh.getParam("/mapper/online", (*params).online);
 		local_nh.getParam("/mapper/pose_topic", (*params).pose_topic);
 		local_nh.getParam("/mapper/image_topic", (*params).image_topic);
 		local_nh.getParam("/mapper/h_fov", (*params).h_fov);
@@ -100,9 +78,6 @@ private:
 		local_nh.getParam("/mapper/max_stdev", (*params).max_stdev);
 		local_nh.getParam("/mapper/model_path", (*params).model);
 		local_nh.getParam("/mapper/labels_path", (*params).labels);
-		local_nh.getParam("/mapper/prediction", (*params).prediction);
-		local_nh.getParam("/mapper/vine_x", (*params).vine_x);
-		local_nh.getParam("/mapper/vine_y", (*params).vine_y);
 		local_nh.getParam("/mapper/vine_std_x", (*params).vine_std_x);
 		local_nh.getParam("/mapper/vine_std_y", (*params).vine_std_y);
 	}

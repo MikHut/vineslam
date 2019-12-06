@@ -1,4 +1,4 @@
-#include "../../utils/utils.hpp"
+#include "utils.hpp"
 #include <eigen3/Eigen/Dense>
 #include <iostream>
 
@@ -15,18 +15,18 @@ class KF
 public:
 	KF(const VectorXd& X0, const MatrixXd& P0, const Parameters& params);
 
-	void     process(const VectorXd& s, const VectorXd& z);
+	void     process(const VectorXd& X_, const VectorXd& s, const VectorXd& z);
 	VectorXd getState() const;
+	MatrixXd getObsvCov() const;
 
 private:
-	void predict();
+	void predict(const VectorXd& X_);
 	void correct(const VectorXd& s, const VectorXd& z);
 	void computeR(const VectorXd& s, const VectorXd& z);
 
 	Parameters params;
 
 	/* state vector and KF matrices */
-	VectorXd X0;
 	VectorXd X;
 	MatrixXd P;
 	MatrixXd K;

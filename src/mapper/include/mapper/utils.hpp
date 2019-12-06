@@ -1,45 +1,56 @@
 #pragma once
 
+#include <cmath>
+#include <eigen3/Eigen/Dense>
 #include <iostream>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <random>
 #include <vector>
 
-const float INF       = 1.0e6;         /* hypothetic infinit */
-const float PI        = 3.14159265359; /* (radians) */
-const float STD_XY    = 0.3;    /* position standard deviation (meters) */
-const float STD_THETA = 0.1745; /* orientation standard deviation (radians) */
+const float INF = 1.0e6;         /* hypothetic infinit */
+const float PI  = 3.14159265359; /* (radians) */
 
 struct Parameters
 {
-	double h_fov;      /* Camera horizontal field of view */
-	double v_fov;      /* Camera vertical field of view */
-	double cam_height; /* Camera height (centimenters) */
-	double min_score;  /* Minimum trunk detection probability */
-	int    width;      /* Image width. */
-	int    height;     /* Image height */
-	int    scaler;     /* Convert meter to the unit of the map */
+	double h_fov;         /* Camera horizontal field of view (radians) */
+	double v_fov;         /* Camera vertical field of view (radians) */
+	double cam_height;    /* Camera height (meters) */
+	int    width;         /* Image width */
+	int    height;        /* Image height */
+	int    match_box;     /* Search box diagonal size */
+	int    filter_window; /* Dimension of the window of the robot pose filter */
+	int    mapper_inc;    /* Increment between frames to use in the mapper */
+	double min_score;     /* Minimum trunk detection probability */
+	double max_stdev;     /* Maximum standard deviation of trunk world position
+	                      estimation */
+
+	double vine_std_x; /* X standard deviation of the vine map (meters) */
+	double vine_std_y; /* Y standard deviation of the vine map (meters) */
 
 	std::string pose_topic;  /* pose ROS topic */
 	std::string image_topic; /* image ROS topic */
-	std::string map_file;    /* map file containing the landmarks position */
 	std::string model;       /* tflite model path */
 	std::string labels;      /* detection labels path */
 
 	Parameters()
 	{
-		h_fov       = PI / 2;
-		v_fov       = PI / 2;
-		cam_height  = 100.0;
-		width       = 1280;
-		height      = 960;
-		min_score   = 0.35;
-		scaler      = 1;
-		pose_topic  = "";
-		image_topic = "";
-		map_file    = "";
-		model       = "";
-		labels      = "";
+		h_fov         = PI / 2;
+		v_fov         = PI / 2;
+		cam_height    = 1.0;
+		width         = 1280;
+		height        = 960;
+		match_box     = 10;
+		filter_window = 5;
+		mapper_inc    = 50;
+		min_score     = 0.5;
+		max_stdev     = 10;
+		model         = "";
+		labels        = "";
+		pose_topic    = "";
+		image_topic   = "";
+		vine_std_x    = 0.3;
+		vine_std_y    = 0.4;
 	}
 };
 
@@ -69,6 +80,13 @@ struct Point
 	{
 		return sqrt(((*this).x - pt.x) * ((*this).x - pt.x) +
 		            ((*this).y - pt.y) * ((*this).y - pt.y));
+	}
+
+	Eigen::VectorXd eig()
+	{
+		Eigen::VectorXd vec(2, 1);
+		vec << x, y;
+		return vec;
 	}
 };
 
@@ -131,93 +149,82 @@ struct Line
 			return Point<T>(x, y);
 		}
 	}
-};
 
-template <typename T>
-struct Particle
-{
-	int      id;
-	Point<T> pos;
-	double   theta;
-	double   weight;
-	double   r_error;
-
-	Particle() {}
-
-	Particle(const int& id, const Point<T>& delta_p, const double& delta_th,
-	         const double& weight)
+	double dist(const Point<double>& p)
 	{
-		(*this).id       = id;
-		(*this).delta_p  = delta_p;
-		(*this).delta_th = delta_th;
-		(*this).weight   = weight;
-		(*this).r_error  = 0.0;
+		double den = sqrt((a * a + b * b));
+		return std::fabs(a * p.x + b * p.y - c) / den;
 	}
 };
 
 template <typename T>
-struct Cell
+struct Match
 {
-	Point<T> index;
-	int      score;
+	Point<T> p_pos;
+	Point<T> c_pos;
+	Line<T>  p_line;
+	Line<T>  c_line;
 
-	Cell(){};
+	Match() {}
 
-	Cell(const Point<T>& index)
+	Match(const Point<T>& p, const Point<T>& c, const Line<T>& p_line,
+	      const Line<T>& c_line)
 	{
-		(*this).index = index;
-		score         = 0;
-	}
-};
-
-template <typename T>
-struct Grid
-{
-	int width;
-	int height;
-
-	std::vector<Cell<T>> cells;
-
-	Grid() {}
-
-	Grid(const int& width, const int& height)
-	{
-		(*this).width  = width;
-		(*this).height = height;
-		for (int i = 0; i < width; i++) {
-			for (int j = 0; j < height; j++) {
-				Point<T> index(i, j - height / 2);
-				Cell<T>  tmp(index);
-				cells.push_back(tmp);
-			}
-		}
-	}
-
-	void clean() { cells.clear(); }
-
-	int arrayIndex(Point<T> index)
-	{
-		for (size_t i = 0; i < cells.size(); i++) {
-			if (cells[i].index.x == index.x && cells[i].index.y == index.y)
-				return i;
-		}
-
-		return -1;
+		(*this).p_pos  = Point<T>(p);
+		(*this).c_pos  = Point<T>(c);
+		(*this).p_line = p_line;
+		(*this).c_line = c_line;
 	}
 };
 
 template <typename T>
 struct Landmark
 {
-	int      id;
-	Point<T> world_pos;
+	int                   id;
+	Point<double>         stdev;
+	Point<T>              world_pos;
+	std::vector<Point<T>> estimations;
+	std::vector<Point<T>> image_pos;
+	std::vector<int>      ptr;
 
 	Landmark() {}
 
-	Landmark(const int& id, const Point<T>& world_pos)
+	Landmark(const int& id, const Point<T>& image_pos)
 	{
 		(*this).id        = id;
-		(*this).world_pos = world_pos;
+		(*this).image_pos = std::vector<Point<T>>(1, image_pos);
+	}
+
+	void standardDev()
+	{
+		Point<double> mean = world_pos;
+		Point<double> var  = Point<double>(0.0, 0.0);
+
+		for (size_t i = 0; i < estimations.size(); i++) {
+			var.x += (estimations[i].x - mean.x) * (estimations[i].x - mean.x);
+			var.y += (estimations[i].y - mean.y) * (estimations[i].y - mean.y);
+		}
+
+		stdev.x = sqrt(var.x / estimations.size());
+		stdev.y = sqrt(var.y / estimations.size());
+	}
+};
+
+template <typename T>
+struct Particle
+{
+	int    id;
+	double dy;
+	double w;
+	double cov;
+
+	Particle() {}
+
+	Particle(const int& id, const double& dy)
+	{
+		(*this).id = id;
+		(*this).dy = dy;
+		(*this).w  = 1;
 	}
 };
 
@@ -291,14 +298,6 @@ std::ostream& operator<<(std::ostream& o, const Line<T>& l)
 	return o;
 }
 
-template <typename T>
-std::ostream& operator<<(std::ostream& o, const Particle<T>& p)
-{
-	o << "(" << p.id << ") - " << p.pos << "theta = " << p.theta
-	  << "\nweight = " << p.weight << "\nr_error = " << p.r_error << std::endl;
-	return o;
-}
-
 template <typename T1, typename T2>
 Pose<T1> operator-(const Pose<T1>& p1, const Pose<T2>& p2)
 {
@@ -317,7 +316,6 @@ std::ostream& operator<<(std::ostream& o, const Pose<T>& p)
 template <typename T>
 std::ostream& operator<<(std::ostream& o, const Landmark<T>& l)
 {
-	o << "id: " << l.id << "\n[x,y] = [" << l.world_pos.x << "," << l.world_pos.y
-	  << "]" << std::endl;
+	o << "[x,y] = [" << l.pos.x << "," << l.pos.y << "]" << std::endl;
 	return o;
 }

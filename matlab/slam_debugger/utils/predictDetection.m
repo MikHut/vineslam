@@ -2,11 +2,10 @@ function X_curr = predictDetection(X_prev, trunk_y, p_pos)
     % this function predicts the next detection of a trunk using the
     % previous one and the expectable range of possible heights 
     % of the vine
-    % - X_prev: previous prediction
-    % - p_pos:  robot position in the previous prediction
-    % - X_curr: array of expected landmark positions
-    % - mean:   average of the expected positions
-    % - std:    standard deviation of the expected positions
+    % - X_prev:  previous prediction
+    % - p_pos:   robot position in the previous prediction
+    % - trunk_y: expected y distance to the trunk
+    % - X_curr:  expected landmark positions
     
     l_prev  = computeLine(X_prev,0);
     l_trunk = Line(0, trunk_y, 10, trunk_y);

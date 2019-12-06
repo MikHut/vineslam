@@ -2,9 +2,7 @@ function [p, TH, P] = pf_predict(particles, c_pose, p_pose, c_col, p_col, P)
     % this function implements the prediction step of the particle filter
 
     global h_fov;
-    global std_th;
-    global std_y;
-    
+
     p_robot_x  = p_pose(1);
     p_robot_y  = p_pose(2);
     p_robot_th = p_pose(3);
@@ -15,7 +13,7 @@ function [p, TH, P] = pf_predict(particles, c_pose, p_pose, c_col, p_col, P)
     M = length(particles);
     
     for i = 1:M
-        l(i,:)  = predictDetection(p_col, particles(i).dy, [p_robot_x,p_robot_y])';
+        l(i,:)  = predictDetection(p_col, particles(i).dy, [p_robot_x, p_robot_y])';
         l_(i,:) = l(i,:)';
     end
 
@@ -41,8 +39,8 @@ function [p, TH, P] = pf_predict(particles, c_pose, p_pose, c_col, p_col, P)
         % observations covariance matrix calculation
         dist_y   = (y - l_(i,2));
         dist_th  = NormalizeAng(atan2(y,x) - atan2(l_(i,2),l_(i,1)));
-        R = [~is_inside*1000 + std_y * (dist_y * dist_y), 0;
-             0, ~is_inside*1000 + std_th*(dist_th*dist_th)];
+        R = [~is_inside*1000 + (dist_y * dist_y), 0;
+             0, ~is_inside*1000 + (dist_th * dist_th)];
 
         % kalman filter invocation
         r = [p_robot_x, p_robot_y, p_robot_th]';

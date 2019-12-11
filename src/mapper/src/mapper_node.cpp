@@ -2,7 +2,7 @@
 
 Mapper::Mapper(int argc, char** argv)
 {
-  ros::init(argc, argv, "mapper");
+	ros::init(argc, argv, "mapper");
 	ros::NodeHandle n;
 
 	params = new Parameters();
@@ -21,11 +21,15 @@ Mapper::Mapper(int argc, char** argv)
 	img_publisher     = it.advertise("detection/image_raw", 1);
 	matches_publisher = it.advertise("matches/image_raw", 1);
 #endif
+	marker_pub = n.advertise<visualization_msgs::MarkerArray>("/map", 1);
 
+	ROS_INFO("Loading NN model and label files");
 	engine             = new coral::DetectionEngine((*params).model);
 	input_tensor_shape = (*engine).get_input_tensor_shape();
 	labels             = coral::ReadLabelFile((*params).labels);
+	ROS_INFO("Done");
 
+	initMarker();
 	run();
 }
 
@@ -86,17 +90,31 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 			trunk_pos.push_back(tmp);
 	}
 
+	Point<double>    r_pos(slam_pose.position.x, slam_pose.position.y);
+	std::vector<int> index;
 	if (init == false) {
-    std::vector<int> index;
 		(*lprocessor).updateDetections(trunk_pos);
-		(*lprocessor).matchLandmarks(all_poses.size(), index);
+		(*lprocessor).matchLandmarks(all_poses.size(), r_pos, index);
 
-    (*estimator).process(all_poses, index);
+		(*estimator).process(all_poses, index);
 	}
 	else {
 		for (size_t i = 0; i < trunk_pos.size(); i++) {
 			(*lprocessor).landmarks.push_back(Landmark<double>(i, trunk_pos[i]));
 			(*lprocessor).landmarks[i].ptr.push_back(0);
+
+			if ((*params).type == "pf") {
+				bool side = (trunk_pos[i].x < (*params).width / 2) ? 1 : 0;
+				(*lprocessor).pf.push_back(PF(side, *params));
+			}
+			else {
+				Eigen::MatrixXd P0(2, 2);
+				P0 << 2, 0, 0, 2;
+				Line<double>  l = (*lprocessor).computeLine(trunk_pos[i]);
+				Point<double> X0(slam_pose.position.x, l.getY(slam_pose.position.x));
+				KF            kf_(P0, X0.eig(), *params);
+				(*lprocessor).kf.push_back(kf_);
+			}
 		}
 #ifdef DEBUG
 		p_image = cv::Mat((*params).width, (*params).height, CV_8UC1,
@@ -105,6 +123,23 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 #endif
 		init = false;
 	}
+
+	visualization_msgs::MarkerArray marker_array;
+	for (size_t i = 0; i < (*lprocessor).landmarks.size(); i++) {
+		Landmark<double> l = (*lprocessor).landmarks[i];
+		if (l.stdev.x > 0.1 || l.stdev.y > 0.1)
+			continue;
+
+		marker.id              = i;
+		marker.header          = (*msg).header;
+		marker.header.frame_id = "map";
+		marker.pose.position.x = l.world_pos.x;
+		marker.pose.position.y = l.world_pos.y;
+		marker.pose.position.z = 0;
+
+		marker_array.markers.push_back(marker);
+	}
+	marker_pub.publish(marker_array);
 
 #ifdef DEBUG
 	cv::Mat bboxes;

@@ -16,11 +16,13 @@ public:
 	KF(const VectorXd& X0, const MatrixXd& P0, const Parameters& params);
 
 	void     process(const VectorXd& X_, const VectorXd& s, const VectorXd& z);
+	void     process(const VectorXd& s, const VectorXd& z);
 	VectorXd getState() const;
 	MatrixXd getObsvCov() const;
 
 private:
 	void predict(const VectorXd& X_);
+	void predict();
 	void correct(const VectorXd& s, const VectorXd& z);
 	void computeR(const VectorXd& s, const VectorXd& z);
 

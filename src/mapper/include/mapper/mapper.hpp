@@ -14,6 +14,14 @@ public:
 	             const std::vector<int>&          index);
 
 private:
+	void          pfPrediction(const std::vector<Pose<double>>& robot_poses,
+	                           const std::vector<int>&          index);
+	void          kfPrediction(const std::vector<Pose<double>>& robot_poses,
+	                           const std::vector<int>&          index);
+	Point<double> processObsv(const Landmark<double>& l, const int& it,
+	                          const Pose<double>& delta_p);
+	void          control();
+
 	double columnToTheta(const int& col)
 	{
 		return (-params.h_fov / params.width) * (params.width / 2 - col);
@@ -21,4 +29,7 @@ private:
 
 	Parameters         params;
 	LandmarkProcessor* lprocessor;
+
+	Line<double> vine_right;
+	Line<double> vine_left;
 };

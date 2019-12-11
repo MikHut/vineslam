@@ -10,6 +10,7 @@ find_package(catkin REQUIRED
                     std_msgs
 		    sensor_msgs
 		    geometry_msgs
+		    visualization_msgs
 		    nav_msgs
 		    tf
 		    cv_bridge

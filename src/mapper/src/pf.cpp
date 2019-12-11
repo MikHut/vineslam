@@ -9,7 +9,7 @@ PF::PF(const bool& side, const Parameters& params) : params(params)
 	int    i = 0;
 	if (side == 0) {
 		dy = 0.1;
-		while (dy < 1.5) {
+		while (dy <= 1.5) {
 			Particle<double> p(i, dy);
 			particles.push_back(p);
 			dy += 0.05;
@@ -18,7 +18,7 @@ PF::PF(const bool& side, const Parameters& params) : params(params)
 	}
 	else {
 		dy = -1.5;
-		while (dy < -0.1) {
+		while (dy <= -0.1) {
 			Particle<double> p(i, dy);
 			particles.push_back(p);
 			dy += 0.05;
@@ -30,11 +30,14 @@ PF::PF(const bool& side, const Parameters& params) : params(params)
 std::vector<Point<double>> PF::process(const Pose<double>&  c_pose,
                                        const Pose<double>&  p_pose,
                                        const Point<double>& c_col,
-                                       const Point<double>& p_col)
+                                       const Point<double>& p_col,
+                                       const Line<double>&  vine)
 {
-	std::vector<Point<double>> p = predict(c_pose, p_pose, c_col, p_col);
-	update();
-	resample();
+	std::vector<Point<double>> p = predict(c_pose, p_pose, c_col, p_col, vine);
+	if (particles[1].cov < 1e3) {
+		update();
+		resample();
+	}
 
 	return p;
 }
@@ -42,12 +45,17 @@ std::vector<Point<double>> PF::process(const Pose<double>&  c_pose,
 std::vector<Point<double>> PF::predict(const Pose<double>&  c_pose,
                                        const Pose<double>&  p_pose,
                                        const Point<double>& c_col,
-                                       const Point<double>& p_col)
+                                       const Point<double>& p_col,
+                                       const Line<double>& vine)
 {
 	/* extraction of the observation */
 	Point<double> X = processObsv(c_col, p_col, c_pose - p_pose);
 	VectorXd      z(2, 1);
 	z << sqrt((X.x * X.x) + (X.y * X.y)), atan2(X.y, X.x);
+
+	/* distance to the vine line point */
+	Line<double>  l_prev  = computeLine(p_col);
+	Point<double> vine_pt = l_prev.intercept(vine);
 
 	std::vector<Point<double>> res;
 	for (size_t i = 0; i < particles.size(); i++) {
@@ -57,13 +65,16 @@ std::vector<Point<double>> PF::predict(const Pose<double>&  c_pose,
 		KF kf(TH.eig(), P, params);
 
 		/* kalman filter */
-		Point<double> s = p_pose.pos;
+		Pose<double> s = p_pose;
 		kf.process(TH.eig(), s.eig(), z);
 		VectorXd X = kf.getState();
 		MatrixXd R = kf.getObsvCov();
 
 		/* update particle covariance */
 		particles[i].cov = R.norm();
+
+		/* update distance to vine hypothetical point */
+		particles[i].dist = vine_pt.euc_dist(Point<double>(X[0], X[1]));
 
 		res.push_back(Point<double>(X[0], X[1]));
 	}
@@ -73,12 +84,13 @@ std::vector<Point<double>> PF::predict(const Pose<double>&  c_pose,
 
 void PF::update()
 {
-	int w_sum = 0;
+
+	double w_sum = 0;
 	/* update particles weights */
 	for (size_t i = 0; i < particles.size(); i++) {
 		Particle<double> p = particles[i];
 
-		double w = exp(-0.5 * (p.cov * p.cov));
+		double w = exp(-0.5 * ((p.cov * p.cov)));
 		w_sum += w;
 
 		particles[i].w = w;
@@ -98,13 +110,14 @@ void PF::resample()
 		w.push_back(particles[i].w);
 
 	std::vector<double> Q(M);
-	for (int i = 0; i < M; i++)
-		Q[i] = std::accumulate(w.begin(), w.begin() + i, 0);
+	Q[0] = w[0];
+	for (int i = 1; i < M; i++)
+		Q[i] = Q[i - 1] + w[i];
 
 	int              i = 0;
 	std::vector<int> index(M);
 	while (i < M) {
-		double sample = std::rand();
+		double sample = ((double)std::rand() / (RAND_MAX));
 		int    j      = 1;
 
 		while (Q[j] < sample)
@@ -115,8 +128,8 @@ void PF::resample()
 	}
 
 	for (i = 0; i < M; i++) {
-		particles[i].dy  = particles[index[i]].dy + (std::rand() - 0.5) * 0.01;
-		particles[i].w   = particles[index[i]].dy;
+		particles[i].dy  = particles[index[i]].dy;
+		particles[i].w   = particles[index[i]].w;
 		particles[i].cov = particles[index[i]].cov;
 	}
 }

@@ -5,6 +5,8 @@ function p = pf_update(particles)
     for i = 1:length(particles)
         particles(i).w = exp(-0.5 * (particles(i).cov * particles(i).cov));
         w_sum = w_sum + particles(i).w;
+        w = particles(i).w;
+        c = particles(i).cov;
     end
     
     for i = 1:length(particles)

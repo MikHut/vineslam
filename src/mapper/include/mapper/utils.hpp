@@ -32,6 +32,7 @@ struct Parameters
 	std::string image_topic; /* image ROS topic */
 	std::string model;       /* tflite model path */
 	std::string labels;      /* detection labels path */
+	std::string type;        /* estimation type (kf,pf) */
 
 	Parameters()
 	{
@@ -49,6 +50,7 @@ struct Parameters
 		labels        = "";
 		pose_topic    = "";
 		image_topic   = "";
+		type          = "";
 		vine_std_x    = 0.3;
 		vine_std_y    = 0.4;
 	}
@@ -110,6 +112,13 @@ struct Pose
 		(*this).pos   = pos;
 		(*this).theta = theta;
 	}
+
+	Eigen::VectorXd eig()
+	{
+		Eigen::VectorXd vec(3, 1);
+		vec << pos.x, pos.y, theta;
+		return vec;
+	}
 };
 
 template <typename T>
@@ -135,6 +144,46 @@ struct Line
 		(*this).p2 = p2;
 	}
 
+	Line(const std::vector<Point<T>>& pts)
+	{
+		if (pts.size() < 2)
+			return;
+
+		T X  = 0;
+		T Y  = 0;
+		T XY = 0;
+		T X2 = 0;
+		T Y2 = 0;
+
+		for (size_t i = 0; i < pts.size(); i++) {
+			X += pts[i].x;
+			Y += pts[i].y;
+			XY += pts[i].x * pts[i].y;
+			X2 += pts[i].x * pts[i].x;
+			Y2 += pts[i].y * pts[i].y;
+		}
+
+		X /= pts.size();
+		Y /= pts.size();
+		XY /= pts.size();
+		X2 /= pts.size();
+		Y2 /= pts.size();
+
+		a = -(XY - X * Y);
+
+		T Bx = X2 - X * X;
+		T By = Y2 - Y * Y;
+
+		if (std::fabs(Bx) < std::fabs(By)) {
+			b = By;
+			std::swap(b, a);
+		}
+		else
+			b = Bx;
+
+		c = (a * X + b * Y);
+	}
+
 	Point<T> intercept(const Line<T>& l2)
 	{
 		Line<T> l1  = *this;
@@ -149,6 +198,11 @@ struct Line
 			return Point<T>(x, y);
 		}
 	}
+
+  double getY(double x)
+  {
+    return (c - a * x) / b;
+  }
 
 	double dist(const Point<double>& p)
 	{
@@ -195,6 +249,17 @@ struct Landmark
 		(*this).image_pos = std::vector<Point<T>>(1, image_pos);
 	}
 
+	void worldPos()
+	{
+		double x = 0, y = 0;
+		for (size_t i = 0; i < estimations.size(); i++) {
+			x += estimations[i].x;
+			y += estimations[i].y;
+		}
+
+		world_pos = Point<T>(x / estimations.size(), y / estimations.size());
+	}
+
 	void standardDev()
 	{
 		Point<double> mean = world_pos;
@@ -217,6 +282,7 @@ struct Particle
 	double dy;
 	double w;
 	double cov;
+	double dist;
 
 	Particle() {}
 
@@ -317,5 +383,13 @@ template <typename T>
 std::ostream& operator<<(std::ostream& o, const Landmark<T>& l)
 {
 	o << "[x,y] = [" << l.pos.x << "," << l.pos.y << "]" << std::endl;
+	return o;
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream& o, const Particle<T>& p)
+{
+	o << "[id,dy,w,cov] = [" << p.id << "," << p.dy << "," << p.w << "," << p.cov
+	  << "]" << std::endl;
 	return o;
 }

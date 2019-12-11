@@ -9,8 +9,10 @@
 #include <opencv2/features2d.hpp>
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
+#include <sensor_msgs/PointCloud.h>
 #include <std_msgs/UInt32MultiArray.h>
 #include <tf/transform_listener.h>
+#include <visualization_msgs/MarkerArray.h>
 
 /* edgetpu detection API */
 #include <detection/engine.h>
@@ -42,8 +44,14 @@ private:
 	image_transport::Publisher img_publisher;
 #endif
 
+  void initMarker();
+
 	ros::Subscriber img_subscriber;
 	ros::Subscriber pose_subscriber;
+
+  ros::Publisher marker_pub;
+
+  visualization_msgs::Marker marker;
 
 	bool init;
 
@@ -80,5 +88,6 @@ private:
 		local_nh.getParam("/mapper/labels_path", (*params).labels);
 		local_nh.getParam("/mapper/vine_std_x", (*params).vine_std_x);
 		local_nh.getParam("/mapper/vine_std_y", (*params).vine_std_y);
+		local_nh.getParam("/mapper/type", (*params).type);
 	}
 };

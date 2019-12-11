@@ -12,17 +12,24 @@ void KF::process(const VectorXd& X_, const VectorXd& s, const VectorXd& z)
 	correct(s, z);
 }
 
+void KF::process(const VectorXd& s, const VectorXd& z)
+{
+	computeR(s, z);
+	predict();
+	correct(s, z);
+}
+
 void KF::computeR(const VectorXd& s, const VectorXd& z)
 {
 	double x  = z[0] * cos(z[1]) + s[0];
-	double y  = z[1] * sin(z[1]) + s[1];
+	double y  = z[0] * sin(z[1]) + s[1];
 	double th = normalizeAngle(z[1]);
 
 	VectorXd dt(2, 1);
 	dt << s[0] - x, s[1] - y;
 
-	double abs_min_thtol = -params.h_fov / 2 + s[0];
-	double abs_max_thtol = +params.h_fov / 2 + s[1];
+	double abs_min_thtol = -params.h_fov / 2 + s[2];
+	double abs_max_thtol = +params.h_fov / 2 + s[2];
 	bool is_inside = !(th < abs_min_thtol || th > abs_max_thtol || dt.norm() > 4);
 
 	double dist_y  = y - X[1];
@@ -36,6 +43,12 @@ void KF::computeR(const VectorXd& s, const VectorXd& z)
 void KF::predict(const VectorXd& X_)
 {
 	X = X_;
+	P = P;
+}
+
+void KF::predict()
+{
+	X = X;
 	P = P;
 }
 

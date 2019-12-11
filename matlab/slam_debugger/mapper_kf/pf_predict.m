@@ -37,16 +37,17 @@ function [p, TH, P] = pf_predict(particles, c_pose, p_pose, c_col, p_col, P)
         TH = l(i,:)';
 
         % observations covariance matrix calculation
+        %l_(i,2)
         dist_y   = (y - l_(i,2));
         dist_th  = NormalizeAng(atan2(y,x) - atan2(l_(i,2),l_(i,1)));
         R = [~is_inside*1000 + (dist_y * dist_y), 0;
-             0, ~is_inside*1000 + (dist_th * dist_th)];
+             0, ~is_inside*1000 + (dist_th * dist_th)]
 
         % kalman filter invocation
         r = [p_robot_x, p_robot_y, p_robot_th]';
         [TH,P] = kf(r,TH,z,P,R);
 
-        particles(i).cov = norm(R);
+        particles(i).cov = sqrt(R(1,1)*R(1,1));
         
         figure(1)
         plot(TH(1), TH(2), 'ro', 'MarkerSize', 2, 'LineWidth', 2);

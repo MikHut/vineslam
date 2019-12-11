@@ -23,7 +23,7 @@ iters  = csvread('/home/andre-criis/Source/agrobvslam/matlab/slam_debugger/data/
 r_pose = csvread('/home/andre-criis/Source/agrobvslam/matlab/slam_debugger/data/poses.csv', 0, 0);
 
 j   = 144;
-inc = 10;
+inc = 1;
 
 iters = nonzeros(iters(j,:));
 obsv  = nonzeros(obsv(j,:));

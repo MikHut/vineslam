@@ -11,7 +11,8 @@ public:
 	std::vector<Point<double>> process(const Pose<double>&  c_pose,
 	                                   const Pose<double>&  p_pose,
 	                                   const Point<double>& c_col,
-	                                   const Point<double>& p_col);
+	                                   const Point<double>& p_col,
+	                                   const Line<double>&  vine);
 
 	std::vector<Particle<double>> particles;
 
@@ -19,7 +20,8 @@ private:
 	std::vector<Point<double>> predict(const Pose<double>&  c_pose,
 	                                   const Pose<double>&  p_pose,
 	                                   const Point<double>& c_col,
-	                                   const Point<double>& p_col);
+	                                   const Point<double>& p_col,
+	                                   const Line<double>&  vine);
 
 	void update();
 	void resample();

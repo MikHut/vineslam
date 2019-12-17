@@ -1,26 +1,38 @@
 #pragma once
 
+#include "kf.hpp"
 #include "landmark_processor.hpp"
-#include "pf.hpp"
 #include "utils.hpp"
+#include <eigen3/Eigen/Dense>
 #include <iostream>
+#include <map>
 #include <math.h>
+#include <numeric>
 
 class Estimator
 {
 public:
 	Estimator(const Parameters& params, LandmarkProcessor* lprocessor);
-	void process(const std::vector<Pose<double>>& robot_pose,
+	void process(const std::vector<Pose<double>>& robot_poses,
 	             const std::vector<int>&          index);
+	void singleDraw(const std::vector<Pose<double>>& robot_poses, const int& id);
+
+	std::vector<Point<double>>    all_sols;
+	std::vector<Landmark<double>> m_landmarks;
+
+	std::map<int, KF> kf;
 
 private:
-	void          pfPrediction(const std::vector<Pose<double>>& robot_poses,
-	                           const std::vector<int>&          index);
-	void          kfPrediction(const std::vector<Pose<double>>& robot_poses,
-	                           const std::vector<int>&          index);
+	void filterXYTheta(const std::vector<Pose<double>> robot_poses,
+	                   std::vector<Pose<double>>&      filtered_poses);
+
+	void predict(const std::vector<Pose<double>>& robot_poses,
+	             const std::vector<int>&          index);
+
 	Point<double> processObsv(const Landmark<double>& l, const int& it,
 	                          const Pose<double>& delta_p);
-	void          control();
+	void          initLandmark(const std::vector<Pose<double>>& robot_poses,
+	                           const int&                       index);
 
 	double columnToTheta(const int& col)
 	{
@@ -29,7 +41,5 @@ private:
 
 	Parameters         params;
 	LandmarkProcessor* lprocessor;
-
-	Line<double> vine_right;
-	Line<double> vine_left;
+	Pose<double>       prev_pose;
 };

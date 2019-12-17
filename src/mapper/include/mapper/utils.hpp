@@ -21,9 +21,10 @@ struct Parameters
 	int    match_box;     /* Search box diagonal size */
 	int    filter_window; /* Dimension of the window of the robot pose filter */
 	int    mapper_inc;    /* Increment between frames to use in the mapper */
-	double min_score;     /* Minimum trunk detection probability */
-	double max_stdev;     /* Maximum standard deviation of trunk world position
-	                      estimation */
+	int init_dim; /* Dimention of set of observations to initialize a landmark*/
+	double min_score; /* Minimum trunk detection probability */
+	double max_stdev; /* Maximum standard deviation of trunk world position
+	                  estimation */
 
 	double vine_std_x; /* X standard deviation of the vine map (meters) */
 	double vine_std_y; /* Y standard deviation of the vine map (meters) */
@@ -44,6 +45,7 @@ struct Parameters
 		match_box     = 10;
 		filter_window = 5;
 		mapper_inc    = 50;
+		init_dim      = 50;
 		min_score     = 0.5;
 		max_stdev     = 10;
 		model         = "";
@@ -199,10 +201,7 @@ struct Line
 		}
 	}
 
-  double getY(double x)
-  {
-    return (c - a * x) / b;
-  }
+	double getY(double x) { return (c - a * x) / b; }
 
 	double dist(const Point<double>& p)
 	{

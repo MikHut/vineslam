@@ -32,7 +32,7 @@ include_directories(
 )
 
 SET(${PROJECT_NAME}_SOURCES src/mapper_node.cpp src/mapper.cpp
-	src/landmark_processor.cpp src/debug.cpp src/main.cpp src/kf.cpp src/pf.cpp)
+	src/landmark_processor.cpp src/debug.cpp src/main.cpp src/kf.cpp)
 
 add_executable(${PROJECT_NAME}_node ${${PROJECT_NAME}_SOURCES})
 

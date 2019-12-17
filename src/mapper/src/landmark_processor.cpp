@@ -23,18 +23,18 @@ void LandmarkProcessor::matchLandmarks(const int&           iter,
 		for (size_t j = 0; j < landmarks.size(); j++) {
 			int           n         = landmarks[j].image_pos.size() - 1;
 			int           last_iter = landmarks[j].ptr[n];
-			Point<double> p_pos     = landmarks[j].image_pos[n];
+			Point<double> p_pose    = landmarks[j].image_pos[n];
 
-			if (std::fabs(lc_pos[i].x - p_pos.x) < params.match_box &&
+			if (std::fabs(lc_pos[i].x - p_pose.x) < params.match_box &&
 			    iter - last_iter <= 5 && iter - last_iter > 0) {
-				Line<double> lp_line = computeLine(p_pos);
+				Line<double> lp_line = computeLine(p_pose);
 				Line<double> lc_line = computeLine(lc_pos[i]);
 
-				matches.push_back(Match<double>(p_pos, lc_pos[i], lp_line, lc_line));
+				matches.push_back(Match<double>(p_pose, lc_pos[i], lp_line, lc_line));
 				landmarks[j].image_pos.push_back(lc_pos[i]);
 				landmarks[j].ptr.push_back(iter);
 
-				index.push_back(j);
+        index.push_back(j);
 
 				was_found = true;
 				break;
@@ -44,22 +44,6 @@ void LandmarkProcessor::matchLandmarks(const int&           iter,
 		if (was_found == false) {
 			landmarks.push_back(Landmark<double>(landmarks.size(), lc_pos[i]));
 			landmarks[landmarks.size() - 1].ptr.push_back(iter);
-
-			index.push_back(landmarks.size() - 1);
-
-			if (params.type == "pf") {
-				bool side = (lc_pos[i].x < params.width / 2) ? 1 : 0;
-				pf.push_back(PF(side, params));
-			}
-			else {
-				Eigen::MatrixXd P0(2, 2);
-				P0 << 2, 0, 0, 2;
-				Line<double>  l = computeLine(lc_pos[i]);
-				Point<double> X0(r_pos.x + 1, l.getY(r_pos.x + 1));
-
-				KF kf_(P0, X0.eig(), params);
-				kf.push_back(kf_);
-			}
 		}
 	}
 }

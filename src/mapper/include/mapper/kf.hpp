@@ -5,7 +5,7 @@
 #define PI 3.14159265359
 
 const double std_y  = 1;
-const double std_th = 4;
+const double std_th = 1;
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
@@ -13,15 +13,15 @@ using Eigen::VectorXd;
 class KF
 {
 public:
+	KF(){};
 	KF(const VectorXd& X0, const MatrixXd& P0, const Parameters& params);
 
-	void     process(const VectorXd& X_, const VectorXd& s, const VectorXd& z);
 	void     process(const VectorXd& s, const VectorXd& z);
 	VectorXd getState() const;
-	MatrixXd getObsvCov() const;
+
+	MatrixXd P;
 
 private:
-	void predict(const VectorXd& X_);
 	void predict();
 	void correct(const VectorXd& s, const VectorXd& z);
 	void computeR(const VectorXd& s, const VectorXd& z);
@@ -29,8 +29,8 @@ private:
 	Parameters params;
 
 	/* state vector and KF matrices */
+	VectorXd X0;
 	VectorXd X;
-	MatrixXd P;
 	MatrixXd K;
 	MatrixXd R;
 

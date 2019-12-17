@@ -1,15 +1,8 @@
 #include "../include/mapper/kf.hpp"
 
 KF::KF(const VectorXd& X0, const MatrixXd& P0, const Parameters& params)
-    : X(X0), P(P0), params(params)
+    : X(X0), X0(X0), P(P0), params(params)
 {
-}
-
-void KF::process(const VectorXd& X_, const VectorXd& s, const VectorXd& z)
-{
-	computeR(s, z);
-	predict(X_);
-	correct(s, z);
 }
 
 void KF::process(const VectorXd& s, const VectorXd& z)
@@ -22,7 +15,7 @@ void KF::process(const VectorXd& s, const VectorXd& z)
 void KF::computeR(const VectorXd& s, const VectorXd& z)
 {
 	double x  = z[0] * cos(z[1]) + s[0];
-	double y  = z[0] * sin(z[1]) + s[1];
+	double y  = z[1] * sin(z[1]) + s[1];
 	double th = normalizeAngle(z[1]);
 
 	VectorXd dt(2, 1);
@@ -32,18 +25,12 @@ void KF::computeR(const VectorXd& s, const VectorXd& z)
 	double abs_max_thtol = +params.h_fov / 2 + s[2];
 	bool is_inside = !(th < abs_min_thtol || th > abs_max_thtol || dt.norm() > 4);
 
-	double dist_y  = y - X[1];
-	double dist_th = normalizeAngle(atan2(y, x) - atan2(X[1], X[0]));
+	double dist_y  = y - X0[1];
+	double dist_th = normalizeAngle(atan2(y, x) - atan2(X0[1], X0[0]));
 
 	R = MatrixXd(2, 2);
 	R << (!is_inside) * 1000 + std_y * pow(dist_y, 2), 0, 0,
 	    (!is_inside) * 1000 + std_th * pow(dist_th, 2);
-}
-
-void KF::predict(const VectorXd& X_)
-{
-	X = X_;
-	P = P;
 }
 
 void KF::predict()
@@ -76,9 +63,4 @@ void KF::correct(const VectorXd& s, const VectorXd& z)
 VectorXd KF::getState() const
 {
 	return X;
-}
-
-MatrixXd KF::getObsvCov() const
-{
-  return R;
 }

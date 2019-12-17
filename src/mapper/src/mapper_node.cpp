@@ -86,15 +86,19 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 		double ymax = result.corners.ymax * (*msg).width;
 
 		Point<double> tmp((ymin + ymax) / 2, (xmin + xmax) / 2);
-		if (result.label == 0)
+		if (result.label == 0) {
 			trunk_pos.push_back(tmp);
+      /* std::cout << xmin << ", " << ymin << "\n"; */
+      /* std::cout << xmax << ", " << ymax << "\n..\n"; */
+    }
 	}
+  /* std::cout << " --- \n --- \n"; */
 
 	Point<double>    r_pos(slam_pose.position.x, slam_pose.position.y);
 	std::vector<int> index;
 	if (init == false) {
 		(*lprocessor).updateDetections(trunk_pos);
-		(*lprocessor).matchLandmarks(all_poses.size(), r_pos, index);
+		(*lprocessor).matchLandmarks(all_poses.size() - 1, r_pos, index);
 
 		(*estimator).process(all_poses, index);
 	}
@@ -102,19 +106,6 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 		for (size_t i = 0; i < trunk_pos.size(); i++) {
 			(*lprocessor).landmarks.push_back(Landmark<double>(i, trunk_pos[i]));
 			(*lprocessor).landmarks[i].ptr.push_back(0);
-
-			if ((*params).type == "pf") {
-				bool side = (trunk_pos[i].x < (*params).width / 2) ? 1 : 0;
-				(*lprocessor).pf.push_back(PF(side, *params));
-			}
-			else {
-				Eigen::MatrixXd P0(2, 2);
-				P0 << 2, 0, 0, 2;
-				Line<double>  l = (*lprocessor).computeLine(trunk_pos[i]);
-				Point<double> X0(slam_pose.position.x, l.getY(slam_pose.position.x));
-				KF            kf_(P0, X0.eig(), *params);
-				(*lprocessor).kf.push_back(kf_);
-			}
 		}
 #ifdef DEBUG
 		p_image = cv::Mat((*params).width, (*params).height, CV_8UC1,
@@ -127,7 +118,10 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 	visualization_msgs::MarkerArray marker_array;
 	for (size_t i = 0; i < (*lprocessor).landmarks.size(); i++) {
 		Landmark<double> l = (*lprocessor).landmarks[i];
-		if (l.stdev.x > 0.1 || l.stdev.y > 0.1)
+		l.standardDev();
+		/* std::cout << l.stdev.x << " - " << l.stdev.y << std::endl; */
+		/* std::cout << (*estimator).kf[i].P << std::endl; */
+		if (l.stdev.x > 2.0 || l.stdev.y == 2)
 			continue;
 
 		marker.id              = i;

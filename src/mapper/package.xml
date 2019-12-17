@@ -16,7 +16,6 @@
   <build_depend>image_geometry</build_depend>
   <build_depend>nav_msgs</build_depend>
   <build_depend>geometry_msgs</build_depend>
-  <build_depend>visualization_msgs</build_depend>
   <build_depend>tf</build_depend>
   <build_depend>qt_build</build_depend>
   <build_depend>libqt5-dev</build_depend>
@@ -26,7 +25,6 @@
   <exec_depend>cv_bridge</exec_depend>
   <exec_depend>image_transport</exec_depend>
   <exec_depend>image_geometry</exec_depend>
-  <exec_depend>visualization_msgs</exec_depend>
   <exec_depend>nav_msgs</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>tf</exec_depend>

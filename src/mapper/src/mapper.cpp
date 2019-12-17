@@ -5,82 +5,58 @@ Estimator::Estimator(const Parameters& params, LandmarkProcessor* lprocessor)
 {
 }
 
-void Estimator::control()
-{
-	std::vector<Point<double>> pts_right;
-	std::vector<Point<double>> pts_left;
-	for (size_t i = 0; i < (*lprocessor).landmarks.size(); i++) {
-		Landmark<double> l = (*lprocessor).landmarks[i];
-
-		if (l.image_pos[0].x > params.width / 2)
-			pts_right.push_back(l.world_pos);
-		else
-			pts_left.push_back(l.world_pos);
-	}
-
-	vine_right = Line<double>(pts_right);
-	vine_left  = Line<double>(pts_left);
-}
-
 void Estimator::process(const std::vector<Pose<double>>& robot_poses,
                         const std::vector<int>&          index)
 {
-	if (params.type == "pf")
-		pfPrediction(robot_poses, index);
-	else
-		kfPrediction(robot_poses, index);
+	std::vector<Pose<double>> filtered_poses;
+	filterXYTheta(robot_poses, filtered_poses);
+	/* predict(filtered_poses); */
+	predict(filtered_poses, index);
 }
 
-void Estimator::pfPrediction(const std::vector<Pose<double>>& robot_poses,
-                             const std::vector<int>&          index)
+void Estimator::filterXYTheta(const std::vector<Pose<double>> robot_poses,
+                              std::vector<Pose<double>>&      filtered_poses)
 {
-	int inc = params.mapper_inc;
+	int window     = params.filter_window;
+	filtered_poses = robot_poses;
 
-	for (size_t i = 0; i < index.size(); i++) {
-		int k = index[i];
-		if ((*lprocessor).landmarks[k].image_pos.size() - 1 < inc)
-			continue;
-
-		Landmark<double> l = (*lprocessor).landmarks[k];
-
-		int it = l.image_pos.size() - 1;
-
-		Point<double> X_prev = l.image_pos[it - inc];
-		Point<double> X_curr = l.image_pos[it];
-		Pose<double>  p_pos  = robot_poses[l.ptr[it - 1] - inc];
-		Pose<double>  c_pos  = robot_poses[l.ptr[it - 1]];
-
-		Line<double> vine;
-		if (l.image_pos[0].x > params.width / 2)
-			vine = vine_right;
-		else
-			vine = vine_left;
-
-		l.estimations =
-		    (*lprocessor).pf[k].process(c_pos, p_pos, X_curr, X_prev, vine);
-		l.worldPos();
-		l.standardDev();
-
-		(*lprocessor).landmarks[k] = l;
+	for (size_t i = window - 1; i < robot_poses.size(); i++) {
+		for (int j = 1; j < window; j++) {
+			filtered_poses[i].pos.x += filtered_poses[i - j].pos.x;
+			filtered_poses[i].pos.y += filtered_poses[i - j].pos.y;
+			filtered_poses[i].theta += filtered_poses[i - j].theta;
+		}
+		filtered_poses[i].pos.x /= window;
+		filtered_poses[i].pos.y /= window;
+		filtered_poses[i].theta /= window;
 	}
 }
 
-void Estimator::kfPrediction(const std::vector<Pose<double>>& robot_poses,
-                             const std::vector<int>&          index)
+void Estimator::predict(const std::vector<Pose<double>>& robot_poses,
+                        const std::vector<int>&          index)
 {
 	int inc = params.mapper_inc;
 
 	for (size_t i = 0; i < index.size(); i++) {
 		int k = index[i];
-		if ((*lprocessor).landmarks[k].image_pos.size() - 1 < inc)
+		if ((*lprocessor).landmarks[k].image_pos.size() < inc)
 			continue;
 
 		Landmark<double> l = (*lprocessor).landmarks[k];
 
+		/* initialize landmark on map if it does not exist yet */
+		if (l.image_pos.size() == params.init_dim && kf.find(k) == kf.end()) {
+			initLandmark(robot_poses, k);
+			continue;
+		}
+		else if (l.image_pos.size() < params.init_dim || kf.find(k) == kf.end())
+			continue;
+
 		int it = l.image_pos.size() - 1;
 
-		Pose<double>  p_pos = robot_poses[l.ptr[it - 1] - l.ptr[it - 1 - inc]];
-		Pose<double>  c_pos = robot_poses[l.ptr[it - 1]];
+		/* calculate the bearing-only observation */
+		Pose<double>  p_pos = robot_poses[l.ptr[it] - l.ptr[it - inc]];
+		Pose<double>  c_pos = robot_poses[l.ptr[it]];
 		Point<double> X     = processObsv(l, it, c_pos - p_pos);
 
 		VectorXd z(2, 1);
@@ -88,15 +64,15 @@ void Estimator::kfPrediction(const std::vector<Pose<double>>& robot_poses,
 
 		/* kalman filter */
 		Pose<double> s = p_pos;
-		std::cout << (*lprocessor).kf.size() << "," << k << std::endl;
-		(*lprocessor).kf[k].process(s.eig(), z);
-		VectorXd TH = (*lprocessor).kf[k].getState();
+		kf[k].process(s.eig(), z);
+		VectorXd TH = kf[k].getState();
+    /* std::cout << k << " -> " << X << TH.transpose() << std::endl; */
 
 		Point<double> res(TH(0), TH(1));
 		(*lprocessor).landmarks[k].estimations.push_back(res);
 		(*lprocessor).landmarks[k].world_pos = res;
-		std::cout << (*lprocessor).landmarks[k].world_pos << std::endl;
 	}
+  /* std::cout << std::endl; */
 }
 
 Point<double> Estimator::processObsv(const Landmark<double>& l, const int& it,
@@ -107,11 +83,56 @@ Point<double> Estimator::processObsv(const Landmark<double>& l, const int& it,
 
 	Point<double> X_prev = l.image_pos[it - inc];
 	Point<double> X_curr = l.image_pos[it];
+  std::cout << X_prev << X_curr;
 
 	Line<double> l_prev = (*lprocessor).computeLine(X_prev);
 	Line<double> l_proj =
 	    (*lprocessor).projectLine(X_curr, delta_p.pos, delta_p.theta);
 	Point<double> X = l_prev.intercept(l_proj);
+  std::cout << X << std::endl;
 
 	return X;
+}
+
+void Estimator::initLandmark(const std::vector<Pose<double>>& robot_poses,
+                             const int&                       index)
+{
+	Landmark<double> l = (*lprocessor).landmarks[index];
+
+	int N = params.init_dim;
+
+	MatrixXd local_t = MatrixXd::Zero(2, N + 2);
+	MatrixXd T       = MatrixXd::Zero(2 * N, N + 2);
+	VectorXd m       = VectorXd::Zero(2 * N, 1);
+	for (int i = 0, j = 0; i < 2 * N; i += 2, j++) {
+		double phi = columnToTheta(l.image_pos[j].x);
+
+		local_t(0, 0)     = 1;
+		local_t(0, j + 2) = -cos(phi);
+		local_t(1, 1)     = 1;
+		local_t(1, j + 2) = -sin(phi);
+
+		T.row(i)     = local_t.row(0);
+		T.row(i + 1) = local_t.row(1);
+
+		m(i, 0)     = robot_poses[l.ptr[j]].pos.x;
+		m(i + 1, 0) = robot_poses[l.ptr[j]].pos.y;
+
+		local_t = MatrixXd::Zero(2, N + 2);
+	}
+
+	MatrixXd S = (T.transpose() * T).inverse() * T.transpose() * m;
+
+	if ((S.array() < 0.0).count() > 1)
+		return;
+
+	MatrixXd P(2, 2);
+	P << 4.0, 0, 0, 2.0;
+
+	VectorXd TH(2, 1);
+	TH << S(0, 0), S(1, 0);
+	std::cout << TH << std::endl;
+
+	KF m_kf(TH, P, params);
+	kf[index] = m_kf;
 }

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "pf.hpp"
 #include "utils.hpp"
 #include <eigen3/Eigen/Dense>
 #include <iostream>
@@ -21,8 +20,6 @@ public:
 
 	std::vector<Match<double>>    matches;
 	std::vector<Landmark<double>> landmarks;
-	std::vector<PF>               pf;
-	std::vector<KF>               kf;
 
 private:
 	Parameters                 params;

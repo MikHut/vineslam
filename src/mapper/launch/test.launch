@@ -12,6 +12,16 @@
     <param name="img_width"         value="1292"/>
     <param name="img_height"        value="964"/>
     <param name="cam_height"        value="1"/>
+    <param name="cam_focal"        value="0.35"/>
+    <param name="ccd_width"        value="0.48"/>
+    <param name="ccd_length"       value="0.36"/>
+    <param name="cam_height"       value="112"/>
+    <param name="cam_inclination"  value="0.0"/>
+
+    <param name="grid_width"  value="600" />
+    <param name="grid_length" value="500" />
+    <param name="grid_min"    value="50" />
+
     <param name="match_box"         value="25"/>
     <param name="filter_window"     value="5"/>
     <param name="mapper_inc"        value="50"/>
@@ -24,9 +34,9 @@
     <param name="pose_topic"  value="/slam_out_pose"/>
     <param name="image_topic" value="/camera/image_raw"/>
     <param name="model_path"
-      value="/home/andre-criis/Source/coral/detect/train/train_res/mv1_11-11/output_tflite_graph_edgetpu.tflite"/>
+      value="/home/andre-criis/Source/coral-deeplearning-ros/detect/train/train_res/mv1_11-11/output_tflite_graph_edgetpu.tflite"/>
     <param name="labels_path"
-      value="/home/andre-criis/Source/coral/detect/train/train_res/mv1_11-11/labels.txt"/>
+      value="/home/andre-criis/Source/coral-deeplearning-ros/detect/train/train_res/mv1_11-11/labels.txt"/>
   </node>
 
 </launch>

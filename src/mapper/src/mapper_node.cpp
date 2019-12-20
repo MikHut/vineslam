@@ -78,7 +78,10 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 	    (*engine).DetectWithInputTensor(input_tensor, (*params).min_score, 50);
 
 	/* process results - calculate trunk Center of Mass */
+	std::vector<Point<double>> trunk_rbase;
+	std::vector<Point<double>> trunk_lbase;
 	std::vector<Point<double>> trunk_pos;
+	std::vector<Line<double>>  trunk_lines;
 	for (auto result : results) {
 		double xmin = result.corners.xmin * (*msg).height;
 		double ymin = result.corners.ymin * (*msg).width;
@@ -88,11 +91,16 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 		Point<double> tmp((ymin + ymax) / 2, (xmin + xmax) / 2);
 		if (result.label == 0) {
 			trunk_pos.push_back(tmp);
-      /* std::cout << xmin << ", " << ymin << "\n"; */
-      /* std::cout << xmax << ", " << ymax << "\n..\n"; */
-    }
+
+			if (tmp.x < (*params).width / 2)
+				trunk_lbase.push_back(Point<double>(tmp.x, xmax));
+			else
+				trunk_rbase.push_back(Point<double>(tmp.x, xmax));
+
+			Line<double> l(Point<double>(tmp.x, xmin), Point<double>(tmp.x, xmax));
+			trunk_lines.push_back(l);
+		}
 	}
-  /* std::cout << " --- \n --- \n"; */
 
 	Point<double>    r_pos(slam_pose.position.x, slam_pose.position.y);
 	std::vector<int> index;
@@ -119,8 +127,6 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 	for (size_t i = 0; i < (*lprocessor).landmarks.size(); i++) {
 		Landmark<double> l = (*lprocessor).landmarks[i];
 		l.standardDev();
-		/* std::cout << l.stdev.x << " - " << l.stdev.y << std::endl; */
-		/* std::cout << (*estimator).kf[i].P << std::endl; */
 		if (l.stdev.x > 2.0 || l.stdev.y == 2)
 			continue;
 
@@ -134,6 +140,17 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 		marker_array.markers.push_back(marker);
 	}
 	marker_pub.publish(marker_array);
+
+  std::vector<Line<double>> vine_lines;
+	if (trunk_rbase.size() > 1)
+		vine_lines.push_back(Line<double>(trunk_rbase));
+	if (trunk_lbase.size() > 1)
+		vine_lines.push_back(Line<double>(trunk_lbase));
+	cv::Mat ground = (*lprocessor)
+	                     .projectToPlane((*cv_ptr).image, trunk_lines, vine_lines,
+	                                     Point<double>());
+	cv::imshow("ground", ground);
+	cv::waitKey(1);
 
 #ifdef DEBUG
 	cv::Mat bboxes;

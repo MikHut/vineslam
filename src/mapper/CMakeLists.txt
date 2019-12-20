@@ -13,6 +13,7 @@ find_package(catkin REQUIRED
 		    visualization_msgs
 		    nav_msgs
 		    tf
+		    geometry_msgs
 		    cv_bridge
 		    image_geometry
 		    image_transport)

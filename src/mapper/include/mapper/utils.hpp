@@ -5,6 +5,7 @@
 #include <iostream>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include <random>
 #include <vector>
 
@@ -15,6 +16,10 @@ struct Parameters
 {
 	double h_fov;         /* Camera horizontal field of view (radians) */
 	double v_fov;         /* Camera vertical field of view (radians) */
+	double cam_f;         /* Camera focal length (centimeters) */
+	double ccd_w;         /* Camera CCD width (centimeters) */
+	double ccd_h;         /* Camera CCD length (centimeters) */
+	double phi;           /* Camera inclination (radians) */
 	double cam_height;    /* Camera height (meters) */
 	int    width;         /* Image width */
 	int    height;        /* Image height */
@@ -25,6 +30,11 @@ struct Parameters
 	double min_score; /* Minimum trunk detection probability */
 	double max_stdev; /* Maximum standard deviation of trunk world position
 	                  estimation */
+
+	int grid_width;  /* grid size = grid_width * grid_width */
+	int grid_length; /* grid size = grid_width * grid_length */
+	int grid_min;    /* Grid vertical min*/
+
 
 	double vine_std_x; /* X standard deviation of the vine map (meters) */
 	double vine_std_y; /* Y standard deviation of the vine map (meters) */
@@ -42,6 +52,13 @@ struct Parameters
 		cam_height    = 1.0;
 		width         = 1280;
 		height        = 960;
+		cam_f         = 0.36;
+		ccd_w         = 0.376;
+		ccd_h         = 0.27;
+		phi           = -PI / 4;
+		grid_width    = 400;
+		grid_length   = 400;
+		grid_min      = 0;
 		match_box     = 10;
 		filter_window = 5;
 		mapper_inc    = 50;
@@ -150,6 +167,9 @@ struct Line
 	{
 		if (pts.size() < 2)
 			return;
+
+    p1 = pts[0];
+    p2 = pts[pts.size() - 1];
 
 		T X  = 0;
 		T Y  = 0;

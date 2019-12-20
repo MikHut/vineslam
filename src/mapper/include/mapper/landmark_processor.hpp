@@ -2,6 +2,7 @@
 
 #include "utils.hpp"
 #include <eigen3/Eigen/Dense>
+#include <geometry_msgs/Point.h>
 #include <iostream>
 
 class LandmarkProcessor
@@ -18,8 +19,16 @@ public:
 	                         const Point<double>& delta_p,
 	                         const double&        delta_th);
 
+	cv::Mat projectToPlane(const cv::Mat&                   in,
+	                       const std::vector<Line<double>>& trunks,
+	                       const std::vector<Line<double>>& vine_lines,
+	                       const Point<double>&             robot_p);
+
 	std::vector<Match<double>>    matches;
 	std::vector<Landmark<double>> landmarks;
+
+  Line<double> vine_rline;
+  Line<double> vine_lline;
 
 private:
 	Parameters                 params;

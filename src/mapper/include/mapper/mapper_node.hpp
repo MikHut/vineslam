@@ -44,14 +44,14 @@ private:
 	image_transport::Publisher img_publisher;
 #endif
 
-  void initMarker();
+	void initMarker();
 
 	ros::Subscriber img_subscriber;
 	ros::Subscriber pose_subscriber;
 
-  ros::Publisher marker_pub;
+	ros::Publisher marker_pub;
 
-  visualization_msgs::Marker marker;
+	visualization_msgs::Marker marker;
 
 	bool init;
 
@@ -79,6 +79,13 @@ private:
 		local_nh.getParam("/mapper/img_width", (*params).width);
 		local_nh.getParam("/mapper/img_height", (*params).height);
 		local_nh.getParam("/mapper/cam_height", (*params).cam_height);
+		local_nh.getParam("/mapper/cam_focal", (*params).cam_f);
+		local_nh.getParam("/mapper/ccd_width", (*params).ccd_w);
+		local_nh.getParam("/mapper/ccd_length", (*params).ccd_h);
+		local_nh.getParam("/mapper/cam_inclination", (*params).phi);
+		local_nh.getParam("/mapper/grid_width", (*params).grid_width);
+		local_nh.getParam("/mapper/grid_length", (*params).grid_length);
+		local_nh.getParam("/mapper/grid_min", (*params).grid_min);
 		local_nh.getParam("/mapper/match_box", (*params).match_box);
 		local_nh.getParam("/mapper/filter_window", (*params).filter_window);
 		local_nh.getParam("/mapper/mapper_inc", (*params).mapper_inc);

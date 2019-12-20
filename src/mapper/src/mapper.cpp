@@ -66,13 +66,11 @@ void Estimator::predict(const std::vector<Pose<double>>& robot_poses,
 		Pose<double> s = p_pos;
 		kf[k].process(s.eig(), z);
 		VectorXd TH = kf[k].getState();
-    /* std::cout << k << " -> " << X << TH.transpose() << std::endl; */
 
 		Point<double> res(TH(0), TH(1));
 		(*lprocessor).landmarks[k].estimations.push_back(res);
 		(*lprocessor).landmarks[k].world_pos = res;
 	}
-  /* std::cout << std::endl; */
 }
 
 Point<double> Estimator::processObsv(const Landmark<double>& l, const int& it,
@@ -83,13 +81,11 @@ Point<double> Estimator::processObsv(const Landmark<double>& l, const int& it,
 
 	Point<double> X_prev = l.image_pos[it - inc];
 	Point<double> X_curr = l.image_pos[it];
-  std::cout << X_prev << X_curr;
 
 	Line<double> l_prev = (*lprocessor).computeLine(X_prev);
 	Line<double> l_proj =
 	    (*lprocessor).projectLine(X_curr, delta_p.pos, delta_p.theta);
 	Point<double> X = l_prev.intercept(l_proj);
-  std::cout << X << std::endl;
 
 	return X;
 }
@@ -131,7 +127,6 @@ void Estimator::initLandmark(const std::vector<Pose<double>>& robot_poses,
 
 	VectorXd TH(2, 1);
 	TH << S(0, 0), S(1, 0);
-	std::cout << TH << std::endl;
 
 	KF m_kf(TH, P, params);
 	kf[index] = m_kf;

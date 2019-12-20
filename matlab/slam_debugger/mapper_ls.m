@@ -53,4 +53,4 @@ for i = 1:2:2*M
     j = j + 1;
 end
 
-S = pinv(T'*T)*T'*m
+S = pinv(T'*T)*T'*m;

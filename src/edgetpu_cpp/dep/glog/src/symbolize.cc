@@ -110,7 +110,9 @@ _END_GOOGLE_NAMESPACE_
 
 #if defined(__ELF__)
 
+#if defined(HAVE_DLFCN_H)
 #include <dlfcn.h>
+#endif
 #if defined(OS_OPENBSD)
 #include <sys/exec_elf.h>
 #else

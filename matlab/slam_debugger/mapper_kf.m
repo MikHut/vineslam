@@ -25,8 +25,8 @@ r_pose = csvread('/home/andre-criis/Source/agrobvslam/matlab/slam_debugger/data/
 % iniliaze covariance
 P = [0.3, 0;
      0, 0.4];
-std_th = 25;
-std_y  = 4;
+std_th = 1;
+std_y  = 1;
 
 % perform first iteration - find a correspondence between the landmark
 % observation on image and the initial map
@@ -34,22 +34,26 @@ j     = 144;
 iters = nonzeros(iters(j,:));
 obsv  = nonzeros(obsv(j,:));
 
-
-% filter the robot pose
 robot_x_   = r_pose(iters(:)+1,1);
 robot_y_   = r_pose(iters(:)+1,2);
 robot_th_  = r_pose(iters(:)+1,3);
 
-l  = predictDetection(obsv(1),-0.6,[robot_x_(1),robot_y_(1)])';
+k  = 10;
+l  = kf_init(r_pose(iters(1:k)+1,:), obsv(1:k));
 l_ = l';
 
 % loop vars
 inc   = 1; 
 N     = length(obsv);
 
+figure(1)
+hold on
+grid on
+axis equal
 figure(2)
 hold on
 grid on
+axis equal
 % loop
 for i = (inc + 1):(N-1)
     p_robot_x  = robot_x_(i -  inc);
@@ -100,11 +104,11 @@ std_y = std(X(:,2));
 mean_x = mean(X(:,1));
 mean_y = mean(X(:,2));
 figure(1)
-plot(std_x*cos(0:0.01:2*pi)+mean_x, std_y*sin(0:0.01:2*pi)+mean_y, 'ko', 'MarkerSize', 1, 'LineWidth', 1);
+plotEllipses([mean_x,mean_y], [std_x,std_y]);
 
 std_x = std(Y(:,1));
 std_y = std(Y(:,2));
 mean_x = mean(Y(:,1));
 mean_y = mean(Y(:,2));
 figure(2)
-plot(std_x*cos(0:0.01:2*pi)+mean_x, std_y*sin(0:0.01:2*pi)+mean_y, 'ko', 'MarkerSize', 1, 'LineWidth', 1);
+plotEllipses([mean_x,mean_y], [std_x,std_y]);

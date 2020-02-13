@@ -1,14 +1,16 @@
 #pragma once
 
 #include "landmark_processor.hpp"
-#include "mapper.hpp"
+/* #include "mapper.hpp" */
 #include <cv_bridge/cv_bridge.h>
 #include <fstream>
 #include <geometry_msgs/PoseStamped.h>
 #include <image_transport/image_transport.h>
+#include <message_filters/subscriber.h>
+#include <message_filters/sync_policies/exact_time.h>
+#include <message_filters/synchronizer.h>
 #include <opencv2/features2d.hpp>
 #include <ros/ros.h>
-#include <sensor_msgs/Image.h>
 #include <sensor_msgs/PointCloud.h>
 #include <std_msgs/UInt32MultiArray.h>
 #include <tf/transform_listener.h>
@@ -30,10 +32,14 @@ public:
 	void saveMap();
 
 private:
-	void imageListener(const sensor_msgs::ImageConstPtr& msg);
-	void poseListener(const geometry_msgs::PoseStampedConstPtr& msg);
+	void imageListener(const sensor_msgs::ImageConstPtr& msg_left,
+	                   const sensor_msgs::ImageConstPtr& msg_right,
+                     const sensor_msgs::ImageConstPtr& msg_depth);
+
+	std::vector<coral::DetectionCandidate>
+	detect(const sensor_msgs::ImageConstPtr& img);
 #ifdef DEBUG
-	void showMatching(cv::Mat img);
+	void showMatching(cv::Mat l_img, cv::Mat r_img);
 	void showBBoxes(const sensor_msgs::ImageConstPtr& msg, cv::Mat& bboxes,
 	                std::vector<coral::DetectionCandidate> res);
 
@@ -41,29 +47,17 @@ private:
 	cv::Mat c_image;
 
 	image_transport::Publisher matches_publisher;
-	image_transport::Publisher img_publisher;
+	image_transport::Publisher l_img_publisher;
+	image_transport::Publisher r_img_publisher;
 #endif
-
-	void initMarker();
-
-	ros::Subscriber img_subscriber;
-	ros::Subscriber pose_subscriber;
-
-	ros::Publisher marker_pub;
-
-	visualization_msgs::Marker marker;
 
 	bool init;
 
-	Pose<double>              last_pose;
-	std::vector<Pose<double>> all_poses;
-
-	std_msgs::Header    scan_header;
-	geometry_msgs::Pose slam_pose;
-
-	Estimator*         estimator;
+	/* Estimator*         estimator; */
 	LandmarkProcessor* lprocessor;
 	Parameters*        params;
+
+	std::vector<Match<double>> matches;
 
 	std::vector<int>                     input_tensor_shape;
 	coral::DetectionEngine*              engine;
@@ -72,29 +66,16 @@ private:
 	void loadParameters(const ros::NodeHandle& local_nh)
 	{
 		/* read launch file parameters */
-		local_nh.getParam("/mapper/pose_topic", (*params).pose_topic);
-		local_nh.getParam("/mapper/image_topic", (*params).image_topic);
+		local_nh.getParam("/mapper/image_left", (*params).image_left);
+		local_nh.getParam("/mapper/image_right", (*params).image_right);
+		local_nh.getParam("/mapper/image_depth", (*params).image_depth);
 		local_nh.getParam("/mapper/h_fov", (*params).h_fov);
 		local_nh.getParam("/mapper/v_fov", (*params).v_fov);
 		local_nh.getParam("/mapper/img_width", (*params).width);
 		local_nh.getParam("/mapper/img_height", (*params).height);
-		local_nh.getParam("/mapper/cam_height", (*params).cam_height);
-		local_nh.getParam("/mapper/cam_focal", (*params).cam_f);
-		local_nh.getParam("/mapper/ccd_width", (*params).ccd_w);
-		local_nh.getParam("/mapper/ccd_length", (*params).ccd_h);
-		local_nh.getParam("/mapper/cam_inclination", (*params).phi);
-		local_nh.getParam("/mapper/grid_width", (*params).grid_width);
-		local_nh.getParam("/mapper/grid_length", (*params).grid_length);
-		local_nh.getParam("/mapper/grid_min", (*params).grid_min);
 		local_nh.getParam("/mapper/match_box", (*params).match_box);
-		local_nh.getParam("/mapper/filter_window", (*params).filter_window);
-		local_nh.getParam("/mapper/mapper_inc", (*params).mapper_inc);
 		local_nh.getParam("/mapper/detector_th", (*params).min_score);
-		local_nh.getParam("/mapper/max_stdev", (*params).max_stdev);
 		local_nh.getParam("/mapper/model_path", (*params).model);
 		local_nh.getParam("/mapper/labels_path", (*params).labels);
-		local_nh.getParam("/mapper/vine_std_x", (*params).vine_std_x);
-		local_nh.getParam("/mapper/vine_std_y", (*params).vine_std_y);
-		local_nh.getParam("/mapper/type", (*params).type);
 	}
 };

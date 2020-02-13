@@ -12,10 +12,10 @@ function X_curr = predictDetection(X_prev, trunk_y, p_pos)
     [x,y]   = intercept(l_prev, l_trunk);
     X_curr  = [x,y] + p_pos; 
     
-    figure(1);
-    hold on;
     plotLine(l_prev, [-1,-5], [30,5]);
     plotLine(l_trunk, [-1,-5], [30,5]);
+    xlim([-1, 30])
+    ylim([-5, 5])
     plot(x, y, 'ko', 'MarkerSize', 2, 'LineWidth', 2);
     plot(X_curr(1), X_curr(2), 'ko', 'MarkerSize', 2, 'LineWidth', 2);
 end

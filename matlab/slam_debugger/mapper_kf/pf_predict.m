@@ -25,8 +25,8 @@ function [p, TH, P] = pf_predict(particles, c_pose, p_pose, c_col, p_col, P)
     % computation of the covariance of the observation
     % - dependes on if it is/isnt inside the camera field of view
     % - displacement to the predicted y value
-    x  = z(1) * cos(z(2)) + p_robot_x;
-    y  = z(1) * sin(z(2)) + p_robot_y;
+    x  = z(1) * cos(z(2)) + p_robot_x
+    y  = z(1) * sin(z(2)) + p_robot_y
     th = z(2);
     abs_min_thtol = -h_fov/2 + p_robot_th;
     abs_max_thtol = +h_fov/2 + p_robot_th;
@@ -37,11 +37,10 @@ function [p, TH, P] = pf_predict(particles, c_pose, p_pose, c_col, p_col, P)
         TH = l(i,:)';
 
         % observations covariance matrix calculation
-        %l_(i,2)
         dist_y   = (y - l_(i,2));
         dist_th  = NormalizeAng(atan2(y,x) - atan2(l_(i,2),l_(i,1)));
         R = [~is_inside*1000 + (dist_y * dist_y), 0;
-             0, ~is_inside*1000 + (dist_th * dist_th)]
+             0, ~is_inside*1000 + (dist_th * dist_th)];
 
         % kalman filter invocation
         r = [p_robot_x, p_robot_y, p_robot_th]';
@@ -49,7 +48,8 @@ function [p, TH, P] = pf_predict(particles, c_pose, p_pose, c_col, p_col, P)
 
         particles(i).cov = sqrt(R(1,1)*R(1,1));
         
-        figure(1)
+        xlim([-1, 30])
+        ylim([-5, 5])
         plot(TH(1), TH(2), 'ro', 'MarkerSize', 2, 'LineWidth', 2);
         plot(p_robot_x, p_robot_y, 'ko', 'MarkerSize', 2, 'LineWidth', 2);
     end

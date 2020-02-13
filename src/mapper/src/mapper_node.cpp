@@ -7,21 +7,30 @@ Mapper::Mapper(int argc, char** argv)
 
 	params = new Parameters();
 	loadParameters(n);
-	lprocessor = new LandmarkProcessor(*params);
-	estimator  = new Estimator(*params, lprocessor);
-	init       = true;
+	init = true;
 
-	pose_subscriber =
-	    n.subscribe((*params).pose_topic, 1, &Mapper::poseListener, this);
-	img_subscriber =
-	    n.subscribe((*params).image_topic, 1, &Mapper::imageListener, this);
+	message_filters::Subscriber<sensor_msgs::Image> l_img_sub(
+	    n, (*params).image_left, 1);
+	message_filters::Subscriber<sensor_msgs::Image> r_img_sub(
+	    n, (*params).image_right, 1);
+	message_filters::Subscriber<sensor_msgs::Image> d_img_sub(
+	    n, (*params).image_depth, 1);
+
+	typedef message_filters::sync_policies::ExactTime<sensor_msgs::Image,
+	                                                  sensor_msgs::Image,
+                                                    sensor_msgs::Image>
+	    MySyncPolicy;
+
+	message_filters::Synchronizer<MySyncPolicy> sync(MySyncPolicy(1000),
+	                                                 l_img_sub, r_img_sub, d_img_sub);
+	sync.registerCallback(boost::bind(&Mapper::imageListener, this, _1, _2, _3));
 
 #ifdef DEBUG
 	image_transport::ImageTransport it(n);
-	img_publisher     = it.advertise("detection/image_raw", 1);
+	r_img_publisher   = it.advertise("detection_right/image_raw", 1);
+	l_img_publisher   = it.advertise("detection_left/image_raw", 1);
 	matches_publisher = it.advertise("matches/image_raw", 1);
 #endif
-	marker_pub = n.advertise<visualization_msgs::MarkerArray>("/map", 1);
 
 	ROS_INFO("Loading NN model and label files");
 	engine             = new coral::DetectionEngine((*params).model);
@@ -29,7 +38,8 @@ Mapper::Mapper(int argc, char** argv)
 	labels             = coral::ReadLabelFile((*params).labels);
 	ROS_INFO("Done");
 
-	initMarker();
+  lprocessor = new LandmarkProcessor(*params);
+
 	run();
 }
 
@@ -37,25 +47,72 @@ void Mapper::run()
 {
 	ros::spin();
 	std::cout << "Ros shutdown, saving the map." << std::endl;
-	saveMap();
 }
 
-void Mapper::poseListener(const geometry_msgs::PoseStampedConstPtr& msg)
+void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
+                           const sensor_msgs::ImageConstPtr& msg_right,
+                           const sensor_msgs::ImageConstPtr& msg_depth)
 {
-	slam_pose = (*msg).pose;
+	if ((*msg_left).header.stamp == (*msg_right).header.stamp) {
+		std::vector<coral::DetectionCandidate> left_res  = detect(msg_left);
+		std::vector<coral::DetectionCandidate> right_res = detect(msg_right);
+
+		/* process left image results */
+		std::vector<Point<double>> left_det;
+		for (auto result : left_res) {
+			double xmin = result.corners.xmin * (*msg_left).height;
+			double ymin = result.corners.ymin * (*msg_left).width;
+			double xmax = result.corners.xmax * (*msg_left).height;
+			double ymax = result.corners.ymax * (*msg_left).width;
+
+			Point<double> tmp((ymin + ymax) / 2, (xmin + xmax) / 2);
+			if (result.label == 0) {
+				left_det.push_back(tmp);
+			}
+		}
+
+		/* process right image results */
+		std::vector<Point<double>> right_det;
+		for (auto result : right_res) {
+			double xmin = result.corners.xmin * (*msg_right).height;
+			double ymin = result.corners.ymin * (*msg_right).width;
+			double xmax = result.corners.xmax * (*msg_right).height;
+			double ymax = result.corners.ymax * (*msg_right).width;
+
+			Point<double> tmp((ymin + ymax) / 2, (xmin + xmax) / 2);
+			if (result.label == 0) {
+				right_det.push_back(tmp);
+			}
+		}
+
+		matches.clear();
+		matches = (*lprocessor).matchLandmarks(left_det, right_det);
+
+#ifdef DEBUG
+		cv::Mat left_bboxes;
+		cv::Mat right_bboxes;
+		showBBoxes(msg_left, left_bboxes, left_res);
+		showBBoxes(msg_right, right_bboxes, right_res);
+
+		sensor_msgs::ImagePtr left_det_img =
+		    cv_bridge::CvImage(std_msgs::Header(), "bgr8", left_bboxes)
+		        .toImageMsg();
+		l_img_publisher.publish(left_det_img);
+
+		sensor_msgs::ImagePtr right_det_img =
+		    cv_bridge::CvImage(std_msgs::Header(), "bgr8", right_bboxes)
+		        .toImageMsg();
+		r_img_publisher.publish(right_det_img);
+
+		/* if (matches.size() > 0) */
+		/* 	showMatching(left_bboxes, right_bboxes); */
+#endif
+	}
 }
 
-void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
+std::vector<coral::DetectionCandidate>
+Mapper::detect(const sensor_msgs::ImageConstPtr& msg)
 {
-	tf::Pose pose;
-	tf::poseMsgToTF(slam_pose, pose);
-	double yaw = tf::getYaw(pose.getRotation());
-	if (yaw != yaw) // check if it is NaN
-		yaw = 0;
-
-	all_poses.push_back(
-	    Pose<double>(slam_pose.position.x, slam_pose.position.y, yaw));
-
 	/* Convert input image to BGR */
 	cv_bridge::CvImageConstPtr cv_ptr =
 	    cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::BGR8);
@@ -77,97 +134,5 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg)
 	auto results =
 	    (*engine).DetectWithInputTensor(input_tensor, (*params).min_score, 50);
 
-	/* process results - calculate trunk Center of Mass */
-	std::vector<Point<double>> trunk_rbase;
-	std::vector<Point<double>> trunk_lbase;
-	std::vector<Point<double>> trunk_pos;
-	std::vector<Line<double>>  trunk_lines;
-	for (auto result : results) {
-		double xmin = result.corners.xmin * (*msg).height;
-		double ymin = result.corners.ymin * (*msg).width;
-		double xmax = result.corners.xmax * (*msg).height;
-		double ymax = result.corners.ymax * (*msg).width;
-
-		Point<double> tmp((ymin + ymax) / 2, (xmin + xmax) / 2);
-		if (result.label == 0) {
-			trunk_pos.push_back(tmp);
-
-			if (tmp.x < (*params).width / 2)
-				trunk_lbase.push_back(Point<double>(tmp.x, xmax));
-			else
-				trunk_rbase.push_back(Point<double>(tmp.x, xmax));
-
-			Line<double> l(Point<double>(tmp.x, xmin), Point<double>(tmp.x, xmax));
-			trunk_lines.push_back(l);
-		}
-	}
-
-	Point<double>    r_pos(slam_pose.position.x, slam_pose.position.y);
-	std::vector<int> index;
-	if (init == false) {
-		(*lprocessor).updateDetections(trunk_pos);
-		(*lprocessor).matchLandmarks(all_poses.size() - 1, r_pos, index);
-
-		(*estimator).process(all_poses, index);
-	}
-	else {
-		for (size_t i = 0; i < trunk_pos.size(); i++) {
-			(*lprocessor).landmarks.push_back(Landmark<double>(i, trunk_pos[i]));
-			(*lprocessor).landmarks[i].ptr.push_back(0);
-		}
-#ifdef DEBUG
-		p_image = cv::Mat((*params).width, (*params).height, CV_8UC1,
-		                  cv::Scalar(255, 255, 255));
-		c_image = p_image;
-#endif
-		init = false;
-	}
-
-	visualization_msgs::MarkerArray marker_array;
-	for (size_t i = 0; i < (*lprocessor).landmarks.size(); i++) {
-		Landmark<double> l = (*lprocessor).landmarks[i];
-		l.standardDev();
-		if (l.stdev.x > 2.0 || l.stdev.y == 2)
-			continue;
-
-		marker.id              = i;
-		marker.header          = (*msg).header;
-		marker.header.frame_id = "map";
-		marker.pose.position.x = l.world_pos.x;
-		marker.pose.position.y = l.world_pos.y;
-		marker.pose.position.z = 0;
-
-		marker_array.markers.push_back(marker);
-	}
-	marker_pub.publish(marker_array);
-
-  std::vector<Line<double>> vine_lines;
-	if (trunk_rbase.size() > 1)
-		vine_lines.push_back(Line<double>(trunk_rbase));
-	if (trunk_lbase.size() > 1)
-		vine_lines.push_back(Line<double>(trunk_lbase));
-	cv::Mat ground = (*lprocessor)
-	                     .projectToPlane((*cv_ptr).image, trunk_lines, vine_lines,
-	                                     Point<double>());
-	cv::imshow("ground", ground);
-	cv::waitKey(1);
-
-#ifdef DEBUG
-	cv::Mat bboxes;
-	showBBoxes(msg, bboxes, results);
-	showMatching(bboxes);
-#endif
-}
-
-void Mapper::saveMap()
-{
-	std::ofstream map_file;
-	map_file.open("/home/andre-criis/map.txt");
-
-	for (size_t i = 0; i < (*lprocessor).landmarks.size(); i++) {
-		Point<double> pt = (*lprocessor).landmarks[i].world_pos;
-		map_file << i << " " << pt.x << " " << pt.y << "\n";
-	}
-
-	map_file.close();
+	return results;
 }

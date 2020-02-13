@@ -6,6 +6,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/stitching.hpp>
 #include <random>
 #include <vector>
 
@@ -14,64 +15,32 @@ const float PI  = 3.14159265359; /* (radians) */
 
 struct Parameters
 {
-	double h_fov;         /* Camera horizontal field of view (radians) */
-	double v_fov;         /* Camera vertical field of view (radians) */
-	double cam_f;         /* Camera focal length (centimeters) */
-	double ccd_w;         /* Camera CCD width (centimeters) */
-	double ccd_h;         /* Camera CCD length (centimeters) */
-	double phi;           /* Camera inclination (radians) */
-	double cam_height;    /* Camera height (meters) */
-	int    width;         /* Image width */
-	int    height;        /* Image height */
-	int    match_box;     /* Search box diagonal size */
-	int    filter_window; /* Dimension of the window of the robot pose filter */
-	int    mapper_inc;    /* Increment between frames to use in the mapper */
-	int init_dim; /* Dimention of set of observations to initialize a landmark*/
+	double h_fov;     /* Camera horizontal field of view (radians) */
+	double v_fov;     /* Camera vertical field of view (radians) */
+	int    width;     /* Image width */
+	int    height;    /* Image height */
 	double min_score; /* Minimum trunk detection probability */
-	double max_stdev; /* Maximum standard deviation of trunk world position
-	                  estimation */
+	int    match_box; /* Local search matching box dimension */
 
-	int grid_width;  /* grid size = grid_width * grid_width */
-	int grid_length; /* grid size = grid_width * grid_length */
-	int grid_min;    /* Grid vertical min*/
-
-
-	double vine_std_x; /* X standard deviation of the vine map (meters) */
-	double vine_std_y; /* Y standard deviation of the vine map (meters) */
-
-	std::string pose_topic;  /* pose ROS topic */
-	std::string image_topic; /* image ROS topic */
+	std::string image_right; /* right image ROS topic */
+	std::string image_left;  /* right image ROS topic */
+	std::string image_depth; /* depth image ROS topic */
 	std::string model;       /* tflite model path */
 	std::string labels;      /* detection labels path */
-	std::string type;        /* estimation type (kf,pf) */
 
 	Parameters()
 	{
-		h_fov         = PI / 2;
-		v_fov         = PI / 2;
-		cam_height    = 1.0;
-		width         = 1280;
-		height        = 960;
-		cam_f         = 0.36;
-		ccd_w         = 0.376;
-		ccd_h         = 0.27;
-		phi           = -PI / 4;
-		grid_width    = 400;
-		grid_length   = 400;
-		grid_min      = 0;
-		match_box     = 10;
-		filter_window = 5;
-		mapper_inc    = 50;
-		init_dim      = 50;
-		min_score     = 0.5;
-		max_stdev     = 10;
-		model         = "";
-		labels        = "";
-		pose_topic    = "";
-		image_topic   = "";
-		type          = "";
-		vine_std_x    = 0.3;
-		vine_std_y    = 0.4;
+		h_fov       = PI / 2;
+		v_fov       = PI / 2;
+		width       = 1280;
+		height      = 960;
+		min_score   = 0.5;
+		match_box   = 20;
+		model       = "";
+		labels      = "";
+		image_right = "";
+		image_left  = "";
+		image_depth = "";
 	}
 };
 
@@ -168,8 +137,8 @@ struct Line
 		if (pts.size() < 2)
 			return;
 
-    p1 = pts[0];
-    p2 = pts[pts.size() - 1];
+		p1 = pts[0];
+		p2 = pts[pts.size() - 1];
 
 		T X  = 0;
 		T Y  = 0;
@@ -233,20 +202,20 @@ struct Line
 template <typename T>
 struct Match
 {
-	Point<T> p_pos;
-	Point<T> c_pos;
-	Line<T>  p_line;
-	Line<T>  c_line;
+	Point<T> l_pos;
+	Point<T> r_pos;
+	Line<T>  l_line;
+	Line<T>  r_line;
 
 	Match() {}
 
-	Match(const Point<T>& p, const Point<T>& c, const Line<T>& p_line,
-	      const Line<T>& c_line)
+	Match(const Point<T>& l, const Point<T>& r, const Line<T>& l_line,
+	      const Line<T>& r_line)
 	{
-		(*this).p_pos  = Point<T>(p);
-		(*this).c_pos  = Point<T>(c);
-		(*this).p_line = p_line;
-		(*this).c_line = c_line;
+		(*this).l_pos  = Point<T>(l);
+		(*this).r_pos  = Point<T>(r);
+		(*this).l_line = l_line;
+		(*this).r_line = r_line;
 	}
 };
 

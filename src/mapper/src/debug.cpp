@@ -26,28 +26,21 @@ void Mapper::showBBoxes(const sensor_msgs::ImageConstPtr& msg, cv::Mat& bboxes,
 			         cv::Scalar(0, 255, 0), 2);
 		}
 	}
-
-	sensor_msgs::ImagePtr detection_img =
-	    cv_bridge::CvImage(std_msgs::Header(), "bgr8", bboxes).toImageMsg();
-	img_publisher.publish(detection_img);
 }
 
-void Mapper::showMatching(cv::Mat img)
+void Mapper::showMatching(cv::Mat l_img, cv::Mat r_img)
 {
-	p_image = c_image;
-	c_image = img;
-
 	std::vector<cv::DMatch>   m;
 	std::vector<cv::KeyPoint> key_point_right;
 	std::vector<cv::KeyPoint> key_point_left;
 	std::vector<cv::Point2f>  vec_right;
 	std::vector<cv::Point2f>  vec_left;
 
-	for (size_t i = 0; i < (*lprocessor).matches.size(); i++) {
-		vec_right.push_back(cv::Point2f((*lprocessor).matches[i].c_pos.x,
-		                                (*lprocessor).matches[i].c_pos.y));
-		vec_left.push_back(cv::Point2f((*lprocessor).matches[i].p_pos.x,
-		                               (*lprocessor).matches[i].p_pos.y));
+	for (size_t i = 0; i < matches.size(); i++) {
+		vec_right.push_back(cv::Point2f(matches[i].r_pos.x,
+		                                matches[i].r_pos.y));
+		vec_left.push_back(cv::Point2f(matches[i].l_pos.x,
+		                               matches[i].l_pos.y));
 	}
 	cv::KeyPoint::convert(vec_right, key_point_right);
 	cv::KeyPoint::convert(vec_left, key_point_left);
@@ -56,29 +49,10 @@ void Mapper::showMatching(cv::Mat img)
 		m.push_back(cv::DMatch(j, j, 0));
 
 	cv::Mat img_matches;
-	cv::drawMatches(p_image, key_point_left, c_image, key_point_right, m,
-	                img_matches);
+	cv::drawMatches(l_img, key_point_left, r_img, key_point_right, m,
+		                img_matches);
 
 	sensor_msgs::ImagePtr out_img =
 	    cv_bridge::CvImage(std_msgs::Header(), "bgr8", img_matches).toImageMsg();
 	matches_publisher.publish(out_img);
-}
-
-void Mapper::initMarker()
-{
-	marker.ns                 = "/markers";
-	marker.type               = visualization_msgs::Marker::CYLINDER;
-	marker.action             = visualization_msgs::Marker::ADD;
-	marker.scale.x            = 0.1;
-	marker.scale.y            = 0.1;
-	marker.scale.z            = 0.3;
-	marker.pose.orientation.x = 0.0;
-	marker.pose.orientation.y = 0.0;
-	marker.pose.orientation.z = 0.0;
-	marker.pose.orientation.w = 1.0;
-	marker.color.r            = 1.0f;
-	marker.color.g            = 0.0f;
-	marker.color.b            = 0.0f;
-	marker.color.a            = 1.0;
-	marker.lifetime           = ros::Duration();
 }

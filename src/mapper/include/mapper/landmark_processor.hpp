@@ -10,8 +10,10 @@ class LandmarkProcessor
 public:
 	LandmarkProcessor(const Parameters& params);
 	void updateDetections(const std::vector<Point<double>>& detections);
-	void matchLandmarks(const int& iter, const Point<double>& r_pos,
-	                    std::vector<int>& index);
+
+	std::vector<Match<double>>
+	matchLandmarks(const std::vector<Point<double>>& l_det,
+	               const std::vector<Point<double>>& r_det);
 
 	Line<double> computeLine(const Point<double>& landmark);
 	Line<double> computeLine(const Point<double>& landmark, const double& phi);
@@ -19,19 +21,19 @@ public:
 	                         const Point<double>& delta_p,
 	                         const double&        delta_th);
 
-	cv::Mat projectToPlane(const cv::Mat&                   in,
-	                       const std::vector<Line<double>>& trunks,
-	                       const std::vector<Line<double>>& vine_lines,
-	                       const Point<double>&             robot_p);
 
-	std::vector<Match<double>>    matches;
-	std::vector<Landmark<double>> landmarks;
+	cv::Mat stitchImgs(cv::Mat img_left, cv::Mat img_right);
 
-  Line<double> vine_rline;
-  Line<double> vine_lline;
+	std::vector<Point<double>>
+	projectToPlane(const cv::Mat& in, const std::vector<Line<double>>& trunks,
+	               const std::vector<Line<double>>& vine_lines,
+	               const Point<double>&             robot_p);
 
 private:
 	Parameters                 params;
 	std::vector<Point<double>> lc_pos;
 	std::vector<Point<double>> lp_pos;
+
+	cv::Mat img_left;
+	cv::Mat img_right;
 };

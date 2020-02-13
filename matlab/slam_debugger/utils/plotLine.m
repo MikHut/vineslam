@@ -6,6 +6,5 @@ function plotLine(l, min, max)
     plot(x,y);
     xlim([min(1), max(1)])
     ylim([min(2), max(2)])
-    grid on   
 end
 

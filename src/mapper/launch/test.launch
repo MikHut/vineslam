@@ -2,41 +2,24 @@
   <!-- clock -->
   <param name ="/use_sim_time" value="true"/>
 
-  <node pkg="tf" type="static_transform_publisher" name="laser_to_map" args="0 0 0 0 0 0
-    /laser /map 1" />
-
   <!-- nodes -->
-  <!-- <node name="republish" type="republish" pkg="image_transport" output="screen" -->
-  <!--   args="compressed in:=/output/image_raw raw out:=/camera/image" /> -->
+  <node name="republish" type="republish" pkg="image_transport" output="screen"
+    args="compressed in:=/camera/image out:=/camera/image_raw" />
   <node pkg="mapper" type="mapper_node" name="mapper" output="screen">
     <param name="img_width"         value="1292"/>
     <param name="img_height"        value="964"/>
-    <param name="cam_height"        value="1"/>
-    <param name="cam_focal"        value="0.35"/>
-    <param name="ccd_width"        value="0.48"/>
-    <param name="ccd_length"       value="0.36"/>
-    <param name="cam_height"       value="112"/>
-    <param name="cam_inclination"  value="0.0"/>
 
-    <param name="grid_width"  value="600" />
-    <param name="grid_length" value="500" />
-    <param name="grid_min"    value="50" />
-
-    <param name="match_box"         value="25"/>
-    <param name="filter_window"     value="5"/>
-    <param name="mapper_inc"        value="50"/>
+    <param name="match_box"         value="40"/>
     <param name="detector_th"       value="0.25"/>
-    <param name="max_stdev"         value="0.3"/>
-    <param name="vine_std_x"        value="0.3"/>
-    <param name="vine_std_y"        value="0.4"/>
 
-    <param name="type"  value="kf"/>
-    <param name="pose_topic"  value="/slam_out_pose"/>
-    <param name="image_topic" value="/camera/image_raw"/>
+    <param name="image_left" value="/zed/zed_node/left/image_rect_color"/>
+    <param name="image_right" value="/zed/zed_node/right/image_rect_color"/>
+    <param name="image_depth" value="/zed/zed_node/depth/depth_registered"/>
+
     <param name="model_path"
-      value="/home/andre-criis/Source/coral-deeplearning-ros/detect/train/train_res/mv1_11-11/output_tflite_graph_edgetpu.tflite"/>
+      value="/home/andre-criis/Source/coral-deeplearning-ros/detect/train/train_res/SSD-MNetV1-aveleda/output_tflite_graph_edgetpu.tflite"/>
     <param name="labels_path"
-      value="/home/andre-criis/Source/coral-deeplearning-ros/detect/train/train_res/mv1_11-11/labels.txt"/>
+      value="/home/andre-criis/Source/coral-deeplearning-ros/detect/train/train_res/SSD-MNetV1-aveleda/labels.txt"/>
   </node>
 
 </launch>

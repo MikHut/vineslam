@@ -33,15 +33,16 @@ public:
 
 private:
 	void imageListener(const sensor_msgs::ImageConstPtr& msg_left,
-	                   const sensor_msgs::ImageConstPtr& msg_right,
-                     const sensor_msgs::ImageConstPtr& msg_depth);
+	                   const sensor_msgs::ImageConstPtr& msg_depth);
 
 	std::vector<coral::DetectionCandidate>
-	detect(const sensor_msgs::ImageConstPtr& img);
+	       detect(const sensor_msgs::ImageConstPtr& img);
+	double computeDepth(const sensor_msgs::Image& depth_img, const int& xmin,
+	                    const int& ymin, const int& xmax, const int& ymax);
 #ifdef DEBUG
 	void showMatching(cv::Mat l_img, cv::Mat r_img);
 	void showBBoxes(const sensor_msgs::ImageConstPtr& msg, cv::Mat& bboxes,
-	                std::vector<coral::DetectionCandidate> res);
+	                const std::vector<coral::DetectionCandidate>& res);
 
 	cv::Mat p_image;
 	cv::Mat c_image;

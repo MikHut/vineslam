@@ -11,25 +11,20 @@ Mapper::Mapper(int argc, char** argv)
 
 	message_filters::Subscriber<sensor_msgs::Image> l_img_sub(
 	    n, (*params).image_left, 1);
-	message_filters::Subscriber<sensor_msgs::Image> r_img_sub(
-	    n, (*params).image_right, 1);
 	message_filters::Subscriber<sensor_msgs::Image> d_img_sub(
 	    n, (*params).image_depth, 1);
 
 	typedef message_filters::sync_policies::ExactTime<sensor_msgs::Image,
-	                                                  sensor_msgs::Image,
-                                                    sensor_msgs::Image>
+	                                                  sensor_msgs::Image>
 	    MySyncPolicy;
 
-	message_filters::Synchronizer<MySyncPolicy> sync(MySyncPolicy(1000),
-	                                                 l_img_sub, r_img_sub, d_img_sub);
-	sync.registerCallback(boost::bind(&Mapper::imageListener, this, _1, _2, _3));
+	message_filters::Synchronizer<MySyncPolicy> sync(MySyncPolicy(1), l_img_sub,
+	                                                 d_img_sub);
+	sync.registerCallback(boost::bind(&Mapper::imageListener, this, _1, _2));
 
 #ifdef DEBUG
 	image_transport::ImageTransport it(n);
-	r_img_publisher   = it.advertise("detection_right/image_raw", 1);
-	l_img_publisher   = it.advertise("detection_left/image_raw", 1);
-	matches_publisher = it.advertise("matches/image_raw", 1);
+	l_img_publisher = it.advertise("detection_left/image_raw", 1);
 #endif
 
 	ROS_INFO("Loading NN model and label files");
@@ -38,7 +33,7 @@ Mapper::Mapper(int argc, char** argv)
 	labels             = coral::ReadLabelFile((*params).labels);
 	ROS_INFO("Done");
 
-  lprocessor = new LandmarkProcessor(*params);
+	lprocessor = new LandmarkProcessor(*params);
 
 	run();
 }
@@ -50,62 +45,47 @@ void Mapper::run()
 }
 
 void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
-                           const sensor_msgs::ImageConstPtr& msg_right,
                            const sensor_msgs::ImageConstPtr& msg_depth)
 {
-	if ((*msg_left).header.stamp == (*msg_right).header.stamp) {
-		std::vector<coral::DetectionCandidate> left_res  = detect(msg_left);
-		std::vector<coral::DetectionCandidate> right_res = detect(msg_right);
+#ifdef DEBUG
+	cv::Mat left_bboxes =
+	    cv_bridge::toCvShare(msg_left, sensor_msgs::image_encodings::BGR8)->image;
+#endif
+
+	if ((*msg_left).header.stamp == (*msg_depth).header.stamp) {
+		std::vector<coral::DetectionCandidate> left_res = detect(msg_left);
 
 		/* process left image results */
 		std::vector<Point<double>> left_det;
 		for (auto result : left_res) {
-			double xmin = result.corners.xmin * (*msg_left).height;
-			double ymin = result.corners.ymin * (*msg_left).width;
-			double xmax = result.corners.xmax * (*msg_left).height;
-			double ymax = result.corners.ymax * (*msg_left).width;
+			double xmin = result.corners.ymin * (*msg_left).width;
+			double ymin = result.corners.xmin * (*msg_left).height;
+			double xmax = result.corners.ymax * (*msg_left).width;
+			double ymax = result.corners.xmax * (*msg_left).height;
 
-			Point<double> tmp((ymin + ymax) / 2, (xmin + xmax) / 2);
+			Point<double> tmp((xmin + xmax) / 2, (ymin + ymax) / 2);
 			if (result.label == 0) {
 				left_det.push_back(tmp);
 			}
-		}
 
-		/* process right image results */
-		std::vector<Point<double>> right_det;
-		for (auto result : right_res) {
-			double xmin = result.corners.xmin * (*msg_right).height;
-			double ymin = result.corners.ymin * (*msg_right).width;
-			double xmax = result.corners.xmax * (*msg_right).height;
-			double ymax = result.corners.ymax * (*msg_right).width;
-
-			Point<double> tmp((ymin + ymax) / 2, (xmin + xmax) / 2);
-			if (result.label == 0) {
-				right_det.push_back(tmp);
-			}
-		}
-
-		matches.clear();
-		matches = (*lprocessor).matchLandmarks(left_det, right_det);
+			float depth = computeDepth(*msg_depth, xmin, ymin, xmax, ymax);
 
 #ifdef DEBUG
-		cv::Mat left_bboxes;
-		cv::Mat right_bboxes;
+			if (depth > 0) {
+				std::string s = boost::lexical_cast<std::string>(depth);
+				cv::putText(left_bboxes, s, cv::Point((xmin + xmax) / 2, ymin - 10),
+				            cv::FONT_HERSHEY_DUPLEX, 1.0, cv::Scalar(255, 0, 0));
+			}
+#endif
+		}
+
+#ifdef DEBUG
 		showBBoxes(msg_left, left_bboxes, left_res);
-		showBBoxes(msg_right, right_bboxes, right_res);
 
 		sensor_msgs::ImagePtr left_det_img =
 		    cv_bridge::CvImage(std_msgs::Header(), "bgr8", left_bboxes)
 		        .toImageMsg();
 		l_img_publisher.publish(left_det_img);
-
-		sensor_msgs::ImagePtr right_det_img =
-		    cv_bridge::CvImage(std_msgs::Header(), "bgr8", right_bboxes)
-		        .toImageMsg();
-		r_img_publisher.publish(right_det_img);
-
-		/* if (matches.size() > 0) */
-		/* 	showMatching(left_bboxes, right_bboxes); */
 #endif
 	}
 }
@@ -135,4 +115,33 @@ Mapper::detect(const sensor_msgs::ImageConstPtr& msg)
 	    (*engine).DetectWithInputTensor(input_tensor, (*params).min_score, 50);
 
 	return results;
+}
+
+double Mapper::computeDepth(const sensor_msgs::Image& depth_img,
+                            const int& xmin, const int& ymin, const int& xmax,
+                            const int& ymax)
+{
+	float* depths = (float*)(&(depth_img).data[0]);
+
+	std::vector<float> depth_array;
+	for (int x = xmin; x < xmax; x++) {
+		for (int y = ymin; y < ymax; y++) {
+			int idx = x + depth_img.width * y;
+
+			if (std::isfinite(depths[idx]) && depths[idx] > 0)
+				depth_array.push_back(depths[idx]);
+		}
+	}
+
+	/* compute median of all observations */
+	size_t n_depths = depth_array.size();
+	if (n_depths > 0) {
+		std::sort(depth_array.begin(), depth_array.end());
+		if (n_depths % 2 == 0)
+			return (depth_array[n_depths / 2 - 1] + depth_array[n_depths / 2]) / 2;
+		else
+			return depth_array[n_depths / 2];
+	}
+	else
+		return -1;
 }

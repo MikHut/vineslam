@@ -1,73 +1,129 @@
 #include "../include/mapper/mapper.hpp"
 
-Estimator::Estimator(const Parameters& params, LandmarkProcessor* lprocessor)
-    : params(params), lprocessor(lprocessor)
+Estimator::Estimator(const Parameters& params) : params(params) {}
+
+void Estimator::init(const Pose<double>&        odom,
+                     const std::vector<double>& bearings,
+                     const std::vector<double>& depths)
 {
+	int n_obsv = bearings.size();
+	int alpha  = 0.5;
+
+	double odom_std = sqrt(pow(odom.pos.x, 2) + pow(odom.pos.y, 2));
+
+	// Compute initial covariance matrix
+	// - proportional to the odometry signal and the distance to the robot
+	for (int i = 0; i < n_obsv; i++) {
+		Eigen::MatrixXd P0(2, 2);
+		Eigen::VectorXd X0(2, 1);
+
+		double th = bearings[i] + odom.theta;
+
+		// Calculate
+		// - the initial estimation of the landmark
+		// - the initial covariance of the landmark
+		X0 << odom.pos.x + depths[i] * cos(th), odom.pos.y + depths[i] * sin(th);
+		P0 << alpha * X0[0] + (1 - alpha) * odom_std, 0, 0,
+		    alpha * X0[1] + (1 - alpha) * odom_std;
+
+		// Insert the landmark on the map, with a single observation
+		Point<double> pos(X0[0], X0[1]);
+		Ellipse<double> std(P0(0, 0), P0(2, 2), 0);
+		if (map.empty() == 0)
+			map[map.rbegin()->first + 1] = Landmark<double>(pos, std);
+		else
+			map[1] = Landmark<double>(pos, std);
+
+		// Push back a Kalman Filter object for the respective landmark
+		KF kf(X0, P0, params);
+		filters.push_back(kf);
+	}
+
+	ROS_INFO("Map initialized with the following landmarks:");
+	for (auto m_map : map)
+		std::cout << " ---> " << m_map.first << " - " << m_map.second;
 }
 
-void Estimator::process(const std::vector<Pose<double>>& robot_poses,
-                        const std::vector<int>&          index)
+void Estimator::process(const Pose<double>&        odom,
+                        const std::vector<double>& bearings,
+                        const std::vector<double>& depths)
 {
-	std::vector<Pose<double>> filtered_poses;
-	filterXYTheta(robot_poses, filtered_poses);
-	/* predict(filtered_poses); */
-	predict(filtered_poses, index);
+	predict(odom, bearings, depths);
 }
 
-void Estimator::predict(const std::vector<Pose<double>>& robot_poses,
-                        const std::vector<int>&          index)
+void Estimator::predict(const Pose<double>&        odom,
+                        const std::vector<double>& bearings,
+                        const std::vector<double>& depths)
 {
-	int inc = params.mapper_inc;
+	int    n_obsv   = bearings.size();
+	int    alpha    = 0.5;
+	double odom_std = sqrt(pow(odom.pos.x, 2) + pow(odom.pos.y, 2));
 
-	for (size_t i = 0; i < index.size(); i++) {
-		int k = index[i];
-		if ((*lprocessor).landmarks[k].image_pos.size() < inc)
-			continue;
+	for (int i = 0; i < n_obsv; i++) {
+		// Calculate the landmark position based on the ith observation
+		double        th = bearings[i] + odom.theta;
+		Point<double> X(odom.pos.x + depths[i] * cos(th),
+		                odom.pos.y + depths[i] * sin(th));
 
-		Landmark<double> l = (*lprocessor).landmarks[k];
+		// Check if the landmark already exists in the map
+		int landmark_id = findCorr(X);
+		// If not, initialize the landmark on the map, as well as the
+		// correspondent Kalman Filter
+		if (landmark_id < 0) {
+			Eigen::MatrixXd P0(2, 2);
+			Eigen::VectorXd X0(2, 1);
 
-		/* initialize landmark on map if it does not exist yet */
-		if (l.image_pos.size() == params.init_dim && kf.find(k) == kf.end()) {
-			initLandmark(robot_poses, k);
-			continue;
+			// Calculate the initial covariance
+			P0 << alpha * X0[0] + (1 - alpha) * odom_std, 0, 0,
+			    alpha * X0[1] + (1 - alpha) * odom_std;
+
+			// Insert the landmark on the map, with a single observation
+			Ellipse<double> std(P0(0, 0), P0(2, 2), 0);
+			map[map.rbegin()->first + 1] = Landmark<double>(X, std);
+
+			// Initialize the Kalman Filter
+			KF kf(X.eig(), P0, params);
+			filters.push_back(kf);
 		}
-		else if (l.image_pos.size() < params.init_dim || kf.find(k) == kf.end())
-			continue;
+		// If so, update the landmark position estimation using a Kalman
+		// Filter call
+		else {
+      // Construct the observations vector
+			VectorXd z(2, 1);
+			z << depths[i], bearings[i];
 
-		int it = l.image_pos.size() - 1;
+      // Invocate the Kalman Filter
+			filters[landmark_id - 1].process(X.eig(), z);
+      // Get the state vector and the standard deviation associated 
+      // with the estimation
+      Point<double> X_out = filters[landmark_id - 1].getState();
+      Ellipse<double> std = filters[landmark_id - 1].getStdev();
 
-		/* calculate the bearing-only observation */
-		Pose<double>  p_pos = robot_poses[l.ptr[it] - l.ptr[it - inc]];
-		Pose<double>  c_pos = robot_poses[l.ptr[it]];
-		Point<double> X     = processObsv(l, it, c_pos - p_pos);
-
-		VectorXd z(2, 1);
-		z << sqrt((X.x * X.x) + (X.y * X.y)), atan2(X.y, X.x);
-
-		/* kalman filter */
-		Pose<double> s = p_pos;
-		kf[k].process(s.eig(), z);
-		VectorXd TH = kf[k].getState();
-
-		Point<double> res(TH(0), TH(1));
-		(*lprocessor).landmarks[k].estimations.push_back(res);
-		(*lprocessor).landmarks[k].world_pos = res;
+      // Update the estimation on the map
+      map[landmark_id] = Landmark<double>(X_out, std);
+		}
 	}
 }
 
-Point<double> Estimator::processObsv(const Landmark<double>& l, const int& it,
-                                     const Pose<double>& delta_p)
+int Estimator::findCorr(const Point<double>& pos)
 {
-	int comp = params.filter_window;
-	int inc  = params.mapper_inc;
+	for (auto m_map : map) {
+		// Compute the euclidean distance between the observation and the
+		// existent landmark on the map
+		Point<double> p    = m_map.second.pos;
+		double        dist = p.euc_dist(pos);
 
-	Point<double> X_prev = l.image_pos[it - inc];
-	Point<double> X_curr = l.image_pos[it];
+		// Return the id of the landmark, if a correspondence is found
+		if (dist < 0.3)
+			return m_map.first;
+		else
+			continue;
+	}
 
-	Line<double> l_prev = (*lprocessor).computeLine(X_prev);
-	Line<double> l_proj =
-	    (*lprocessor).projectLine(X_curr, delta_p.pos, delta_p.theta);
-	Point<double> X = l_prev.intercept(l_proj);
+	return -1;
+}
 
-	return X;
+std::map<int, Landmark<double>> Estimator::getMap() const
+{
+	return map;
 }

@@ -25,6 +25,7 @@ struct Parameters
 	std::string image_right; /* right image ROS topic */
 	std::string image_left;  /* right image ROS topic */
 	std::string image_depth; /* depth image ROS topic */
+	std::string odom_topic;  /* odometry ROS topic */
 	std::string model;       /* tflite model path */
 	std::string labels;      /* detection labels path */
 
@@ -41,6 +42,7 @@ struct Parameters
 		image_right = "";
 		image_left  = "";
 		image_depth = "";
+		odom_topic  = "";
 	}
 };
 
@@ -220,46 +222,36 @@ struct Match
 };
 
 template <typename T>
+struct Ellipse
+{
+	T std_x;
+	T std_y;
+	T th;
+
+	Ellipse() {}
+
+	Ellipse(T std_x, T std_y, T th)
+	{
+		(*this).std_x = std_x;
+		(*this).std_y = std_y;
+		(*this).th    = th;
+	}
+};
+
+template <typename T>
 struct Landmark
 {
-	int                   id;
-	Point<double>         stdev;
-	Point<T>              world_pos;
-	std::vector<Point<T>> estimations;
-	std::vector<Point<T>> image_pos;
-	std::vector<int>      ptr;
+	Ellipse<double> stdev;
+	Point<T>      pos;
+	int           n_obsv;
 
 	Landmark() {}
 
-	Landmark(const int& id, const Point<T>& image_pos)
+	Landmark(const Point<T>& pos, const Ellipse<double>& stdev)
 	{
-		(*this).id        = id;
-		(*this).image_pos = std::vector<Point<T>>(1, image_pos);
-	}
-
-	void worldPos()
-	{
-		double x = 0, y = 0;
-		for (size_t i = 0; i < estimations.size(); i++) {
-			x += estimations[i].x;
-			y += estimations[i].y;
-		}
-
-		world_pos = Point<T>(x / estimations.size(), y / estimations.size());
-	}
-
-	void standardDev()
-	{
-		Point<double> mean = world_pos;
-		Point<double> var  = Point<double>(0.0, 0.0);
-
-		for (size_t i = 0; i < estimations.size(); i++) {
-			var.x += (estimations[i].x - mean.x) * (estimations[i].x - mean.x);
-			var.y += (estimations[i].y - mean.y) * (estimations[i].y - mean.y);
-		}
-
-		stdev.x = sqrt(var.x / estimations.size());
-		stdev.y = sqrt(var.y / estimations.size());
+		(*this).pos    = pos;
+		(*this).stdev  = stdev;
+		(*this).n_obsv = 1;
 	}
 };
 
@@ -282,17 +274,17 @@ struct Particle
 	}
 };
 
-static std::vector<cv::Scalar> colors = {
-    cv::Scalar(137, 137, 0),   cv::Scalar(0, 137, 137),
-    cv::Scalar(137, 0, 137),   cv::Scalar(20, 165, 255),
-    cv::Scalar(137, 137, 137), cv::Scalar(70, 0, 0),
-    cv::Scalar(30, 20, 100),   cv::Scalar(10, 60, 200),
-    cv::Scalar(4, 100, 40),    cv::Scalar(200, 200, 20),
-    cv::Scalar(90, 170, 150),  cv::Scalar(150, 255, 255),
-    cv::Scalar(2, 30, 60),     cv::Scalar(30, 39, 100),
-    cv::Scalar(30, 50, 2),     cv::Scalar(200, 0, 30),
-    cv::Scalar(255, 0, 0),     cv::Scalar(0, 255, 0),
-    cv::Scalar(0, 50, 10)};
+static std::vector<cv::Scalar>
+    colors = {cv::Scalar(137, 137, 0),   cv::Scalar(0, 137, 137),
+              cv::Scalar(137, 0, 137),   cv::Scalar(20, 165, 255),
+              cv::Scalar(137, 137, 137), cv::Scalar(70, 0, 0),
+              cv::Scalar(30, 20, 100),   cv::Scalar(10, 60, 200),
+              cv::Scalar(4, 100, 40),    cv::Scalar(200, 200, 20),
+              cv::Scalar(90, 170, 150),  cv::Scalar(150, 255, 255),
+              cv::Scalar(2, 30, 60),     cv::Scalar(30, 39, 100),
+              cv::Scalar(30, 50, 2),     cv::Scalar(200, 0, 30),
+              cv::Scalar(255, 0, 0),     cv::Scalar(0, 255, 0),
+              cv::Scalar(0, 50, 10)};
 
 /* ----- operators ----- */
 

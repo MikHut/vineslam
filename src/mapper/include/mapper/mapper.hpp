@@ -1,9 +1,9 @@
 #pragma once
 
 #include "kf.hpp"
-#include "landmark_processor.hpp"
 #include "utils.hpp"
 #include <eigen3/Eigen/Dense>
+#include <ros/ros.h>
 #include <iostream>
 #include <map>
 #include <math.h>
@@ -12,34 +12,37 @@
 class Estimator
 {
 public:
-	Estimator(const Parameters& params, LandmarkProcessor* lprocessor);
-	void process(const std::vector<Pose<double>>& robot_poses,
-	             const std::vector<int>&          index);
-	void singleDraw(const std::vector<Pose<double>>& robot_poses, const int& id);
+	// Class constructor
+	// - Loads the parameters
+	Estimator(const Parameters& params);
 
-	std::vector<Point<double>>    all_sols;
-	std::vector<Landmark<double>> m_landmarks;
+	// Global function that handles all the estimation process
+	void process(const Pose<double>& odom, const std::vector<double>& bearings,
+	             const std::vector<double>& depths);
+  
+	// Initializes the map
+	// - Invocated only once to insert the first observations on the map
+	void init(const Pose<double>& odom, const std::vector<double>& bearings,
+	          const std::vector<double>& depths);
 
-	std::map<int, KF> kf;
+  // Exports the current map to the high level ROS node
+  std::map<int, Landmark<double>> getMap() const;
+
+	// Map that contains
+	// - the landmarks estimations
+	// - the number of observations of each landmark
+	std::map<int, Landmark<double>> map;
+	// Array of Kalman Filters, one for each landmark
+	std::vector<KF> filters;
 
 private:
-	void filterXYTheta(const std::vector<Pose<double>> robot_poses,
-	                   std::vector<Pose<double>>&      filtered_poses);
+	// Estimates landmark positions based on the current observations
+	void predict(const Pose<double>& odom, const std::vector<double>& bearings,
+	             const std::vector<double>& depths);
 
-	void predict(const std::vector<Pose<double>>& robot_poses,
-	             const std::vector<int>&          index);
+	// Searches from correspondences between observations and landmarks
+	// already mapped
+	int findCorr(const Point<double>& pos);
 
-	Point<double> processObsv(const Landmark<double>& l, const int& it,
-	                          const Pose<double>& delta_p);
-	void          initLandmark(const std::vector<Pose<double>>& robot_poses,
-	                           const int&                       index);
-
-	double columnToTheta(const int& col)
-	{
-		return (-params.h_fov / params.width) * (params.width / 2 - col);
-	}
-
-	Parameters         params;
-	LandmarkProcessor* lprocessor;
-	Pose<double>       prev_pose;
+	Parameters params;
 };

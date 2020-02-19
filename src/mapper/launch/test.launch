@@ -15,11 +15,17 @@
     <param name="image_left" value="/zed/zed_node/left/image_rect_color"/>
     <param name="image_right" value="/zed/zed_node/right/image_rect_color"/>
     <param name="image_depth" value="/zed/zed_node/depth/depth_registered"/>
+    <param name="odom_topic" value="/husky_velocity_controller/odom"/>
 
     <param name="model_path"
       value="/home/andre-criis/Source/coral-deeplearning-ros/detect/train/train_res/SSD-MNetV1-aveleda/output_tflite_graph_edgetpu.tflite"/>
     <param name="labels_path"
       value="/home/andre-criis/Source/coral-deeplearning-ros/detect/train/train_res/SSD-MNetV1-aveleda/labels.txt"/>
   </node>
+
+  <node pkg="tf" type="static_transform_publisher" name="odom_to_map" args="0 0 0 0 0
+    0 1  /map /odom 10" />
+  <node pkg="tf" type="static_transform_publisher" name="odom_to_base" args="0 0 0 0 0
+    0 1  /odom /base_link 10" />
 
 </launch>

@@ -1,6 +1,6 @@
-#include "../include/mapper/mapper_node.hpp"
+#include "../include/detector/detector_node.hpp"
 
-void Mapper::publishMap(const std_msgs::Header& header)
+void Detector::publishMap(const std_msgs::Header& header)
 {
 	visualization_msgs::MarkerArray marker_array;
 	visualization_msgs::Marker      marker;
@@ -37,7 +37,7 @@ void Mapper::publishMap(const std_msgs::Header& header)
 	map_publisher.publish(marker_array);
 }
 
-void Mapper::showBBoxes(const sensor_msgs::ImageConstPtr& msg, cv::Mat& bboxes,
+void Detector::showBBoxes(const sensor_msgs::ImageConstPtr& msg, cv::Mat& bboxes,
                         const std::vector<coral::DetectionCandidate>& res)
 {
 	std::vector<Point<double>> trunk_pos;
@@ -60,7 +60,7 @@ void Mapper::showBBoxes(const sensor_msgs::ImageConstPtr& msg, cv::Mat& bboxes,
 	}
 }
 
-void Mapper::showMatching(cv::Mat l_img, cv::Mat r_img)
+void Detector::showMatching(cv::Mat l_img, cv::Mat r_img)
 {
 	std::vector<cv::DMatch>   m;
 	std::vector<cv::KeyPoint> key_point_right;

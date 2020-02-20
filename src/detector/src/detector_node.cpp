@@ -1,8 +1,8 @@
-#include "../include/mapper/mapper_node.hpp"
+#include "../include/detector/detector_node.hpp"
 
-Mapper::Mapper(int argc, char** argv)
+Detector::Detector(int argc, char** argv)
 {
-	ros::init(argc, argv, "mapper");
+	ros::init(argc, argv, "detector");
 	ros::NodeHandle n;
 
 	params = new Parameters();
@@ -21,20 +21,20 @@ Mapper::Mapper(int argc, char** argv)
 
 	message_filters::Synchronizer<MySyncPolicy> sync(MySyncPolicy(1), l_img_sub,
 	                                                 d_img_sub);
-	sync.registerCallback(boost::bind(&Mapper::imageListener, this, _1, _2));
+	sync.registerCallback(boost::bind(&Detector::imageListener, this, _1, _2));
 
 	// odometry subscription
 	ros::Subscriber odom_subscriber =
-	    n.subscribe((*params).odom_topic, 1, &Mapper::odomListener, this);
+	    n.subscribe((*params).odom_topic, 1, &Detector::odomListener, this);
 
 #ifdef DEBUG
 	image_transport::ImageTransport it(n);
 	l_img_publisher = it.advertise("detection_left/image_raw", 1);
 #endif
-  map_publisher = n.advertise<visualization_msgs::MarkerArray>("/map", 1);
+	map_publisher = n.advertise<visualization_msgs::MarkerArray>("/map", 1);
 
-	// declarate Estimator object
-	estimator = new Estimator(*params);
+	// declarate Mapper object
+	mapper = new Mapper(*params);
 
 	// load NN model and labels file
 	ROS_INFO("Loading NN model and label files");
@@ -47,13 +47,13 @@ Mapper::Mapper(int argc, char** argv)
 	run();
 }
 
-void Mapper::run()
+void Detector::run()
 {
 	ros::spin();
 	std::cout << "Ros shutdown, saving the map." << std::endl;
 }
 
-void Mapper::odomListener(const nav_msgs::OdometryConstPtr& msg)
+void Detector::odomListener(const nav_msgs::OdometryConstPtr& msg)
 {
 	tf::Pose            pose;
 	geometry_msgs::Pose odom_pose = (*msg).pose.pose;
@@ -67,10 +67,10 @@ void Mapper::odomListener(const nav_msgs::OdometryConstPtr& msg)
 	odom.pos.y = (*msg).pose.pose.position.y;
 	odom.theta = yaw;
 
-  odom_ = *msg;
+	odom_ = *msg;
 }
 
-void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
+void Detector::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
                            const sensor_msgs::ImageConstPtr& msg_depth)
 {
 #ifdef DEBUG
@@ -112,17 +112,18 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
 		}
 
 		if (init == true && bearings.size() > 1) {
-			// Initialize the map estimator
-			(*estimator).init(odom, bearings, depths);
+			// Initialize the map mapper
+			first_odom = odom;
+			(*mapper).init(odom - first_odom, bearings, depths);
 			init = false;
 		}
 		else {
 			// Execute the map estimation
-			(*estimator).process(odom, bearings, depths);
-      // Get the curretn map
-      map = (*estimator).getMap();
-      // Publish the map 
-      publishMap(odom_.header);
+			(*mapper).process(odom - first_odom, bearings, depths);
+			// Get the curretn map
+			map = (*mapper).getMap();
+			// Publish the map
+			publishMap(odom_.header);
 		}
 
 #ifdef DEBUG
@@ -137,7 +138,7 @@ void Mapper::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
 }
 
 std::vector<coral::DetectionCandidate>
-Mapper::detect(const sensor_msgs::ImageConstPtr& msg)
+Detector::detect(const sensor_msgs::ImageConstPtr& msg)
 {
 	// Convert input image to BGR
 	cv_bridge::CvImageConstPtr cv_ptr =
@@ -151,7 +152,7 @@ Mapper::detect(const sensor_msgs::ImageConstPtr& msg)
 	for (int i = 0; i < (*tmp).step * (*msg).height; i++)
 		in_image.push_back((*tmp).data[i]);
 
-	// trunk detection
+	// Trunk detection
 	std::vector<uint8_t> input_tensor = coral::GetInputFromImage(
 	    in_image,
 	    {input_tensor_shape[1], input_tensor_shape[2], input_tensor_shape[3]},
@@ -163,7 +164,7 @@ Mapper::detect(const sensor_msgs::ImageConstPtr& msg)
 	return results;
 }
 
-double Mapper::computeDepth(const sensor_msgs::Image& depth_img,
+double Detector::computeDepth(const sensor_msgs::Image& depth_img,
                             const int& xmin, const int& ymin, const int& xmax,
                             const int& ymax)
 {

@@ -12,11 +12,11 @@ class KF
 public:
 	KF(){};
   // Class constructor
-  // - Receives the initial state, the initial covarianec matrix, 
+  // - Receives the initial state, the initial covariance matrix, 
   //   and the parameters
 	KF(const VectorXd& X0, const MatrixXd& P0, const Parameters& params);
   // Function that processes all the Kalman Filter routines
-	void process(const VectorXd& s, const VectorXd& z);
+	void process(const VectorXd& s, const VectorXd& z, const VectorXd& pos);
   // Function that outputs the current state of the Kalman Filter
 	Point<double> getState() const;
   // Function that outputs the current standard deviation of the 
@@ -31,7 +31,7 @@ private:
   // Function that implements the update step of the Kalman Filter
 	void correct(const VectorXd& s, const VectorXd& z);
   // Function that calculates the current observations covariance matrix
-	void computeR(const VectorXd& s, const VectorXd& z);
+	void computeR(const VectorXd& s, const VectorXd& z, const VectorXd& pos);
 
 	Parameters params;
 
@@ -40,6 +40,9 @@ private:
 	VectorXd X;
 	MatrixXd K;
 	MatrixXd R;
+
+  // Number of observations of the landmark considered in the KF object
+  int n_obsvs;
 
 	// Auxiliar funcion that normalizes an angle in the [-pi,pi] range
 	double normalizeAngle(const double& angle)

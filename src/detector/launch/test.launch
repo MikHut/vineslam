@@ -5,7 +5,7 @@
   <!-- nodes -->
   <node name="republish" type="republish" pkg="image_transport" output="screen"
     args="compressed in:=/camera/image out:=/camera/image_raw" />
-  <node pkg="mapper" type="mapper_node" name="mapper" output="screen">
+  <node pkg="detector" type="detector_node" name="detector" output="screen">
     <param name="img_width"         value="1292"/>
     <param name="img_height"        value="964"/>
 

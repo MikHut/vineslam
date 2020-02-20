@@ -1,18 +1,39 @@
-#include "../include/mapper/kf.hpp"
+//#include "../include/mapper/kf.hpp"
+#include "kf.hpp"
 
 KF::KF(const VectorXd& X0, const MatrixXd& P0, const Parameters& params)
     : X(X0), X0(X0), P(P0), params(params)
 {
+	n_obsvs = 1;
+	R       = P0;
 }
 
-void KF::process(const VectorXd& s, const VectorXd& z)
+void KF::process(const VectorXd& s, const VectorXd& z, const VectorXd& pos)
 {
-	computeR(s, z);
+	n_obsvs++;
+
+	computeR(s, z, pos);
 	predict();
 	correct(s, z);
 }
 
-void KF::computeR(const VectorXd& s, const VectorXd& z) {}
+void KF::computeR(const VectorXd& s, const VectorXd& z, const VectorXd& pos)
+{
+	// Weight and scale values to compute the covariance
+	double alpha = 5;
+	double gamma = 0.1;
+
+	// Odometry travelled distance
+	double odom_std = sqrt(pow(pos[0], 2) + pow(pos[1], 2));
+
+	// Compute the covariance observations matrix based on
+	// - the distance from the detected trunk to the robot
+	// - the travelled distance given by odometry
+	// - the number of observations of the landmark
+	R = MatrixXd(2, 2);
+	R << (alpha * (s[0] - pos[0]) + (1 - alpha) * gamma * odom_std) / n_obsvs, 0,
+	    0, (alpha * (s[1] - pos[1]) + (1 - alpha) * gamma * odom_std) / n_obsvs;
+}
 
 void KF::predict()
 {

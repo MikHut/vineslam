@@ -1,6 +1,9 @@
 #pragma once
 
-#include "mapper.hpp"
+// Detector estimator
+#include <mapper.hpp>
+
+// ROS and iostream
 #include <cv_bridge/cv_bridge.h>
 #include <fstream>
 #include <image_transport/image_transport.h>
@@ -16,13 +19,13 @@
 #include <tf/transform_listener.h>
 #include <visualization_msgs/MarkerArray.h>
 
-/* edgetpu detection API */
+// Edgetpu detection API
 #include <detection/engine.h>
 #include <examples/label_utils.h>
 #include <examples/model_utils.h>
 #include <test_utils.h>
 
-class Mapper
+class Detector
 {
 
 public:
@@ -30,7 +33,7 @@ public:
 	// - Initializes the ROS node
 	// - Performs all the subscriptions/publications
 	// - Loads the NN model and labels file
-	Mapper(int argc, char** argv);
+	Detector(int argc, char** argv);
 
 	// Performs the ros spin() method
 	void run();
@@ -87,10 +90,11 @@ private:
 	std::vector<Match<double>>      matches;
 	std::map<int, Landmark<double>> map;
 
+	Pose<double>       first_odom;
 	Pose<double>       odom;
 	nav_msgs::Odometry odom_;
 
-	Estimator*  estimator;
+	Mapper*     mapper;
 	Parameters* params;
 
 	std::vector<int>                     input_tensor_shape;
@@ -100,17 +104,17 @@ private:
 	// Load all the parameters of the ROS node
 	void loadParameters(const ros::NodeHandle& local_nh)
 	{
-		local_nh.getParam("/mapper/image_left", (*params).image_left);
-		local_nh.getParam("/mapper/image_right", (*params).image_right);
-		local_nh.getParam("/mapper/image_depth", (*params).image_depth);
-		local_nh.getParam("/mapper/odom_topic", (*params).odom_topic);
-		local_nh.getParam("/mapper/h_fov", (*params).h_fov);
-		local_nh.getParam("/mapper/v_fov", (*params).v_fov);
-		local_nh.getParam("/mapper/img_width", (*params).width);
-		local_nh.getParam("/mapper/img_height", (*params).height);
-		local_nh.getParam("/mapper/match_box", (*params).match_box);
-		local_nh.getParam("/mapper/detector_th", (*params).min_score);
-		local_nh.getParam("/mapper/model_path", (*params).model);
-		local_nh.getParam("/mapper/labels_path", (*params).labels);
+		local_nh.getParam("/detector/image_left", (*params).image_left);
+		local_nh.getParam("/detector/image_right", (*params).image_right);
+		local_nh.getParam("/detector/image_depth", (*params).image_depth);
+		local_nh.getParam("/detector/odom_topic", (*params).odom_topic);
+		local_nh.getParam("/detector/h_fov", (*params).h_fov);
+		local_nh.getParam("/detector/v_fov", (*params).v_fov);
+		local_nh.getParam("/detector/img_width", (*params).width);
+		local_nh.getParam("/detector/img_height", (*params).height);
+		local_nh.getParam("/detector/match_box", (*params).match_box);
+		local_nh.getParam("/detector/detector_th", (*params).min_score);
+		local_nh.getParam("/detector/model_path", (*params).model);
+		local_nh.getParam("/detector/labels_path", (*params).labels);
 	}
 };

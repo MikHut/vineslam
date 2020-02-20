@@ -9,12 +9,12 @@
 #include <math.h>
 #include <numeric>
 
-class Estimator
+class Mapper
 {
 public:
 	// Class constructor
 	// - Loads the parameters
-	Estimator(const Parameters& params);
+	Mapper(const Parameters& params);
 
 	// Global function that handles all the estimation process
 	void process(const Pose<double>& odom, const std::vector<double>& bearings,

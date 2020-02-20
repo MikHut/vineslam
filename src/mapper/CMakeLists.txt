@@ -1,45 +1,35 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(mapper)
 
-add_definitions(-DDEBUG)
 add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED
-		    edgetpu_cpp 
 		    roscpp
-                    std_msgs
-		    sensor_msgs
-		    geometry_msgs
-		    visualization_msgs
-		    nav_msgs
-		    tf
-		    geometry_msgs
-		    message_filters
-		    cv_bridge
-		    image_geometry
-		    image_transport)
+                    std_msgs)
 
-find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 
-catkin_package()
-
-include_directories(${CMAKE_SOURCE_DIR}/edgetpu_cpp/dep/libedgetpu)
-include_directories(benchmark /usr/local/include/benchmark)
-
-include_directories(
-  include
-  ${catkin_INCLUDE_DIRS}
-  ${edgetpu_cpp_INCLUDE_DIRS}
+catkin_package(
+  INCLUDE_DIRS ${PROJECT_NAME}/src
+  LIBRARIES mapper
 )
 
-SET(${PROJECT_NAME}_SOURCES src/mapper_node.cpp src/mapper.cpp
-	src/kf.cpp src/debug.cpp src/main.cpp)
+include_directories(
+  ${PROJECT_NAME}/src
+  ${catkin_INCLUDE_DIRS}
+)
 
-add_executable(${PROJECT_NAME}_node ${${PROJECT_NAME}_SOURCES})
+add_library(mapper ${PROJECT_NAME}/src/mapper.cpp
+		   ${PROJECT_NAME}/src/kf.cpp)
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} 
+				      ${Eigen3_LIBRARIES})
+						     
+install(TARGETS mapper
+  	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  	RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION})
 
-add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(${PROJECT_NAME}_node benchmark ${catkin_LIBRARIES} 
-					             ${OpenCV_LIBRARIES}
-						     ${Eigen3_LIBRARIES}
-						     ${edgetpu_cpp_LIBRARIES})
+install(DIRECTORY ${PROJECT_NAME}/src
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  PATTERN ".cpp" EXCLUDE
+)

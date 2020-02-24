@@ -16,14 +16,14 @@ const float PI  = 3.14159265359; /* (radians) */
 struct Parameters
 {
 	double h_fov;     /* Camera horizontal field of view (radians) */
-	double v_fov;     /* Camera vertical field of view (radians) */
+	double f_length;  /* Camera focal lenght (pixels) */
 	int    width;     /* Image width */
 	int    height;    /* Image height */
-	double min_score; /* Minimum trunk detection probability */
-	int    match_box; /* Local search matching box dimension */
+	double baseline;  /* Stereo baseline between cameras (meters) */
+	double delta_D;   /* Stereo matcher disparity error (pixels) */
+	double min_score; /* Trunk detector minimum thresold */
 
-	std::string image_right; /* right image ROS topic */
-	std::string image_left;  /* right image ROS topic */
+	std::string image_left;  /* left image ROS topic */
 	std::string image_depth; /* depth image ROS topic */
 	std::string odom_topic;  /* odometry ROS topic */
 	std::string model;       /* tflite model path */
@@ -31,15 +31,14 @@ struct Parameters
 
 	Parameters()
 	{
-		h_fov       = PI / 2;
-		v_fov       = PI / 2;
-		width       = 1280;
-		height      = 960;
-		min_score   = 0.5;
-		match_box   = 20;
+		f_length  = 0.1;
+		width     = 1280;
+		height    = 960;
+		min_score = 0.5;
+		delta_D   = 0.2;
+
 		model       = "";
 		labels      = "";
-		image_right = "";
 		image_left  = "";
 		image_depth = "";
 		odom_topic  = "";
@@ -242,8 +241,8 @@ template <typename T>
 struct Landmark
 {
 	Ellipse<double> stdev;
-	Point<T>      pos;
-	int           n_obsv;
+	Point<T>        pos;
+	int             n_obsv;
 
 	Landmark() {}
 
@@ -274,17 +273,17 @@ struct Particle
 	}
 };
 
-static std::vector<cv::Scalar>
-    colors = {cv::Scalar(137, 137, 0),   cv::Scalar(0, 137, 137),
-              cv::Scalar(137, 0, 137),   cv::Scalar(20, 165, 255),
-              cv::Scalar(137, 137, 137), cv::Scalar(70, 0, 0),
-              cv::Scalar(30, 20, 100),   cv::Scalar(10, 60, 200),
-              cv::Scalar(4, 100, 40),    cv::Scalar(200, 200, 20),
-              cv::Scalar(90, 170, 150),  cv::Scalar(150, 255, 255),
-              cv::Scalar(2, 30, 60),     cv::Scalar(30, 39, 100),
-              cv::Scalar(30, 50, 2),     cv::Scalar(200, 0, 30),
-              cv::Scalar(255, 0, 0),     cv::Scalar(0, 255, 0),
-              cv::Scalar(0, 50, 10)};
+static std::vector<cv::Scalar> colors = {
+    cv::Scalar(137, 137, 0),   cv::Scalar(0, 137, 137),
+    cv::Scalar(137, 0, 137),   cv::Scalar(20, 165, 255),
+    cv::Scalar(137, 137, 137), cv::Scalar(70, 0, 0),
+    cv::Scalar(30, 20, 100),   cv::Scalar(10, 60, 200),
+    cv::Scalar(4, 100, 40),    cv::Scalar(200, 200, 20),
+    cv::Scalar(90, 170, 150),  cv::Scalar(150, 255, 255),
+    cv::Scalar(2, 30, 60),     cv::Scalar(30, 39, 100),
+    cv::Scalar(30, 50, 2),     cv::Scalar(200, 0, 30),
+    cv::Scalar(255, 0, 0),     cv::Scalar(0, 255, 0),
+    cv::Scalar(0, 50, 10)};
 
 /* ----- operators ----- */
 
@@ -362,7 +361,17 @@ std::ostream& operator<<(std::ostream& o, const Pose<T>& p)
 template <typename T>
 std::ostream& operator<<(std::ostream& o, const Landmark<T>& l)
 {
-	o << "[x,y] = [" << l.pos.x << "," << l.pos.y << "]" << std::endl;
+	o << "[x,y]       = [" << l.pos.x << "," << l.pos.y << "]" << std::endl;
+	o << "[dx,dy,dth] = [" << l.stdev.std_x << "," << l.stdev.std_y << ","
+	  << l.stdev.th << "]" << std::endl;
+	return o;
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream& o, const Ellipse<T>& e)
+{
+	o << "[dx,dy,dth] = [" << e.std_x << "," << e.std_y << "," << e.th << "]"
+	  << std::endl;
 	return o;
 }
 

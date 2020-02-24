@@ -1,4 +1,3 @@
-//#include "../include/mapper/kf.hpp"
 #include "kf.hpp"
 
 KF::KF(const VectorXd& X0, const MatrixXd& P0, const Parameters& params)
@@ -8,31 +7,33 @@ KF::KF(const VectorXd& X0, const MatrixXd& P0, const Parameters& params)
 	R       = P0;
 }
 
-void KF::process(const VectorXd& s, const VectorXd& z, const VectorXd& pos)
+void KF::process(const VectorXd& s, const VectorXd& z)
 {
 	n_obsvs++;
 
-	computeR(s, z, pos);
+	computeR(s, z);
 	predict();
 	correct(s, z);
 }
 
-void KF::computeR(const VectorXd& s, const VectorXd& z, const VectorXd& pos)
+void KF::computeR(const VectorXd& s, const VectorXd& z)
 {
-	// Weight and scale values to compute the covariance
-	double alpha = 5;
-	double gamma = 0.1;
+	// Calculate observation (depth,bearing)
+	double d   = sqrt(pow(X[0] - s[0], 2) + pow(X[1] - s[1], 2));
+	double phi = atan2(X[1] - s[1], X[0] - s[0]) - s[2];
 
 	// Odometry travelled distance
-	double odom_std = sqrt(pow(pos[0], 2) + pow(pos[1], 2));
+	double odom_std = sqrt(pow(z[0], 2) + pow(z[1], 2));
 
 	// Compute the covariance observations matrix based on
 	// - the distance from the detected trunk to the robot
 	// - the travelled distance given by odometry
 	// - the number of observations of the landmark
-	R = MatrixXd(2, 2);
-	R << (alpha * (s[0] - pos[0]) + (1 - alpha) * gamma * odom_std) / n_obsvs, 0,
-	    0, (alpha * (s[1] - pos[1]) + (1 - alpha) * gamma * odom_std) / n_obsvs;
+	R       = MatrixXd(2, 2);
+	R(0, 0) = dispError(d) * std::fabs(cos(phi)) * (odom_std * 1.01);
+	R(1, 1) = dispError(d) * std::fabs(sin(phi)) * (odom_std * 1.01);
+	R(0, 1) = 0;
+	R(1, 0) = 0;
 }
 
 void KF::predict()
@@ -76,14 +77,24 @@ Point<double> KF::getState() const
 
 Ellipse<double> KF::getStdev() const
 {
-	Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eig(R);
+  std::cout << P << std::endl;
+	double a = P(0, 0);
+	double b = P(0, 1);
+	double c = P(1, 1);
 
-	const VectorXd& eig_values(eig.eigenvalues());
-	const MatrixXd& eig_vectors(eig.eigenvectors());
+	double lambda_1 = (a + c) / 2 + sqrt(pow(a - c, 2) + pow(b, 2));
+	double lambda_2 = (a + c) / 2 - sqrt(pow(a - c, 2) + pow(b, 2));
 
-	double th    = (atan2(eig_vectors(1, 0), eig_vectors(0, 0)));
-	double std_x = sqrt(eig_values[0]);
-	double std_y = sqrt(eig_values[1]);
+	double th;
+	if (b == 0 && a >= c)
+		th = 0;
+	else if (b == 0 && a < c)
+		th = PI / 2;
+	else
+		th = atan2(lambda_1 - a, b);
+
+  double std_x = sqrt(lambda_1);
+  double std_y = sqrt(std::fabs(lambda_2));
 
 	return Ellipse<double>(std_x, std_y, th);
 }

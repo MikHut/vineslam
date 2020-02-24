@@ -71,7 +71,7 @@ void Detector::odomListener(const nav_msgs::OdometryConstPtr& msg)
 }
 
 void Detector::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
-                           const sensor_msgs::ImageConstPtr& msg_depth)
+                             const sensor_msgs::ImageConstPtr& msg_depth)
 {
 #ifdef DEBUG
 	cv::Mat left_bboxes =
@@ -165,8 +165,8 @@ Detector::detect(const sensor_msgs::ImageConstPtr& msg)
 }
 
 double Detector::computeDepth(const sensor_msgs::Image& depth_img,
-                            const int& xmin, const int& ymin, const int& xmax,
-                            const int& ymax)
+                              const int& xmin, const int& ymin, const int& xmax,
+                              const int& ymax)
 {
 	float* depths = (float*)(&(depth_img).data[0]);
 

@@ -16,7 +16,7 @@ public:
   //   and the parameters
 	KF(const VectorXd& X0, const MatrixXd& P0, const Parameters& params);
   // Function that processes all the Kalman Filter routines
-	void process(const VectorXd& s, const VectorXd& z, const VectorXd& pos);
+	void process(const VectorXd& s, const VectorXd& z);
   // Function that outputs the current state of the Kalman Filter
 	Point<double> getState() const;
   // Function that outputs the current standard deviation of the 
@@ -31,7 +31,7 @@ private:
   // Function that implements the update step of the Kalman Filter
 	void correct(const VectorXd& s, const VectorXd& z);
   // Function that calculates the current observations covariance matrix
-	void computeR(const VectorXd& s, const VectorXd& z, const VectorXd& pos);
+	void computeR(const VectorXd& s, const VectorXd& z);
 
 	Parameters params;
 
@@ -48,5 +48,10 @@ private:
 	double normalizeAngle(const double& angle)
 	{
 		return (std::fmod(angle + PI, 2 * PI) - PI);
+	}
+	// Calculates the disparity error using the disparity noise model
+	double dispError(const double& depth)
+	{
+		return pow(depth, 2) / (params.baseline * params.f_length) * params.delta_D;
 	}
 };

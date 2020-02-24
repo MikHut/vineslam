@@ -104,16 +104,17 @@ private:
 	// Load all the parameters of the ROS node
 	void loadParameters(const ros::NodeHandle& local_nh)
 	{
-		local_nh.getParam("/detector/image_left", (*params).image_left);
-		local_nh.getParam("/detector/image_right", (*params).image_right);
-		local_nh.getParam("/detector/image_depth", (*params).image_depth);
-		local_nh.getParam("/detector/odom_topic", (*params).odom_topic);
-		local_nh.getParam("/detector/h_fov", (*params).h_fov);
-		local_nh.getParam("/detector/v_fov", (*params).v_fov);
+		local_nh.getParam("/detector/focal_length", (*params).f_length);
+		local_nh.getParam("/detector/baseline", (*params).baseline);
 		local_nh.getParam("/detector/img_width", (*params).width);
 		local_nh.getParam("/detector/img_height", (*params).height);
-		local_nh.getParam("/detector/match_box", (*params).match_box);
 		local_nh.getParam("/detector/detector_th", (*params).min_score);
+		local_nh.getParam("/detector/disp_error", (*params).delta_D);
+    local_nh.getParam("/detector/h_fov", (*params).h_fov);
+
+		local_nh.getParam("/detector/image_left", (*params).image_left);
+		local_nh.getParam("/detector/image_depth", (*params).image_depth);
+		local_nh.getParam("/detector/odom_topic", (*params).odom_topic);
 		local_nh.getParam("/detector/model_path", (*params).model);
 		local_nh.getParam("/detector/labels_path", (*params).labels);
 	}

@@ -2,34 +2,37 @@
 
 Mapper::Mapper(const Parameters& params) : params(params) {}
 
-void Mapper::init(const Pose<double>&        odom,
-                     const std::vector<double>& bearings,
-                     const std::vector<double>& depths)
+void Mapper::init(const Pose<double>& odom, const std::vector<double>& bearings,
+                  const std::vector<double>& depths)
 {
-	int    n_obsv = bearings.size();
-	double s      = 0.1;
+	int n_obsv = bearings.size();
 
 	// Compute initial covariance matrix
 	// - proportional to the odometry signal and the distance to the robot
 	for (int i = 0; i < n_obsv; i++) {
-		Eigen::MatrixXd P0(2, 2);
-		Eigen::VectorXd X0(2, 1);
+		Eigen::MatrixXd P(2, 2);
 
 		double th = bearings[i] + odom.theta;
 
 		// Calculate
 		// - the initial estimation of the landmark
 		// - the initial covariance of the landmark
-		X0 << odom.pos.x + depths[i] * cos(th), odom.pos.y + depths[i] * sin(th);
-		P0 << s * (X0[0] - odom.pos.x), 0, 0, s * (X0[1] - odom.pos.y);
+		Point<double> X(odom.pos.x + depths[i] * cos(th),
+		                odom.pos.y + depths[i] * sin(th));
+		P(0, 0) = dispError(depths[i]) * std::fabs(cos(bearings[i]));
+		P(1, 1) = dispError(depths[i]) * std::fabs(sin(bearings[i]));
+		/* P(0, 1) = 0; */
+		/* P(1, 0) = 0; */
+		P(0, 1) = tan(bearings[i]);
+		P(1, 0) = tan(bearings[i]);
 
 		// Push back a Kalman Filter object for the respective landmark
-		KF kf(X0, P0, params);
+		KF kf(X.eig(), P, params);
 		filters.push_back(kf);
 
 		// Insert the landmark on the map, with a single observation
 		// and get the correspondent standard deviation
-		Point<double>   pos(X0[0], X0[1]);
+		Point<double>   pos(X.x, X.y);
 		Ellipse<double> std = filters[filters.size() - 1].getStdev();
 		if (map.empty() == 0)
 			map[map.rbegin()->first + 1] = Landmark<double>(pos, std);
@@ -43,41 +46,47 @@ void Mapper::init(const Pose<double>&        odom,
 }
 
 void Mapper::process(const Pose<double>&        odom,
-                        const std::vector<double>& bearings,
-                        const std::vector<double>& depths)
+                     const std::vector<double>& bearings,
+                     const std::vector<double>& depths)
 {
 	predict(odom, bearings, depths);
 }
 
 void Mapper::predict(const Pose<double>&        odom,
-                        const std::vector<double>& bearings,
-                        const std::vector<double>& depths)
+                     const std::vector<double>& bearings,
+                     const std::vector<double>& depths)
 {
-	int    n_obsv   = bearings.size();
-	double s        = 0.1;
-	double alpha    = 0.5;
-	double odom_std = sqrt(pow(odom.pos.x, 2) + pow(odom.pos.y, 2));
+	int           n_obsv   = bearings.size();
+	double        k        = 0.03;
+	double        a        = 0.5;
+	double        odom_std = sqrt(pow(odom.pos.x, 2) + pow(odom.pos.y, 2));
+	Point<double> odom_pos = odom.pos;
 
 	for (int i = 0; i < n_obsv; i++) {
 		// Calculate the landmark position based on the ith observation
 		double        th = bearings[i] + odom.theta;
-		Point<double> X(odom.pos.x + depths[i] * cos(th),
-		                odom.pos.y + depths[i] * sin(th));
+		Point<double> X(odom_pos.x + depths[i] * cos(th),
+		                odom_pos.y + depths[i] * sin(th));
 
 		// Check if the landmark already exists in the map
 		int landmark_id = findCorr(X);
 		// If not, initialize the landmark on the map, as well as the
 		// correspondent Kalman Filter
 		if (landmark_id < 0) {
-			Eigen::MatrixXd P0(2, 2);
-			Eigen::VectorXd X0(2, 1);
+			Eigen::MatrixXd P(2, 2);
 
 			// Calculate the initial covariance
-			P0 << alpha * s * (X0[0] - odom.pos.x) + (1 - alpha) * s * odom_std, 0, 0,
-			    alpha * s * (X0[1] - odom.pos.y) + (1 - alpha) * s * odom_std;
+			P(0, 0) = dispError(depths[i]) * std::fabs(cos(bearings[i])) *
+			          (odom_std * 1.01);
+			P(1, 1) = dispError(depths[i]) * std::fabs(sin(bearings[i])) *
+			          (odom_std * 1.01);
+			/* P(0, 1) = 0; */
+			/* P(1, 0) = 0; */
+			P(0, 1) = tan(bearings[i]);
+			P(1, 0) = tan(bearings[i]);
 
 			// Initialize the Kalman Filter
-			KF kf(X.eig(), P0, params);
+			KF kf(X.eig(), P, params);
 			filters.push_back(kf);
 
 			// Insert the landmark on the map, with a single observation
@@ -92,15 +101,15 @@ void Mapper::predict(const Pose<double>&        odom,
 			z << depths[i], bearings[i];
 
 			// Invocate the Kalman Filter
-			Point<double> odom_pos;
-			filters[landmark_id - 1].process(X.eig(), z, odom_pos.eig());
+			filters[landmark_id - 1].process(odom_pos.eig(), z);
 			// Get the state vector and the standard deviation associated
 			// with the estimation
 			Point<double>   X_out = filters[landmark_id - 1].getState();
-			Ellipse<double> std   = filters[landmark_id - 1].getStdev();
+			Ellipse<double> stdev = filters[landmark_id - 1].getStdev();
+			std::cout << stdev << std::endl;
 
 			// Update the estimation on the map
-			map[landmark_id] = Landmark<double>(X_out, std);
+			map[landmark_id] = Landmark<double>(X_out, stdev);
 		}
 	}
 }
@@ -114,7 +123,7 @@ int Mapper::findCorr(const Point<double>& pos)
 		double        dist = p.euc_dist(pos);
 
 		// Return the id of the landmark, if a correspondence is found
-		if (dist < 0.1)
+		if (dist < 0.3)
 			return m_map.first;
 		else
 			continue;

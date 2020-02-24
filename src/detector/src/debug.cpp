@@ -4,6 +4,8 @@ void Detector::publishMap(const std_msgs::Header& header)
 {
 	visualization_msgs::MarkerArray marker_array;
 	visualization_msgs::Marker      marker;
+	visualization_msgs::MarkerArray ellipse_array;
+	visualization_msgs::Marker      ellipse;
 
 	// Define marker layout
 	marker.ns                 = "/markers";
@@ -22,8 +24,22 @@ void Detector::publishMap(const std_msgs::Header& header)
 	marker.color.a            = 1.0;
 	marker.lifetime           = ros::Duration();
 
+	// Define marker layout
+	ellipse.ns                 = "/ellipses";
+	ellipse.type               = visualization_msgs::Marker::CYLINDER;
+	ellipse.action             = visualization_msgs::Marker::ADD;
+	ellipse.scale.z            = 0.01f;
+	ellipse.pose.orientation.x = 0.0f;
+	ellipse.pose.orientation.y = 0.0f;
+	ellipse.color.r            = 1.0f;
+	ellipse.color.g            = 1.0f;
+	ellipse.color.b            = 0.0f;
+	ellipse.color.a            = 1.0f;
+	ellipse.lifetime           = ros::Duration();
+
 	// Publish markers
 	for (auto m_map : map) {
+		// Draw landmark mean
 		marker.id              = m_map.first;
 		marker.header          = header;
 		marker.header.frame_id = "map";
@@ -32,13 +48,29 @@ void Detector::publishMap(const std_msgs::Header& header)
 		marker.pose.position.z = 0;
 
 		marker_array.markers.push_back(marker);
+
+		// Draw landmark standard deviation
+		ellipse.id                 = m_map.first;
+		ellipse.header             = header;
+		ellipse.header.frame_id    = "map";
+		ellipse.pose.position.x    = m_map.second.pos.x;
+		ellipse.pose.position.y    = m_map.second.pos.y;
+		ellipse.pose.position.z    = 0;
+		ellipse.pose.orientation.w = cos(m_map.second.stdev.th * 0.5);
+		ellipse.pose.orientation.z = sin(m_map.second.stdev.th * 0.5);
+		ellipse.scale.x            = m_map.second.stdev.std_x;
+		ellipse.scale.y            = m_map.second.stdev.std_y;
+
+		ellipse_array.markers.push_back(ellipse);
 	}
 
 	map_publisher.publish(marker_array);
+	map_publisher.publish(ellipse_array);
 }
 
-void Detector::showBBoxes(const sensor_msgs::ImageConstPtr& msg, cv::Mat& bboxes,
-                        const std::vector<coral::DetectionCandidate>& res)
+void Detector::showBBoxes(const sensor_msgs::ImageConstPtr&             msg,
+                          cv::Mat&                                      bboxes,
+                          const std::vector<coral::DetectionCandidate>& res)
 {
 	std::vector<Point<double>> trunk_pos;
 	for (auto result : res) {

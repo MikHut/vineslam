@@ -11,11 +11,7 @@
 #include <message_filters/sync_policies/exact_time.h>
 #include <message_filters/synchronizer.h>
 #include <nav_msgs/Odometry.h>
-#include <opencv2/features2d.hpp>
 #include <ros/ros.h>
-#include <sensor_msgs/PointCloud.h>
-#include <std_msgs/UInt32MultiArray.h>
-#include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
 #include <visualization_msgs/MarkerArray.h>
 
@@ -68,9 +64,6 @@ private:
 
 #ifdef DEBUG
 	// DEBUG method
-	// - Publishes an image showing the matching of trunks between two images
-	void showMatching(cv::Mat l_img, cv::Mat r_img);
-	// DEBUG method
 	// - Publishes and image showing the detection bounding boxes
 	void showBBoxes(const sensor_msgs::ImageConstPtr& msg, cv::Mat& bboxes,
 	                const std::vector<coral::DetectionCandidate>& res);
@@ -78,7 +71,6 @@ private:
 	cv::Mat p_image;
 	cv::Mat c_image;
 
-	image_transport::Publisher matches_publisher;
 	image_transport::Publisher l_img_publisher;
 	image_transport::Publisher r_img_publisher;
 #endif
@@ -87,7 +79,6 @@ private:
 
 	bool init;
 
-	std::vector<Match<double>>      matches;
 	std::map<int, Landmark<double>> map;
 
 	Pose<double>       first_odom;
@@ -110,12 +101,43 @@ private:
 		local_nh.getParam("/detector/img_height", (*params).height);
 		local_nh.getParam("/detector/detector_th", (*params).min_score);
 		local_nh.getParam("/detector/disp_error", (*params).delta_D);
-    local_nh.getParam("/detector/h_fov", (*params).h_fov);
+		local_nh.getParam("/detector/h_fov", (*params).h_fov);
 
 		local_nh.getParam("/detector/image_left", (*params).image_left);
 		local_nh.getParam("/detector/image_depth", (*params).image_depth);
 		local_nh.getParam("/detector/odom_topic", (*params).odom_topic);
 		local_nh.getParam("/detector/model_path", (*params).model);
 		local_nh.getParam("/detector/labels_path", (*params).labels);
+	}
+
+	// Initialize semantic information of feature to give
+	// to the mapper class
+	SemanticInfo fillSemanticInfo(const int& label)
+	{
+		SemanticInfo s;
+		std::string  type;
+		std::string  desc;
+		int          ch;
+
+		switch (label) {
+		case 0:
+			type = "Trunk";
+			desc = "Vine trunk. A static landmark";
+			ch   = 0;
+
+			s = SemanticInfo(type, desc, ch);
+			break;
+		case 1:
+			type = "Leaf";
+			desc = "Leaf from a vine trunk. A dynamic landmark";
+			ch   = 1;
+
+			s = SemanticInfo(type, desc, ch);
+			break;
+		default:
+			s = SemanticInfo("Trunk", "Vine trunk", 0);
+		}
+
+		return s;
 	}
 };

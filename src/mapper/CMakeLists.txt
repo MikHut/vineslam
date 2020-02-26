@@ -21,6 +21,7 @@ include_directories(
 
 add_library(mapper ${PROJECT_NAME}/src/mapper.cpp
 		   ${PROJECT_NAME}/src/kf.cpp)
+
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} 
 				      ${Eigen3_LIBRARIES})
 						     

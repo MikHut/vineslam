@@ -78,8 +78,9 @@ void Detector::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
 	    cv_bridge::toCvShare(msg_left, sensor_msgs::image_encodings::BGR8)->image;
 #endif
 
-	std::vector<double> bearings;
-	std::vector<double> depths;
+	std::vector<double>       bearings;
+	std::vector<double>       depths;
+	std::vector<SemanticInfo> info;
 
 	if ((*msg_left).header.stamp == (*msg_depth).header.stamp) {
 		std::vector<coral::DetectionCandidate> left_res = detect(msg_left);
@@ -101,6 +102,7 @@ void Detector::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
 
 			bearings.push_back(columnToTheta(tmp.x));
 			depths.push_back(depth);
+			info.push_back(fillSemanticInfo(result.label));
 
 #ifdef DEBUG
 			if (depth > 0) {
@@ -114,12 +116,12 @@ void Detector::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
 		if (init == true && bearings.size() > 1) {
 			// Initialize the map mapper
 			first_odom = odom;
-			(*mapper).init(odom - first_odom, bearings, depths);
+			(*mapper).init(odom - first_odom, bearings, depths, info);
 			init = false;
 		}
 		else {
 			// Execute the map estimation
-			(*mapper).process(odom - first_odom, bearings, depths);
+			(*mapper).process(odom - first_odom, bearings, depths, info);
 			// Get the curretn map
 			map = (*mapper).getMap();
 			// Publish the map

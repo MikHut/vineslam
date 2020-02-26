@@ -3,7 +3,8 @@
 Mapper::Mapper(const Parameters& params) : params(params) {}
 
 void Mapper::init(const Pose<double>& odom, const std::vector<double>& bearings,
-                  const std::vector<double>& depths)
+                  const std::vector<double>&       depths,
+                  const std::vector<SemanticInfo>& info)
 {
 	int           n_obsv   = bearings.size();
 	Point<double> odom_pos = odom.pos;
@@ -36,26 +37,26 @@ void Mapper::init(const Pose<double>& odom, const std::vector<double>& bearings,
 		Point<double>   pos(X.x, X.y);
 		Ellipse<double> std = filters[filters.size() - 1].getStdev();
 		if (map.empty() == 0)
-			map[map.rbegin()->first + 1] = Landmark<double>(pos, std);
+			map[map.rbegin()->first + 1] = Landmark<double>(pos, std, info[i]);
 		else
 			map[1] = Landmark<double>(pos, std);
 	}
 
 	ROS_INFO("Map initialized with the following landmarks:");
-	for (auto m_map : map)
-		std::cout << " ---> " << m_map.first << " - " << m_map.second;
 }
 
 void Mapper::process(const Pose<double>&        odom,
                      const std::vector<double>& bearings,
-                     const std::vector<double>& depths)
+                     const std::vector<double>& depths,
+                     const std::vector<SemanticInfo>& info)
 {
-	predict(odom, bearings, depths);
+	predict(odom, bearings, depths, info);
 }
 
-void Mapper::predict(const Pose<double>&        odom,
-                     const std::vector<double>& bearings,
-                     const std::vector<double>& depths)
+void Mapper::predict(const Pose<double>&              odom,
+                     const std::vector<double>&       bearings,
+                     const std::vector<double>&       depths,
+                     const std::vector<SemanticInfo>& info)
 {
 	int           n_obsv   = bearings.size();
 	double        k        = 0.03;
@@ -93,7 +94,7 @@ void Mapper::predict(const Pose<double>&        odom,
 
 			// Insert the landmark on the map, with a single observation
 			Ellipse<double> std          = filters[filters.size() - 1].getStdev();
-			map[map.rbegin()->first + 1] = Landmark<double>(X, std);
+			map[map.rbegin()->first + 1] = Landmark<double>(X, std, info[i]);
 		}
 		// If so, update the landmark position estimation using a Kalman
 		// Filter call
@@ -106,7 +107,7 @@ void Mapper::predict(const Pose<double>&        odom,
 			Ellipse<double> stdev = filters[landmark_id - 1].getStdev();
 
 			// Update the estimation on the map
-			map[landmark_id] = Landmark<double>(X_out, stdev);
+			map[landmark_id] = Landmark<double>(X_out, stdev, info[i]);
 		}
 	}
 }
@@ -115,8 +116,8 @@ int Mapper::findCorr(const Point<double>& l_pos, const Point<double>& r_pos)
 {
 	for (auto m_map : map) {
 		// Compute the x distance between the two landmarks and
-    // check if the observation and the landmark on the map
-    // are on the same same of the corridor
+		// check if the observation and the landmark on the map
+		// are on the same same of the corridor
 		double dist_x = l_pos.x - m_map.second.pos.x;
 		double max_x  = 3 * m_map.second.stdev.std_x;
 		double side   = (r_pos.y - l_pos.y) * (r_pos.y - m_map.second.pos.y);

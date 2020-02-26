@@ -111,116 +111,6 @@ struct Pose
 };
 
 template <typename T>
-struct Line
-{
-	/* ax + by = c */
-	T a;
-	T b;
-	T c;
-
-	Point<T> p1;
-	Point<T> p2;
-
-	Line() {}
-
-	Line(const Point<T>& p1, const Point<T>& p2)
-	{
-		a = p2.y - p1.y;
-		b = p1.x - p2.x;
-		c = a * p1.x + b * p1.y;
-
-		(*this).p1 = p1;
-		(*this).p2 = p2;
-	}
-
-	Line(const std::vector<Point<T>>& pts)
-	{
-		if (pts.size() < 2)
-			return;
-
-		p1 = pts[0];
-		p2 = pts[pts.size() - 1];
-
-		T X  = 0;
-		T Y  = 0;
-		T XY = 0;
-		T X2 = 0;
-		T Y2 = 0;
-
-		for (size_t i = 0; i < pts.size(); i++) {
-			X += pts[i].x;
-			Y += pts[i].y;
-			XY += pts[i].x * pts[i].y;
-			X2 += pts[i].x * pts[i].x;
-			Y2 += pts[i].y * pts[i].y;
-		}
-
-		X /= pts.size();
-		Y /= pts.size();
-		XY /= pts.size();
-		X2 /= pts.size();
-		Y2 /= pts.size();
-
-		a = -(XY - X * Y);
-
-		T Bx = X2 - X * X;
-		T By = Y2 - Y * Y;
-
-		if (std::fabs(Bx) < std::fabs(By)) {
-			b = By;
-			std::swap(b, a);
-		}
-		else
-			b = Bx;
-
-		c = (a * X + b * Y);
-	}
-
-	Point<T> intercept(const Line<T>& l2)
-	{
-		Line<T> l1  = *this;
-		double  det = l1.a * l2.b - l2.a * l1.b;
-
-		if (std::fabs(det) < 1e-3)
-			return Point<T>(INF, INF);
-		else {
-			double x = (l2.b * l1.c - l1.b * l2.c) / det;
-			double y = (l1.a * l2.c - l2.a * l1.c) / det;
-
-			return Point<T>(x, y);
-		}
-	}
-
-	double getY(double x) { return (c - a * x) / b; }
-
-	double dist(const Point<double>& p)
-	{
-		double den = sqrt((a * a + b * b));
-		return std::fabs(a * p.x + b * p.y - c) / den;
-	}
-};
-
-template <typename T>
-struct Match
-{
-	Point<T> l_pos;
-	Point<T> r_pos;
-	Line<T>  l_line;
-	Line<T>  r_line;
-
-	Match() {}
-
-	Match(const Point<T>& l, const Point<T>& r, const Line<T>& l_line,
-	      const Line<T>& r_line)
-	{
-		(*this).l_pos  = Point<T>(l);
-		(*this).r_pos  = Point<T>(r);
-		(*this).l_line = l_line;
-		(*this).r_line = r_line;
-	}
-};
-
-template <typename T>
 struct Ellipse
 {
 	T std_x;
@@ -237,42 +127,7 @@ struct Ellipse
 	}
 };
 
-template <typename T>
-struct Landmark
-{
-	Ellipse<double> stdev;
-	Point<T>        pos;
-	int             n_obsv;
-
-	Landmark() {}
-
-	Landmark(const Point<T>& pos, const Ellipse<double>& stdev)
-	{
-		(*this).pos    = pos;
-		(*this).stdev  = stdev;
-		(*this).n_obsv = 1;
-	}
-};
-
-template <typename T>
-struct Particle
-{
-	int    id;
-	double dy;
-	double w;
-	double cov;
-	double dist;
-
-	Particle() {}
-
-	Particle(const int& id, const double& dy)
-	{
-		(*this).id = id;
-		(*this).dy = dy;
-		(*this).w  = 1;
-	}
-};
-
+// Array of cv colors
 static std::vector<cv::Scalar> colors = {
     cv::Scalar(137, 137, 0),   cv::Scalar(0, 137, 137),
     cv::Scalar(137, 0, 137),   cv::Scalar(20, 165, 255),
@@ -285,7 +140,7 @@ static std::vector<cv::Scalar> colors = {
     cv::Scalar(255, 0, 0),     cv::Scalar(0, 255, 0),
     cv::Scalar(0, 50, 10)};
 
-/* ----- operators ----- */
+// Overloading operators
 
 template <typename T1, typename T2>
 Point<T1> operator+(const Point<T1>& p1, const Point<T2>& p2)
@@ -336,13 +191,6 @@ std::ostream& operator<<(std::ostream& o, const Point<T>& pt)
 	return o;
 }
 
-template <typename T>
-std::ostream& operator<<(std::ostream& o, const Line<T>& l)
-{
-	o << l.a << " * x + " << l.b << " * y = " << l.c << std::endl;
-	return o;
-}
-
 template <typename T1, typename T2>
 Pose<T1> operator-(const Pose<T1>& p1, const Pose<T2>& p2)
 {
@@ -359,26 +207,9 @@ std::ostream& operator<<(std::ostream& o, const Pose<T>& p)
 }
 
 template <typename T>
-std::ostream& operator<<(std::ostream& o, const Landmark<T>& l)
-{
-	o << "[x,y]       = [" << l.pos.x << "," << l.pos.y << "]" << std::endl;
-	o << "[dx,dy,dth] = [" << l.stdev.std_x << "," << l.stdev.std_y << ","
-	  << l.stdev.th << "]" << std::endl;
-	return o;
-}
-
-template <typename T>
 std::ostream& operator<<(std::ostream& o, const Ellipse<T>& e)
 {
 	o << "[dx,dy,dth] = [" << e.std_x << "," << e.std_y << "," << e.th << "]"
 	  << std::endl;
-	return o;
-}
-
-template <typename T>
-std::ostream& operator<<(std::ostream& o, const Particle<T>& p)
-{
-	o << "[id,dy,w,cov] = [" << p.id << "," << p.dy << "," << p.w << "," << p.cov
-	  << "]" << std::endl;
 	return o;
 }

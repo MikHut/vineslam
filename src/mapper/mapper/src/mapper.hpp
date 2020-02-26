@@ -42,7 +42,7 @@ private:
 
 	// Searches from correspondences between observations and landmarks
 	// already mapped
-	int findCorr(const Point<double>& pos);
+	int findCorr(const Point<double>& l_pos, const Point<double>& r_pos);
 	// Calculates the disparity error using the disparity noise model
 	double dispError(const double& depth)
 	{

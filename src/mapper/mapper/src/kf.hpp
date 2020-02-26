@@ -11,26 +11,27 @@ class KF
 {
 public:
 	KF(){};
-  // Class constructor
-  // - Receives the initial state, the initial covariance matrix, 
-  //   and the parameters
-	KF(const VectorXd& X0, const MatrixXd& P0, const Parameters& params);
-  // Function that processes all the Kalman Filter routines
+	// Class constructor
+	// - Receives the initial state and the parameters
+  // - initializes the covariance matrix
+	KF(const VectorXd& X0, const VectorXd& s, const VectorXd& z,
+	   const MatrixXd& R, const Parameters& params);
+	// Function that processes all the Kalman Filter routines
 	void process(const VectorXd& s, const VectorXd& z);
-  // Function that outputs the current state of the Kalman Filter
+	// Function that outputs the current state of the Kalman Filter
 	Point<double> getState() const;
-  // Function that outputs the current standard deviation of the 
-  // Kalman Filter
-  Ellipse<double> getStdev() const;
+	// Function that outputs the current standard deviation of the
+	// Kalman Filter
+	Ellipse<double> getStdev() const;
 
 	MatrixXd P;
 
 private:
-  // Function that implements the prediction step of the Kalman Filter
+	// Function that implements the prediction step of the Kalman Filter
 	void predict();
-  // Function that implements the update step of the Kalman Filter
+	// Function that implements the update step of the Kalman Filter
 	void correct(const VectorXd& s, const VectorXd& z);
-  // Function that calculates the current observations covariance matrix
+	// Function that calculates the current observations covariance matrix
 	void computeR(const VectorXd& s, const VectorXd& z);
 
 	Parameters params;
@@ -41,8 +42,8 @@ private:
 	MatrixXd K;
 	MatrixXd R;
 
-  // Number of observations of the landmark considered in the KF object
-  int n_obsvs;
+	// Number of observations of the landmark considered in the KF object
+	int n_obsvs;
 
 	// Auxiliar funcion that normalizes an angle in the [-pi,pi] range
 	double normalizeAngle(const double& angle)

@@ -1,10 +1,20 @@
 #include "kf.hpp"
 
-KF::KF(const VectorXd& X0, const MatrixXd& P0, const Parameters& params)
-    : X(X0), X0(X0), P(P0), params(params)
+KF::KF(const VectorXd& X0, const VectorXd& s, const VectorXd& z,
+       const MatrixXd& R, const Parameters& params)
+    : X0(X0), X(X0), R(R), params(params)
 {
-	n_obsvs = 1;
-	R       = P0;
+	// Apply the observation model using the current state vector
+	double d   = sqrt(pow(X[0] - s[0], 2) + pow(X[1] - s[1], 2));
+	double phi = atan2(X[1] - s[1], X[0] - s[0]) - s[2];
+
+	// Compute the Jacobian of the non linear observation vector
+	MatrixXd G(2, 2);
+	G << (X[0] - s[0]) / d, +(X[1] - s[1]) / d, -(X[1] - s[1]) / pow(d, 2),
+	    (X[0] - s[0]) / pow(d, 2);
+
+	// Initialize the process covariance P
+	P = G.inverse() * R * (G.inverse()).transpose();
 }
 
 void KF::process(const VectorXd& s, const VectorXd& z)
@@ -77,13 +87,12 @@ Point<double> KF::getState() const
 
 Ellipse<double> KF::getStdev() const
 {
-  std::cout << P << std::endl;
 	double a = P(0, 0);
 	double b = P(0, 1);
 	double c = P(1, 1);
 
-	double lambda_1 = (a + c) / 2 + sqrt(pow(a - c, 2) + pow(b, 2));
-	double lambda_2 = (a + c) / 2 - sqrt(pow(a - c, 2) + pow(b, 2));
+	double lambda_1 = (a + c) / 2 + sqrt(pow((a - c) / 2, 2) + pow(b, 2));
+	double lambda_2 = (a + c) / 2 - sqrt(pow((a - c) / 2, 2) + pow(b, 2));
 
 	double th;
 	if (b == 0 && a >= c)
@@ -93,8 +102,8 @@ Ellipse<double> KF::getStdev() const
 	else
 		th = atan2(lambda_1 - a, b);
 
-  double std_x = sqrt(lambda_1);
-  double std_y = sqrt(std::fabs(lambda_2));
+	double std_x = sqrt(lambda_1);
+	double std_y = sqrt(lambda_2);
 
 	return Ellipse<double>(std_x, std_y, th);
 }

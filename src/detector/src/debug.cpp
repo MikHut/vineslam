@@ -50,16 +50,21 @@ void Detector::publishMap(const std_msgs::Header& header)
 		marker_array.markers.push_back(marker);
 
 		// Draw landmark standard deviation
+		tf2::Quaternion q;
+		q.setRPY(0, 0, m_map.second.stdev.th * 0.5);
+
 		ellipse.id                 = m_map.first;
 		ellipse.header             = header;
 		ellipse.header.frame_id    = "map";
 		ellipse.pose.position.x    = m_map.second.pos.x;
 		ellipse.pose.position.y    = m_map.second.pos.y;
 		ellipse.pose.position.z    = 0;
-		ellipse.pose.orientation.w = cos(m_map.second.stdev.th * 0.5);
-		ellipse.pose.orientation.z = sin(m_map.second.stdev.th * 0.5);
 		ellipse.scale.x            = m_map.second.stdev.std_x;
 		ellipse.scale.y            = m_map.second.stdev.std_y;
+		ellipse.pose.orientation.x = q.x();
+		ellipse.pose.orientation.y = q.y();
+		ellipse.pose.orientation.z = q.z();
+		ellipse.pose.orientation.w = q.w();
 
 		ellipse_array.markers.push_back(ellipse);
 	}

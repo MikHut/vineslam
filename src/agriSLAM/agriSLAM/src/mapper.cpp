@@ -19,7 +19,7 @@ void Mapper::init(const Pose<double>& odom, const std::vector<double>& bearings,
 		// Calculate
 		// - the initial estimation of the landmark
 		// - the initial observation covariance of the landmark
-		double          th = bearings[i] + odom.theta;
+		double          th = bearings[i] + odom.yaw;
 		Point<double>   X(odom.pos.x + depths[i] * cos(th),
                     odom.pos.y + depths[i] * sin(th));
 		Eigen::MatrixXd R(2, 2);
@@ -29,7 +29,7 @@ void Mapper::init(const Pose<double>& odom, const std::vector<double>& bearings,
 		R(1, 0) = 0;
 
 		// Push back a Kalman Filter object for the respective landmark
-		KF kf(X.eig(), odom_pos.eig(), z, R, params);
+		KF kf(X.eig_2d(), odom_pos.eig_2d(), z, R, params);
 		filters.push_back(kf);
 
 		// Insert the landmark on the map, with a single observation
@@ -66,7 +66,7 @@ void Mapper::predict(const Pose<double>&              odom,
 
 	for (int i = 0; i < n_obsv; i++) {
 		// Calculate the landmark position based on the ith observation
-		double        th = bearings[i] + odom.theta;
+		double        th = bearings[i] + odom.yaw;
 		Point<double> X(odom_pos.x + depths[i] * cos(th),
 		                odom_pos.y + depths[i] * sin(th));
 		// Construct the observations vector
@@ -89,7 +89,7 @@ void Mapper::predict(const Pose<double>&              odom,
 			R(1, 0) = 0;
 
 			// Initialize the Kalman Filter
-			KF kf(X.eig(), odom_pos.eig(), z, R, params);
+			KF kf(X.eig_2d(), odom_pos.eig_2d(), z, R, params);
 			filters.push_back(kf);
 
 			// Insert the landmark on the map, with a single observation
@@ -100,7 +100,7 @@ void Mapper::predict(const Pose<double>&              odom,
 		// Filter call
 		else {
 			// Invocate the Kalman Filter
-			filters[landmark_id - 1].process(odom_pos.eig(), z);
+			filters[landmark_id - 1].process(odom_pos.eig_2d(), z);
 			// Get the state vector and the standard deviation associated
 			// with the estimation
 			Point<double>   X_out = filters[landmark_id - 1].getState();

@@ -5,7 +5,7 @@ add_definitions(-DDEBUG)
 add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED
-		    mapper
+		    agriSLAM
 		    edgetpu_cpp 
 		    roscpp
                     std_msgs

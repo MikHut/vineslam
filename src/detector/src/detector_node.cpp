@@ -65,7 +65,7 @@ void Detector::odomListener(const nav_msgs::OdometryConstPtr& msg)
 
 	odom.pos.x = (*msg).pose.pose.position.x;
 	odom.pos.y = (*msg).pose.pose.position.y;
-	odom.theta = yaw;
+	odom.yaw   = yaw;
 
 	odom_ = *msg;
 }

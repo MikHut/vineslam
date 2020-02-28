@@ -33,8 +33,9 @@ Detector::Detector(int argc, char** argv)
 #endif
 	map_publisher = n.advertise<visualization_msgs::MarkerArray>("/map", 1);
 
-	// declarate Mapper object
-	mapper = new Mapper(*params);
+	// declarate Mapper and Localizer objects
+	localizer = new Localizer(*params);
+	mapper    = new Mapper(*params);
 
 	// load NN model and labels file
 	ROS_INFO("Loading NN model and label files");
@@ -105,6 +106,7 @@ void Detector::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
 			info.push_back(fillSemanticInfo(result.label));
 
 #ifdef DEBUG
+			// Draw depths on debug detection image
 			if (depth > 0) {
 				std::string s = boost::lexical_cast<std::string>(depth);
 				cv::putText(left_bboxes, s, cv::Point((xmin + xmax) / 2, ymin - 10),
@@ -114,14 +116,23 @@ void Detector::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
 		}
 
 		if (init == true && bearings.size() > 1) {
-			// Initialize the map mapper
+			// Initialize the localizer and the mapper
 			first_odom = odom;
+			(*localizer).init(odom - first_odom);
 			(*mapper).init(odom - first_odom, bearings, depths, info);
+			map  = (*mapper).getMap();
 			init = false;
 		}
 		else {
+			// Execute the localization procedure
+			(*localizer).process(odom - first_odom, bearings, depths, map);
+			Pose<double>             robot_pose = (*localizer).getPose();
+			geometry_msgs::PoseArray poses      = (*localizer).getPoseArray();
+			tf::Transform            cam2world  = (*localizer).getTf();
 			// Execute the map estimation
-			(*mapper).process(odom - first_odom, bearings, depths, info);
+			(*mapper).process(robot_pose, bearings, depths, cam2world, info);
+			/* (*mapper).process(odom - first_odom, bearings, depths, tf::Transform(), */
+			/*                   info); */
 			// Get the curretn map
 			map = (*mapper).getMap();
 			// Publish the map

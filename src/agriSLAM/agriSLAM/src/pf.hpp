@@ -6,6 +6,7 @@
 
 #include <iostream>
 #include <map>
+#include <random>
 
 // Struct that represents a single particle with
 // - identification number
@@ -37,6 +38,8 @@ public:
 	             const std::vector<double>&             depths,
 	             const std::map<int, Landmark<double>>& map);
 
+  // Export the array of particles
+  std::vector<Particle> getParticles() const;
 
 private:
 	// Prediction step - particles inovation using a motion model
@@ -51,6 +54,12 @@ private:
 	             const std::map<int, Landmark<double>>& map);
 	// Resampling over all particles
 	void resample();
+  
+	// Auxiliar function that normalizes an angle in the [-pi,pi] range
+	double normalizeAngle(const double& angle)
+	{
+		return (std::fmod(angle + PI, 2 * PI) - PI);
+	}
 
 	// Previous odometry control
 	Pose<double> p_odom;

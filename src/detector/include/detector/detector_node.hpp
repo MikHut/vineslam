@@ -87,6 +87,7 @@ private:
 	Pose<double>       odom;
 	nav_msgs::Odometry odom_;
 
+  Localizer*  localizer;
 	Mapper*     mapper;
 	Parameters* params;
 

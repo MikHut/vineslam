@@ -45,7 +45,7 @@ private:
 	// Number of observations of the landmark considered in the KF object
 	int n_obsvs;
 
-	// Auxiliar funcion that normalizes an angle in the [-pi,pi] range
+	// Auxiliar function that normalizes an angle in the [-pi,pi] range
 	double normalizeAngle(const double& angle)
 	{
 		return (std::fmod(angle + PI, 2 * PI) - PI);

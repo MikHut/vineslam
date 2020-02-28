@@ -2,15 +2,22 @@
 
 PF::PF(const int& n_particles, const Pose<double>& initial_pose)
 {
+	// Declare normal Gaussian distributions to spread the particles
+	double                           mean    = 0.0;
+	double                           std_xyz = 0.5;
+	double                           std_rpy = 5.0;
+	std::default_random_engine       generator;
+	std::normal_distribution<double> gauss_xyz(mean, std_xyz);
+	std::normal_distribution<double> gauss_rpy(mean, std_rpy);
+
 	// Initialize all particles
 	for (int i = 0; i < n_particles; i++) {
 		// Calculate the initial pose for each particle considering
 		// - the input initial pose
 		// - a sample distribution to spread the particles
-		Pose<double> sample((rand() % 2) - 0.5, (rand() % 2) - 0.5, 0,
-		                    ((rand() % 2) - 0.5) / 180 * PI * 10,
-		                    ((rand() % 2) - 0.5) / 180 * PI * 10,
-		                    ((rand() % 2) - 0.5) / 180 * PI * 5);
+		Pose<double> sample(gauss_xyz(generator), gauss_xyz(generator), 0,
+		                    gauss_xyz(generator), gauss_rpy(generator),
+		                    gauss_rpy(generator));
 		Pose<double> pose = sample + initial_pose;
 		// Compute initial weight of each particle
 		double weight = 1 / n_particles;
@@ -37,23 +44,31 @@ void PF::predict(const Pose<double>& odom)
 	// Compute the relative pose given by odometry
 	double delta_trans = sqrt(pow(odom.pos.x - p_odom.pos.x, 2) +
 	                          pow(odom.pos.y - p_odom.pos.y, 2));
-	double delta_rot_a =
-	    atan2(odom.pos.y - p_odom.pos.y, odom.pos.x - p_odom.pos.x) - p_odom.yaw;
-	double delta_rot_b = odom.yaw - p_odom.yaw - delta_rot_a;
+	double delta_rot_a = normalizeAngle(
+	    atan2(odom.pos.y - p_odom.pos.y, odom.pos.x - p_odom.pos.x) - p_odom.yaw);
+	double delta_rot_b = normalizeAngle(odom.yaw - p_odom.yaw - delta_rot_a);
 
 	Pose<double> delta_pose(delta_trans * cos(p_odom.yaw + delta_rot_a),
 	                        delta_trans * sin(p_odom.yaw + delta_rot_a), 0,
 	                        delta_rot_a + delta_rot_b, 0, 0);
 
+	// Declare normal Gaussian distributions to innovate the particles
+	double mean    = 0.0;
+	double std_xyz = delta_trans * 0.1;
+	double std_yaw = std::fabs(normalizeAngle(delta_rot_a + delta_rot_b)) * 0.1;
+	double std_rp  = 1.0;
+	std::default_random_engine       generator;
+	std::normal_distribution<double> gauss_xyz(mean, std_xyz);
+	std::normal_distribution<double> gauss_yaw(mean, std_yaw);
+	std::normal_distribution<double> gauss_rp(mean, std_rp);
 
 	// Apply the motion model to all particles
 	for (size_t i = 0; i < particles.size(); i++) {
 		// Compute the sample pose applying gaussian noise to the
 		// motion model
-		Pose<double> sample((rand() % 2) - 0.5, (rand() % 2) - 0.5, 0,
-		                    ((rand() % 2) - 0.5) / 180 * PI,
-		                    ((rand() % 2) - 0.5) / 180 * PI,
-		                    ((rand() % 2) - 0.5) / 180 * PI);
+		Pose<double> sample(gauss_xyz(generator), gauss_xyz(generator), 0,
+		                    gauss_yaw(generator), gauss_rp(generator),
+		                    gauss_rp(generator));
 		// Compute the new particle 6-DOF pose
 		Pose<double> new_pose = particles[i].pose + delta_pose + sample;
 	}
@@ -65,10 +80,12 @@ void PF::correct(const Pose<double>& odom, const std::vector<double>& bearings,
                  const std::vector<double>&             depths,
                  const std::map<int, Landmark<double>>& map)
 {
+	double weights_sum = 0.0;
+
 	// Loop over all particles
 	for (size_t i = 0; i < particles.size(); i++) {
 		// Calculation of a local map for each particle
-    double error_sum = 0.0;
+		double error_sum = 0.0;
 		for (size_t j = 0; j < bearings.size(); j++) {
 			// Calculate
 			// - the estimation of the landmark
@@ -86,17 +103,59 @@ void PF::correct(const Pose<double>& odom, const std::vector<double>& bearings,
 
 				// Check if a correspondence was found
 				if (std::fabs(dist_x) < std_x && std::fabs(dist_y) < std_y) {
-          // If so, sum the euclidean distance and break the loop
-          error_sum += X.euc_dist(m_map.second.pos);
-          break;
+					// If so, sum the euclidean distance and break the loop
+					error_sum += X.euc_dist(m_map.second.pos);
+					break;
 				}
 			}
 		}
-    particles[i].w = (error_sum > 0) ? (1 / error_sum) : 0.0;
+		// Save the particle i weight
+		particles[i].w = (error_sum > 0) ? (1 / error_sum) : 0.0;
+		weights_sum += particles[i].w;
 	}
+	// Normalize the particles weights to [0,1]
+	for (size_t i = 0; i < particles.size(); i++)
+		particles[i].w /= weights_sum;
 }
 
 void PF::resample()
 {
-	// TODO
+	const int M = particles.size();
+
+	// Construct array with all particles weights
+	std::vector<double> w;
+	for (int i = 0; i < M; i++)
+		w.push_back(particles[i].w);
+
+	// Cumulative sum of weights
+	std::vector<double> Q(M);
+	Q[0] = w[0];
+	for (int i = 1; i < M; i++)
+		Q[i] = Q[i - 1] + w[i];
+
+	// Perform multinomial resampling
+	int              i = 0;
+	std::vector<int> index(M);
+	while (i < M) {
+		double sample = ((double)std::rand() / (RAND_MAX));
+		int    j      = 1;
+
+		while (Q[j] < sample)
+			j++;
+
+		index[i] = j;
+		i++;
+	}
+
+	// Update set of particles with indexes resultant from the
+	// resampling procedure
+	for (i = 0; i < M; i++) {
+		particles[i].pose = particles[index[i]].pose;
+		particles[i].w    = particles[index[i]].w;
+	}
+}
+
+std::vector<Particle> PF::getParticles() const
+{
+	return particles;
 }

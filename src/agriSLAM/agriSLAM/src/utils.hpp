@@ -16,13 +16,14 @@ const float PI  = 3.14159265359; // (radians)
 // Parameters structure
 struct Parameters
 {
-	double h_fov;     // Camera horizontal field of view (radians)
-	double f_length;  // Camera focal lenght (pixels)
-	int    width;     // Image width
-	int    height;    // Image height
-	double baseline;  // Stereo baseline between cameras (meters)
-	double delta_D;   // Stereo matcher disparity error (pixels)
-	double min_score; // Trunk detector minimum thresold
+	double h_fov;       // Camera horizontal field of view (radians)
+	double f_length;    // Camera focal lenght (pixels)
+	int    width;       // Image width
+	int    height;      // Image height
+	double baseline;    // Stereo baseline between cameras (meters)
+	double delta_D;     // Stereo matcher disparity error (pixels)
+	double min_score;   // Trunk detector minimum threshold
+	int    n_particles; // Number of particles of the particle filter
 
 	std::string image_left;  // left image ROS topic
 	std::string image_depth; // depth image ROS topic
@@ -32,11 +33,12 @@ struct Parameters
 
 	Parameters()
 	{
-		f_length  = 0.1;
-		width     = 1280;
-		height    = 960;
-		min_score = 0.5;
-		delta_D   = 0.2;
+		f_length    = 0.1;
+		width       = 1280;
+		height      = 960;
+		min_score   = 0.5;
+		delta_D     = 0.2;
+		n_particles = 1000;
 
 		model       = "";
 		labels      = "";
@@ -168,6 +170,12 @@ std::ostream& operator<<(std::ostream& o, const Point<T>& pt)
 {
 	o << "[x,y] = [" << pt.x << "," << pt.y << "]" << std::endl;
 	return o;
+}
+
+template <typename T1, typename T2>
+Point<T1> operator-(const Point<T1>& p1, const Point<T2>& p2)
+{
+	return Point<T1>(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z);
 }
 
 template <typename T>

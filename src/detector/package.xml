@@ -21,7 +21,7 @@
   <build_depend>qt_build</build_depend>
   <build_depend>libqt5-dev</build_depend>
   <build_depend>edgetpu_cpp</build_depend>
-  <build_depend>mapper</build_depend>
+  <build_depend>agriSLAM</build_depend>
   <exec_depend>roscpp</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>cv_bridge</exec_depend>
@@ -33,6 +33,6 @@
   <exec_depend>tf</exec_depend>
   <exec_depend>libqt5-dev</exec_depend>
   <exec_depend>edgetpu_cpp</exec_depend>
-  <exec_depend>mapper</exec_depend>
+  <exec_depend>agriSLAM</exec_depend>
 
 </package>

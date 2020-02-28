@@ -2,6 +2,7 @@
 
 // Detector estimator
 #include <mapper.hpp>
+#include <localizer.hpp>
 
 // ROS and iostream
 #include <cv_bridge/cv_bridge.h>

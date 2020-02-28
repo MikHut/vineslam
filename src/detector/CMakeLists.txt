@@ -30,7 +30,7 @@ include_directories(benchmark /usr/local/include/benchmark)
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
-  ${mapper_INCLUDE_DIRS}
+  ${agricSLAM_INCLUDE_DIRS}
   ${edgetpu_cpp_INCLUDE_DIRS}
 )
 

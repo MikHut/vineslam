@@ -187,6 +187,13 @@ std::ostream& operator<<(std::ostream& o, const Ellipse<T>& e)
 }
 
 template <typename T1, typename T2>
+Pose<T1> operator+(const Pose<T1>& p1, const Pose<T2>& p2)
+{
+	return Pose<T1>(p1.pos.x + p2.pos.x, p1.pos.y + p2.pos.y, p1.pos.z + p2.pos.z,
+	                p1.roll + p2.roll, p1.pitch + p2.pitch, p1.yaw + p2.yaw);
+}
+
+template <typename T1, typename T2>
 Pose<T1> operator-(const Pose<T1>& p1, const Pose<T2>& p2)
 {
 	return Pose<T1>(p1.pos.x - p2.pos.x, p1.pos.y - p2.pos.y, p1.pos.z - p2.pos.z,

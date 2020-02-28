@@ -41,8 +41,6 @@ void Mapper::init(const Pose<double>& odom, const std::vector<double>& bearings,
 		else
 			map[1] = Landmark<double>(pos, std);
 	}
-
-	ROS_INFO("Map initialized with the following landmarks:");
 }
 
 void Mapper::process(const Pose<double>&        odom,

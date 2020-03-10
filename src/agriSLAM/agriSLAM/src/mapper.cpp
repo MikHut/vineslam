@@ -46,12 +46,12 @@ void Mapper::init(const Pose<double>& pose, const std::vector<double>& bearings,
 void Mapper::process(const Pose<double>&              pose,
                      const std::vector<double>&       bearings,
                      const std::vector<double>&       depths,
-                     const tf::Transform&             cam2world,
+                     const tf::Transform&             cam2map,
                      const std::vector<SemanticInfo>& info)
 {
 	// Compute local map on robot's referential frame
 	std::vector<Point<double>> l_map =
-	    local_map(pose, bearings, depths, cam2world);
+	    local_map(pose, bearings, depths, cam2map);
 	// Convert local map to bearings and depths
 	std::vector<double> bearings_(bearings.size());
 	std::vector<double> depths_(depths.size());

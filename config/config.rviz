@@ -6,9 +6,7 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /MarkerArray1
-        - /PoseArray1
-        - /TF1
+        - /Odometry1
         - /TF1/Frames1
       Splitter Ratio: 0.5
     Tree Height: 496
@@ -79,6 +77,40 @@ Visualization Manager:
       Shaft Radius: 0.10000000149011612
       Shape: Arrow (3D)
       Topic: /particles
+      Unreliable: true
+      Value: true
+    - Angle Tolerance: 0.10000000149011612
+      Class: rviz/Odometry
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: true
+        Position:
+          Alpha: 0.30000001192092896
+          Color: 204; 51; 204
+          Scale: 1
+          Value: true
+        Value: true
+      Enabled: true
+      Keep: 10000
+      Name: Odometry
+      Position Tolerance: 0.10000000149011612
+      Shape:
+        Alpha: 1
+        Axes Length: 1
+        Axes Radius: 0.10000000149011612
+        Color: 32; 74; 135
+        Head Length: 0.30000001192092896
+        Head Radius: 0.10000000149011612
+        Shaft Length: 1
+        Shaft Radius: 0.05000000074505806
+        Value: Arrow
+      Topic: /odometry
       Unreliable: true
       Value: true
     - Class: rviz/TF
@@ -177,25 +209,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 11.016738891601562
+      Distance: 31.650741577148438
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -8.620893478393555
-        Y: -1.3109221458435059
+        X: 8.213212966918945
+        Y: -1.8611029386520386
         Z: -3.706837560457643e-6
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: -0.17979638278484344
+      Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
       Value: XYOrbit (rviz)
-      Yaw: 0.1965905725955963
+      Yaw: 3.1447770595550537
     Saved: ~
 Window Geometry:
   Displays:

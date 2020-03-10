@@ -1,8 +1,8 @@
 #pragma once
 
 // Detector estimator
-#include <mapper.hpp>
 #include <localizer.hpp>
+#include <mapper.hpp>
 
 // ROS and iostream
 #include <cv_bridge/cv_bridge.h>
@@ -13,8 +13,8 @@
 #include <message_filters/synchronizer.h>
 #include <nav_msgs/Odometry.h>
 #include <ros/ros.h>
-#include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
+#include <tf/transform_listener.h>
 #include <visualization_msgs/MarkerArray.h>
 
 // Edgetpu detection API
@@ -79,17 +79,18 @@ private:
 #endif
 
 	ros::Publisher map_publisher;
-  ros::Publisher particle_publisher;
+	ros::Publisher particle_publisher;
+	ros::Publisher odom_publisher;
 
 	bool init;
 
 	std::map<int, Landmark<double>> map;
 
-	Pose<double>       first_odom;
 	Pose<double>       odom;
+	Pose<double>       p_odom;
 	nav_msgs::Odometry odom_;
 
-  Localizer*  localizer;
+	Localizer*  localizer;
 	Mapper*     mapper;
 	Parameters* params;
 

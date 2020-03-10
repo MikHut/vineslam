@@ -34,6 +34,7 @@ Detector::Detector(int argc, char** argv)
 	// Publish map and particle filter
 	map_publisher      = n.advertise<visualization_msgs::MarkerArray>("/map", 1);
 	particle_publisher = n.advertise<geometry_msgs::PoseArray>("/particles", 1);
+	odom_publisher     = n.advertise<nav_msgs::Odometry>("/odometry", 1);
 
 	// Declarate Mapper and Localizer objects
 	localizer = new Localizer(*params);
@@ -58,22 +59,53 @@ void Detector::run()
 
 void Detector::odomListener(const nav_msgs::OdometryConstPtr& msg)
 {
+	// Convert odometry msg to pose msg
 	tf::Pose            pose;
 	geometry_msgs::Pose odom_pose = (*msg).pose.pose;
 	tf::poseMsgToTF(odom_pose, pose);
 
+	// Check if yaw is NaN
 	double yaw = tf::getYaw(pose.getRotation());
 	if (yaw != yaw)
 		yaw = 0;
 
-	odom.pos.x = (*msg).pose.pose.position.x;
-	odom.pos.y = (*msg).pose.pose.position.y;
+	// If it is the first iteration - initialize the Pose
+	// relative to the previous frame
+	if (init == true) {
+		p_odom.pos.x = (*msg).pose.pose.position.x;
+		p_odom.pos.y = (*msg).pose.pose.position.y;
+		p_odom.yaw   = yaw;
+		odom.yaw     = yaw;
+		return;
+	}
+
+	// Integrate odometry pose to convert to the map frame
+	odom.pos.x += (*msg).pose.pose.position.x - p_odom.pos.x;
+	odom.pos.y += (*msg).pose.pose.position.y - p_odom.pos.y;
 	odom.pos.z = 0;
 	odom.roll  = 0;
 	odom.pitch = 0;
 	odom.yaw   = yaw;
 
-	odom_ = *msg;
+	// Create quaternion with the orientation relative
+	// to the map
+	tf::Quaternion q;
+	q.setRPY(odom.roll, odom.pitch, odom.yaw);
+
+	// Update odometry msg in relation to the map, to publish
+	odom_.header                = (*msg).header;
+	odom_.pose.pose.position.x  = odom.pos.x;
+	odom_.pose.pose.position.y  = odom.pos.y;
+	odom_.pose.pose.position.z  = odom.pos.z;
+	odom_.pose.pose.orientation = (*msg).pose.pose.orientation;
+
+	// Publish odometry msg
+	odom_publisher.publish(odom_);
+
+	// Save current odometry pose to use in the next iteration
+	p_odom.pos.x = (*msg).pose.pose.position.x;
+	p_odom.pos.y = (*msg).pose.pose.position.y;
+	p_odom.yaw   = yaw;
 }
 
 void Detector::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
@@ -122,21 +154,21 @@ void Detector::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
 
 		if (init == true && bearings.size() > 1) {
 			// Initialize the localizer and the mapper
-			first_odom = odom;
-			(*localizer).init(odom - first_odom);
-			(*mapper).init(odom - first_odom, bearings, depths, info);
+			(*localizer).init(Pose<double>(0, 0, 0, 0, 0, odom.yaw));
+			(*mapper).init(Pose<double>(0, 0, 0, 0, 0, odom.yaw), bearings, depths,
+			               info);
 			map  = (*mapper).getMap();
 			init = false;
 		}
-		else {
+		else if (init == false) {
 			// Execute the localization procedure
-			(*localizer).process(odom - first_odom, bearings, depths, map);
+			(*localizer).process(odom, bearings, depths, map);
 			Pose<double>             robot_pose = (*localizer).getPose();
 			geometry_msgs::PoseArray poses      = (*localizer).getPoseArray();
-			tf::Transform            cam2world  = (*localizer).getTf();
+			tf::Transform            cam2map    = (*localizer).getTf();
 
 			// Execute the map estimation
-			(*mapper).process(robot_pose, bearings, depths, cam2world, info);
+			(*mapper).process(robot_pose, bearings, depths, cam2map, info);
 			// Get the curretn map
 			map = (*mapper).getMap();
 			// Publish the map and particle filter
@@ -146,7 +178,7 @@ void Detector::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
 			// Publish cam-to-world tf::Transform
 			static tf::TransformBroadcaster br;
 			br.sendTransform(
-			    tf::StampedTransform(cam2world, ros::Time::now(), "map", "cam"));
+			    tf::StampedTransform(cam2map, ros::Time::now(), "map", "cam"));
 		}
 
 #ifdef DEBUG

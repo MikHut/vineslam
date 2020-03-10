@@ -39,7 +39,7 @@ public:
 
 private:
 	// ROS Homogeneous transformation from camera to world
-	tf::Transform cam2world;
+	tf::Transform cam2map;
 	// ROS Array of poses relative to all particles
 	geometry_msgs::PoseArray poses;
   // Average particles pose

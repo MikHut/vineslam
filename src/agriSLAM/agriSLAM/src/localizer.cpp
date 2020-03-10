@@ -65,14 +65,14 @@ void Localizer::process(const Pose<double>&                    odom,
 	tf::Quaternion q;
 	q.setRPY(average_pose.roll, average_pose.pitch, average_pose.yaw);
 	q.normalize();
-	cam2world.setRotation(q);
-	cam2world.setOrigin(
+	cam2map.setRotation(q);
+	cam2map.setOrigin(
 	    tf::Vector3(average_pose.pos.x, average_pose.pos.y, average_pose.pos.z));
 }
 
 tf::Transform Localizer::getTf() const
 {
-	return cam2world;
+	return cam2map;
 }
 
 geometry_msgs::PoseArray Localizer::getPoseArray() const

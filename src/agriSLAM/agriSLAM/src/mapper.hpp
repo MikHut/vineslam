@@ -37,7 +37,7 @@ public:
 	std::vector<Point<double>> local_map(const Pose<double>&        pose,
 	                                     const std::vector<double>& bearings,
 	                                     const std::vector<double>& depths,
-	                                     const tf::Transform&       cam2world);
+	                                     const tf::Transform&       cam2map);
 
 	// Exports the current map to the high level ROS node
 	std::map<int, Landmark<double>> getMap() const;

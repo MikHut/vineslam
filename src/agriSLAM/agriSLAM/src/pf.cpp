@@ -2,14 +2,15 @@
 
 PF::PF(const int& n_particles, const Pose<double>& initial_pose)
 {
-	// Declare normal Gaussian distributions to spread the particles
-	double                           mean    = 0.0;
-	double                           std_xyz = 0.2;
-	double                           std_rpy = 2.0 * PI / 180;
+	// Declare mean and std of each gaussian
+	double mean    = 0;
+	double std_xyz = 0.2;
+	double std_rpy = 2.0 * PI / 180;
+
+	// Initialize normal distributions
 	std::default_random_engine       generator;
-	std::normal_distribution<double> gauss_xyz(mean, std_xyz);
-	std::normal_distribution<double> gauss_ry(mean, std_rpy);
-	std::normal_distribution<double> gauss_p(-11.0 * PI / 180.0, std_rpy);
+	std::normal_distribution<double> gauss_xy(mean, std_xyz);
+	std::normal_distribution<double> gauss_rpy(mean, std_rpy);
 
 	// Resize particles array
 	particles.resize(n_particles);
@@ -19,9 +20,9 @@ PF::PF(const int& n_particles, const Pose<double>& initial_pose)
 		// Calculate the initial pose for each particle considering
 		// - the input initial pose
 		// - a sample distribution to spread the particles
-		Pose<double> sample(gauss_xyz(generator), gauss_xyz(generator), 0,
-		                    gauss_ry(generator), gauss_p(generator),
-		                    gauss_ry(generator));
+		Pose<double> sample(gauss_xy(generator), gauss_xy(generator), 0,
+		                    gauss_rpy(generator), gauss_rpy(generator),
+		                    gauss_rpy(generator));
 		Pose<double> pose = sample + initial_pose;
 		// Compute initial weight of each particle
 		double weight = 1 / (double)n_particles;
@@ -30,12 +31,7 @@ PF::PF(const int& n_particles, const Pose<double>& initial_pose)
 	}
 
 	// Set previous pose to zero
-	p_odom.pos.x = 0;
-	p_odom.pos.y = 0;
-	p_odom.pos.z = 0;
-	p_odom.roll  = 0;
-	p_odom.pitch = 0;
-	p_odom.yaw   = 0;
+	p_odom = initial_pose;
 }
 
 void PF::process(const Pose<double>& odom, const std::vector<double>& bearings,

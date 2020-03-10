@@ -8,10 +8,11 @@ PF::PF(const int& n_particles, const Pose<double>& initial_pose)
 	double                           std_rpy = 2.0 * PI / 180;
 	std::default_random_engine       generator;
 	std::normal_distribution<double> gauss_xyz(mean, std_xyz);
-	std::normal_distribution<double> gauss_rpy(mean, std_rpy);
+	std::normal_distribution<double> gauss_ry(mean, std_rpy);
+	std::normal_distribution<double> gauss_p(-11.0 * PI / 180.0, std_rpy);
 
-  // Resize particles array
-  particles.resize(n_particles);
+	// Resize particles array
+	particles.resize(n_particles);
 
 	// Initialize all particles
 	for (int i = 0; i < n_particles; i++) {
@@ -19,8 +20,8 @@ PF::PF(const int& n_particles, const Pose<double>& initial_pose)
 		// - the input initial pose
 		// - a sample distribution to spread the particles
 		Pose<double> sample(gauss_xyz(generator), gauss_xyz(generator), 0,
-		                    gauss_rpy(generator), gauss_rpy(generator),
-		                    gauss_rpy(generator));
+		                    gauss_ry(generator), gauss_p(generator),
+		                    gauss_ry(generator));
 		Pose<double> pose = sample + initial_pose;
 		// Compute initial weight of each particle
 		double weight = 1 / (double)n_particles;
@@ -44,7 +45,7 @@ void PF::process(const Pose<double>& odom, const std::vector<double>& bearings,
 	// Invocate prediction step to inovate the particles
 	predict(odom);
 	// Invocate the correction step to compute the weights
-	correct(odom, bearings, depths, map);
+	correct(bearings, depths, map);
 	// Resample all particles
 	resample();
 }
@@ -65,7 +66,7 @@ void PF::predict(const Pose<double>& odom)
 	// Declare normal Gaussian distributions to innovate the particles
 	double mean    = 0.0;
 	double std_xyz = delta_trans * 0.3;
-	double std_rp  = 2.0 * PI / 180;
+	double std_rp  = 1.0 * PI / 180;
 	double std_yaw = std::fabs(normalizeAngle(delta_rot_a + delta_rot_b)) * 0.3;
 	std::default_random_engine       generator;
 	std::normal_distribution<double> gauss_xyz(mean, std_xyz);
@@ -86,7 +87,7 @@ void PF::predict(const Pose<double>& odom)
 	p_odom = odom;
 }
 
-void PF::correct(const Pose<double>& odom, const std::vector<double>& bearings,
+void PF::correct(const std::vector<double>&             bearings,
                  const std::vector<double>&             depths,
                  const std::map<int, Landmark<double>>& map)
 {
@@ -98,9 +99,9 @@ void PF::correct(const Pose<double>& odom, const std::vector<double>& bearings,
 		double error_sum = 0.0;
 		for (size_t j = 0; j < bearings.size(); j++) {
 			// Calculate the estimation of the landmark
-			double        th = bearings[j] + odom.yaw;
-			Point<double> X(odom.pos.x + depths[j] * cos(th),
-			                odom.pos.y + depths[j] * sin(th));
+			double        th = bearings[j] + particles[i].pose.yaw;
+			Point<double> X(particles[i].pose.pos.x + depths[j] * cos(th),
+			                particles[i].pose.pos.y + depths[j] * sin(th));
 			// Loop over landmarks on global map to find correspondences
 			// in local map
 			for (auto m_map : map) {
@@ -122,8 +123,14 @@ void PF::correct(const Pose<double>& odom, const std::vector<double>& bearings,
 		weights_sum += particles[i].w;
 	}
 	// Normalize the particles weights to [0,1]
-	for (size_t i = 0; i < particles.size(); i++)
-		particles[i].w /= weights_sum;
+	if (weights_sum > 0) {
+		for (size_t i = 0; i < particles.size(); i++)
+			particles[i].w /= weights_sum;
+	}
+	else {
+		for (size_t i = 0; i < particles.size(); i++)
+			particles[i].w = 1 / (double)particles.size();
+	}
 }
 
 void PF::resample()
@@ -165,7 +172,7 @@ void PF::resample()
 
 void PF::getParticles(std::vector<Particle>& in)
 {
-  in.resize(particles.size());
-  for(size_t i = 0; i < particles.size(); i++)
-    in[i] = particles[i];  
+	in.resize(particles.size());
+	for (size_t i = 0; i < particles.size(); i++)
+		in[i] = particles[i];
 }

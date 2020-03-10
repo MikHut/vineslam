@@ -55,7 +55,7 @@ private:
 	// - update particle weight using the difference between the local and
 	//   the global map
 	// - normalize the weights
-	void correct(const Pose<double>& odom, const std::vector<double>& bearings,
+	void correct(const std::vector<double>& bearings,
 	             const std::vector<double>&             depths,
 	             const std::map<int, Landmark<double>>& map);
 	// Resampling over all particles

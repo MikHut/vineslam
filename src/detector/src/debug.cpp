@@ -31,7 +31,7 @@ void Detector::publishMap(const std_msgs::Header& header)
 	ellipse.scale.z            = 0.01f;
 	ellipse.pose.orientation.x = 0.0f;
 	ellipse.pose.orientation.y = 0.0f;
-	ellipse.color.r            = 1.0f;
+	ellipse.color.r            = 0.0f;
 	ellipse.color.g            = 1.0f;
 	ellipse.color.b            = 0.0f;
 	ellipse.color.a            = 1.0f;

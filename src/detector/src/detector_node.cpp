@@ -143,6 +143,10 @@ void Detector::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
 			publishMap(odom_.header);
 			poses.header = odom_.header;
 			particle_publisher.publish(poses);
+			// Publish cam-to-world tf::Transform
+			static tf::TransformBroadcaster br;
+			br.sendTransform(
+			    tf::StampedTransform(cam2world, ros::Time::now(), "map", "cam"));
 		}
 
 #ifdef DEBUG

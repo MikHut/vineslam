@@ -4,11 +4,14 @@ PF::PF(const int& n_particles, const Pose<double>& initial_pose)
 {
 	// Declare normal Gaussian distributions to spread the particles
 	double                           mean    = 0.0;
-	double                           std_xyz = 0.5;
-	double                           std_rpy = 5.0;
+	double                           std_xyz = 0.2;
+	double                           std_rpy = 2.0 * PI / 180;
 	std::default_random_engine       generator;
 	std::normal_distribution<double> gauss_xyz(mean, std_xyz);
 	std::normal_distribution<double> gauss_rpy(mean, std_rpy);
+
+  // Resize particles array
+  particles.resize(n_particles);
 
 	// Initialize all particles
 	for (int i = 0; i < n_particles; i++) {
@@ -16,15 +19,22 @@ PF::PF(const int& n_particles, const Pose<double>& initial_pose)
 		// - the input initial pose
 		// - a sample distribution to spread the particles
 		Pose<double> sample(gauss_xyz(generator), gauss_xyz(generator), 0,
-		                    gauss_xyz(generator), gauss_rpy(generator),
+		                    gauss_rpy(generator), gauss_rpy(generator),
 		                    gauss_rpy(generator));
 		Pose<double> pose = sample + initial_pose;
 		// Compute initial weight of each particle
-		double weight = 1 / n_particles;
+		double weight = 1 / (double)n_particles;
 		// Insert the particle into the particles array
-		Particle p(i, pose, weight);
-		particles.push_back(p);
+		particles[i] = Particle(i, pose, weight);
 	}
+
+	// Set previous pose to zero
+	p_odom.pos.x = 0;
+	p_odom.pos.y = 0;
+	p_odom.pos.z = 0;
+	p_odom.roll  = 0;
+	p_odom.pitch = 0;
+	p_odom.yaw   = 0;
 }
 
 void PF::process(const Pose<double>& odom, const std::vector<double>& bearings,
@@ -49,28 +59,28 @@ void PF::predict(const Pose<double>& odom)
 	double delta_rot_b = normalizeAngle(odom.yaw - p_odom.yaw - delta_rot_a);
 
 	Pose<double> delta_pose(delta_trans * cos(p_odom.yaw + delta_rot_a),
-	                        delta_trans * sin(p_odom.yaw + delta_rot_a), 0,
-	                        delta_rot_a + delta_rot_b, 0, 0);
+	                        delta_trans * sin(p_odom.yaw + delta_rot_a), 0, 0, 0,
+	                        delta_rot_a + delta_rot_b);
 
 	// Declare normal Gaussian distributions to innovate the particles
 	double mean    = 0.0;
-	double std_xyz = delta_trans * 0.1;
-	double std_yaw = std::fabs(normalizeAngle(delta_rot_a + delta_rot_b)) * 0.1;
-	double std_rp  = 1.0;
+	double std_xyz = delta_trans * 0.3;
+	double std_rp  = 2.0 * PI / 180;
+	double std_yaw = std::fabs(normalizeAngle(delta_rot_a + delta_rot_b)) * 0.3;
 	std::default_random_engine       generator;
 	std::normal_distribution<double> gauss_xyz(mean, std_xyz);
-	std::normal_distribution<double> gauss_yaw(mean, std_yaw);
 	std::normal_distribution<double> gauss_rp(mean, std_rp);
+	std::normal_distribution<double> gauss_yaw(mean, std_yaw);
 
 	// Apply the motion model to all particles
 	for (size_t i = 0; i < particles.size(); i++) {
 		// Compute the sample pose applying gaussian noise to the
 		// motion model
 		Pose<double> sample(gauss_xyz(generator), gauss_xyz(generator), 0,
-		                    gauss_yaw(generator), gauss_rp(generator),
-		                    gauss_rp(generator));
+		                    gauss_rp(generator), gauss_rp(generator),
+		                    gauss_yaw(generator));
 		// Compute the new particle 6-DOF pose
-		Pose<double> new_pose = particles[i].pose + delta_pose + sample;
+		particles[i].pose = particles[i].pose + delta_pose + sample;
 	}
 
 	p_odom = odom;
@@ -87,9 +97,7 @@ void PF::correct(const Pose<double>& odom, const std::vector<double>& bearings,
 		// Calculation of a local map for each particle
 		double error_sum = 0.0;
 		for (size_t j = 0; j < bearings.size(); j++) {
-			// Calculate
-			// - the estimation of the landmark
-			// - the observation covariance of the landmark
+			// Calculate the estimation of the landmark
 			double        th = bearings[j] + odom.yaw;
 			Point<double> X(odom.pos.x + depths[j] * cos(th),
 			                odom.pos.y + depths[j] * sin(th));
@@ -155,7 +163,9 @@ void PF::resample()
 	}
 }
 
-std::vector<Particle> PF::getParticles() const
+void PF::getParticles(std::vector<Particle>& in)
 {
-	return particles;
+  in.resize(particles.size());
+  for(size_t i = 0; i < particles.size(); i++)
+    in[i] = particles[i];  
 }

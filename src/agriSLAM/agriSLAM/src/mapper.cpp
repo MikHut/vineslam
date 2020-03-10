@@ -52,14 +52,14 @@ void Mapper::process(const Pose<double>&              pose,
 	// Compute local map on robot's referential frame
 	std::vector<Point<double>> l_map =
 	    local_map(pose, bearings, depths, cam2world);
-  // Convert local map to bearings and depths
-  std::vector<double> bearings_;
-  std::vector<double> depths_;
-  for(size_t i = 0; i < l_map.size(); i++) {
-    depths_[i] = sqrt(pow(l_map[i].x, 2) + pow(l_map[i].y, 2));
-    bearings_[i] = atan2(l_map[i].y, l_map[i].x);
-  }
-  // Estimate global map
+	// Convert local map to bearings and depths
+	std::vector<double> bearings_(bearings.size());
+	std::vector<double> depths_(depths.size());
+	for (size_t i = 0; i < l_map.size(); i++) {
+		depths_[i]   = sqrt(pow(l_map[i].x, 2) + pow(l_map[i].y, 2));
+		bearings_[i] = atan2(l_map[i].y, l_map[i].x) - pose.yaw;
+	}
+	// Estimate global map
 	predict(pose, bearings_, depths_, info);
 }
 
@@ -70,14 +70,18 @@ Mapper::local_map(const Pose<double>& pose, const std::vector<double>& bearings,
 {
 	std::vector<Point<double>> landmarks;
 
+	// Decompose homogeneous transformation into
+	// a rotation matrix and a translation vector
+	tf::Matrix3x3 R = cam2world.getBasis();
+	tf::Vector3   t = cam2world.getOrigin();
+
 	for (size_t i = 0; i < bearings.size(); i++) {
 		// Calculate the estimation of the landmark position on
 		// camera's referential frame
 		double        th = bearings[i];
 		Point<double> X_cam(depths[i] * cos(th), depths[i] * sin(th), 0);
+
 		// Convert landmark to world's referential frame
-		tf::Matrix3x3 R = cam2world.getBasis();
-		tf::Vector3   t = cam2world.getOrigin();
 		Point<double> X_world;
 		X_world.x = X_cam.x * R[0].getX() + X_cam.y * R[0].getY() +
 		            X_cam.z * R[0].getZ() + t.getX();
@@ -85,9 +89,10 @@ Mapper::local_map(const Pose<double>& pose, const std::vector<double>& bearings,
 		            X_cam.z * R[1].getZ() + t.getY();
 		X_world.z = X_cam.x * R[2].getX() + X_cam.y * R[2].getY() +
 		            X_cam.z * R[2].getZ() + t.getZ();
+
 		// Convert landmark to robot's referential frame and insert
 		// on array of landmarks
-		Point<double> X_robot = pose.pos - X_world;
+		Point<double> X_robot = X_world - pose.pos;
 		landmarks.push_back(X_robot);
 	}
 

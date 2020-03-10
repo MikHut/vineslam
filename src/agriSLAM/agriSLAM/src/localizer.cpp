@@ -12,10 +12,15 @@ void Localizer::process(const Pose<double>&                    odom,
                         const std::vector<double>&             depths,
                         const std::map<int, Landmark<double>>& map)
 {
+  // Clear poses array
+  poses.poses.clear();
+
 	// Invocate the particle filter loop
 	(*pf).process(odom, bearings, depths, map);
 	// Import the resultant set of particles
-	std::vector<Particle> particles = (*pf).getParticles();
+	std::vector<Particle> particles;
+  (*pf).getParticles(particles);
+
 	// Compute the average pose and convert the particles pose to
 	// ROS array
 	average_pose = Pose<double>(0, 0, 0, 0, 0, 0);

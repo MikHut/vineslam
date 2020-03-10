@@ -9,7 +9,7 @@ Detector::Detector(int argc, char** argv)
 	loadParameters(n);
 	init = true;
 
-	// left and depth images subscription
+	// Left and depth images subscription
 	message_filters::Subscriber<sensor_msgs::Image> l_img_sub(
 	    n, (*params).image_left, 1);
 	message_filters::Subscriber<sensor_msgs::Image> d_img_sub(
@@ -23,7 +23,7 @@ Detector::Detector(int argc, char** argv)
 	                                                 d_img_sub);
 	sync.registerCallback(boost::bind(&Detector::imageListener, this, _1, _2));
 
-	// odometry subscription
+	// Odometry subscription
 	ros::Subscriber odom_subscriber =
 	    n.subscribe((*params).odom_topic, 1, &Detector::odomListener, this);
 
@@ -31,20 +31,22 @@ Detector::Detector(int argc, char** argv)
 	image_transport::ImageTransport it(n);
 	l_img_publisher = it.advertise("detection_left/image_raw", 1);
 #endif
-	map_publisher = n.advertise<visualization_msgs::MarkerArray>("/map", 1);
+	// Publish map and particle filter
+	map_publisher      = n.advertise<visualization_msgs::MarkerArray>("/map", 1);
+	particle_publisher = n.advertise<geometry_msgs::PoseArray>("/particles", 1);
 
-	// declarate Mapper and Localizer objects
+	// Declarate Mapper and Localizer objects
 	localizer = new Localizer(*params);
 	mapper    = new Mapper(*params);
 
-	// load NN model and labels file
+	// Load NN model and labels file
 	ROS_INFO("Loading NN model and label files");
 	engine             = new coral::DetectionEngine((*params).model);
 	input_tensor_shape = (*engine).get_input_tensor_shape();
 	labels             = coral::ReadLabelFile((*params).labels);
 	ROS_INFO("Done");
 
-	// ros spin
+	// Ros spin
 	run();
 }
 
@@ -66,6 +68,9 @@ void Detector::odomListener(const nav_msgs::OdometryConstPtr& msg)
 
 	odom.pos.x = (*msg).pose.pose.position.x;
 	odom.pos.y = (*msg).pose.pose.position.y;
+	odom.pos.z = 0;
+	odom.roll  = 0;
+	odom.pitch = 0;
 	odom.yaw   = yaw;
 
 	odom_ = *msg;
@@ -86,7 +91,7 @@ void Detector::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
 	if ((*msg_left).header.stamp == (*msg_depth).header.stamp) {
 		std::vector<coral::DetectionCandidate> left_res = detect(msg_left);
 
-		// process left image results - calculate bearings and depths
+		// Process left image results - calculate bearings and depths
 		std::vector<Point<double>> left_det;
 		for (auto result : left_res) {
 			double xmin = result.corners.ymin * (*msg_left).width;
@@ -129,14 +134,15 @@ void Detector::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
 			Pose<double>             robot_pose = (*localizer).getPose();
 			geometry_msgs::PoseArray poses      = (*localizer).getPoseArray();
 			tf::Transform            cam2world  = (*localizer).getTf();
+
 			// Execute the map estimation
 			(*mapper).process(robot_pose, bearings, depths, cam2world, info);
-			/* (*mapper).process(odom - first_odom, bearings, depths, tf::Transform(), */
-			/*                   info); */
 			// Get the curretn map
 			map = (*mapper).getMap();
-			// Publish the map
+			// Publish the map and particle filter
 			publishMap(odom_.header);
+			poses.header = odom_.header;
+			particle_publisher.publish(poses);
 		}
 
 #ifdef DEBUG

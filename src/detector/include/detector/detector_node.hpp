@@ -78,6 +78,7 @@ private:
 #endif
 
 	ros::Publisher map_publisher;
+  ros::Publisher particle_publisher;
 
 	bool init;
 
@@ -105,6 +106,7 @@ private:
 		local_nh.getParam("/detector/detector_th", (*params).min_score);
 		local_nh.getParam("/detector/disp_error", (*params).delta_D);
 		local_nh.getParam("/detector/h_fov", (*params).h_fov);
+		local_nh.getParam("/detector/n_particles", (*params).n_particles);
 
 		local_nh.getParam("/detector/image_left", (*params).image_left);
 		local_nh.getParam("/detector/image_depth", (*params).image_depth);

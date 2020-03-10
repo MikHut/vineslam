@@ -15,6 +15,8 @@
     <param name="match_box"         value="40"/>
     <param name="detector_th"       value="0.25"/>
 
+    <param name="n_particles"       value="2000"/>
+
     <param name="image_left" value="/zed/zed_node/left/image_rect_color"/>
     <param name="image_depth" value="/zed/zed_node/depth/depth_registered"/>
     <param name="odom_topic"  value="/husky_velocity_controller/odom"/>

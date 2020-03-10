@@ -14,7 +14,7 @@
 // - weight
 struct Particle
 {
-	Particle();
+	Particle() {}
 	Particle(const int& id, const Pose<double>& pose, const double& w)
 	{
 		(*this).id   = id;
@@ -25,6 +25,12 @@ struct Particle
 	Pose<double> pose;
 	double       w;
 };
+
+static std::ostream& operator<<(std::ostream& o, const Particle& p)
+{
+  o << "Particle " << p.id << ":\n" << p.pose << p.w << "\n\n";
+	return o;
+}
 
 class PF
 {
@@ -39,7 +45,7 @@ public:
 	             const std::map<int, Landmark<double>>& map);
 
   // Export the array of particles
-  std::vector<Particle> getParticles() const;
+  void getParticles(std::vector<Particle>& in);
 
 private:
 	// Prediction step - particles inovation using a motion model

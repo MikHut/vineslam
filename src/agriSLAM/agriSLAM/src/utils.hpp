@@ -168,7 +168,7 @@ static std::vector<cv::Scalar> colors = {
 template <typename T>
 std::ostream& operator<<(std::ostream& o, const Point<T>& pt)
 {
-	o << "[x,y] = [" << pt.x << "," << pt.y << "]" << std::endl;
+	o << "[x,y,z] = [" << pt.x << "," << pt.y << "," << pt.z << "]" << std::endl;
 	return o;
 }
 
@@ -181,7 +181,8 @@ Point<T1> operator-(const Point<T1>& p1, const Point<T2>& p2)
 template <typename T>
 std::ostream& operator<<(std::ostream& o, const Pose<T>& p)
 {
-	o << "[x,y,theta] = [" << p.pos.x << "," << p.pos.y << "," << p.theta << "]"
+	o << "[x,y,z,roll,pitch,yaw] = [" << p.pos.x << "," << p.pos.y << ","
+	  << p.pos.z << "," << p.roll << "," << p.pitch << "," << p.yaw << "]"
 	  << std::endl;
 	return o;
 }

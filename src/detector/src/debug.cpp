@@ -51,7 +51,7 @@ void Detector::publishMap(const std_msgs::Header& header)
 
 		// Draw landmark standard deviation
 		tf2::Quaternion q;
-		q.setRPY(0, 0, m_map.second.stdev.th * 0.5);
+		q.setRPY(0, 0, m_map.second.stdev.th);
 
 		ellipse.id                 = m_map.first;
 		ellipse.header             = header;

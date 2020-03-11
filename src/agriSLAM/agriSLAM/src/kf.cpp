@@ -14,7 +14,8 @@ KF::KF(const VectorXd& X0, const VectorXd& s, const VectorXd& z,
 	    (X[0] - s[0]) / pow(d, 2);
 
 	// Initialize the process covariance P
-	P = G.inverse() * R * (G.inverse()).transpose();
+	P = R;
+	/* P = G.inverse() * R * (G.inverse()).transpose(); */
 }
 
 void KF::process(const VectorXd& s, const VectorXd& z)
@@ -33,17 +34,17 @@ void KF::computeR(const VectorXd& s, const VectorXd& z)
 	double phi = atan2(X[1] - s[1], X[0] - s[0]) - s[2];
 
 	// Odometry travelled distance
-	double odom_std = sqrt(pow(z[0], 2) + pow(z[1], 2));
+	double odom_std = 0.2;
 
 	// Compute the covariance observations matrix based on
 	// - the distance from the detected trunk to the robot
 	// - the travelled distance given by odometry
 	// - the number of observations of the landmark
 	R       = MatrixXd(2, 2);
-	R(0, 0) = dispError(d) * std::fabs(cos(phi)) * (odom_std * 1.01);
-	R(1, 1) = dispError(d) * std::fabs(sin(phi)) * (odom_std * 1.01);
-	R(0, 1) = 0;
-	R(1, 0) = 0;
+	R(0, 0) = dispError(d) * std::fabs(cos(phi)) + (odom_std);
+	R(1, 1) = dispError(d) * std::fabs(sin(phi)) + (odom_std);
+	R(0, 1) = ((R(0,0) + R(1,1)) / 2.0) * tan(phi);
+	R(1, 0) = ((R(0,0) + R(1,1)) / 2.0) * tan(phi);
 }
 
 void KF::predict()

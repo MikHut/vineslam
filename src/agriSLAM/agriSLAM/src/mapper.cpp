@@ -50,8 +50,7 @@ void Mapper::process(const Pose<double>&              pose,
                      const std::vector<SemanticInfo>& info)
 {
 	// Compute local map on robot's referential frame
-	std::vector<Point<double>> l_map =
-	    local_map(pose, bearings, depths, cam2map);
+	std::vector<Point<double>> l_map = local_map(pose, bearings, depths, cam2map);
 	// Convert local map to bearings and depths
 	std::vector<double> bearings_(bearings.size());
 	std::vector<double> depths_(depths.size());
@@ -105,7 +104,7 @@ void Mapper::predict(const Pose<double>&              pose,
                      const std::vector<SemanticInfo>& info)
 {
 	int           n_obsv   = bearings.size();
-	double        pose_std = sqrt(pow(pose.pos.x, 2) + pow(pose.pos.y, 2));
+	double        pose_std = 0.2;
 	Point<double> pos      = pose.pos;
 
 	for (int i = 0; i < n_obsv; i++) {
@@ -124,12 +123,10 @@ void Mapper::predict(const Pose<double>&              pose,
 			Eigen::MatrixXd R(2, 2);
 
 			// Calculate the initial covariance
-			R(0, 0) = dispError(depths[i]) * std::fabs(cos(bearings[i])) *
-			          (pose_std * 1.01);
-			R(1, 1) = dispError(depths[i]) * std::fabs(sin(bearings[i])) *
-			          (pose_std * 1.01);
-			R(0, 1) = 0;
-			R(1, 0) = 0;
+			R(0, 0) = dispError(depths[i]) * std::fabs(cos(bearings[i])) + (pose_std);
+			R(1, 1) = dispError(depths[i]) * std::fabs(sin(bearings[i])) + (pose_std);
+			R(0, 1) = ((R(0, 0) + R(1, 1)) / 2.0) * tan(bearings[i]);
+			R(1, 0) = ((R(0, 0) + R(1, 1)) / 2.0) * tan(bearings[i]);
 
 			// Initialize the Kalman Filter
 			KF kf(X.eig_2d(), pos.eig_2d(), z, R, params);
@@ -157,22 +154,22 @@ void Mapper::predict(const Pose<double>&              pose,
 
 int Mapper::findCorr(const Point<double>& l_pos, const Point<double>& r_pos)
 {
+	int best_correspondence = -1;
+  double best_aprox = 0.5;
 	for (auto m_map : map) {
-		// Compute the x distance between the two landmarks and
-		// check if the observation and the landmark on the map
-		// are on the same same of the corridor
-		double dist_x = l_pos.x - m_map.second.pos.x;
-		double max_x  = 3 * m_map.second.stdev.std_x;
-		double side   = (r_pos.y - l_pos.y) * (r_pos.y - m_map.second.pos.y);
+    // Compute the euclidean distance between the observation
+    // and the corrent landmark on the map
+		double dist = sqrt(pow(l_pos.x - m_map.second.pos.x, 2) +
+		                   pow(l_pos.y - m_map.second.pos.y, 2));
 
 		// Return the id of the landmark, if a correspondence is found
-		if (std::fabs(dist_x) < std::fabs(max_x) && side > 0)
-			return m_map.first;
-		else
-			continue;
+		if (dist < best_aprox) {
+			best_correspondence = m_map.first;
+			best_aprox          = dist;
+		}
 	}
 
-	return -1;
+	return best_correspondence;
 }
 
 std::map<int, Landmark<double>> Mapper::getMap() const

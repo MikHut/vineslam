@@ -98,22 +98,19 @@ void PF::correct(const std::vector<double>&             bearings,
 			double        th = bearings[j] + particles[i].pose.yaw;
 			Point<double> X(particles[i].pose.pos.x + depths[j] * cos(th),
 			                particles[i].pose.pos.y + depths[j] * sin(th));
-			// Loop over landmarks on global map to find correspondences
-			// in local map
-			for (auto m_map : map) {
-				double dist_x = X.x - m_map.second.pos.x;
-				double dist_y = X.y - m_map.second.pos.y;
-				double std_x  = 3 * m_map.second.stdev.std_x;
-				double std_y  = 3 * m_map.second.stdev.std_y;
 
-				// Check if a correspondence was found
-				if (std::fabs(dist_x) < std_x && std::fabs(dist_y) < std_y) {
-					// If so, sum the euclidean distance and break the loop
-					error_sum += X.euc_dist(m_map.second.pos);
-					break;
-				}
+			// Loop over landmarks on global map in local map
+			// to get the best correspondence
+			double best_correspondence = 1e6;
+			for (auto m_map : map) {
+				double dist_min = X.euc_dist(m_map.second.pos);
+
+				if (dist_min < best_correspondence)
+					best_correspondence = dist_min;
 			}
+			error_sum += pow(best_correspondence, 2);
 		}
+
 		// Save the particle i weight
 		particles[i].w = (error_sum > 0) ? (1 / error_sum) : 0.0;
 		weights_sum += particles[i].w;

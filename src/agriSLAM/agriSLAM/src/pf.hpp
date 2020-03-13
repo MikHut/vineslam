@@ -2,7 +2,6 @@
 
 // Include class objects
 #include <landmark.hpp>
-#include <utils.hpp>
 
 #include <iostream>
 #include <map>

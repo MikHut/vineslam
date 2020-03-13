@@ -43,8 +43,8 @@ void KF::computeR(const VectorXd& s, const VectorXd& z)
 	R       = MatrixXd(2, 2);
 	R(0, 0) = dispError(d) * std::fabs(cos(phi)) + (odom_std);
 	R(1, 1) = dispError(d) * std::fabs(sin(phi)) + (odom_std);
-	R(0, 1) = ((R(0,0) + R(1,1)) / 2.0) * tan(phi);
-	R(1, 0) = ((R(0,0) + R(1,1)) / 2.0) * tan(phi);
+	R(0, 1) = ((R(0, 0) + R(1, 1)) / 2) * tan(phi);
+	R(1, 0) = ((R(0, 0) + R(1, 1)) / 2) * tan(phi);
 }
 
 void KF::predict()

@@ -1,6 +1,6 @@
 #include "../include/detector/detector_node.hpp"
 
-void Detector::publishMap(const std_msgs::Header& header)
+void Detector::publishMap(const std_msgs::Header& header, const Pose<double>& pose)
 {
 	visualization_msgs::MarkerArray marker_array;
 	visualization_msgs::Marker      marker;
@@ -69,6 +69,28 @@ void Detector::publishMap(const std_msgs::Header& header)
 		ellipse_array.markers.push_back(ellipse);
 	}
 
+	// Draw ellipse that characterizes particles distribution
+	tf2::Quaternion q;
+	q.setRPY(0, 0, pose.gaussian.th);
+
+  ellipse.id                 = map.size() + 1;
+  ellipse.header             = header;
+  ellipse.header.frame_id    = "map";
+  ellipse.pose.position.x    = pose.pos.x;
+  ellipse.pose.position.y    = pose.pos.y;
+  ellipse.pose.position.z    = 0;
+  ellipse.scale.x            = 3 * pose.gaussian.std_x;
+  ellipse.scale.y            = 3 * pose.gaussian.std_y;
+  ellipse.pose.orientation.x = q.x();
+  ellipse.pose.orientation.y = q.y();
+  ellipse.pose.orientation.z = q.z();
+  ellipse.pose.orientation.w = q.w();
+  ellipse.color.r            = 0.0f;
+  ellipse.color.g            = 1.0f;
+  ellipse.color.b            = 0.0f;
+  ellipse.color.a            = 0.3f;
+  ellipse_array.markers.push_back(ellipse);
+
 	map_publisher.publish(marker_array);
 	map_publisher.publish(ellipse_array);
 }
@@ -90,7 +112,7 @@ void Detector::showBBoxes(const sensor_msgs::ImageConstPtr&             msg,
 
 		if (result.score > (*params).min_score) {
 			cv::rectangle(bboxes, cv::Point(xmin, ymin), cv::Point(xmax, ymax),
-			              colors[result.label], 2);
+			              cv::Scalar(255, 0, 0), 2);
 			cv::line(bboxes, cv::Point(xavg, ymin), cv::Point(xavg, ymax),
 			         cv::Scalar(0, 255, 0), 2);
 		}

@@ -23,7 +23,7 @@ void Localizer::process(const Pose<double>&                    odom,
 
 	// Compute the average pose and convert the particles pose to
 	// ROS array
-	average_pose = Pose<double>(0, 0, 0, 0, 0, 0);
+  std::vector<Pose<double>> m_poses;
 	for (size_t i = 0; i < particles.size(); i++) {
 		// Create quaternion representing the particle rotation
 		tf::Quaternion q;
@@ -41,21 +41,9 @@ void Localizer::process(const Pose<double>&                    odom,
 		pose.orientation.w = q.w();
 		// Push back to the poses array
 		poses.poses.push_back(pose);
-
-		// Calculate average pose
-		average_pose.pos.x =
-		    ((average_pose.pos.x * i) + particles[i].pose.pos.x) / (i + 1);
-		average_pose.pos.y =
-		    ((average_pose.pos.y * i) + particles[i].pose.pos.y) / (i + 1);
-		average_pose.pos.z =
-		    ((average_pose.pos.z * i) + particles[i].pose.pos.z) / (i + 1);
-		average_pose.pos.z =
-		    ((average_pose.roll * i) + particles[i].pose.roll) / (i + 1);
-		average_pose.pitch =
-		    ((average_pose.pitch * i) + particles[i].pose.pitch) / (i + 1);
-		average_pose.yaw =
-		    ((average_pose.yaw * i) + particles[i].pose.yaw) / (i + 1);
+    m_poses.push_back(particles[i].pose);
 	}
+  average_pose = Pose<double>(m_poses);
 	// Normalize average pose angles between [-pi,pi]
 	average_pose.roll  = normalizeAngle(average_pose.roll);
 	average_pose.pitch = normalizeAngle(average_pose.pitch);

@@ -45,7 +45,7 @@ wait_for_datum: true
 # origin (datum) using this parameter. The fields in the parameter represent latitude and longitude in decimal degrees,
 # and heading in radians. As navsat_transform_node assumes an ENU standard, a 0 heading corresponds to east.
 
-datum: [41.178289, -8.59565317, 4.3982297]  # feup  
+datum: [0, 0, 0]
 
 
 

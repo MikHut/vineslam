@@ -172,7 +172,7 @@ void Detector::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
 			// Get the curretn map
 			map = (*mapper).getMap();
 			// Publish the map and particle filter
-			publishMap(odom_.header);
+			publishMap(odom_.header, robot_pose);
 			poses.header = odom_.header;
 			particle_publisher.publish(poses);
 			// Publish cam-to-world tf::Transform

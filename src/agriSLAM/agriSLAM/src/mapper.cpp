@@ -25,8 +25,8 @@ void Mapper::init(const Pose<double>& pose, const std::vector<double>& bearings,
 		Eigen::MatrixXd R(2, 2);
 		R(0, 0) = dispError(depths[i]) * std::fabs(cos(bearings[i]));
 		R(1, 1) = dispError(depths[i]) * std::fabs(sin(bearings[i]));
-		R(0, 1) = 0;
-		R(1, 0) = 0;
+		R(0, 1) = ((R(0, 0) + R(1, 1)) / 2) * tan(bearings[i]);
+		R(1, 0) = ((R(0, 0) + R(1, 1)) / 2) * tan(bearings[i]);
 
 		// Push back a Kalman Filter object for the respective landmark
 		KF kf(X.eig_2d(), pos.eig_2d(), z, R, params);
@@ -71,8 +71,8 @@ Mapper::local_map(const Pose<double>& pose, const std::vector<double>& bearings,
 
 	// Decompose homogeneous transformation into
 	// a rotation matrix and a translation vector
-	tf::Matrix3x3 R = cam2world.getBasis();
-	tf::Vector3   t = cam2world.getOrigin();
+	tf::Matrix3x3 Rot   = cam2world.getBasis();
+	tf::Vector3   trans = cam2world.getOrigin();
 
 	for (size_t i = 0; i < bearings.size(); i++) {
 		// Calculate the estimation of the landmark position on
@@ -82,12 +82,12 @@ Mapper::local_map(const Pose<double>& pose, const std::vector<double>& bearings,
 
 		// Convert landmark to world's referential frame
 		Point<double> X_world;
-		X_world.x = X_cam.x * R[0].getX() + X_cam.y * R[0].getY() +
-		            X_cam.z * R[0].getZ() + t.getX();
-		X_world.y = X_cam.x * R[1].getX() + X_cam.y * R[1].getY() +
-		            X_cam.z * R[1].getZ() + t.getY();
-		X_world.z = X_cam.x * R[2].getX() + X_cam.y * R[2].getY() +
-		            X_cam.z * R[2].getZ() + t.getZ();
+		X_world.x = X_cam.x * Rot[0].getX() + X_cam.y * Rot[0].getY() +
+		            X_cam.z * Rot[0].getZ() + trans.getX();
+		X_world.y = X_cam.x * Rot[1].getX() + X_cam.y * Rot[1].getY() +
+		            X_cam.z * Rot[1].getZ() + trans.getY();
+		X_world.z = X_cam.x * Rot[2].getX() + X_cam.y * Rot[2].getY() +
+		            X_cam.z * Rot[2].getZ() + trans.getZ();
 
 		// Convert landmark to robot's referential frame and insert
 		// on array of landmarks
@@ -103,9 +103,10 @@ void Mapper::predict(const Pose<double>&              pose,
                      const std::vector<double>&       depths,
                      const std::vector<SemanticInfo>& info)
 {
-	int           n_obsv   = bearings.size();
-	double        pose_std = 0.2;
-	Point<double> pos      = pose.pos;
+	int    n_obsv = bearings.size();
+	double pose_std =
+	    sqrt(pow(pose.gaussian.std_x, 2) + pow(pose.gaussian.std_y, 2));
+	Point<double> pos = pose.pos;
 
 	for (int i = 0; i < n_obsv; i++) {
 		// Calculate the landmark position based on the ith observation
@@ -125,8 +126,8 @@ void Mapper::predict(const Pose<double>&              pose,
 			// Calculate the initial covariance
 			R(0, 0) = dispError(depths[i]) * std::fabs(cos(bearings[i])) + (pose_std);
 			R(1, 1) = dispError(depths[i]) * std::fabs(sin(bearings[i])) + (pose_std);
-			R(0, 1) = ((R(0, 0) + R(1, 1)) / 2.0) * tan(bearings[i]);
-			R(1, 0) = ((R(0, 0) + R(1, 1)) / 2.0) * tan(bearings[i]);
+			R(0, 1) = ((R(0, 0) + R(1, 1)) / 2) * tan(bearings[i]);
+			R(1, 0) = ((R(0, 0) + R(1, 1)) / 2) * tan(bearings[i]);
 
 			// Initialize the Kalman Filter
 			KF kf(X.eig_2d(), pos.eig_2d(), z, R, params);
@@ -154,11 +155,11 @@ void Mapper::predict(const Pose<double>&              pose,
 
 int Mapper::findCorr(const Point<double>& l_pos, const Point<double>& r_pos)
 {
-	int best_correspondence = -1;
-  double best_aprox = 0.5;
+	int    best_correspondence = -1;
+	double best_aprox          = 0.5;
 	for (auto m_map : map) {
-    // Compute the euclidean distance between the observation
-    // and the corrent landmark on the map
+		// Compute the euclidean distance between the observation
+		// and the corrent landmark on the map
 		double dist = sqrt(pow(l_pos.x - m_map.second.pos.x, 2) +
 		                   pow(l_pos.y - m_map.second.pos.y, 2));
 

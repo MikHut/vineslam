@@ -3,7 +3,7 @@
   <param name ="/use_sim_time" value="true"/>
 
   <!-- rviz -->
-  <node name="rviz" pkg="rviz" type="rviz" args="-d /home/andre-criis/Source/agrobvslam/config/config.rviz" required="false"/>
+  <node name="rviz" pkg="rviz" type="rviz" args="-d /home/andre/Source/agrobvslam/config/config.rviz" required="false"/>
 
   <!-- nodes -->
   <node name="republish" type="republish" pkg="image_transport" output="screen"
@@ -25,9 +25,9 @@
     <param name="odom_topic"  value="/husky_velocity_controller/odom"/>
 
     <param name="model_path"
-      value="/home/andre-criis/Source/coral-deeplearning-ros/detect/train/train_res/SSD-MNetV1-aveleda/output_tflite_graph_edgetpu.tflite"/>
+      value="/home/andre/Source/coral-deeplearning-ros/output_tflite_graph_edgetpu.tflite"/>
     <param name="labels_path"
-      value="/home/andre-criis/Source/coral-deeplearning-ros/detect/train/train_res/SSD-MNetV1-aveleda/labels.txt"/>
+      value="/home/andre/Source/coral-deeplearning-ros/labels.txt"/>
   </node>
 
   <node pkg="tf" type="static_transform_publisher" name="odom_to_map" args="0 0 0 0 0

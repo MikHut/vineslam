@@ -63,7 +63,7 @@ private:
 	}
 
 	// Publish map on rviz
-	void publishMap(const std_msgs::Header& header);
+	void publishMap(const std_msgs::Header& header, const Pose<double>& pose);
 
 #ifdef DEBUG
 	// DEBUG method

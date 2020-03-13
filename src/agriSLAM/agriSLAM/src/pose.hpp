@@ -1,55 +1,14 @@
 #pragma once
 
-#include <cmath>
 #include <eigen3/Eigen/Dense>
 #include <iostream>
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/stitching.hpp>
-#include <random>
+#include <landmark.hpp>
 #include <vector>
 
 const float INF = 1.0e6;         // hypothetic infinit
 const float PI  = 3.14159265359; // (radians)
 
-// Parameters structure
-struct Parameters
-{
-	double h_fov;       // Camera horizontal field of view (radians)
-	double f_length;    // Camera focal lenght (pixels)
-	int    width;       // Image width
-	int    height;      // Image height
-	double baseline;    // Stereo baseline between cameras (meters)
-	double delta_D;     // Stereo matcher disparity error (pixels)
-	double min_score;   // Trunk detector minimum threshold
-	int    n_particles; // Number of particles of the particle filter
-
-	std::string image_left;  // left image ROS topic
-	std::string image_depth; // depth image ROS topic
-	std::string odom_topic;  // odometry ROS topic
-	std::string model;       // tflite model path
-	std::string labels;      // detection labels path
-
-	Parameters()
-	{
-		f_length    = 0.1;
-		width       = 1280;
-		height      = 960;
-		min_score   = 0.5;
-		delta_D     = 0.2;
-		n_particles = 1000;
-
-		model       = "";
-		labels      = "";
-		image_left  = "";
-		image_depth = "";
-		odom_topic  = "";
-	}
-};
-
-// structures
-
+// Structure to represent a 2d or 3d point
 template <typename T>
 struct Point
 {
@@ -76,6 +35,7 @@ struct Point
 	{
 		(*this).x = pt.x;
 		(*this).y = pt.y;
+		(*this).z = pt.z;
 	}
 
 	double euc_dist(const Point<T>& pt)
@@ -99,13 +59,40 @@ struct Point
 	}
 };
 
+// Structure to represent a Gaussian using an Ellipse with:
+// - x and y standard deviations
+// - orientation of the ellipse
+template <typename T>
+struct Ellipse
+{
+	T std_x;
+	T std_y;
+	T th;
+
+	Ellipse() {}
+
+	Ellipse(const T& std_x, const T& std_y, const T& th)
+	{
+		(*this).std_x = std_x;
+		(*this).std_y = std_y;
+		(*this).th    = th;
+	}
+};
+
+// Structure to represent a robot pose considering
+// - 6-dof
+// - gaussian noise characterization
 template <typename T>
 struct Pose
 {
+	// 6-dof robot pose
 	Point<T> pos;
 	T        roll;
 	T        pitch;
 	T        yaw;
+
+	// Pose gaussian noise characterization
+	Ellipse<T> gaussian;
 
 	Pose() {}
 
@@ -114,6 +101,14 @@ struct Pose
 		(*this).pos.x = x;
 		(*this).pos.y = y;
 		(*this).yaw   = yaw;
+	}
+
+	Pose(const T& x, const T& y, const double& theta, const Ellipse<T>& gaussian)
+	{
+		(*this).pos.x    = x;
+		(*this).pos.y    = y;
+		(*this).yaw      = yaw;
+		(*this).gaussian = gaussian;
 	}
 
 	Pose(const T& x, const T& y, const T& z, const T& roll, const T& pitch,
@@ -125,6 +120,60 @@ struct Pose
 		(*this).roll  = roll;
 		(*this).pitch = pitch;
 		(*this).yaw   = yaw;
+	}
+
+	Pose(const T& x, const T& y, const T& z, const T& roll, const T& pitch,
+	     const T& yaw, const Ellipse<T>& gaussian)
+	{
+		(*this).pos.x    = x;
+		(*this).pos.y    = y;
+		(*this).pos.z    = z;
+		(*this).roll     = roll;
+		(*this).pitch    = pitch;
+		(*this).yaw      = yaw;
+		(*this).gaussian = gaussian;
+	}
+
+	Pose(const std::vector<Pose<T>>& poses)
+	{
+		Pose<T>  mean = Pose<T>(0, 0, 0, 0, 0, 0);
+		Point<T> std  = Point<T>(0, 0, 0);
+		double   th   = 0;
+
+		// Calculate mean of all the robot poses
+		for (size_t i = 0; i < poses.size(); i++) {
+			mean.pos.x += (T)poses[i].pos.x;
+			mean.pos.y += (T)poses[i].pos.y;
+			mean.pos.z += (T)poses[i].pos.z;
+			mean.roll += (T)poses[i].roll;
+			mean.pitch += (T)poses[i].pitch;
+			mean.yaw += (T)poses[i].yaw;
+		}
+		mean.pos.x /= (T)poses.size();
+		mean.pos.y /= (T)poses.size();
+		mean.pos.z /= (T)poses.size();
+		mean.roll /= (T)poses.size();
+		mean.pitch /= (T)poses.size();
+		mean.yaw /= (T)poses.size();
+
+		// Calculate standard deviation of all the robot positions
+		for (size_t i = 0; i < poses.size(); i++) {
+			std.x += pow(poses[i].pos.x - mean.pos.x, 2);
+			std.y += pow(poses[i].pos.y - mean.pos.y, 2);
+		}
+		std.x = sqrt(std.x / (T)poses.size());
+		std.y = sqrt(std.y / (T)poses.size());
+		th    = tan(mean.yaw);
+
+		// Save pose and gaussian distribution
+		(*this).pos.x = mean.pos.x;
+		(*this).pos.y = mean.pos.y;
+		(*this).pos.z = mean.pos.z;
+		(*this).roll  = mean.roll;
+		(*this).pitch = mean.pitch;
+		(*this).yaw   = mean.yaw;
+
+		(*this).gaussian = Ellipse<T>(std.x, std.y, th);
 	}
 
 	Eigen::VectorXd eig_2d()
@@ -141,28 +190,6 @@ struct Pose
 		return vec;
 	}
 };
-
-template <typename T>
-struct Ellipse
-{
-	T std_x;
-	T std_y;
-	T th;
-
-	Ellipse() {}
-
-	Ellipse(T std_x, T std_y, T th)
-	{
-		(*this).std_x = std_x;
-		(*this).std_y = std_y;
-		(*this).th    = th;
-	}
-};
-
-// Array of cv colors
-static std::vector<cv::Scalar> colors = {
-    cv::Scalar(137, 137, 0), cv::Scalar(0, 137, 137), cv::Scalar(137, 0, 137),
-    cv::Scalar(20, 165, 255)};
 
 // Overloading operators
 template <typename T>
@@ -183,14 +210,6 @@ std::ostream& operator<<(std::ostream& o, const Pose<T>& p)
 {
 	o << "[x,y,z,roll,pitch,yaw] = [" << p.pos.x << "," << p.pos.y << ","
 	  << p.pos.z << "," << p.roll << "," << p.pitch << "," << p.yaw << "]"
-	  << std::endl;
-	return o;
-}
-
-template <typename T>
-std::ostream& operator<<(std::ostream& o, const Ellipse<T>& e)
-{
-	o << "[dx,dy,dth] = [" << e.std_x << "," << e.std_y << "," << e.th << "]"
 	  << std::endl;
 	return o;
 }

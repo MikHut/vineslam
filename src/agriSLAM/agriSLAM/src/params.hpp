@@ -17,6 +17,7 @@ struct Parameters
 	std::string image_left;  // left image ROS topic
 	std::string image_depth; // depth image ROS topic
 	std::string odom_topic;  // odometry ROS topic
+	std::string gps_topic;   // gps ROS topic
 	std::string model;       // tflite model path
 	std::string labels;      // detection labels path
 
@@ -26,7 +27,7 @@ struct Parameters
 		width       = 1280;
 		height      = 960;
 		min_score   = 0.5;
-		delta_D     = 0.2;
+		delta_D     = 1.0;
 		n_particles = 1000;
 
 		model       = "";
@@ -34,5 +35,6 @@ struct Parameters
 		image_left  = "";
 		image_depth = "";
 		odom_topic  = "";
+		gps_topic   = "";
 	}
 };

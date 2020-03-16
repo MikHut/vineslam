@@ -5,7 +5,7 @@
 
   <node pkg="agrob_map_transform" type="agrob_gnss_transform_node" name="agrob_gnss_transform_node" clear_params="true"  output="screen"> <!--output="screen"-->
 
-    <rosparam command="load" file="$(find agrobv16_bringup)/params/navsat_transform_agrobv16.yaml" />
+    <rosparam command="load" file="$(find agrob_map_transform)/params/navsat_transform_template.yaml" />
       <!-- Placeholders for input remapping. Set your topic names as the "to" values.-->
       <remap from="imu/data" to="/Dummy/IMU"/>
       <remap from="odometry/filtered" to="/integrated_to_init"/>  <!-- We only use ODOM msgs in this node -->

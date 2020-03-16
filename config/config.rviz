@@ -7,9 +7,9 @@ Panels:
         - /Global Options1
         - /Status1
         - /MarkerArray1
-        - /MarkerArray1/Status1
         - /Odometry1
         - /TF1/Frames1
+        - /PoseWithCovariance1
       Splitter Ratio: 0.5
     Tree Height: 649
   - Class: rviz/Selection
@@ -183,6 +183,36 @@ Visualization Manager:
                   {}
       Update Interval: 0
       Value: true
+    - Alpha: 1
+      Axes Length: 1
+      Axes Radius: 0.10000000149011612
+      Class: rviz/PoseWithCovariance
+      Color: 237; 212; 0
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: true
+        Position:
+          Alpha: 0.30000001192092896
+          Color: 204; 51; 204
+          Scale: 1
+          Value: true
+        Value: true
+      Enabled: true
+      Head Length: 0.30000001192092896
+      Head Radius: 0.10000000149011612
+      Name: PoseWithCovariance
+      Shaft Length: 1
+      Shaft Radius: 0.05000000074505806
+      Shape: Arrow
+      Topic: /gps_pose
+      Unreliable: true
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -211,7 +241,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 32.96896743774414
+      Distance: 29.78586769104004
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -229,7 +259,7 @@ Visualization Manager:
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
       Value: XYOrbit (rviz)
-      Yaw: 3.1297764778137207
+      Yaw: 3.154783248901367
     Saved: ~
 Window Geometry:
   Displays:

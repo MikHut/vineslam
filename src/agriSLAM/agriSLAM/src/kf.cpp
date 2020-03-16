@@ -1,8 +1,8 @@
 #include "kf.hpp"
 
 KF::KF(const VectorXd& X0, const VectorXd& s, const VectorXd& z,
-       const MatrixXd& R, const Parameters& params)
-    : X0(X0), X(X0), R(R), params(params)
+       const Parameters& params)
+    : X0(X0), X(X0), params(params)
 {
 	// Apply the observation model using the current state vector
 	double d   = sqrt(pow(X[0] - s[0], 2) + pow(X[1] - s[1], 2));
@@ -14,8 +14,8 @@ KF::KF(const VectorXd& X0, const VectorXd& s, const VectorXd& z,
 	    (X[0] - s[0]) / pow(d, 2);
 
 	// Initialize the process covariance P
+	computeR(s, z);
 	P = R;
-	/* P = G.inverse() * R * (G.inverse()).transpose(); */
 }
 
 void KF::process(const VectorXd& s, const VectorXd& z)
@@ -33,18 +33,24 @@ void KF::computeR(const VectorXd& s, const VectorXd& z)
 	double d   = sqrt(pow(X[0] - s[0], 2) + pow(X[1] - s[1], 2));
 	double phi = atan2(X[1] - s[1], X[0] - s[0]) - s[2];
 
-	// Odometry travelled distance
-	double odom_std = 0.2;
+	// Pose standard deviation
+	double pose_std = sqrt(pow(s[0],2) + pow(s[1],2)) * 0.01;
 
 	// Compute the covariance observations matrix based on
-	// - the distance from the detected trunk to the robot
-	// - the travelled distance given by odometry
-	// - the number of observations of the landmark
+	// - more noise in depth to far observed landmarks
+	// - less noise in detection for near observed landmarks
 	R       = MatrixXd(2, 2);
-	R(0, 0) = dispError(d) * std::fabs(cos(phi)) + (odom_std);
-	R(1, 1) = dispError(d) * std::fabs(sin(phi)) + (odom_std);
-	R(0, 1) = ((R(0, 0) + R(1, 1)) / 2) * tan(phi);
-	R(1, 0) = ((R(0, 0) + R(1, 1)) / 2) * tan(phi);
+	R(0, 0) = dispError(d) + pose_std;
+	R(1, 1) = 0.1 / (d * d) + pose_std;
+	R(0, 1) = 0;
+	R(1, 0) = 0;
+
+  // Rotate covariance matrix using the bearing angle 
+  // codified in a rotation matrix
+  Eigen::MatrixXd Rot(2,2);
+  Rot << cos(phi), -sin(phi), sin(phi), cos(phi);
+
+  R = Rot * R * Rot.transpose();
 }
 
 void KF::predict()
@@ -103,8 +109,10 @@ Ellipse<double> KF::getStdev() const
 	else
 		th = atan2(lambda_1 - a, b);
 
-	double std_x = sqrt(lambda_1);
-	double std_y = sqrt(lambda_2);
+	// double std_x = sqrt(lambda_1);
+	// double std_y = sqrt(lambda_2);
+	double std_x = sqrt(a);
+	double std_y = sqrt(c);
 
-	return Ellipse<double>(std_x, std_y, th);
+	return Ellipse<double>(std_x, std_y, 0);
 }

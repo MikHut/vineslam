@@ -1,7 +1,7 @@
-#include <params.hpp>
-#include <landmark.hpp>
 #include <eigen3/Eigen/Dense>
 #include <iostream>
+#include <landmark.hpp>
+#include <params.hpp>
 
 #define PI 3.14159265359
 
@@ -14,9 +14,9 @@ public:
 	KF(){};
 	// Class constructor
 	// - Receives the initial state and the parameters
-  // - initializes the covariance matrix
+	// - initializes the covariance matrix
 	KF(const VectorXd& X0, const VectorXd& s, const VectorXd& z,
-	   const MatrixXd& R, const Parameters& params);
+	   const Parameters& params);
 	// Function that processes all the Kalman Filter routines
 	void process(const VectorXd& s, const VectorXd& z);
 	// Function that outputs the current state of the Kalman Filter

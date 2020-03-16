@@ -7,6 +7,7 @@ add_compile_options(-std=c++11)
 find_package(catkin REQUIRED
 		    agriSLAM
 		    edgetpu_cpp 
+		    agrob_map_transform
 		    roscpp
                     std_msgs
 		    sensor_msgs
@@ -32,6 +33,7 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${agricSLAM_INCLUDE_DIRS}
   ${edgetpu_cpp_INCLUDE_DIRS}
+  ${agrob_map_transform_cpp_INCLUDE_DIRS}
 )
 
 SET(${PROJECT_NAME}_SOURCES src/main.cpp src/${PROJECT_NAME}_node.cpp src/debug.cpp)

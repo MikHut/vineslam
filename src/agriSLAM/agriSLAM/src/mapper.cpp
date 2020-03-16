@@ -22,14 +22,9 @@ void Mapper::init(const Pose<double>& pose, const std::vector<double>& bearings,
 		double          th = bearings[i] + pose.yaw;
 		Point<double>   X(pose.pos.x + depths[i] * cos(th),
                     pose.pos.y + depths[i] * sin(th));
-		Eigen::MatrixXd R(2, 2);
-		R(0, 0) = dispError(depths[i]) * std::fabs(cos(bearings[i]));
-		R(1, 1) = dispError(depths[i]) * std::fabs(sin(bearings[i]));
-		R(0, 1) = ((R(0, 0) + R(1, 1)) / 2) * tan(bearings[i]);
-		R(1, 0) = ((R(0, 0) + R(1, 1)) / 2) * tan(bearings[i]);
 
 		// Push back a Kalman Filter object for the respective landmark
-		KF kf(X.eig_2d(), pos.eig_2d(), z, R, params);
+		KF kf(X.eig_2d(), pos.eig_2d(), z, params);
 		filters.push_back(kf);
 
 		// Insert the landmark on the map, with a single observation
@@ -123,14 +118,8 @@ void Mapper::predict(const Pose<double>&              pose,
 		if (landmark_id < 0) {
 			Eigen::MatrixXd R(2, 2);
 
-			// Calculate the initial covariance
-			R(0, 0) = dispError(depths[i]) * std::fabs(cos(bearings[i])) + (pose_std);
-			R(1, 1) = dispError(depths[i]) * std::fabs(sin(bearings[i])) + (pose_std);
-			R(0, 1) = ((R(0, 0) + R(1, 1)) / 2) * tan(bearings[i]);
-			R(1, 0) = ((R(0, 0) + R(1, 1)) / 2) * tan(bearings[i]);
-
 			// Initialize the Kalman Filter
-			KF kf(X.eig_2d(), pos.eig_2d(), z, R, params);
+			KF kf(X.eig_2d(), pos.eig_2d(), z, params);
 			filters.push_back(kf);
 
 			// Insert the landmark on the map, with a single observation

@@ -20,9 +20,10 @@
 
     <param name="n_particles"       value="2000"/>
 
-    <param name="image_left" value="/zed/zed_node/left/image_rect_color"/>
+    <param name="image_left"  value="/zed/zed_node/left/image_rect_color"/>
     <param name="image_depth" value="/zed/zed_node/depth/depth_registered"/>
     <param name="odom_topic"  value="/husky_velocity_controller/odom"/>
+    <param name="gps_topic"   value="/fix"/>
 
     <param name="model_path"
       value="/home/andre/Source/coral-deeplearning-ros/output_tflite_graph_edgetpu.tflite"/>
@@ -34,5 +35,15 @@
     0 1  /map /odom 10" />
   <node pkg="tf" type="static_transform_publisher" name="odom_to_base" args="0 0 0 0 0
     0 1  /odom /base_link 10" />
+  <node pkg="tf" type="static_transform_publisher" name="gps_init_to_baselink"  args="0 0 0 0 0 0 /base_link /gps  10" />
+
+  <!-- agrob_map_transform -->
+  <node pkg="agrob_map_transform" type="agrob_gnss_transform_node" name="agrob_gnss_transform_node" clear_params="true" output="screen">
+    <rosparam command="load" file="$(find agrob_map_transform)/params/navsat_transform_template.yaml" />
+      <!-- Placeholders for input remapping. Set your topic names as the "to" values. -->
+      <remap from="imu/data" to="/Dummy/IMU"/>
+      <remap from="odometry/filtered" to="/Dummy/ODOM"/>  
+      <remap from="gps/fix" to= "fix" />
+  </node>
 
 </launch>

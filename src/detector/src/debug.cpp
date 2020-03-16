@@ -86,9 +86,9 @@ void Detector::publishMap(const std_msgs::Header& header, const Pose<double>& po
   ellipse.pose.orientation.z = q.z();
   ellipse.pose.orientation.w = q.w();
   ellipse.color.r            = 0.0f;
-  ellipse.color.g            = 1.0f;
-  ellipse.color.b            = 0.0f;
-  ellipse.color.a            = 0.3f;
+  ellipse.color.g            = 0.0f;
+  ellipse.color.b            = 1.0f;
+  ellipse.color.a            = 1.0f;
   ellipse_array.markers.push_back(ellipse);
 
 	map_publisher.publish(marker_array);

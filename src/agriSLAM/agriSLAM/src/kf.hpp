@@ -43,9 +43,6 @@ private:
 	MatrixXd K;
 	MatrixXd R;
 
-	// Number of observations of the landmark considered in the KF object
-	int n_obsvs;
-
 	// Auxiliar function that normalizes an angle in the [-pi,pi] range
 	double normalizeAngle(const double& angle)
 	{

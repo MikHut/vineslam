@@ -96,14 +96,14 @@ struct Pose
 
 	Pose() {}
 
-	Pose(const T& x, const T& y, const double& theta)
+	Pose(const T& x, const T& y, const double& yaw)
 	{
 		(*this).pos.x = x;
 		(*this).pos.y = y;
 		(*this).yaw   = yaw;
 	}
 
-	Pose(const T& x, const T& y, const double& theta, const Ellipse<T>& gaussian)
+	Pose(const T& x, const T& y, const double& yaw, const Ellipse<T>& gaussian)
 	{
 		(*this).pos.x    = x;
 		(*this).pos.y    = y;

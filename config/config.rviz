@@ -7,7 +7,9 @@ Panels:
         - /Global Options1
         - /Status1
         - /MarkerArray1
+        - /PoseArray1
         - /Odometry1
+        - /Odometry1/Shape1
         - /TF1/Frames1
         - /PoseWithCovariance1
       Splitter Ratio: 0.5
@@ -107,10 +109,10 @@ Visualization Manager:
         Axes Length: 1
         Axes Radius: 0.10000000149011612
         Color: 32; 74; 135
-        Head Length: 0.30000001192092896
-        Head Radius: 0.10000000149011612
-        Shaft Length: 1
-        Shaft Radius: 0.05000000074505806
+        Head Length: 0.07000000029802322
+        Head Radius: 0.05000000074505806
+        Shaft Length: 0.4000000059604645
+        Shaft Radius: 0.10000000149011612
         Value: Arrow
       Topic: /odometry
       Unreliable: true
@@ -241,7 +243,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 29.78586769104004
+      Distance: 46.8686408996582
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1

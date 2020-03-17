@@ -101,25 +101,27 @@ void Mapper::predict(const Pose<double>&              pose,
 {
 	int           n_obsv = bearings.size();
 	Point<double> particles_std(pose.gaussian.std_x, pose.gaussian.std_y);
-	Point<double> pos = pose.pos;
+	Pose<double>  pose_2d(pose.pos.x, pose.pos.y, pose.yaw);
 
 	for (int i = 0; i < n_obsv; i++) {
 		// Calculate the landmark position based on the ith observation
-		double        th = normalizeAngle(bearings[i] + pose.yaw);
-		Point<double> X(pos.x + depths[i] * cos(th), pos.y + depths[i] * sin(th));
+		double        th = normalizeAngle(bearings[i] + pose_2d.yaw);
+		Point<double> X(pose_2d.pos.x + depths[i] * cos(th),
+		                pose_2d.pos.y + depths[i] * sin(th));
 		// Construct the observations vector
 		VectorXd z(2, 1);
 		z << depths[i], bearings[i];
 
 		// Check if the landmark already exists in the map
-		int landmark_id = findCorr(X, pos);
+		int landmark_id = findCorr(X, pose_2d.pos);
 		// If not, initialize the landmark on the map, as well as the
 		// correspondent Kalman Filter
 		if (landmark_id < 0) {
 			Eigen::MatrixXd R(2, 2);
 
 			// Initialize the Kalman Filter
-			KF kf(X.eig_2d(), pos.eig_2d(), particles_std.eig_2d(), z, params);
+			KF kf(X.eig_2d(), pose_2d.pos.eig_2d(), particles_std.eig_2d(), z,
+			      params);
 			filters.push_back(kf);
 
 			// Insert the landmark on the map, with a single observation
@@ -130,7 +132,8 @@ void Mapper::predict(const Pose<double>&              pose,
 		// Filter call
 		else {
 			// Invocate the Kalman Filter
-			filters[landmark_id - 1].process(pos.eig_2d(), particles_std.eig_2d(), z);
+			filters[landmark_id - 1].process(pose_2d.eig_2d(), particles_std.eig_2d(),
+			                                 z);
 			// Get the state vector and the standard deviation associated
 			// with the estimation
 			Point<double>   X_out = filters[landmark_id - 1].getState();

@@ -4,15 +4,6 @@ KF::KF(const VectorXd& X0, const VectorXd& s, const VectorXd& g,
        const VectorXd& z, const Parameters& params)
     : X0(X0), X(X0), params(params)
 {
-	// Apply the observation model using the current state vector
-	double d   = sqrt(pow(X[0] - s[0], 2) + pow(X[1] - s[1], 2));
-	double phi = atan2(X[1] - s[1], X[0] - s[0]) - s[2];
-
-	// Compute the Jacobian of the non linear observation vector
-	MatrixXd G(2, 2);
-	G << (X[0] - s[0]) / d, +(X[1] - s[1]) / d, -(X[1] - s[1]) / pow(d, 2),
-	    (X[0] - s[0]) / pow(d, 2);
-
 	// Initialize the process covariance P
 	computeR(s, g, z);
 	P = R;
@@ -20,8 +11,6 @@ KF::KF(const VectorXd& X0, const VectorXd& s, const VectorXd& g,
 
 void KF::process(const VectorXd& s, const VectorXd& g, const VectorXd& z)
 {
-	n_obsvs++;
-
 	computeR(s, g, z);
 	predict();
 	correct(s, z);
@@ -63,7 +52,7 @@ void KF::correct(const VectorXd& s, const VectorXd& z)
 
 	VectorXd z_(2, 1);
 	z_ << d, normalizeAngle(phi);
-
+  
 	// Compute the Jacobian of the non linear observation vector
 	MatrixXd G(2, 2);
 	G << (X[0] - s[0]) / d, +(X[1] - s[1]) / d, -(X[1] - s[1]) / pow(d, 2),

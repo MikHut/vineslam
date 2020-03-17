@@ -8,6 +8,7 @@ void Mapper::init(const Pose<double>& pose, const std::vector<double>& bearings,
 {
 	int           n_obsv = bearings.size();
 	Point<double> pos    = pose.pos;
+	Point<double> particles_std(pose.gaussian.std_x, pose.gaussian.std_y);
 
 	// Compute initial covariance matrix
 	// - proportional to the pose signal and the distance to the robot
@@ -19,12 +20,12 @@ void Mapper::init(const Pose<double>& pose, const std::vector<double>& bearings,
 		// Calculate
 		// - the initial estimation of the landmark
 		// - the initial observation covariance of the landmark
-		double          th = bearings[i] + pose.yaw;
-		Point<double>   X(pose.pos.x + depths[i] * cos(th),
-                    pose.pos.y + depths[i] * sin(th));
+		double        th = bearings[i] + pose.yaw;
+		Point<double> X(pose.pos.x + depths[i] * cos(th),
+		                pose.pos.y + depths[i] * sin(th));
 
 		// Push back a Kalman Filter object for the respective landmark
-		KF kf(X.eig_2d(), pos.eig_2d(), z, params);
+		KF kf(X.eig_2d(), pos.eig_2d(), particles_std.eig_2d(), z, params);
 		filters.push_back(kf);
 
 		// Insert the landmark on the map, with a single observation
@@ -98,9 +99,8 @@ void Mapper::predict(const Pose<double>&              pose,
                      const std::vector<double>&       depths,
                      const std::vector<SemanticInfo>& info)
 {
-	int    n_obsv = bearings.size();
-	double pose_std =
-	    sqrt(pow(pose.gaussian.std_x, 2) + pow(pose.gaussian.std_y, 2));
+	int           n_obsv = bearings.size();
+	Point<double> particles_std(pose.gaussian.std_x, pose.gaussian.std_y);
 	Point<double> pos = pose.pos;
 
 	for (int i = 0; i < n_obsv; i++) {
@@ -119,7 +119,7 @@ void Mapper::predict(const Pose<double>&              pose,
 			Eigen::MatrixXd R(2, 2);
 
 			// Initialize the Kalman Filter
-			KF kf(X.eig_2d(), pos.eig_2d(), z, params);
+			KF kf(X.eig_2d(), pos.eig_2d(), particles_std.eig_2d(), z, params);
 			filters.push_back(kf);
 
 			// Insert the landmark on the map, with a single observation
@@ -130,7 +130,7 @@ void Mapper::predict(const Pose<double>&              pose,
 		// Filter call
 		else {
 			// Invocate the Kalman Filter
-			filters[landmark_id - 1].process(pos.eig_2d(), z);
+			filters[landmark_id - 1].process(pos.eig_2d(), particles_std.eig_2d(), z);
 			// Get the state vector and the standard deviation associated
 			// with the estimation
 			Point<double>   X_out = filters[landmark_id - 1].getState();

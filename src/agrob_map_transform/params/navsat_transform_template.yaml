@@ -3,7 +3,7 @@ frequency: 30
 
 # Delay time, in seconds, before we calculate the transform from the UTM frame to your world frame. This is especially
 # important if you have use_odometry_yaw set to true. Defaults to 0.
-delay: 3.0
+delay: 0.0
 
 # PLEASE READ: Like all nodes in robot_localization, this node assumes that your IMU data is reported in the ENU frame.
 # Many IMUs report data in the NED frame, so you'll want to verify that your data is in the correct frame before using
@@ -44,5 +44,8 @@ wait_for_datum: true
 # Instead of using the first GPS location and IMU-based heading for the local-frame origin, users can specify the
 # origin (datum) using this parameter. The fields in the parameter represent latitude and longitude in decimal degrees,
 # and heading in radians. As navsat_transform_node assumes an ENU standard, a 0 heading corresponds to east.
-datum: [41.2049111667, -8.30747983333, 0]
+datum: [41.2049111667, -8.30747983333, -1.57]
 
+
+world_frame_id_: "map"
+PF_for_datum_orientation_estimation: true

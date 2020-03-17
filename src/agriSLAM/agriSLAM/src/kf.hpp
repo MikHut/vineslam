@@ -15,10 +15,10 @@ public:
 	// Class constructor
 	// - Receives the initial state and the parameters
 	// - initializes the covariance matrix
-	KF(const VectorXd& X0, const VectorXd& s, const VectorXd& z,
-	   const Parameters& params);
+	KF(const VectorXd& X0, const VectorXd& s, const VectorXd& g,
+	   const VectorXd& z, const Parameters& params);
 	// Function that processes all the Kalman Filter routines
-	void process(const VectorXd& s, const VectorXd& z);
+	void process(const VectorXd& s, const VectorXd& g, const VectorXd& z);
 	// Function that outputs the current state of the Kalman Filter
 	Point<double> getState() const;
 	// Function that outputs the current standard deviation of the
@@ -33,7 +33,7 @@ private:
 	// Function that implements the update step of the Kalman Filter
 	void correct(const VectorXd& s, const VectorXd& z);
 	// Function that calculates the current observations covariance matrix
-	void computeR(const VectorXd& s, const VectorXd& z);
+	void computeR(const VectorXd& s, const VectorXd& g, const VectorXd& z);
 
 	Parameters params;
 

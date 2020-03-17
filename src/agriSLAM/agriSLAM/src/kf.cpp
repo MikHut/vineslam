@@ -1,7 +1,7 @@
 #include "kf.hpp"
 
-KF::KF(const VectorXd& X0, const VectorXd& s, const VectorXd& z,
-       const Parameters& params)
+KF::KF(const VectorXd& X0, const VectorXd& s, const VectorXd& g,
+       const VectorXd& z, const Parameters& params)
     : X0(X0), X(X0), params(params)
 {
 	// Apply the observation model using the current state vector
@@ -14,43 +14,38 @@ KF::KF(const VectorXd& X0, const VectorXd& s, const VectorXd& z,
 	    (X[0] - s[0]) / pow(d, 2);
 
 	// Initialize the process covariance P
-	computeR(s, z);
+	computeR(s, g, z);
 	P = R;
 }
 
-void KF::process(const VectorXd& s, const VectorXd& z)
+void KF::process(const VectorXd& s, const VectorXd& g, const VectorXd& z)
 {
 	n_obsvs++;
 
-	computeR(s, z);
+	computeR(s, g, z);
 	predict();
 	correct(s, z);
 }
 
-void KF::computeR(const VectorXd& s, const VectorXd& z)
+void KF::computeR(const VectorXd& s, const VectorXd& g, const VectorXd& z)
 {
-	// Calculate observation (depth,bearing)
-	double d   = sqrt(pow(X[0] - s[0], 2) + pow(X[1] - s[1], 2));
-	double phi = atan2(X[1] - s[1], X[0] - s[0]) - s[2];
-
-	// Pose standard deviation
-	double pose_std = sqrt(pow(s[0],2) + pow(s[1],2)) * 0.01;
-
 	// Compute the covariance observations matrix based on
 	// - more noise in depth to far observed landmarks
 	// - less noise in detection for near observed landmarks
+	// - the standard deviation of the particle filter pose
+	//   estimation in both x and y components
 	R       = MatrixXd(2, 2);
-	R(0, 0) = dispError(d) + pose_std;
-	R(1, 1) = 0.1 / (d * d) + pose_std;
+	R(0, 0) = dispError(z[0]) + g[0];
+	R(1, 1) = 0.1 / (z[0] * z[0]) + g[1];
 	R(0, 1) = 0;
 	R(1, 0) = 0;
 
-  // Rotate covariance matrix using the bearing angle 
-  // codified in a rotation matrix
-  Eigen::MatrixXd Rot(2,2);
-  Rot << cos(phi), -sin(phi), sin(phi), cos(phi);
+	// Rotate covariance matrix using the bearing angle
+	// codified in a rotation matrix
+	Eigen::MatrixXd Rot(2, 2);
+	Rot << cos(z[1]), -sin(z[1]), sin(z[1]), cos(z[1]);
 
-  R = Rot * R * Rot.transpose();
+	R = Rot * R * Rot.transpose();
 }
 
 void KF::predict()

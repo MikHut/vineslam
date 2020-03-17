@@ -79,13 +79,13 @@ void Detector::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
 		// Save initial gps pose
 		if (init_gps == true) {
 			first_gps_pose = srv.response.local_pose.pose.pose;
-			init_gps = false;
+			init_gps       = false;
 			return;
 		}
 
 		geometry_msgs::PoseWithCovarianceStamped gps_pose;
 
-    // Convert gps measure to map referential and publish
+		// Convert gps measure to map referential and publish
 		gps_pose.header = (*msg).header;
 		gps_pose.pose   = srv.response.local_pose.pose;
 		gps_pose.pose.pose.position.x -= first_gps_pose.position.x;
@@ -193,11 +193,14 @@ void Detector::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
 		}
 
 		if (init == true && bearings.size() > 1) {
-			// Initialize the localizer and the mapper
+			// Initialize the localizer and get first particles distribution
 			(*localizer).init(Pose<double>(0, 0, 0, 0, 0, odom.yaw));
-			(*mapper).init(Pose<double>(0, 0, 0, 0, 0, odom.yaw), bearings, depths,
-			               info);
-			map  = (*mapper).getMap();
+			Pose<double> robot_pose = (*localizer).getPose();
+      // Initialize the mapper
+			(*mapper).init(robot_pose, bearings, depths, info);
+			// Get first map
+			map = (*mapper).getMap();
+
 			init = false;
 		}
 		else if (init == false) {

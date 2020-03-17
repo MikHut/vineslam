@@ -4,7 +4,19 @@ Localizer::Localizer(const Parameters& params) : params(params) {}
 
 void Localizer::init(const Pose<double>& initial_pose)
 {
+  // Initialize the particle filter
 	pf = new PF(params.n_particles, initial_pose);
+
+  // Get the first distribution of particles
+	std::vector<Particle> particles;
+  (*pf).getParticles(particles);
+
+  // Compute average pose and standard deviation of the 
+  // first distribution
+  std::vector<Pose<double>> poses;
+  for (size_t i = 0; i < particles.size(); i++)
+    poses.push_back(particles[i].pose);
+  average_pose = Pose<double>(poses);
 }
 
 void Localizer::process(const Pose<double>&                    odom,

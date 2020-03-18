@@ -1,3 +1,0 @@
-geometry_msgs/PoseWithCovarianceStamped  local_pose
----
-sensor_msgs/NavSatFix geo_pose

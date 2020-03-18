@@ -61,9 +61,9 @@ void PF::predict(const Pose<double>& odom)
 
 	// Declare normal Gaussian distributions to innovate the particles
 	double mean    = 0.0;
-	double std_xyz = delta_trans * 0.5;
+	double std_xyz = delta_trans * 0.1;
 	double std_rp  = 1.5 * PI / 180;
-	double std_yaw = std::fabs(normalizeAngle(delta_rot_a + delta_rot_b)) * 0.5;
+	double std_yaw = std::fabs(normalizeAngle(delta_rot_a + delta_rot_b)) * 0.1;
 	std::default_random_engine       generator;
 	std::normal_distribution<double> gauss_xyz(mean, std_xyz);
 	std::normal_distribution<double> gauss_rp(mean, std_rp);

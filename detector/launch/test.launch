@@ -1,0 +1,50 @@
+<launch>
+  <!-- clock -->
+  <param name ="/use_sim_time" value="true"/>
+
+  <!-- rviz -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d /home/andre/Source/agrobvslam/config/config.rviz" required="false"/>
+
+  <!-- nodes -->
+  <node name="republish" type="republish" pkg="image_transport" output="screen"
+    args="compressed in:=/camera/image out:=/camera/image_raw" />
+  <node pkg="detector" type="detector_node" name="detector" output="screen">
+    <param name="h_fov"             value="1.82"/>
+    <param name="focal_length"      value="500"/>
+    <param name="baseline"          value="0.12"/>
+    <param name="img_width"         value="1292"/>
+    <param name="img_height"        value="964"/>
+
+    <param name="match_box"         value="40"/>
+    <param name="detector_th"       value="0.25"/>
+
+    <param name="n_particles"       value="2000"/>
+
+    <param name="image_left"  value="/zed/zed_node/left/image_rect_color"/>
+    <param name="image_depth" value="/zed/zed_node/depth/depth_registered"/>
+    <param name="odom_topic"  value="/husky_velocity_controller/odom"/>
+    <param name="gps_topic"   value="/fix"/>
+
+    <param name="model_path"
+      value="/home/andre/Source/coral-deeplearning-ros/output_tflite_graph_edgetpu.tflite"/>
+    <param name="labels_path"
+      value="/home/andre/Source/coral-deeplearning-ros/labels.txt"/>
+  </node>
+
+  <node pkg="tf" type="static_transform_publisher" name="odom_to_map" args="0 0 0 0 0
+    0 1  /map /odom 10" />
+  <node pkg="tf" type="static_transform_publisher" name="odom_to_base" args="0 0 0 0 0
+    0 1  /odom /base_link 10" />
+  <node pkg="tf" type="static_transform_publisher" name="gps_init_to_map"  args="0 0 0 0 0 0 /map /gps  10" />
+
+  <!-- agrob_map_transform -->
+  <node pkg="agrob_map_transform" type="agrob_gnss_transform_node" name="agrob_gnss_transform_node" clear_params="true" output="screen">
+    <rosparam command="load" file="$(find agrob_map_transform)/params/navsat_transform_template.yaml" />
+      <!-- Placeholders for input remapping. Set your topic names as the "to" values. -->
+      <remap from="imu/data" to="/Dummy/IMU"/>
+      <remap from="odometry/filtered" to="/Dummy/odom"/>  
+      <!-- <remap from="odometry/filtered" to="/husky_velocity_controller/odom"/> -->
+      <remap from="gps/fix" to= "fix" />
+  </node>
+
+</launch>

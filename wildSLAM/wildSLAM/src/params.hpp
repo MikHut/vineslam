@@ -23,9 +23,9 @@ struct Parameters
 
 	Parameters()
 	{
-		f_length    = 0.1;
+		f_length    = 500;
 		width       = 1280;
-		height      = 960;
+		height      = 720;
 		min_score   = 0.5;
 		delta_D     = 1.0;
 		n_particles = 1000;

@@ -2,7 +2,6 @@
 
 #include <eigen3/Eigen/Dense>
 #include <iostream>
-#include <landmark.hpp>
 #include <vector>
 
 const float INF = 1.0e6;         // hypothetic infinit

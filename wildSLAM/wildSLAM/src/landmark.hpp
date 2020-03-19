@@ -1,7 +1,6 @@
 #pragma once
 
 #include <pose.hpp>
-#include <landmark.hpp>
 #include <iostream>
 
 // Structure to represent the semantic information about

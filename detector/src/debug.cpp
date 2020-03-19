@@ -38,7 +38,7 @@ void Detector::publishMap(const std_msgs::Header& header, const Pose<double>& po
 	ellipse.lifetime           = ros::Duration();
 
 	// Publish markers
-	for (auto m_map : map) {
+	for (auto m_map : map_2d) {
 		// Draw landmark mean
 		marker.id              = m_map.first;
 		marker.header          = header;
@@ -73,7 +73,7 @@ void Detector::publishMap(const std_msgs::Header& header, const Pose<double>& po
 	tf2::Quaternion q;
 	q.setRPY(0, 0, pose.gaussian.th);
 
-  ellipse.id                 = map.size() + 1;
+  ellipse.id                 = map_2d.size() + 1;
   ellipse.header             = header;
   ellipse.header.frame_id    = "map";
   ellipse.pose.position.x    = pose.pos.x;

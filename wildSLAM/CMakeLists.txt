@@ -20,6 +20,7 @@ include_directories(
 )
 
 add_library(wildSLAM ${PROJECT_NAME}/src/mapper_2d.cpp
+		     ${PROJECT_NAME}/src/mapper_3d.cpp
 		     ${PROJECT_NAME}/src/kf.cpp
 		     ${PROJECT_NAME}/src/localizer.cpp
 		     ${PROJECT_NAME}/src/pf.cpp)

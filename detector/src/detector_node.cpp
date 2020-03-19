@@ -7,7 +7,7 @@ Detector::Detector(int argc, char** argv)
 
 	params = new Parameters();
 	loadParameters(n);
-	init     = true;
+	init = true;
 
 	// Left and depth images subscription
 	message_filters::Subscriber<sensor_msgs::Image> l_img_sub(
@@ -38,7 +38,8 @@ Detector::Detector(int argc, char** argv)
 
 	// Declarate Mapper2D and Localizer objects
 	localizer = new Localizer(*params);
-	mapper    = new Mapper2D(*params);
+	mapper_2d = new Mapper2D(*params);
+	mapper_3d = new Mapper3D(*params);
 
 	// Load NN model and labels file
 	ROS_INFO("Loading NN model and label files");
@@ -137,8 +138,8 @@ void Detector::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
 			}
 
 			float depth = computeDepth(*msg_depth, xmin, ymin, xmax, ymax);
-      if (depth == -1)
-        continue;
+			if (depth == -1)
+				continue;
 
 			bearings.push_back(columnToTheta(tmp.x));
 			depths.push_back(depth);
@@ -158,28 +159,38 @@ void Detector::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
 			// Initialize the localizer and get first particles distribution
 			(*localizer).init(Pose<double>(0, 0, 0, 0, 0, odom.yaw));
 			Pose<double> robot_pose = (*localizer).getPose();
-      // Initialize the mapper
-			(*mapper).init(robot_pose, bearings, depths, info);
-			// Get first map
-			map = (*mapper).getMap();
+
+			// Initialize the mapper_2d
+			(*mapper_2d).init(robot_pose, bearings, depths, info);
+
+			// Get first map_2d
+			map_2d = (*mapper_2d).getMap();
 
 			init = false;
 		}
 		else if (init == false) {
 			// Execute the localization procedure
-			(*localizer).process(odom, bearings, depths, map);
+			(*localizer).process(odom, bearings, depths, map_2d);
 			Pose<double>             robot_pose = (*localizer).getPose();
 			geometry_msgs::PoseArray poses      = (*localizer).getPoseArray();
 			tf::Transform            cam2map    = (*localizer).getTf();
 
-			// Execute the map estimation
-			(*mapper).process(robot_pose, bearings, depths, cam2map, info);
-			// Get the curretn map
-			map = (*mapper).getMap();
+			// Execute the 2D map estimation
+			(*mapper_2d).process(robot_pose, bearings, depths, cam2map, info);
+
+			// Get the curretn 2D map
+			map_2d = (*mapper_2d).getMap();
+
+			// Execute the 3D map estimation
+			float* depths = (float*)(&(*msg_depth).data[0]);
+      std::cout << depths[1] << std::endl;
+			(*mapper_3d).process(depths);
+
 			// Publish the map and particle filter
 			publishMap(odom_.header, robot_pose);
 			poses.header = odom_.header;
 			particle_publisher.publish(poses);
+
 			// Publish cam-to-world tf::Transform
 			static tf::TransformBroadcaster br;
 			br.sendTransform(

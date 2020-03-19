@@ -14,12 +14,12 @@
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
 
-class Mapper
+class Mapper2D
 {
 public:
 	// Class constructor
 	// - Loads the parameters
-	Mapper(const Parameters& params);
+	Mapper2D(const Parameters& params);
 
 	// Global function that handles all the mapping process
 	void process(const Pose<double>& pose, const std::vector<double>& bearings,

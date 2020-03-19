@@ -1,10 +1,11 @@
-#include "mapper.hpp"
+#include "mapper_2d.hpp"
 
-Mapper::Mapper(const Parameters& params) : params(params) {}
+Mapper2D::Mapper2D(const Parameters& params) : params(params) {}
 
-void Mapper::init(const Pose<double>& pose, const std::vector<double>& bearings,
-                  const std::vector<double>&       depths,
-                  const std::vector<SemanticInfo>& info)
+void Mapper2D::init(const Pose<double>&              pose,
+                    const std::vector<double>&       bearings,
+                    const std::vector<double>&       depths,
+                    const std::vector<SemanticInfo>& info)
 {
 	int           n_obsv = bearings.size();
 	Point<double> pos    = pose.pos;
@@ -39,11 +40,11 @@ void Mapper::init(const Pose<double>& pose, const std::vector<double>& bearings,
 	}
 }
 
-void Mapper::process(const Pose<double>&              pose,
-                     const std::vector<double>&       bearings,
-                     const std::vector<double>&       depths,
-                     const tf::Transform&             cam2map,
-                     const std::vector<SemanticInfo>& info)
+void Mapper2D::process(const Pose<double>&              pose,
+                       const std::vector<double>&       bearings,
+                       const std::vector<double>&       depths,
+                       const tf::Transform&             cam2map,
+                       const std::vector<SemanticInfo>& info)
 {
 	// Compute local map on robot's referential frame
 	std::vector<Point<double>> l_map = local_map(pose, bearings, depths, cam2map);
@@ -58,10 +59,9 @@ void Mapper::process(const Pose<double>&              pose,
 	predict(pose, bearings_, depths_, info);
 }
 
-std::vector<Point<double>>
-Mapper::local_map(const Pose<double>& pose, const std::vector<double>& bearings,
-                  const std::vector<double>& depths,
-                  const tf::Transform&       cam2map)
+std::vector<Point<double>> Mapper2D::local_map(
+    const Pose<double>& pose, const std::vector<double>& bearings,
+    const std::vector<double>& depths, const tf::Transform& cam2map)
 {
 	std::vector<Point<double>> landmarks;
 
@@ -94,10 +94,10 @@ Mapper::local_map(const Pose<double>& pose, const std::vector<double>& bearings,
 	return landmarks;
 }
 
-void Mapper::predict(const Pose<double>&              pose,
-                     const std::vector<double>&       bearings,
-                     const std::vector<double>&       depths,
-                     const std::vector<SemanticInfo>& info)
+void Mapper2D::predict(const Pose<double>&              pose,
+                       const std::vector<double>&       bearings,
+                       const std::vector<double>&       depths,
+                       const std::vector<SemanticInfo>& info)
 {
 	int           n_obsv = bearings.size();
 	Point<double> particles_std(pose.gaussian.std_x, pose.gaussian.std_y);
@@ -145,7 +145,7 @@ void Mapper::predict(const Pose<double>&              pose,
 	}
 }
 
-int Mapper::findCorr(const Point<double>& l_pos, const Point<double>& r_pos)
+int Mapper2D::findCorr(const Point<double>& l_pos, const Point<double>& r_pos)
 {
 	int    best_correspondence = -1;
 	double best_aprox          = 0.5;
@@ -165,7 +165,7 @@ int Mapper::findCorr(const Point<double>& l_pos, const Point<double>& r_pos)
 	return best_correspondence;
 }
 
-std::map<int, Landmark<double>> Mapper::getMap() const
+std::map<int, Landmark<double>> Mapper2D::getMap() const
 {
 	return map;
 }

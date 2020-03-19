@@ -2,7 +2,7 @@
 
 // Detector estimator
 #include <localizer.hpp>
-#include <mapper.hpp>
+#include <mapper_2d.hpp>
 
 // GPS service stuff
 #include <agrob_map_transform/GetPose.h>
@@ -96,7 +96,7 @@ private:
 	nav_msgs::Odometry  odom_;
 
 	Localizer*  localizer;
-	Mapper*     mapper;
+	Mapper2D*     mapper;
 	Parameters* params;
 
 	std::vector<int>                     input_tensor_shape;

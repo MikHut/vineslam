@@ -4,7 +4,7 @@ PF::PF(const int& n_particles, const Pose<double>& initial_pose)
 {
 	// Declare mean and std of each gaussian
 	double std_xy  = 0.5;            // alpha a meter of initial uncertainty
-	double std_rpy = 5.0 * PI / 180; // five degrees of initial uncertainty
+	double std_rpy = 10.0 * PI / 180; // ten degrees of initial uncertainty
 
 	// Initialize normal distributions
 	std::default_random_engine       generator;
@@ -121,7 +121,7 @@ void PF::correct(const std::vector<double>&             bearings,
 		// Calculation of a local map for each particle
 		double error_sum = 0.0;
 		for (size_t j = 0; j < bearings.size(); j++) {
-			// for (size_t j = 0; j < 0; j++) {
+		//for (size_t j = 0; j < 0; j++) {
 			// Calculate the estimation of the landmark
 			double        th = bearings[j] + particles[i].pose.yaw;
 			Point<double> X(particles[i].pose.pos.x + depths[j] * cos(th),
@@ -140,7 +140,8 @@ void PF::correct(const std::vector<double>&             bearings,
 		}
 
 		// Save the particle i weight
-		particles[i].w = (error_sum > 0) ? (1 / error_sum) : 0.0;
+		particles[i].w = (1 / sqrt(2 * PI)) * exp(-pow(error_sum, 2) / 2);
+		//particles[i].w = (error_sum > 0) ? (1 / error_sum) : 0.0;
 		weights_sum += particles[i].w;
 	}
 	// Normalize the particles weights to [0,1]

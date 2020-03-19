@@ -63,7 +63,7 @@ void Localizer::process(const Pose<double>&                    odom,
 
 	// Convert obtained average pose to ROS tf
 	tf::Quaternion q;
-	q.setRPY(average_pose.roll, average_pose.pitch + 11 * PI / 180, average_pose.yaw);
+	q.setRPY(average_pose.roll, average_pose.pitch, average_pose.yaw);
 	q.normalize();
 	cam2map.setRotation(q);
 	cam2map.setOrigin(

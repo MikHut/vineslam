@@ -36,9 +36,9 @@ Detector::Detector(int argc, char** argv)
 	particle_publisher = n.advertise<geometry_msgs::PoseArray>("/particles", 1);
 	odom_publisher     = n.advertise<nav_msgs::Odometry>("/odometry", 1);
 
-	// Declarate Mapper and Localizer objects
+	// Declarate Mapper2D and Localizer objects
 	localizer = new Localizer(*params);
-	mapper    = new Mapper(*params);
+	mapper    = new Mapper2D(*params);
 
 	// Load NN model and labels file
 	ROS_INFO("Loading NN model and label files");
@@ -137,6 +137,8 @@ void Detector::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
 			}
 
 			float depth = computeDepth(*msg_depth, xmin, ymin, xmax, ymax);
+      if (depth == -1)
+        continue;
 
 			bearings.push_back(columnToTheta(tmp.x));
 			depths.push_back(depth);

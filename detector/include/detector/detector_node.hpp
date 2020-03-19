@@ -49,8 +49,6 @@ private:
 	                   const sensor_msgs::ImageConstPtr& msg_depth);
 	// Odometry callback function
 	void odomListener(const nav_msgs::OdometryConstPtr& msg);
-	// GPS callback function that converts navsat to pose
-	void gpsListener(const sensor_msgs::NavSatFixConstPtr& msg);
 
 	// Object detection function
 	// - Uses the EdgeTPU C++ library to perform inference
@@ -87,17 +85,15 @@ private:
 	ros::Publisher     map_publisher;
 	ros::Publisher     particle_publisher;
 	ros::Publisher     odom_publisher;
-	ros::Publisher     gps_publisher;
 	ros::ServiceClient polar2pose;
 
-	bool init, init_gps;
+	bool init;
 
 	std::map<int, Landmark<double>> map;
 
 	Pose<double>        odom;
 	Pose<double>        p_odom;
 	nav_msgs::Odometry  odom_;
-	geometry_msgs::Pose first_gps_pose;
 
 	Localizer*  localizer;
 	Mapper*     mapper;
@@ -122,7 +118,6 @@ private:
 		local_nh.getParam("/detector/image_left", (*params).image_left);
 		local_nh.getParam("/detector/image_depth", (*params).image_depth);
 		local_nh.getParam("/detector/odom_topic", (*params).odom_topic);
-		local_nh.getParam("/detector/gps_topic", (*params).gps_topic);
 		local_nh.getParam("/detector/model_path", (*params).model);
 		local_nh.getParam("/detector/labels_path", (*params).labels);
 	}

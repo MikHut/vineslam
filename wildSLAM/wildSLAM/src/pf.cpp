@@ -3,14 +3,15 @@
 PF::PF(const int& n_particles, const Pose<double>& initial_pose)
 {
 	// Declare mean and std of each gaussian
-	double mean    = 0;
-	double std_xyz = 0.5;
-	double std_rpy = 5.0 * PI / 180;
+	double std_xy  = 0.5;            // alpha a meter of initial uncertainty
+	double std_rpy = 5.0 * PI / 180; // five degrees of initial uncertainty
 
 	// Initialize normal distributions
 	std::default_random_engine       generator;
-	std::normal_distribution<double> gauss_xy(mean, std_xyz);
-	std::normal_distribution<double> gauss_rpy(mean, std_rpy);
+	std::normal_distribution<double> gauss_x(initial_pose.pos.x, std_xy);
+	std::normal_distribution<double> gauss_y(initial_pose.pos.y, std_xy);
+	std::normal_distribution<double> gauss_rp(0.0, std_rpy);
+	std::normal_distribution<double> gauss_yaw(initial_pose.yaw, std_rpy);
 
 	// Resize particles array
 	particles.resize(n_particles);
@@ -20,17 +21,16 @@ PF::PF(const int& n_particles, const Pose<double>& initial_pose)
 		// Calculate the initial pose for each particle considering
 		// - the input initial pose
 		// - a sample distribution to spread the particles
-		Pose<double> sample(gauss_xy(generator), gauss_xy(generator), 0,
-		                    gauss_rpy(generator), gauss_rpy(generator),
-		                    gauss_rpy(generator));
-		Pose<double> pose = sample + initial_pose;
+		Pose<double> pose(gauss_x(generator), gauss_y(generator), 0,
+		                  gauss_rp(generator), gauss_rp(generator),
+		                  gauss_yaw(generator));
 		// Compute initial weight of each particle
 		double weight = 1 / (double)n_particles;
 		// Insert the particle into the particles array
 		particles[i] = Particle(i, pose, weight);
 	}
 
-	// Set previous pose to zero
+	// Initialize the previous pose
 	p_odom = initial_pose;
 }
 
@@ -48,36 +48,63 @@ void PF::process(const Pose<double>& odom, const std::vector<double>& bearings,
 
 void PF::predict(const Pose<double>& odom)
 {
-	// Compute the relative pose given by odometry
-	double delta_trans = sqrt(pow(odom.pos.x - p_odom.pos.x, 2) +
-	                          pow(odom.pos.y - p_odom.pos.y, 2));
-	double delta_rot_a = normalizeAngle(
+	// Compute the relative pose given by the odometry motion model
+	double dt_trans = sqrt(pow(odom.pos.x - p_odom.pos.x, 2) +
+	                       pow(odom.pos.y - p_odom.pos.y, 2));
+	double dt_rot_a = normalizeAngle(
 	    atan2(odom.pos.y - p_odom.pos.y, odom.pos.x - p_odom.pos.x) - p_odom.yaw);
-	double delta_rot_b = normalizeAngle(odom.yaw - p_odom.yaw - delta_rot_a);
+	double dt_rot_b = normalizeAngle(odom.yaw - p_odom.yaw - dt_rot_a);
 
-	Pose<double> delta_pose(delta_trans * cos(p_odom.yaw + delta_rot_a),
-	                        delta_trans * sin(p_odom.yaw + delta_rot_a), 0, 0, 0,
-	                        delta_rot_a + delta_rot_b);
+	// Define alphas to calculate the standard deviations of the samples
+	double alpha_1 = 0.5;
+	double alpha_2 = 0.5;
+	double alpha_3 = 0.5;
+	double alpha_4 = 0.5;
+
+	// Standard deviations of the odometry motion model
+	double std_rot_a =
+	    alpha_1 * std::fabs(dt_rot_a) + alpha_2 * std::fabs(dt_trans);
+	double std_trans =
+	    alpha_3 * std::fabs(dt_trans) + alpha_4 * std::fabs(dt_rot_a * dt_rot_b);
+	double std_rot_b =
+	    alpha_1 * std::fabs(dt_rot_b) + alpha_2 * std::fabs(dt_trans);
+
+	// Standard deviation of the non-observable states (roll, pitch)
+	double std_rp = 1.5 * PI / 180;
 
 	// Declare normal Gaussian distributions to innovate the particles
-	double mean    = 0.0;
-	double std_xyz = delta_trans * 0.1;
-	double std_rp  = 1.5 * PI / 180;
-	double std_yaw = std::fabs(normalizeAngle(delta_rot_a + delta_rot_b)) * 0.1;
 	std::default_random_engine       generator;
-	std::normal_distribution<double> gauss_xyz(mean, std_xyz);
-	std::normal_distribution<double> gauss_rp(mean, std_rp);
-	std::normal_distribution<double> gauss_yaw(mean, std_yaw);
+	std::normal_distribution<double> gauss_trans(0.0, std_trans);
+	std::normal_distribution<double> gauss_rot_a(0.0, std_rot_a);
+	std::normal_distribution<double> gauss_rot_b(0.0, std_rot_b);
+	std::normal_distribution<double> gauss_rp(0.0, std_rp);
 
 	// Apply the motion model to all particles
 	for (size_t i = 0; i < particles.size(); i++) {
-		// Compute the sample pose applying gaussian noise to the
-		// motion model
-		Pose<double> sample(gauss_xyz(generator), gauss_xyz(generator), 0,
-		                    gauss_rp(generator), gauss_rp(generator),
-		                    gauss_yaw(generator));
-		// Compute the new particle 6-DOF pose
-		particles[i].pose = particles[i].pose + delta_pose + sample;
+		// Sample the normal distribution functions
+		double s_rot_a = dt_rot_a + gauss_rot_a(generator);
+		double s_rot_b = dt_rot_b + gauss_rot_b(generator);
+		double s_trans = dt_trans + gauss_trans(generator);
+		double s_r     = gauss_rp(generator);
+		double s_p     = gauss_rp(generator);
+
+		// Compute the relative pose considering the samples
+		double       p_yaw = particles[i].pose.yaw;
+		Pose<double> dt_pose;
+		dt_pose.pos.x = dt_trans * cos(normalizeAngle(p_yaw + s_rot_a));
+		dt_pose.pos.y = dt_trans * sin(normalizeAngle(p_yaw + s_rot_a));
+		dt_pose.pos.z = 0.0;
+		dt_pose.roll  = s_r;
+		dt_pose.pitch = s_p;
+		dt_pose.yaw   = normalizeAngle(s_rot_a + s_rot_b);
+
+		// Innovate particles using the odometry motion model
+		particles[i].pose.pos.x += dt_pose.pos.x;
+		particles[i].pose.pos.y += dt_pose.pos.y;
+		particles[i].pose.pos.z += dt_pose.pos.z;
+		particles[i].pose.roll += dt_pose.roll;
+		particles[i].pose.pitch += dt_pose.pitch;
+		particles[i].pose.yaw += dt_pose.yaw;
 	}
 
 	p_odom = odom;
@@ -94,6 +121,7 @@ void PF::correct(const std::vector<double>&             bearings,
 		// Calculation of a local map for each particle
 		double error_sum = 0.0;
 		for (size_t j = 0; j < bearings.size(); j++) {
+			// for (size_t j = 0; j < 0; j++) {
 			// Calculate the estimation of the landmark
 			double        th = bearings[j] + particles[i].pose.yaw;
 			Point<double> X(particles[i].pose.pos.x + depths[j] * cos(th),

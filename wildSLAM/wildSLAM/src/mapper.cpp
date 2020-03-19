@@ -61,14 +61,14 @@ void Mapper::process(const Pose<double>&              pose,
 std::vector<Point<double>>
 Mapper::local_map(const Pose<double>& pose, const std::vector<double>& bearings,
                   const std::vector<double>& depths,
-                  const tf::Transform&       cam2world)
+                  const tf::Transform&       cam2map)
 {
 	std::vector<Point<double>> landmarks;
 
 	// Decompose homogeneous transformation into
 	// a rotation matrix and a translation vector
-	tf::Matrix3x3 Rot   = cam2world.getBasis();
-	tf::Vector3   trans = cam2world.getOrigin();
+	tf::Matrix3x3 Rot   = cam2map.getBasis();
+	tf::Vector3   trans = cam2map.getOrigin();
 
 	for (size_t i = 0; i < bearings.size(); i++) {
 		// Calculate the estimation of the landmark position on

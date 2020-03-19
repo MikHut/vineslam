@@ -3,7 +3,7 @@
   <param name ="/use_sim_time" value="true"/>
 
   <!-- rviz -->
-  <node name="rviz" pkg="rviz" type="rviz" args="-d /home/andre/Source/agrobvslam/config/config.rviz" required="false"/>
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find wildSLAM)/config/config.rviz" required="false"/>
 
   <!-- nodes -->
   <node name="republish" type="republish" pkg="image_transport" output="screen"
@@ -36,15 +36,5 @@
   <node pkg="tf" type="static_transform_publisher" name="odom_to_base" args="0 0 0 0 0
     0 1  /odom /base_link 10" />
   <node pkg="tf" type="static_transform_publisher" name="gps_init_to_map"  args="0 0 0 0 0 0 /map /gps  10" />
-
-  <!-- agrob_map_transform -->
-  <node pkg="agrob_map_transform" type="agrob_gnss_transform_node" name="agrob_gnss_transform_node" clear_params="true" output="screen">
-    <rosparam command="load" file="$(find agrob_map_transform)/params/navsat_transform_template.yaml" />
-      <!-- Placeholders for input remapping. Set your topic names as the "to" values. -->
-      <remap from="imu/data" to="/Dummy/IMU"/>
-      <remap from="odometry/filtered" to="/Dummy/odom"/>  
-      <!-- <remap from="odometry/filtered" to="/husky_velocity_controller/odom"/> -->
-      <remap from="gps/fix" to= "fix" />
-  </node>
 
 </launch>

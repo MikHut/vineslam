@@ -8,7 +8,6 @@ Detector::Detector(int argc, char** argv)
 	params = new Parameters();
 	loadParameters(n);
 	init     = true;
-	init_gps = true;
 
 	// Left and depth images subscription
 	message_filters::Subscriber<sensor_msgs::Image> l_img_sub(
@@ -27,12 +26,6 @@ Detector::Detector(int argc, char** argv)
 	// Odometry subscription
 	ros::Subscriber odom_subscriber =
 	    n.subscribe((*params).odom_topic, 1, &Detector::odomListener, this);
-	// GPS subscription
-	ros::Subscriber gps_subscriber =
-	    n.subscribe((*params).gps_topic, 1, &Detector::gpsListener, this);
-
-	// GPS service subscription
-	polar2pose = n.serviceClient<agrob_map_transform::GetPose>("polar_to_pose");
 
 #ifdef DEBUG
 	image_transport::ImageTransport it(n);
@@ -42,8 +35,6 @@ Detector::Detector(int argc, char** argv)
 	map_publisher      = n.advertise<visualization_msgs::MarkerArray>("/map", 1);
 	particle_publisher = n.advertise<geometry_msgs::PoseArray>("/particles", 1);
 	odom_publisher     = n.advertise<nav_msgs::Odometry>("/odometry", 1);
-	gps_publisher =
-	    n.advertise<geometry_msgs::PoseWithCovarianceStamped>("/gps_pose", 1);
 
 	// Declarate Mapper and Localizer objects
 	localizer = new Localizer(*params);
@@ -64,37 +55,6 @@ void Detector::run()
 {
 	ros::spin();
 	std::cout << "Ros shutdown, saving the map." << std::endl;
-}
-
-void Detector::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
-{
-	agrob_map_transform::GetPose srv;
-
-	srv.request.geo_pose.latitude  = (*msg).latitude;
-	srv.request.geo_pose.longitude = (*msg).longitude;
-
-	// Call 'polar_to_pose' service to convert from gps polar
-	// to cartesian coordiantes
-	if (polar2pose.call(srv)) {
-		// Save initial gps pose
-		if (init_gps == true) {
-			first_gps_pose = srv.response.local_pose.pose.pose;
-			init_gps       = false;
-			return;
-		}
-
-		geometry_msgs::PoseWithCovarianceStamped gps_pose;
-
-		// Convert gps measure to map referential and publish
-		gps_pose.header = (*msg).header;
-		gps_pose.pose   = srv.response.local_pose.pose;
-		gps_pose.pose.pose.position.x -= first_gps_pose.position.x;
-		gps_pose.pose.pose.position.y -= first_gps_pose.position.y;
-		gps_pose.pose.pose.position.z -= first_gps_pose.position.z;
-		gps_publisher.publish(gps_pose);
-	}
-	else
-		ROS_ERROR("Failed to call service Polar2Pose\n");
 }
 
 void Detector::odomListener(const nav_msgs::OdometryConstPtr& msg)

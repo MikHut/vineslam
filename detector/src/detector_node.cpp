@@ -38,9 +38,9 @@ Detector::Detector(int argc, char** argv)
 	l_img_publisher = it.advertise("/detection_left/image_raw", 1);
 #endif
 	// Publish map and particle filter
-	map_publisher = n.advertise<visualization_msgs::MarkerArray>("/wild_SLAM/map2D", 1);
-	pcl_publisher = n.advertise<sensor_msgs::PointCloud2>("/wild_SLAM/map3D", 1);
-	particle_publisher = n.advertise<geometry_msgs::PoseArray>("/wild_SLAM/particles", 1);
+	map_publisher = n.advertise<visualization_msgs::MarkerArray>("/wildSLAM/map2D", 1);
+	pcl_publisher = n.advertise<sensor_msgs::PointCloud2>("/wildSLAM/map3D", 1);
+	particle_publisher = n.advertise<geometry_msgs::PoseArray>("/wildSLAM/particles", 1);
 	odom_publisher     = n.advertise<nav_msgs::Odometry>("/odometry", 1);
 
 	// Declarate Mapper2D and Localizer objects

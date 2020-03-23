@@ -13,13 +13,14 @@
 #include <numeric>
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
+#include <yaml-cpp/yaml.h>
 
 class Mapper2D
 {
 public:
 	// Class constructor
 	// - Loads the parameters
-	Mapper2D(const Parameters& params);
+	Mapper2D(const std::string& config_path);
 
 	// Global function that handles all the mapping process
 	void process(const Pose<double>& pose, const std::vector<double>& bearings,
@@ -50,6 +51,12 @@ public:
 	std::vector<KF> filters;
 
 private:
+	// Input parameters
+	double      baseline;
+	double      delta_d;
+	double      fx;
+	std::string config_path;
+
 	// Estimates landmark positions based on the current observations
 	void predict(const Pose<double>& pose, const std::vector<double>& bearings,
 	             const std::vector<double>&       depths,
@@ -64,12 +71,11 @@ private:
 	{
 		return (std::fmod(angle + PI, 2 * PI) - PI);
 	}
+
 	// Auxiliar function that the disparity error using the disparity
 	// noise model
 	double dispError(const double& depth)
 	{
-		return pow(depth, 2) / (params.baseline * params.fx) * params.delta_D;
+		return pow(depth, 2) / (baseline * fx) * delta_d;
 	}
-
-	Parameters params;
 };

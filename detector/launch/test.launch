@@ -19,16 +19,15 @@
     <param name="odom_topic"  value="/husky_velocity_controller/odom"/>
     <param name="gps_topic"   value="/fix"/>
 
-    <param name="model_path"
-      value="/home/andre/Source/coral-deeplearning-ros/output_tflite_graph_edgetpu.tflite"/>
-    <param name="labels_path"
-      value="/home/andre/Source/coral-deeplearning-ros/labels.txt"/>
+    <param name="model_path"  value="$(find edgetpu_cpp)/model/output_tflite_graph_edgetpu.tflite"/>
+    <param name="labels_path" value="$(find edgetpu_cpp)/model/labels.txt"/>
+    <param name="config_path" value="$(find wildSLAM)/config/setup.yaml"/>
   </node>
 
   <!-- octomap_server node -->
 	<node pkg="octomap_server" type="octomap_server_node" name="octomap_server">
 		<param name="resolution" value="0.05" />
-		<param name="frame_id" type="string" value="map" />
+		<param name="frame_id" type="string" value="cam" />
 		<param name="sensor_model/max_range" value="500.0" />
     <remap from="cloud_in" to="/pcl" />
 	</node>

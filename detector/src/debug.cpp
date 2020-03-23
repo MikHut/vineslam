@@ -110,7 +110,7 @@ void Detector::showBBoxes(const sensor_msgs::ImageConstPtr&             msg,
 		Point<double> tmp((xmin + xmax) / 2, (ymin + ymax) / 2);
 		trunk_pos.push_back(tmp);
 
-		if (result.score > (*params).min_score) {
+		if (result.score > 0.5) {
 			cv::rectangle(bboxes, cv::Point(xmin, ymin), cv::Point(xmax, ymax),
 			              cv::Scalar(255, 0, 0), 2);
 			cv::line(bboxes, cv::Point(xavg, ymin), cv::Point(xavg, ymax),

@@ -24,6 +24,7 @@
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <yaml-cpp/yaml.h>
 
 // Edgetpu detection API
 #include <detection/engine.h>
@@ -31,6 +32,26 @@
 #include <examples/model_utils.h>
 #include <test_utils.h>
 
+// Struct that encodes ROS input parameters
+struct Parameters
+{
+	std::string image_left;  // left image ROS topic
+	std::string image_depth; // depth image ROS topic
+	std::string odom_topic;  // odometry ROS topic
+	std::string model;       // tflite model path
+	std::string labels;      // detection labels path
+	std::string config;      // config file path
+
+	Parameters()
+	{
+		model       = "";
+		labels      = "";
+		config      = "";
+		image_left  = "";
+		image_depth = "";
+		odom_topic  = "";
+	}
+};
 
 class Detector
 {
@@ -67,7 +88,7 @@ private:
 	// Converts a trunk observation into a bearing angle
 	double columnToTheta(const int& col)
 	{
-		return (-(*params).h_fov / (*params).width) * ((*params).width / 2 - col);
+		return (-h_fov / img_width) * (img_width / 2 - col);
 	}
 
 	// Publish map on rviz
@@ -88,39 +109,47 @@ private:
 	image_transport::Publisher r_img_publisher;
 #endif
 
+	// ROS publishers
 	ros::Publisher map_publisher;
 	ros::Publisher particle_publisher;
 	ros::Publisher odom_publisher;
 	ros::Publisher pcl_publisher;
 
-	bool init;
-
-	std::map<int, Landmark<double>> map_2d;
-
+	// Odometry variables
 	Pose<double>       odom;
 	Pose<double>       p_odom;
 	nav_msgs::Odometry odom_;
 
+	// Initialization boolean
+	bool init;
+
+	// Map of landmarks
+	std::map<int, Landmark<double>> map_2d;
+
+	// Classes object members
 	Localizer*  localizer;
 	Mapper2D*   mapper_2d;
 	Mapper3D*   mapper_3d;
 	Parameters* params;
 
+	// EdgeTPU API members
 	std::vector<int>                     input_tensor_shape;
 	coral::DetectionEngine*              engine;
 	std::unordered_map<int, std::string> labels;
 
+	// Numberic input parameters
+	double img_width;
+	double h_fov;
+
 	// Load all the parameters of the ROS node
 	void loadParameters(const ros::NodeHandle& local_nh)
 	{
-		local_nh.getParam("/detector/detector_th", (*params).min_score);
-		local_nh.getParam("/detector/n_particles", (*params).n_particles);
-
 		local_nh.getParam("/detector/image_left", (*params).image_left);
 		local_nh.getParam("/detector/image_depth", (*params).image_depth);
 		local_nh.getParam("/detector/odom_topic", (*params).odom_topic);
 		local_nh.getParam("/detector/model_path", (*params).model);
 		local_nh.getParam("/detector/labels_path", (*params).labels);
+		local_nh.getParam("/detector/config_path", (*params).config);
 	}
 
 	// Initialize semantic information of feature to give

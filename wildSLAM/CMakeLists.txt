@@ -8,6 +8,7 @@ find_package(catkin REQUIRED
                     std_msgs)
 
 find_package(Eigen3 REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS ${PROJECT_NAME}/src
@@ -26,7 +27,8 @@ add_library(wildSLAM ${PROJECT_NAME}/src/mapper_2d.cpp
 		     ${PROJECT_NAME}/src/pf.cpp)
 
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} 
-				      ${Eigen3_LIBRARIES})
+				      ${Eigen3_LIBRARIES}
+				      ${yaml-cpp_LIBRARIES})
 						     
 install(TARGETS wildSLAM
   	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

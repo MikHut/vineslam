@@ -5,9 +5,15 @@ Detector::Detector(int argc, char** argv)
 	ros::init(argc, argv, "detector");
 	ros::NodeHandle n;
 
+	// Load ROS parameters
 	params = new Parameters();
 	loadParameters(n);
 	init = true;
+
+	// Load input numeric parameters
+	YAML::Node config = YAML::LoadFile((*params).config);
+	img_width         = config["camera_info"]["img_width"].as<double>();
+	h_fov             = config["camera_info"]["h_fov"].as<double>() * PI / 180;
 
 	// Left and depth images subscription
 	message_filters::Subscriber<sensor_msgs::Image> l_img_sub(
@@ -32,15 +38,15 @@ Detector::Detector(int argc, char** argv)
 	l_img_publisher = it.advertise("/detection_left/image_raw", 1);
 #endif
 	// Publish map and particle filter
-	map_publisher = n.advertise<visualization_msgs::MarkerArray>("/map_2D", 1);
-	pcl_publisher = n.advertise<sensor_msgs::PointCloud2>("/map_3D", 1);
-	particle_publisher = n.advertise<geometry_msgs::PoseArray>("/particles", 1);
+	map_publisher = n.advertise<visualization_msgs::MarkerArray>("/wild_SLAM/map2D", 1);
+	pcl_publisher = n.advertise<sensor_msgs::PointCloud2>("/wild_SLAM/map3D", 1);
+	particle_publisher = n.advertise<geometry_msgs::PoseArray>("/wild_SLAM/particles", 1);
 	odom_publisher     = n.advertise<nav_msgs::Odometry>("/odometry", 1);
 
 	// Declarate Mapper2D and Localizer objects
-	localizer = new Localizer(*params);
-	mapper_2d = new Mapper2D(*params);
-	mapper_3d = new Mapper3D(*params);
+	localizer = new Localizer((*params).config);
+	mapper_2d = new Mapper2D((*params).config);
+	mapper_3d = new Mapper3D((*params).config);
 
 	// Load NN model and labels file
 	ROS_INFO("Loading NN model and label files");
@@ -231,8 +237,7 @@ Detector::detect(const sensor_msgs::ImageConstPtr& msg)
 	    {input_tensor_shape[1], input_tensor_shape[2], input_tensor_shape[3]},
 	    {(*msg).height, (*msg).width, 3});
 
-	auto results =
-	    (*engine).DetectWithInputTensor(input_tensor, (*params).min_score, 50);
+	auto results = (*engine).DetectWithInputTensor(input_tensor, 0.5, 50);
 
 	return results;
 }

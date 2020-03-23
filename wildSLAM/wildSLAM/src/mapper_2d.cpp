@@ -1,6 +1,12 @@
 #include "mapper_2d.hpp"
 
-Mapper2D::Mapper2D(const Parameters& params) : params(params) {}
+Mapper2D::Mapper2D(const std::string& config_path) : config_path(config_path)
+{
+	YAML::Node config = YAML::LoadFile(config_path.c_str());
+	fx                = config["camera_info"]["fx"].as<double>();
+	baseline          = config["camera_info"]["baseline"].as<double>();
+	delta_d           = config["camera_info"]["delta_d"].as<double>();
+}
 
 void Mapper2D::init(const Pose<double>&              pose,
                     const std::vector<double>&       bearings,
@@ -26,7 +32,7 @@ void Mapper2D::init(const Pose<double>&              pose,
 		                pose.pos.y + depths[i] * sin(th));
 
 		// Push back a Kalman Filter object for the respective landmark
-		KF kf(X.eig_2d(), pos.eig_2d(), particles_std.eig_2d(), z, params);
+		KF kf(X.eig_2d(), pos.eig_2d(), particles_std.eig_2d(), z, config_path);
 		filters.push_back(kf);
 
 		// Insert the landmark on the map, with a single observation
@@ -79,11 +85,11 @@ std::vector<Point<double>> Mapper2D::local_map(
 		// Convert landmark to map's referential frame
 		Point<double> X_map;
 		X_map.x = X_cam.x * Rot[0].getX() + X_cam.y * Rot[0].getY() +
-		            X_cam.z * Rot[0].getZ() + trans.getX();
+		          X_cam.z * Rot[0].getZ() + trans.getX();
 		X_map.y = X_cam.x * Rot[1].getX() + X_cam.y * Rot[1].getY() +
-		            X_cam.z * Rot[1].getZ() + trans.getY();
+		          X_cam.z * Rot[1].getZ() + trans.getY();
 		X_map.z = X_cam.x * Rot[2].getX() + X_cam.y * Rot[2].getY() +
-		            X_cam.z * Rot[2].getZ() + trans.getZ();
+		          X_cam.z * Rot[2].getZ() + trans.getZ();
 
 		// Convert landmark to robot's referential frame and insert
 		// on array of landmarks
@@ -121,7 +127,7 @@ void Mapper2D::predict(const Pose<double>&              pose,
 
 			// Initialize the Kalman Filter
 			KF kf(X.eig_2d(), pose_2d.pos.eig_2d(), particles_std.eig_2d(), z,
-			      params);
+			      config_path);
 			filters.push_back(kf);
 
 			// Insert the landmark on the map, with a single observation

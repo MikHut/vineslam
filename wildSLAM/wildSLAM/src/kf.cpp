@@ -1,9 +1,15 @@
 #include "kf.hpp"
 
 KF::KF(const VectorXd& X0, const VectorXd& s, const VectorXd& g,
-       const VectorXd& z, const Parameters& params)
-    : X0(X0), X(X0), params(params)
+       const VectorXd& z, const std::string& config_path)
+    : X0(X0), X(X0)
 {
+  // Load input parameters
+	YAML::Node config = YAML::LoadFile(config_path.c_str());
+	fx                = config["camera_info"]["fx"].as<double>();
+	baseline          = config["camera_info"]["baseline"].as<double>();
+	delta_d           = config["camera_info"]["delta_d"].as<double>();
+
 	// Initialize the process covariance P
 	computeR(s, g, z);
 	P = R;
@@ -52,7 +58,7 @@ void KF::correct(const VectorXd& s, const VectorXd& z)
 
 	VectorXd z_(2, 1);
 	z_ << d, normalizeAngle(phi);
-  
+
 	// Compute the Jacobian of the non linear observation vector
 	MatrixXd G(2, 2);
 	G << (X[0] - s[0]) / d, +(X[1] - s[1]) / d, -(X[1] - s[1]) / pow(d, 2),

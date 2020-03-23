@@ -3,7 +3,6 @@
 // Class objects
 #include <landmark.hpp>
 #include <pf.hpp>
-#include <params.hpp>
 
 // ROS, std, eigen
 #include <geometry_msgs/PoseArray.h>
@@ -11,16 +10,17 @@
 #include <map>
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
+#include <yaml-cpp/yaml.h>
 
 class Localizer
 {
 public:
 	// Class constructor
-	Localizer(const Parameters& params);
+	Localizer(const std::string& config_path);
 
-  // Initializes the particle filter with the number of particles
-  // and the first odometry pose
-  void init(const Pose<double>& initial_pose);
+	// Initializes the particle filter with the number of particles
+	// and the first odometry pose
+	void init(const Pose<double>& initial_pose);
 
 	// Global function that handles all the localization process
 	void process(const Pose<double>& odom, const std::vector<double>& bearings,
@@ -42,12 +42,13 @@ private:
 	tf::Transform cam2map;
 	// ROS Array of poses relative to all particles
 	geometry_msgs::PoseArray poses;
-  // Average particles pose
-  Pose<double> average_pose;
+	// Average particles pose
+	Pose<double> average_pose;
 	// Particle filter object
 	PF* pf;
-	// Parameters inputs
-	Parameters params;
+	// Input parameters
+	int    n_particles;
+	double cam_pitch;
 
 	// Auxiliar function that normalizes an angle in the [-pi,pi] range
 	double normalizeAngle(const double& angle)

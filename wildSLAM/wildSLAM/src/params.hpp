@@ -6,7 +6,10 @@
 struct Parameters
 {
 	double h_fov;       // Camera horizontal field of view (radians)
-	double f_length;    // Camera focal lenght (pixels)
+	double fx;          // Camera x focal lenght (pixels)
+	double fy;          // Camera y focal lenght (pixels)
+	double cx;          // Camera x component of principal point (pixels)
+	double cy;          // Camera y component of principal point (pixels)
 	int    width;       // Image width
 	int    height;      // Image height
 	double baseline;    // Stereo baseline between cameras (meters)
@@ -23,12 +26,17 @@ struct Parameters
 
 	Parameters()
 	{
-		f_length    = 500;
+		fx          = 692.95849609375;
+		fy          = 636.41424560546;
+		cx          = 692.95849609375;
+		cy          = 382.80633544921;
 		width       = 1280;
 		height      = 720;
 		min_score   = 0.5;
 		delta_D     = 1.0;
 		n_particles = 1000;
+		h_fov       = 1.82;
+		baseline    = 0.12;
 
 		model       = "";
 		labels      = "";

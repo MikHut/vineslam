@@ -5,19 +5,13 @@
   <!-- rviz -->
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find wildSLAM)/config/config.rviz" required="false"/>
 
-  <!-- nodes -->
+  <!-- image republish -->
   <node name="republish" type="republish" pkg="image_transport" output="screen"
     args="compressed in:=/camera/image out:=/camera/image_raw" />
+
+  <!-- slam node -->
   <node pkg="detector" type="detector_node" name="detector" output="screen">
-    <param name="h_fov"             value="1.82"/>
-    <param name="focal_length"      value="500"/>
-    <param name="baseline"          value="0.12"/>
-    <param name="img_width"         value="1292"/>
-    <param name="img_height"        value="964"/>
-
-    <param name="match_box"         value="40"/>
     <param name="detector_th"       value="0.25"/>
-
     <param name="n_particles"       value="2000"/>
 
     <param name="image_left"  value="/zed/zed_node/left/image_rect_color"/>
@@ -31,10 +25,18 @@
       value="/home/andre/Source/coral-deeplearning-ros/labels.txt"/>
   </node>
 
+  <!-- octomap_server node -->
+	<node pkg="octomap_server" type="octomap_server_node" name="octomap_server">
+		<param name="resolution" value="0.05" />
+		<param name="frame_id" type="string" value="map" />
+		<param name="sensor_model/max_range" value="500.0" />
+    <remap from="cloud_in" to="/pcl" />
+	</node>
+
+  <!-- transforms -->
   <node pkg="tf" type="static_transform_publisher" name="odom_to_map" args="0 0 0 0 0
-    0 1  /map /odom 10" />
+    0 1  /odom /map 10" />
   <node pkg="tf" type="static_transform_publisher" name="odom_to_base" args="0 0 0 0 0
     0 1  /odom /base_link 10" />
-  <node pkg="tf" type="static_transform_publisher" name="gps_init_to_map"  args="0 0 0 0 0 0 /map /gps  10" />
 
 </launch>

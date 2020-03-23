@@ -68,7 +68,7 @@ private:
 	// noise model
 	double dispError(const double& depth)
 	{
-		return pow(depth, 2) / (params.baseline * params.f_length) * params.delta_D;
+		return pow(depth, 2) / (params.baseline * params.fx) * params.delta_D;
 	}
 
 	Parameters params;

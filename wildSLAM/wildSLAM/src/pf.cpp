@@ -10,7 +10,7 @@ PF::PF(const int& n_particles, const Pose<double>& initial_pose)
 	std::default_random_engine       generator;
 	std::normal_distribution<double> gauss_x(initial_pose.pos.x, std_xy);
 	std::normal_distribution<double> gauss_y(initial_pose.pos.y, std_xy);
-	std::normal_distribution<double> gauss_rp(0.0, std_rpy);
+	std::normal_distribution<double> gauss_rp(0.0, 0.0);
 	std::normal_distribution<double> gauss_yaw(initial_pose.yaw, std_rpy);
 
 	// Resize particles array
@@ -77,7 +77,7 @@ void PF::predict(const Pose<double>& odom)
 	std::normal_distribution<double> gauss_trans(0.0, std_trans);
 	std::normal_distribution<double> gauss_rot_a(0.0, std_rot_a);
 	std::normal_distribution<double> gauss_rot_b(0.0, std_rot_b);
-	std::normal_distribution<double> gauss_rp(0.0, std_rp);
+	std::normal_distribution<double> gauss_rp(0.0, 0.0);
 
 	// Apply the motion model to all particles
 	for (size_t i = 0; i < particles.size(); i++) {
@@ -94,8 +94,8 @@ void PF::predict(const Pose<double>& odom)
 		dt_pose.pos.x = dt_trans * cos(normalizeAngle(p_yaw + s_rot_a));
 		dt_pose.pos.y = dt_trans * sin(normalizeAngle(p_yaw + s_rot_a));
 		dt_pose.pos.z = 0.0;
-		dt_pose.roll  = s_r;
-		dt_pose.pitch = s_p;
+		dt_pose.roll  = 0.0;
+		dt_pose.pitch = 0.0;
 		dt_pose.yaw   = normalizeAngle(s_rot_a + s_rot_b);
 
 		// Innovate particles using the odometry motion model

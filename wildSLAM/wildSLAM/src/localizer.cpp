@@ -58,10 +58,11 @@ void Localizer::process(const Pose<double>&                    odom,
   average_pose = Pose<double>(m_poses);
 	// Normalize average pose angles between [-pi,pi]
 	average_pose.roll  = normalizeAngle(average_pose.roll);
-	average_pose.pitch = normalizeAngle(average_pose.pitch);
+	average_pose.pitch = 11.3 * PI / 180 + normalizeAngle(average_pose.pitch);
 	average_pose.yaw   = normalizeAngle(average_pose.yaw);
 
 	// Convert obtained average pose to ROS tf
+  // Compute transformation relatively with camera axis but global pose
 	tf::Quaternion q;
 	q.setRPY(average_pose.roll, average_pose.pitch, average_pose.yaw);
 	q.normalize();

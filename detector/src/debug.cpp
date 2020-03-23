@@ -1,6 +1,6 @@
 #include "../include/detector/detector_node.hpp"
 
-void Detector::publishMap(const std_msgs::Header& header, const Pose<double>& pose)
+void Detector::publish2DMap(const std_msgs::Header& header, const Pose<double>& pose)
 {
 	visualization_msgs::MarkerArray marker_array;
 	visualization_msgs::Marker      marker;

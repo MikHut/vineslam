@@ -18,6 +18,9 @@
 #include <message_filters/synchronizer.h>
 #include <nav_msgs/Odometry.h>
 #include <ros/ros.h>
+#include <sensor_msgs/PointCloud.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/point_cloud_conversion.h>
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
 #include <visualization_msgs/MarkerArray.h>
@@ -68,7 +71,9 @@ private:
 	}
 
 	// Publish map on rviz
-	void publishMap(const std_msgs::Header& header, const Pose<double>& pose);
+	void publish2DMap(const std_msgs::Header& header, const Pose<double>& pose);
+	// Publish a 3D pcl in sensor_msgs::PointCloud2 format
+	void publish3DCloud();
 
 #ifdef DEBUG
 	// DEBUG method
@@ -83,10 +88,10 @@ private:
 	image_transport::Publisher r_img_publisher;
 #endif
 
-	ros::Publisher     map_publisher;
-	ros::Publisher     particle_publisher;
-	ros::Publisher     odom_publisher;
-	ros::ServiceClient polar2pose;
+	ros::Publisher map_publisher;
+	ros::Publisher particle_publisher;
+	ros::Publisher odom_publisher;
+	ros::Publisher pcl_publisher;
 
 	bool init;
 
@@ -108,13 +113,7 @@ private:
 	// Load all the parameters of the ROS node
 	void loadParameters(const ros::NodeHandle& local_nh)
 	{
-		local_nh.getParam("/detector/focal_length", (*params).f_length);
-		local_nh.getParam("/detector/baseline", (*params).baseline);
-		local_nh.getParam("/detector/img_width", (*params).width);
-		local_nh.getParam("/detector/img_height", (*params).height);
 		local_nh.getParam("/detector/detector_th", (*params).min_score);
-		local_nh.getParam("/detector/disp_error", (*params).delta_D);
-		local_nh.getParam("/detector/h_fov", (*params).h_fov);
 		local_nh.getParam("/detector/n_particles", (*params).n_particles);
 
 		local_nh.getParam("/detector/image_left", (*params).image_left);

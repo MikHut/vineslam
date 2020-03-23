@@ -3,9 +3,13 @@
 // Include class objects
 #include <landmark.hpp>
 
+// Include std members
 #include <iostream>
 #include <map>
 #include <random>
+
+// ROS includes
+#include <tf/transform_listener.h>
 
 // Struct that represents a single particle with
 // - identification number

@@ -76,18 +76,18 @@ std::vector<Point<double>> Mapper2D::local_map(
 		double        th = bearings[i];
 		Point<double> X_cam(depths[i] * cos(th), depths[i] * sin(th), 0);
 
-		// Convert landmark to world's referential frame
-		Point<double> X_world;
-		X_world.x = X_cam.x * Rot[0].getX() + X_cam.y * Rot[0].getY() +
+		// Convert landmark to map's referential frame
+		Point<double> X_map;
+		X_map.x = X_cam.x * Rot[0].getX() + X_cam.y * Rot[0].getY() +
 		            X_cam.z * Rot[0].getZ() + trans.getX();
-		X_world.y = X_cam.x * Rot[1].getX() + X_cam.y * Rot[1].getY() +
+		X_map.y = X_cam.x * Rot[1].getX() + X_cam.y * Rot[1].getY() +
 		            X_cam.z * Rot[1].getZ() + trans.getY();
-		X_world.z = X_cam.x * Rot[2].getX() + X_cam.y * Rot[2].getY() +
+		X_map.z = X_cam.x * Rot[2].getX() + X_cam.y * Rot[2].getY() +
 		            X_cam.z * Rot[2].getZ() + trans.getZ();
 
 		// Convert landmark to robot's referential frame and insert
 		// on array of landmarks
-		Point<double> X_robot = X_world - pose.pos;
+		Point<double> X_robot = X_map - pose.pos;
 		landmarks.push_back(X_robot);
 	}
 

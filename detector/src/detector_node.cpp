@@ -32,7 +32,8 @@ Detector::Detector(int argc, char** argv)
 	l_img_publisher = it.advertise("/detection_left/image_raw", 1);
 #endif
 	// Publish map and particle filter
-	map_publisher      = n.advertise<visualization_msgs::MarkerArray>("/map", 1);
+	map_publisher = n.advertise<visualization_msgs::MarkerArray>("/map_2D", 1);
+	pcl_publisher = n.advertise<sensor_msgs::PointCloud2>("/map_3D", 1);
 	particle_publisher = n.advertise<geometry_msgs::PoseArray>("/particles", 1);
 	odom_publisher     = n.advertise<nav_msgs::Odometry>("/odometry", 1);
 
@@ -183,11 +184,12 @@ void Detector::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
 
 			// Execute the 3D map estimation
 			float* depths = (float*)(&(*msg_depth).data[0]);
-      std::cout << depths[1] << std::endl;
 			(*mapper_3d).process(depths);
+			// Publish 3D point cloud
+			publish3DCloud();
 
-			// Publish the map and particle filter
-			publishMap(odom_.header, robot_pose);
+			// Publish the 2D map and particle filter
+			publish2DMap(odom_.header, robot_pose);
 			poses.header = odom_.header;
 			particle_publisher.publish(poses);
 
@@ -239,14 +241,20 @@ double Detector::computeDepth(const sensor_msgs::Image& depth_img,
                               const int& xmin, const int& ymin, const int& xmax,
                               const int& ymax)
 {
+	// Declare array with all the disparities computed
 	float* depths = (float*)(&(depth_img).data[0]);
+
+	double range_min = 0.01;
+	double range_max = 10.0;
 
 	std::vector<float> depth_array;
 	for (int x = xmin; x < xmax; x++) {
 		for (int y = ymin; y < ymax; y++) {
 			int idx = x + depth_img.width * y;
 
-			if (std::isfinite(depths[idx]) && depths[idx] > 0)
+			// Fill the depth array with the values of interest
+			if (std::isfinite(depths[idx]) && depths[idx] > range_min &&
+			    depths[idx] < range_max)
 				depth_array.push_back(depths[idx]);
 		}
 	}
@@ -262,4 +270,31 @@ double Detector::computeDepth(const sensor_msgs::Image& depth_img,
 	}
 	else
 		return -1;
+}
+
+void Detector::publish3DCloud()
+{
+	// Get the raw point cloud to publish
+	std::vector<Point<double>> in_pcl = (*mapper_3d).getPointCloud();
+
+	// Convert the point cloud to sensor_msgs::PointCloud
+	sensor_msgs::PointCloud tmp_pcl;
+	tmp_pcl.header          = odom_.header;
+	tmp_pcl.header.frame_id = "cam";
+
+	for (size_t i = 0; i < in_pcl.size(); i++) {
+		geometry_msgs::Point32 pt;
+		pt.x = in_pcl[i].z;
+		pt.y = -in_pcl[i].x;
+		pt.z = -in_pcl[i].y;
+
+		tmp_pcl.points.push_back(pt);
+	}
+
+	// Convert sensor_msgs::PointCloud to sensor_msgs::PointCloud2
+	sensor_msgs::PointCloud2 out_pcl;
+	sensor_msgs::convertPointCloudToPointCloud2(tmp_pcl, out_pcl);
+
+	// Publish PointCloud
+	pcl_publisher.publish(out_pcl);
 }

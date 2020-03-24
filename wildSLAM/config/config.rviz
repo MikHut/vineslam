@@ -58,7 +58,8 @@ Visualization Manager:
       Marker Topic: /wildSLAM/map2D
       Name: MarkerArray
       Namespaces:
-        {}
+        /ellipses: true
+        /markers: true
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -283,9 +284,9 @@ Visualization Manager:
       Value: true
     - Class: octomap_rviz_plugin/OccupancyGrid
       Enabled: true
-      Max. Height Display: inf
+      Max. Height Display: 3.4028234663852886e+38
       Max. Octree Depth: 16
-      Min. Height Display: -inf
+      Min. Height Display: -3.4028234663852886e+38
       Name: OccupancyGrid
       Octomap Topic: /octomap_full
       Queue Size: 5
@@ -318,7 +319,7 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.009999999776482582
       Style: Flat Squares
-      Topic: /wildSLAM/map3D
+      Topic: /wildSLAM/map3D/raw
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -351,25 +352,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 38.29210662841797
+      Distance: 36.142704010009766
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 3.761885643005371
-        Y: -0.32667630910873413
+        X: 6.898235321044922
+        Y: -1.2874805927276611
         Z: -3.706837560457643e-6
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.959796667098999
+      Pitch: -1.41520357131958
       Target Frame: <Fixed Frame>
       Value: XYOrbit (rviz)
-      Yaw: 3.061594247817993
+      Yaw: 6.258412837982178
     Saved: ~
 Window Geometry:
   Displays:

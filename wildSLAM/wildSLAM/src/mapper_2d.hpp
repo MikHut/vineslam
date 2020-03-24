@@ -24,15 +24,13 @@ public:
 
 	// Global function that handles all the mapping process
 	void process(const Pose<double>& pose, const std::vector<double>& bearings,
-	             const std::vector<double>&       depths,
-	             const tf::Transform&             cam2world,
-	             const std::vector<SemanticInfo>& info);
+	             const std::vector<double>& depths,
+	             const tf::Transform& cam2world, const std::vector<int>& labels);
 
 	// Initializes the map
 	// - Invocated only once to insert the first observations on the map
 	void init(const Pose<double>& pose, const std::vector<double>& bearings,
-	          const std::vector<double>&       depths,
-	          const std::vector<SemanticInfo>& info);
+	          const std::vector<double>& depths, const std::vector<int>& labels);
 
 	// Computes a local map, on robot's frame
 	std::vector<Point<double>> local_map(const Pose<double>&        pose,
@@ -59,8 +57,8 @@ private:
 
 	// Estimates landmark positions based on the current observations
 	void predict(const Pose<double>& pose, const std::vector<double>& bearings,
-	             const std::vector<double>&       depths,
-	             const std::vector<SemanticInfo>& info);
+	             const std::vector<double>& depths,
+	             const std::vector<int>&    labels);
 
 	// Searches from correspondences between observations and landmarks
 	// already mapped

@@ -8,10 +8,10 @@ Mapper2D::Mapper2D(const std::string& config_path) : config_path(config_path)
 	delta_d           = config["camera_info"]["delta_d"].as<double>();
 }
 
-void Mapper2D::init(const Pose<double>&              pose,
-                    const std::vector<double>&       bearings,
-                    const std::vector<double>&       depths,
-                    const std::vector<SemanticInfo>& info)
+void Mapper2D::init(const Pose<double>&        pose,
+                    const std::vector<double>& bearings,
+                    const std::vector<double>& depths,
+                    const std::vector<int>&    labels)
 {
 	int           n_obsv = bearings.size();
 	Point<double> pos    = pose.pos;
@@ -40,17 +40,17 @@ void Mapper2D::init(const Pose<double>&              pose,
 		Point<double>   pos(X.x, X.y);
 		Ellipse<double> std = filters[filters.size() - 1].getStdev();
 		if (map.empty() == 0)
-			map[map.rbegin()->first + 1] = Landmark<double>(pos, std, info[i]);
+			map[map.rbegin()->first + 1] = Landmark<double>(pos, std, labels[i]);
 		else
 			map[1] = Landmark<double>(pos, std);
 	}
 }
 
-void Mapper2D::process(const Pose<double>&              pose,
-                       const std::vector<double>&       bearings,
-                       const std::vector<double>&       depths,
-                       const tf::Transform&             cam2map,
-                       const std::vector<SemanticInfo>& info)
+void Mapper2D::process(const Pose<double>&        pose,
+                       const std::vector<double>& bearings,
+                       const std::vector<double>& depths,
+                       const tf::Transform&       cam2map,
+                       const std::vector<int>&    labels)
 {
 	// Compute local map on robot's referential frame
 	std::vector<Point<double>> l_map = local_map(pose, bearings, depths, cam2map);
@@ -62,7 +62,7 @@ void Mapper2D::process(const Pose<double>&              pose,
 		bearings_[i] = atan2(l_map[i].y, l_map[i].x) - pose.yaw;
 	}
 	// Estimate global map
-	predict(pose, bearings_, depths_, info);
+	predict(pose, bearings_, depths_, labels);
 }
 
 std::vector<Point<double>> Mapper2D::local_map(
@@ -100,10 +100,10 @@ std::vector<Point<double>> Mapper2D::local_map(
 	return landmarks;
 }
 
-void Mapper2D::predict(const Pose<double>&              pose,
-                       const std::vector<double>&       bearings,
-                       const std::vector<double>&       depths,
-                       const std::vector<SemanticInfo>& info)
+void Mapper2D::predict(const Pose<double>&        pose,
+                       const std::vector<double>& bearings,
+                       const std::vector<double>& depths,
+                       const std::vector<int>&    labels)
 {
 	int           n_obsv = bearings.size();
 	Point<double> particles_std(pose.gaussian.std_x, pose.gaussian.std_y);
@@ -132,7 +132,7 @@ void Mapper2D::predict(const Pose<double>&              pose,
 
 			// Insert the landmark on the map, with a single observation
 			Ellipse<double> std          = filters[filters.size() - 1].getStdev();
-			map[map.rbegin()->first + 1] = Landmark<double>(X, std, info[i]);
+			map[map.rbegin()->first + 1] = Landmark<double>(X, std, labels[i]);
 		}
 		// If so, update the landmark position estimation using a Kalman
 		// Filter call
@@ -146,7 +146,7 @@ void Mapper2D::predict(const Pose<double>&              pose,
 			Ellipse<double> stdev = filters[landmark_id - 1].getStdev();
 
 			// Update the estimation on the map
-			map[landmark_id] = Landmark<double>(X_out, stdev, info[i]);
+			map[landmark_id] = Landmark<double>(X_out, stdev, labels[i]);
 		}
 	}
 }

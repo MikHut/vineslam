@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>wildSLAM</name>
+  <version>0.0.0</version>
+  <description>The wildSLAM package</description>
+
+  <maintainer email="andre.s.aguiar@inesctec.pt">André Aguiar</maintainer>
+
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>std_msgs</build_depend>
+  <exec_depend>std_msgs</exec_depend>
+
+</package>

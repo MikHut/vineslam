@@ -8,19 +8,24 @@ an image, and outputs a 2D-feature map, a 3D occupancy grid map, and the robot p
 
 ### Subscribed topics
 
-* /image (sensor_msgs::Image) - the disparity map
-* /detections (vision_msgs::Detection2DArray) - the object detections
-* /odom (nav_msgs::Odometry) - the robot wheel Odometry
+* **/image** ([sensor_msgs::Image](http://docs.ros.org/api/sensor_msgs/html/msg/Image.html)) - the disparity map
+* **/detections**
+  ([vision_msgs::Detection2DArray](http://docs.ros.org/api/vision_msgs/html/msg/Detection2DArray.html)) - the object detections
+* **/odom**
+  ([nav_msgs::Odometry](http://docs.ros.org/melodic/api/nav_msgs/html/msg/Odometry.html)) - the robot wheel Odometry
 
 ### Published topics
 
-* /wildSLAM/map2D (visualization_msgs::MarkerArray) - the 2D map
-* /wildSLAM/map3D/raw (sensor_msgs::PointCloud2) - the raw 3D map
-* /wildSLAM/particles (geometry_msgs::PoseArray) - the robot pose
+* **/wildSLAM/map2D**
+  ([visualization_msgs::MarkerArray](http://docs.ros.org/melodic/api/visualization_msgs/html/msg/MarkerArray.html)) - the 2D map
+* **/wildSLAM/map3D/raw**
+  ([sensor_msgs::PointCloud2](http://docs.ros.org/melodic/api/sensor_msgs/html/msg/PointCloud2.html)) - the raw 3D map
+* **/wildSLAM/particles**
+  ([geometry_msgs::PoseArray](http://docs.ros.org/melodic/api/geometry_msgs/html/msg/PoseArray.html)) - the robot pose
 
 ### Transforms
 
-* cam2map (tf::Transform) - camera to map dynamic transformation encoding the robot pose
+* **cam2map** ([tf::Transform](http://docs.ros.org/jade/api/tf/html/c++/classtf_1_1Transform.html)) - camera to map dynamic transformation encoding the robot pose
   relatively to the map
 
 ## How to run
@@ -58,4 +63,4 @@ We also provide a model suitable for vine trunk detection in the `test/edgetpu_c
 dir, that is loaded by the `detector` launch file.
 
 You can download several rosbags to test the system
-(here)[vcriis01.inesctec.pt/datasets/DataSet/Romovi/aveleda_2020-01-16-11-agrob17.zip]. 
+[here](vcriis01.inesctec.pt/datasets/DataSet/Romovi/aveleda_2020-01-16-11-agrob17.zip). 

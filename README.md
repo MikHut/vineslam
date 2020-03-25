@@ -85,4 +85,4 @@ We also provide a model suitable for vine trunk detection in the `test/edgetpu_c
 dir, that is loaded by the `detector` launch file.
 
 You can download several rosbags to test the system
-[here](vcriis01.inesctec.pt/datasets/DataSet/Romovi/aveleda_2020-01-16-11-agrob17.zip). 
+[here](www.vcriis01.inesctec.pt/datasets/DataSet/Romovi/aveleda_2020-01-16-11-agrob17.zip). 

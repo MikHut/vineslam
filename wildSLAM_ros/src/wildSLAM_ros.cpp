@@ -99,9 +99,10 @@ void wildSLAM_ros::SLAMNode::callbackFct(
 
 		// Execute the 3D map estimation
 		float* depths = (float*)(&(*depth_image).data[0]);
-		(*mapper3D).process(depths);
-		// Publish 3D point cloud
-		publish3DCloud((*depth_image).header);
+		(*mapper3D).process(depths, *dets);
+		// Publish 3D point clouds
+		publish3DRawMap((*depth_image).header);
+		publish3DTrunkMap((*depth_image).header);
 
 		// Publish the 2D map and particle filter
 		publish2DMap((*depth_image).header, robot_pose);

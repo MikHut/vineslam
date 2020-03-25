@@ -16,8 +16,8 @@ camera_info:
 
 # Static camera pose information
 camera_tf:
-  pitch: 10   # degrees
-  height: 1.2 # meters
+  pitch: 11.3 # degrees
+  height: 1.0 # meters
 
 # Particle filter constants to perform inovation and number of particles
 # std_rot_a = alpha_1 * |dt_rot_a| + alpha_2 * |t|

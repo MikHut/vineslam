@@ -96,10 +96,10 @@ void wildSLAM_ros::SLAMNode::publish2DMap(const std_msgs::Header& header,
 	map2D_publisher.publish(ellipse_array);
 }
 
-void wildSLAM_ros::SLAMNode::publish3DCloud(const std_msgs::Header& header)
+void wildSLAM_ros::SLAMNode::publish3DRawMap(const std_msgs::Header& header)
 {
 	// Get the raw point cloud to publish
-	std::vector<Point<double>> in_pcl = (*mapper3D).getPointCloud();
+	std::vector<Point<double>> in_pcl = (*mapper3D).getRawPointCloud();
 
 	// Convert the point cloud to sensor_msgs::PointCloud
 	sensor_msgs::PointCloud tmp_pcl;
@@ -120,5 +120,32 @@ void wildSLAM_ros::SLAMNode::publish3DCloud(const std_msgs::Header& header)
 	sensor_msgs::convertPointCloudToPointCloud2(tmp_pcl, out_pcl);
 
 	// Publish PointCloud
-	map3D_publisher.publish(out_pcl);
+	map3D_raw_publisher.publish(out_pcl);
+}
+
+void wildSLAM_ros::SLAMNode::publish3DTrunkMap(const std_msgs::Header& header)
+{
+	// Get the raw point cloud to publish
+	std::vector<Point<double>> in_pcl = (*mapper3D).getTrunkPointCloud();
+
+	// Convert the point cloud to sensor_msgs::PointCloud
+	sensor_msgs::PointCloud tmp_pcl;
+	tmp_pcl.header          = header;
+	tmp_pcl.header.frame_id = "cam";
+
+	for (size_t i = 0; i < in_pcl.size(); i++) {
+		geometry_msgs::Point32 pt;
+		pt.x = in_pcl[i].z;
+		pt.y = -in_pcl[i].x;
+		pt.z = -in_pcl[i].y;
+
+		tmp_pcl.points.push_back(pt);
+	}
+
+	// Convert sensor_msgs::PointCloud to sensor_msgs::PointCloud2
+	sensor_msgs::PointCloud2 out_pcl;
+	sensor_msgs::convertPointCloudToPointCloud2(tmp_pcl, out_pcl);
+
+	// Publish PointCloud
+	map3D_trunk_publisher.publish(out_pcl);
 }

@@ -1,9 +1,9 @@
 #pragma once
 
 #include <pose.hpp>
-#include <yaml-cpp/yaml.h>
 #include <vision_msgs/Detection2D.h>
 #include <vision_msgs/Detection2DArray.h>
+#include <yaml-cpp/yaml.h>
 
 class Mapper3D
 {
@@ -16,20 +16,29 @@ public:
 	void init();
 
 	// Handles the loop process of the 3D mapper
-	void process(const float* depths);
-  // Returns the current point cloud of the object
-  std::vector<Point<double>> getPointCloud() const;
+	void process(const float* depths, const vision_msgs::Detection2DArray& dets);
+	// Returns the current raw point cloud
+	std::vector<Point<double>> getRawPointCloud() const;
+	// Returns the current trunk point cloud
+	std::vector<Point<double>> getTrunkPointCloud() const;
 
 private:
-  // Point cloud variable
-  std::vector<Point<double>> pcl;
+	// Function that handles the design of the raw 3D map
+	void buildRawMap(const float* depths);
+	// Function that handles the design of the vine trunks 3D map
+	void buildTrunkMap(const float*                         depths,
+	                   const vision_msgs::Detection2DArray& dets);
 
-  // Camera info parameters
-  double img_width;
-  double img_height;
-  double cam_height;
-  double fx;
-  double fy;
-  double cx;
-  double cy;
+	// Point cloud variables
+	std::vector<Point<double>> raw_pcl;
+	std::vector<Point<double>> trunk_pcl;
+
+	// Camera info parameters
+	double img_width;
+	double img_height;
+	double cam_height;
+	double fx;
+	double fy;
+	double cx;
+	double cy;
 };

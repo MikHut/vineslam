@@ -24,6 +24,8 @@ Follow the steps described in the [installation file](installation.md).
   ([visualization_msgs::MarkerArray](http://docs.ros.org/melodic/api/visualization_msgs/html/msg/MarkerArray.html)) - the 2D map
 * **/wildSLAM/map3D/raw**
   ([sensor_msgs::PointCloud2](http://docs.ros.org/melodic/api/sensor_msgs/html/msg/PointCloud2.html)) - the raw 3D map
+* **/wildSLAM/map3D/trunks**
+  ([sensor_msgs::PointCloud2](http://docs.ros.org/melodic/api/sensor_msgs/html/msg/PointCloud2.html)) - the trunks 3D map
 * **/wildSLAM/particles**
   ([geometry_msgs::PoseArray](http://docs.ros.org/melodic/api/geometry_msgs/html/msg/PoseArray.html)) - the robot pose
 
@@ -31,6 +33,39 @@ Follow the steps described in the [installation file](installation.md).
 
 * **cam2map** ([tf::Transform](http://docs.ros.org/jade/api/tf/html/c++/classtf_1_1Transform.html)) - camera to map dynamic transformation encoding the robot pose
   relatively to the map
+
+## Parameters
+
+### Detector
+
+To set the parameters of the Detector node, edit the `test/detector/launch/test.launch` file.
+
+* **/image_left**, left image topic from stereo camera (string)
+* **/image_depth**, depth image topic from stereo camera (string)
+* **/model_path**, path to the Edge TPU model
+* **/labels_path**, path to the object detection labels file
+
+### wildSLAM
+
+To set the parameters of wildSLAM edit the file `wildSLAM/config/setup.yaml`.
+
+* **camera_info**:
+  * baseline - stereo camera baseline (meters)
+  * delta_d - stereo matcher disparity error (pixels)
+  * h_fov - stereo camera horizontal field of view (degrees)
+  * cam_pitch - static camera inclination (degrees)
+  * cam_height - static camera height (meters)
+  * img_width - image width (pixels)
+  * img_height - image height (pixels)
+  * fx - horizontal focal length (pixels)
+  * fy - vertical focal length (pixels)
+  * cx - x coordinate of image principal point (pixels)
+  * cy - y coordinate of image principal point(pixels)
+
+* **pf**:
+  * n_particles - number of particles of the particle filter
+  * alpha_{1,2,3,4} - particle filter constants to spread and inovate the particles on the
+    predict step.
 
 ## How to run
 

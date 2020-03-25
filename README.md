@@ -34,9 +34,9 @@ Follow the steps described in the [installation file](installation.md).
 * **cam2map** ([tf::Transform](http://docs.ros.org/jade/api/tf/html/c++/classtf_1_1Transform.html)) - camera to map dynamic transformation encoding the robot pose
   relatively to the map
 
-## Parameters
+### Parameters
 
-### Detector
+#### Detector
 
 To set the parameters of the Detector node, edit the `test/detector/launch/test.launch` file.
 
@@ -45,7 +45,7 @@ To set the parameters of the Detector node, edit the `test/detector/launch/test.
 * **/model_path**, path to the Edge TPU model
 * **/labels_path**, path to the object detection labels file
 
-### wildSLAM
+#### wildSLAM
 
 To set the parameters of wildSLAM edit the file `wildSLAM/config/setup.yaml`.
 
@@ -60,7 +60,7 @@ To set the parameters of wildSLAM edit the file `wildSLAM/config/setup.yaml`.
   * fx - horizontal focal length (pixels)
   * fy - vertical focal length (pixels)
   * cx - x coordinate of image principal point (pixels)
-  * cy - y coordinate of image principal point(pixels)
+  * cy - y coordinate of image principal point (pixels)
 
 * **pf**:
   * n_particles - number of particles of the particle filter

@@ -14,7 +14,7 @@
 * **flatbuffers**: use cmake to install the repo, and install it at the system using `sudo
   make install`; clone it at test/edgetpu_cpp/dep.
 * **glog**: follow the cmake installation procedure described here, and install it at the system using `sudo make install`. clone it at test/edgetpu_cpp/dep.
-* **PythonLibs**: install it with sudo apt install python-dev
+* **PythonLibs**: install it with `sudo apt install python-dev`
 * **Google tests**:
 ```
 sudo apt-get install cmake libgtest-dev

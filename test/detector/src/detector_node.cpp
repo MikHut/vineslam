@@ -108,7 +108,7 @@ Detector::detect(const sensor_msgs::ImageConstPtr& msg)
 	std::vector<uint8_t> input_tensor = coral::GetInputFromImage(
 	    in_image,
 	    {input_tensor_shape[1], input_tensor_shape[2], input_tensor_shape[3]},
-	    {(*msg).height, (*msg).width, 3});
+	    {static_cast<int>((*msg).height), static_cast<int>((*msg).width), 3});
 
 	auto results = (*engine).DetectWithInputTensor(input_tensor, 0.5, 50);
 

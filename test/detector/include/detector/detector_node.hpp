@@ -1,5 +1,8 @@
 #pragma once
 
+// wildSLAM structures
+#include <pose.hpp>
+
 // ROS and iostream
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>

@@ -2,6 +2,8 @@
 
 #include <pose.hpp>
 #include <yaml-cpp/yaml.h>
+#include <vision_msgs/Detection2D.h>
+#include <vision_msgs/Detection2DArray.h>
 
 class Mapper3D
 {

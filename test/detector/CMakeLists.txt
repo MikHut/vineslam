@@ -26,8 +26,8 @@ find_package(OpenCV REQUIRED)
 
 catkin_package()
 
-message(${CMAKE_SOURCE_DIR})
-include_directories(${CMAKE_SOURCE_DIR}/agrob_slam/test/edgetpu_cpp/dep/libedgetpu)
+message(${PROJECT_SOURCE_DIR})
+include_directories(${PROJECT_SOURCE_DIR}/../edgetpu_cpp/dep/libedgetpu)
 include_directories(benchmark /usr/local/include/benchmark)
 
 include_directories(

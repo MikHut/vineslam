@@ -44,8 +44,10 @@ public:
 private:
 	// Publish map on rviz
 	void publish2DMap(const std_msgs::Header& header, const Pose<double>& pose);
-	// Publish a 3D pcl in sensor_msgs::PointCloud2 format
-	void publish3DCloud(const std_msgs::Header& header);
+	// Publish the 3D raw map using a pcl 
+	void publish3DRawMap(const std_msgs::Header& header);
+	// Publish the 3D trunk map using a pcl 
+	void publish3DTrunkMap(const std_msgs::Header& header);
 	// Computes the depth of an object using the ZED disparity image
 	// - Calculates the median of all points to remove outliers
 	double computeDepth(const sensor_msgs::Image& depth_img, const int& xmin,
@@ -53,7 +55,8 @@ private:
 
 	// Definitions of the ROS publishers
 	ros::Publisher map2D_publisher;
-	ros::Publisher map3D_publisher;
+	ros::Publisher map3D_raw_publisher;
+	ros::Publisher map3D_trunk_publisher;
 	ros::Publisher particle_publisher;
 
 	// Classes object members

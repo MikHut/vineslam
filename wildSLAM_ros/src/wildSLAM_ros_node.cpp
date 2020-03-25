@@ -25,8 +25,10 @@ wildSLAM_ros::SLAMNode::SLAMNode(int argc, char** argv)
 	// Publish maps and particle filter
 	map2D_publisher =
 	    nh.advertise<visualization_msgs::MarkerArray>("/wildSLAM/map2D", 1);
-	map3D_publisher =
+	map3D_raw_publisher=
 	    nh.advertise<sensor_msgs::PointCloud2>("/wildSLAM/map3D/raw", 1);
+	map3D_trunk_publisher =
+	    nh.advertise<sensor_msgs::PointCloud2>("/wildSLAM/map3D/trunks", 1);
 	particle_publisher =
 	    nh.advertise<geometry_msgs::PoseArray>("/wildSLAM/particles", 1);
 

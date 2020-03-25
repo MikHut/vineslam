@@ -5,6 +5,7 @@ add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED
 		    roscpp
+		    vision_msgs
                     std_msgs)
 
 find_package(Eigen3 REQUIRED)

@@ -51,16 +51,12 @@ void Detector::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
 	std::vector<coral::DetectionCandidate> left_res = detect(msg_left);
 
 	// Process left image results - calculate bearings and depths
-	std::vector<Point<double>> left_det;
 	for (auto result : left_res) {
 		// Calculate bounding box image coordinates
 		double xmin = result.corners.ymin * (*msg_left).width;
 		double ymin = result.corners.xmin * (*msg_left).height;
 		double xmax = result.corners.ymax * (*msg_left).width;
 		double ymax = result.corners.xmax * (*msg_left).height;
-
-    // AUX
-    Point<double> tmp((xmin + xmax) / 2, (ymin + ymax) / 2);
 
 		// Declare detection information
 		vision_msgs::ObjectHypothesisWithPose det_info;

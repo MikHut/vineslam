@@ -37,7 +37,7 @@ add_library(util STATIC
 	edgetpu_cpp/src/test_utils.cc
 	edgetpu_cpp/src/utils.cc)
 target_link_libraries(util classification detection
-	${CMAKE_SOURCE_DIR}/agrob_slam/test/edgetpu_cpp/dep/libedgetpu/tensorflow/lite/tools/make/gen/linux_x86_64/lib/libtensorflow-lite.a
+	${PROJECT_SOURCE_DIR}/dep/libedgetpu/tensorflow/lite/tools/make/gen/linux_x86_64/lib/libtensorflow-lite.a
   ${GTEST_LIBRARIES} glog::glog absl::base absl::flags absl::strings)
 
 add_library(posenet STATIC
@@ -51,8 +51,8 @@ add_library(basic STATIC
 	edgetpu_cpp/src/basic/basic_engine.cc
 	edgetpu_cpp/src/basic/basic_engine_native.cc)
 target_link_libraries(basic 
-	${CMAKE_SOURCE_DIR}/agrob_slam/test/edgetpu_cpp/dep/libedgetpu/tensorflow/lite/tools/make/gen/linux_x86_64/lib/libtensorflow-lite.a
-	${CMAKE_SOURCE_DIR}/agrob_slam/test/edgetpu_cpp/dep/libedgetpu/direct/k8/libedgetpu.so.1
+	${PROJECT_SOURCE_DIR}/dep/libedgetpu/tensorflow/lite/tools/make/gen/linux_x86_64/lib/libtensorflow-lite.a
+	${PROJECT_SOURCE_DIR}/dep/libedgetpu/direct/k8/libedgetpu.so.1
         util posenet absl::base absl::flags absl::strings)
 
 add_library(swig STATIC

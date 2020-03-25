@@ -4,27 +4,9 @@ This package contains a SLAM approach dedicated to vineyards.
 The estimator receives a disparity image and a set of bounding boxes locating objects in
 an image, and outputs a 2D-feature map, a 3D occupancy grid map, and the robot pose.
 
-## Dependencies
-
-### Standalone wildSLAM package
-
-* **ROS** - [melodic](http://wiki.ros.org/melodic/Installation/Ubuntu) is the recomended version
-* **octomap** - `sudo apt install ros-melodic-octomap*`
-* **vision_msgs** - `sudo apt install ros-melodic-vision-msgs`
-
-### Test package
-
-To use the test package, the dependencies of the Edge TPU API have also to be installed.
-All the dependencies are listed [here](https://gitlab.inesctec.pt/agrob/coral-deeplearning-ros), as well as the desired installation procedure.
-
 ## Installation
 
-To install simply clone and compile the project.
-```
-cd src/<user>/catkin_ws
-git clone https://gitlab.inesctec.pt/agrob/agrobvslam
-catkin_make -DCMAKE_BUILD_TYPE:=Release
-```
+Follow the steps described in the [installation file](installation.md).
 
 ## ROS structure
 

@@ -99,53 +99,119 @@ void wildSLAM_ros::SLAMNode::publish2DMap(const std_msgs::Header& header,
 void wildSLAM_ros::SLAMNode::publish3DRawMap(const std_msgs::Header& header)
 {
 	// Get the raw point cloud to publish
-	std::vector<Point<double>> in_pcl = (*mapper3D).getRawPointCloud();
+	OcTreeT octree = (*mapper3D).getRawPointCloud();
 
-	// Convert the point cloud to sensor_msgs::PointCloud
-	sensor_msgs::PointCloud tmp_pcl;
-	tmp_pcl.header          = header;
-	tmp_pcl.header.frame_id = "cam";
+	visualization_msgs::MarkerArray octomapviz;
+	// each array stores all cubes of a different size, one for each depth level:
+	octomapviz.markers.resize(octree.getTreeDepth() + 1);
 
-	for (size_t i = 0; i < in_pcl.size(); i++) {
-		geometry_msgs::Point32 pt;
-		pt.x = in_pcl[i].z;
-		pt.y = -in_pcl[i].x;
-		pt.z = -in_pcl[i].y;
+	std_msgs::ColorRGBA _color;
+	_color.r = (255.0 / 255.);
+	_color.g = (0.0 / 255.);
+	_color.b = (0.0 / 255.);
+	_color.a = 1.0;
 
-		tmp_pcl.points.push_back(pt);
+	for (OcTreeT::iterator it  = octree.begin(octree.getTreeDepth()),
+	                       end = octree.end();
+	     it != end; ++it) {
+
+		if (octree.isNodeOccupied(*it)) {
+			double size = it.getSize();
+			double x    = it.getX();
+			double y    = it.getY();
+			double z    = it.getZ();
+
+			unsigned idx = it.getDepth();
+			assert(idx < octomapviz.markers.size());
+
+			geometry_msgs::Point cubeCenter;
+			cubeCenter.x = x;
+			cubeCenter.y = y;
+			cubeCenter.z = z;
+
+			octomapviz.markers[idx].points.push_back(cubeCenter);
+			octomapviz.markers[idx].colors.push_back(_color);
+		}
 	}
 
-	// Convert sensor_msgs::PointCloud to sensor_msgs::PointCloud2
-	sensor_msgs::PointCloud2 out_pcl;
-	sensor_msgs::convertPointCloudToPointCloud2(tmp_pcl, out_pcl);
+	for (unsigned i = 0; i < octomapviz.markers.size(); ++i) {
+		double size = octree.getNodeSize(i);
 
-	// Publish PointCloud
-	map3D_raw_publisher.publish(out_pcl);
+		octomapviz.markers[i].header.frame_id = "map";
+		octomapviz.markers[i].header.stamp    = header.stamp;
+		octomapviz.markers[i].ns              = "map";
+		octomapviz.markers[i].id              = i;
+		octomapviz.markers[i].type        = visualization_msgs::Marker::CUBE_LIST;
+		octomapviz.markers[i].scale.x     = size;
+		octomapviz.markers[i].scale.y     = size;
+		octomapviz.markers[i].scale.z     = size;
+		octomapviz.markers[i].color = _color;
+
+		if (octomapviz.markers[i].points.size() > 0)
+			octomapviz.markers[i].action = visualization_msgs::Marker::ADD;
+		else
+			octomapviz.markers[i].action = visualization_msgs::Marker::DELETE;
+	}
+
+	map3D_raw_publisher.publish(octomapviz);
 }
 
 void wildSLAM_ros::SLAMNode::publish3DTrunkMap(const std_msgs::Header& header)
 {
 	// Get the raw point cloud to publish
-	std::vector<Point<double>> in_pcl = (*mapper3D).getTrunkPointCloud();
+	OcTreeT octree = (*mapper3D).getTrunkPointCloud();
 
-	// Convert the point cloud to sensor_msgs::PointCloud
-	sensor_msgs::PointCloud tmp_pcl;
-	tmp_pcl.header          = header;
-	tmp_pcl.header.frame_id = "cam";
+	visualization_msgs::MarkerArray octomapviz;
+	// each array stores all cubes of a different size, one for each depth level:
+	octomapviz.markers.resize(octree.getTreeDepth() + 1);
 
-	for (size_t i = 0; i < in_pcl.size(); i++) {
-		geometry_msgs::Point32 pt;
-		pt.x = in_pcl[i].z;
-		pt.y = -in_pcl[i].x;
-		pt.z = -in_pcl[i].y;
+	std_msgs::ColorRGBA _color;
+	_color.r = (255.0 / 255.);
+	_color.g = (0.0 / 255.);
+	_color.b = (0.0 / 255.);
+	_color.a = 1.0;
 
-		tmp_pcl.points.push_back(pt);
+	for (OcTreeT::iterator it  = octree.begin(octree.getTreeDepth()),
+	                       end = octree.end();
+	     it != end; ++it) {
+
+		if (octree.isNodeOccupied(*it)) {
+			double size = it.getSize();
+			double x    = it.getX();
+			double y    = it.getY();
+			double z    = it.getZ();
+
+			unsigned idx = it.getDepth();
+			assert(idx < octomapviz.markers.size());
+
+			geometry_msgs::Point cubeCenter;
+			cubeCenter.x = x;
+			cubeCenter.y = y;
+			cubeCenter.z = z;
+
+			octomapviz.markers[idx].points.push_back(cubeCenter);
+			octomapviz.markers[idx].colors.push_back(_color);
+		}
 	}
 
-	// Convert sensor_msgs::PointCloud to sensor_msgs::PointCloud2
-	sensor_msgs::PointCloud2 out_pcl;
-	sensor_msgs::convertPointCloudToPointCloud2(tmp_pcl, out_pcl);
+	for (unsigned i = 0; i < octomapviz.markers.size(); ++i) {
+		double size = octree.getNodeSize(i);
 
-	// Publish PointCloud
-	map3D_trunk_publisher.publish(out_pcl);
+		octomapviz.markers[i].header.frame_id = "map";
+		octomapviz.markers[i].header.stamp    = header.stamp;
+		octomapviz.markers[i].ns              = "map";
+		octomapviz.markers[i].id              = i;
+		octomapviz.markers[i].type        = visualization_msgs::Marker::CUBE_LIST;
+		octomapviz.markers[i].scale.x     = size;
+		octomapviz.markers[i].scale.y     = size;
+		octomapviz.markers[i].scale.z     = size;
+		octomapviz.markers[i].color = _color;
+
+		if (octomapviz.markers[i].points.size() > 0)
+			octomapviz.markers[i].action = visualization_msgs::Marker::ADD;
+		else
+			octomapviz.markers[i].action = visualization_msgs::Marker::DELETE;
+	}
+
+	map3D_trunk_publisher.publish(octomapviz);
 }

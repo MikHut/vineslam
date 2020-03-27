@@ -16,6 +16,8 @@ find_package(catkin REQUIRED
 		    geometry_msgs
 		    message_filters
 		    cv_bridge
+		    octomap_msgs
+		    octomap_ros
 		    image_geometry
 		    image_transport)
 

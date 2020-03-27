@@ -27,7 +27,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: Image
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -58,8 +58,7 @@ Visualization Manager:
       Marker Topic: /wildSLAM/map2D
       Name: MarkerArray
       Namespaces:
-        /ellipses: true
-        /markers: true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -83,67 +82,13 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: false
-        base_link:
-          Value: false
-        cam:
-          Value: true
-        camerat265_odom_frame:
-          Value: false
-        camerat265_pose_frame:
-          Value: false
-        front_left_wheel_link:
-          Value: false
-        front_right_wheel_link:
-          Value: false
-        gps:
-          Value: false
-        hokuyo_link:
-          Value: false
-        imu_link:
-          Value: false
-        map:
-          Value: true
-        odom:
-          Value: false
-        rear_left_wheel_link:
-          Value: false
-        rear_right_wheel_link:
-          Value: false
-        tower_base:
-          Value: false
-        velodyne:
-          Value: false
       Marker Scale: 1
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: true
       Tree:
-        odom:
-          base_link:
-            front_left_wheel_link:
-              {}
-            front_right_wheel_link:
-              {}
-            gps:
-              {}
-            hokuyo_link:
-              {}
-            rear_left_wheel_link:
-              {}
-            rear_right_wheel_link:
-              {}
-            tower_base:
-              imu_link:
-                {}
-              velodyne:
-                {}
-          map:
-            cam:
-              {}
-            camerat265_odom_frame:
-              camerat265_pose_frame:
-                {}
+        {}
       Update Interval: 0
       Value: true
     - Angle Tolerance: 0.10000000149011612
@@ -282,78 +227,14 @@ Visualization Manager:
       Transport Hint: raw
       Unreliable: false
       Value: true
-    - Class: octomap_rviz_plugin/OccupancyGrid
+    - Class: rviz/MarkerArray
       Enabled: true
-      Max. Height Display: 3.4028234663852886e+38
-      Max. Octree Depth: 16
-      Min. Height Display: -3.4028234663852886e+38
-      Name: OccupancyGrid
-      Octomap Topic: /octomap_full
-      Queue Size: 5
+      Marker Topic: /wildSLAM/map3D/trunks
+      Name: MarkerArray
+      Namespaces:
+        {}
+      Queue Size: 100
       Value: true
-      Voxel Alpha: 1
-      Voxel Coloring: Z-Axis
-      Voxel Rendering: Occupied Voxels
-    - Alpha: 1
-      Autocompute Intensity Bounds: true
-      Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
-      Axis: Z
-      Channel Name: intensity
-      Class: rviz/PointCloud2
-      Color: 255; 255; 255
-      Color Transformer: Intensity
-      Decay Time: 0
-      Enabled: false
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Max Intensity: 4096
-      Min Color: 0; 0; 0
-      Min Intensity: 0
-      Name: PointCloud2
-      Position Transformer: XYZ
-      Queue Size: 10
-      Selectable: true
-      Size (Pixels): 3
-      Size (m): 0.009999999776482582
-      Style: Flat Squares
-      Topic: /wildSLAM/map3D/raw
-      Unreliable: false
-      Use Fixed Frame: true
-      Use rainbow: true
-      Value: false
-    - Alpha: 1
-      Autocompute Intensity Bounds: true
-      Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
-      Axis: Z
-      Channel Name: intensity
-      Class: rviz/PointCloud2
-      Color: 255; 255; 255
-      Color Transformer: ""
-      Decay Time: 0
-      Enabled: false
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Max Intensity: 4096
-      Min Color: 0; 0; 0
-      Min Intensity: 0
-      Name: PointCloud2
-      Position Transformer: ""
-      Queue Size: 10
-      Selectable: true
-      Size (Pixels): 3
-      Size (m): 0.009999999776482582
-      Style: Flat Squares
-      Topic: /wildSLAM/map3D/trunks
-      Unreliable: false
-      Use Fixed Frame: true
-      Use rainbow: true
-      Value: false
   Enabled: true
   Global Options:
     Background Color: 0; 0; 0
@@ -397,10 +278,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5547963380813599
+      Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
       Value: XYOrbit (rviz)
-      Yaw: 3.1352338790893555
+      Yaw: 2.305233955383301
     Saved: ~
 Window Geometry:
   Displays:

@@ -26,14 +26,6 @@
     <param name="labels_path" value="$(find edgetpu_cpp)/model/labels.txt"/>
   </node>
 
-  <!-- octomap_server node for PCL -->
-	<node pkg="octomap_server" type="octomap_server_node" name="octomap_server_raw">
-		<param name="resolution" value="0.05" />
-		<param name="frame_id" type="string" value="map" />
-		<param name="sensor_model/max_range" value="20.0" />
-    <remap from="cloud_in" to="/wildSLAM/map3D/trunks" />
-	</node>
-
   <!-- transforms -->
   <node pkg="tf" type="static_transform_publisher" name="odom_to_map" args="0 0 0 0 0
     0 1  /odom /map 10" />

@@ -79,6 +79,9 @@ void wildSLAM_ros::SLAMNode::callbackFct(
 		// Initialize the mapper2D
 		(*mapper2D).init(robot_pose, bearings, depths, labels);
 
+		// Initialize the mapper3D
+		(*mapper3D).init();
+
 		// Get first map2D
 		map2D = (*mapper2D).getMap();
 
@@ -99,9 +102,12 @@ void wildSLAM_ros::SLAMNode::callbackFct(
 
 		// Execute the 3D map estimation
 		float* depths = (float*)(&(*depth_image).data[0]);
-		(*mapper3D).process(depths, *dets);
+		(*mapper3D).process(depths, octomap::pointTfToOctomap(cam2map.getOrigin()),
+		                    octomap::quaternionTfToOctomap(cam2map.getRotation()),
+		                    *dets);
+
 		// Publish 3D point clouds
-		publish3DRawMap((*depth_image).header);
+		//publish3DRawMap((*depth_image).header);
 		publish3DTrunkMap((*depth_image).header);
 
 		// Publish the 2D map and particle filter

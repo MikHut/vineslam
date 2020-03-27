@@ -14,6 +14,15 @@ camera_info:
   cx: 692.95849609375  # pixels
   cy: 382.80633544921  # pixels
 
+# 3D octree mapper
+mapper3D:
+  resolution: 0.05
+  hit: 0.7
+  miss: 0.4
+  thresh_min: 0.12
+  thresh_max: 0.97
+  max_range: 16 # meters
+
 # Particle filter constants to perform inovation and number of particles
 # std_rot_a = alpha_1 * |dt_rot_a| + alpha_2 * |t|
 # std_trans = alpha_3 * |dt_trans| + alpha_4 * |dt_rot_a + dt_rot_b|

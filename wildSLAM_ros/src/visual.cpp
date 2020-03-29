@@ -1,7 +1,7 @@
 #include "../include/wildSLAM_ros.hpp"
 
 void wildSLAM_ros::SLAMNode::publish2DMap(const std_msgs::Header& header,
-                                          const Pose<double>&     pose)
+                                          const pose6D&     pose)
 {
 	visualization_msgs::MarkerArray marker_array;
 	visualization_msgs::Marker      marker;
@@ -52,7 +52,7 @@ void wildSLAM_ros::SLAMNode::publish2DMap(const std_msgs::Header& header,
 
 		// Draw landmark standard deviation
 		tf2::Quaternion q;
-		q.setRPY(0, 0, m_map.second.stdev.th);
+		q.setRPY(0, 0, m_map.second.stdev.TH);
 
 		ellipse.id                 = m_map.first;
 		ellipse.header             = header;
@@ -60,8 +60,8 @@ void wildSLAM_ros::SLAMNode::publish2DMap(const std_msgs::Header& header,
 		ellipse.pose.position.x    = m_map.second.pos.x;
 		ellipse.pose.position.y    = m_map.second.pos.y;
 		ellipse.pose.position.z    = 0;
-		ellipse.scale.x            = 3 * m_map.second.stdev.std_x;
-		ellipse.scale.y            = 3 * m_map.second.stdev.std_y;
+		ellipse.scale.x            = 3 * m_map.second.stdev.stdX;
+		ellipse.scale.y            = 3 * m_map.second.stdev.stdY;
 		ellipse.pose.orientation.x = q.x();
 		ellipse.pose.orientation.y = q.y();
 		ellipse.pose.orientation.z = q.z();
@@ -72,16 +72,16 @@ void wildSLAM_ros::SLAMNode::publish2DMap(const std_msgs::Header& header,
 
 	// Draw ellipse that characterizes particles distribution
 	tf2::Quaternion q;
-	q.setRPY(0, 0, pose.gaussian.th);
+	q.setRPY(0, 0, pose.dist.TH);
 
 	ellipse.id                 = map2D.size() + 1;
 	ellipse.header             = header;
 	ellipse.header.frame_id    = "map";
-	ellipse.pose.position.x    = pose.pos.x;
-	ellipse.pose.position.y    = pose.pos.y;
+	ellipse.pose.position.x    = pose.x;
+	ellipse.pose.position.y    = pose.y;
 	ellipse.pose.position.z    = 0;
-	ellipse.scale.x            = 3 * pose.gaussian.std_x;
-	ellipse.scale.y            = 3 * pose.gaussian.std_y;
+	ellipse.scale.x            = 3 * pose.dist.stdX;
+	ellipse.scale.y            = 3 * pose.dist.stdY;
 	ellipse.pose.orientation.x = q.x();
 	ellipse.pose.orientation.y = q.y();
 	ellipse.pose.orientation.z = q.z();

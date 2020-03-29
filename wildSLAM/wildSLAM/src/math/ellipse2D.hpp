@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <eigen3/Eigen/Dense>
 
 class ellipse2D
 {
@@ -39,6 +40,14 @@ public:
 
 		return *this;
 	}
+
+  // Convert ellipse axis to a Eigen VectorXd
+  Eigen::VectorXd toEig()
+  {
+    Eigen::VectorXd vec(2,1);
+    vec << stdX, stdY;
+    return vec;
+  }
 
 	// Gaussian standard deviation and ellipse orientation
 	float stdX;

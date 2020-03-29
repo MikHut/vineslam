@@ -27,7 +27,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: Image
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -58,7 +58,8 @@ Visualization Manager:
       Marker Topic: /wildSLAM/map2D
       Name: MarkerArray
       Namespaces:
-        {}
+        /ellipses: true
+        /markers: true
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -82,13 +83,67 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: false
+        base_link:
+          Value: true
+        cam:
+          Value: true
+        camerat265_odom_frame:
+          Value: true
+        camerat265_pose_frame:
+          Value: true
+        front_left_wheel_link:
+          Value: true
+        front_right_wheel_link:
+          Value: true
+        gps:
+          Value: true
+        hokuyo_link:
+          Value: true
+        imu_link:
+          Value: true
+        map:
+          Value: true
+        odom:
+          Value: true
+        rear_left_wheel_link:
+          Value: true
+        rear_right_wheel_link:
+          Value: true
+        tower_base:
+          Value: true
+        velodyne:
+          Value: true
       Marker Scale: 1
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: true
       Tree:
-        {}
+        odom:
+          base_link:
+            front_left_wheel_link:
+              {}
+            front_right_wheel_link:
+              {}
+            gps:
+              {}
+            hokuyo_link:
+              {}
+            rear_left_wheel_link:
+              {}
+            rear_right_wheel_link:
+              {}
+            tower_base:
+              imu_link:
+                {}
+              velodyne:
+                {}
+          map:
+            cam:
+              {}
+            camerat265_odom_frame:
+              camerat265_pose_frame:
+                {}
       Update Interval: 0
       Value: true
     - Angle Tolerance: 0.10000000149011612
@@ -228,13 +283,13 @@ Visualization Manager:
       Unreliable: false
       Value: true
     - Class: rviz/MarkerArray
-      Enabled: true
+      Enabled: false
       Marker Topic: /wildSLAM/map3D/trunks
       Name: MarkerArray
       Namespaces:
         {}
       Queue Size: 100
-      Value: true
+      Value: false
   Enabled: true
   Global Options:
     Background Color: 0; 0; 0
@@ -281,7 +336,7 @@ Visualization Manager:
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
       Value: XYOrbit (rviz)
-      Yaw: 2.305233955383301
+      Yaw: 3.1202392578125
     Saved: ~
 Window Geometry:
   Displays:

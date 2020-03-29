@@ -3,16 +3,16 @@
 // Classes
 #include <kf.hpp>
 #include <landmark.hpp>
-#include <pose.hpp>
+#include <math/ellipse2D.hpp>
+#include <math/point3D.hpp>
+#include <math/pose6D.hpp>
 
-// ROS, std, eigen
+// std, eigen
+#include <cmath>
 #include <eigen3/Eigen/Dense>
 #include <iostream>
 #include <map>
-#include <math.h>
 #include <numeric>
-#include <ros/ros.h>
-#include <tf/transform_listener.h>
 #include <yaml-cpp/yaml.h>
 
 class Mapper2D
@@ -23,56 +23,55 @@ public:
 	Mapper2D(const std::string& config_path);
 
 	// Global function that handles all the mapping process
-	void process(const Pose<double>& pose, const std::vector<double>& bearings,
-	             const std::vector<double>& depths,
-	             const tf::Transform& cam2world, const std::vector<int>& labels);
+	void process(pose6D& pose, const std::vector<float>& bearings,
+	             const std::vector<float>& depths,
+	             const std::vector<int>&   labels);
 
 	// Initializes the map
 	// - Invocated only once to insert the first observations on the map
-	void init(const Pose<double>& pose, const std::vector<double>& bearings,
-	          const std::vector<double>& depths, const std::vector<int>& labels);
+	void init(pose6D& pose, const std::vector<float>& bearings,
+	          const std::vector<float>& depths, const std::vector<int>& labels);
 
 	// Computes a local map, on robot's frame
-	std::vector<Point<double>> local_map(const Pose<double>&        pose,
-	                                     const std::vector<double>& bearings,
-	                                     const std::vector<double>& depths,
-	                                     const tf::Transform&       cam2map);
+	std::vector<point3D> local_map(pose6D&                   pose,
+	                               const std::vector<float>& bearings,
+	                               const std::vector<float>& depths);
 
 	// Exports the current map to the high level ROS node
-	std::map<int, Landmark<double>> getMap() const;
+	std::map<int, Landmark<float>> getMap() const;
 
 	// Map that contains
 	// - the key id of each landmark
 	// - a Landmark object that represents it
-	std::map<int, Landmark<double>> map;
+	std::map<int, Landmark<float>> map;
 	// Array of Kalman Filters, one for each landmark
 	std::vector<KF> filters;
 
 private:
 	// Input parameters
-	double      baseline;
-	double      delta_d;
-	double      fx;
+	float       baseline;
+	float       delta_d;
+	float       fx;
 	std::string config_path;
 
 	// Estimates landmark positions based on the current observations
-	void predict(const Pose<double>& pose, const std::vector<double>& bearings,
-	             const std::vector<double>& depths,
-	             const std::vector<int>&    labels);
+	void predict(pose6D& pose, const std::vector<float>& bearings,
+	             const std::vector<float>& depths,
+	             const std::vector<int>&   labels);
 
 	// Searches from correspondences between observations and landmarks
 	// already mapped
-	int findCorr(const Point<double>& l_pos, const Point<double>& r_pos);
+	int findCorr(const point3D& l_pos, const point3D& r_pos);
 
 	// Auxiliar function that normalizes an angle in the [-pi,pi] range
-	double normalizeAngle(const double& angle)
+	float normalizeAngle(const float& angle)
 	{
 		return (std::fmod(angle + PI, 2 * PI) - PI);
 	}
 
 	// Auxiliar function that the disparity error using the disparity
 	// noise model
-	double dispError(const double& depth)
+	float dispError(const float& depth)
 	{
 		return pow(depth, 2) / (baseline * fx) * delta_d;
 	}

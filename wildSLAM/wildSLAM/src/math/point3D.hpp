@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <eigen3/Eigen/Dense>
 #include <iostream>
 
 class point3D
@@ -31,13 +32,13 @@ public:
 	}
 
 	// Assignment operator
-	point3D operator=(const point3D& other) 
+	point3D operator=(const point3D& other)
 	{
 		x = other.x;
 		y = other.y;
 		z = other.z;
 
-    return *this;
+		return *this;
 	}
 
 	// Addition operator
@@ -79,6 +80,22 @@ public:
 		return sqrt(dist_x * dist_x + dist_y * dist_y);
 	}
 
+	// Convert point3D to Eigen 3D vector
+	Eigen::VectorXd toEig2D()
+	{
+		Eigen::VectorXd vec(2, 1);
+		vec << x, y;
+		return vec;
+	}
+
+	// Convert point3D to Eigen 3D vector
+	Eigen::VectorXd toEig3D()
+	{
+		Eigen::VectorXd vec(3, 1);
+		vec << x, y, z;
+		return vec;
+	}
+
 	// Cartesian coordinates
 	float x;
 	float y;
@@ -88,8 +105,7 @@ private:
 };
 
 // stdout operator
-std::ostream& operator<<(std::ostream& out, point3D const& p)
+static std::ostream& operator<<(std::ostream& out, point3D const& p)
 {
-	return out << '(' << p.x << ' ' << p.y << ' ' << p.z << ')';
+	return out << '(' << p.x << ' ' << p.y << ' ' << p.z << ")\n";
 }
-

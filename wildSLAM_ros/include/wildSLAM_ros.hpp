@@ -4,6 +4,8 @@
 #include <localizer.hpp>
 #include <mapper_2d.hpp>
 #include <mapper_3d.hpp>
+#include <math/pose6D.hpp>
+#include <math/point3D.hpp>
 
 // std
 #include <iostream>
@@ -52,21 +54,21 @@ public:
 
 private:
 	// Publish map on rviz
-	void publish2DMap(const std_msgs::Header& header, const Pose<double>& pose);
+	void publish2DMap(const std_msgs::Header& header, const pose6D& pose);
 	// Publish the 3D raw map using a pcl 
 	void publish3DRawMap(const std_msgs::Header& header);
 	// Publish the 3D trunk map using a pcl 
 	void publish3DTrunkMap(const std_msgs::Header& header);
 	// Computes the depth of an object using the ZED disparity image
 	// - Calculates the median of all points to remove outliers
-	double computeDepth(const sensor_msgs::Image& depth_img, const int& xmin,
+	float computeDepth(const sensor_msgs::Image& depth_img, const int& xmin,
 	                    const int& ymin, const int& xmax, const int& ymax);
 
 	// Definitions of the ROS publishers
 	ros::Publisher map2D_publisher;
 	ros::Publisher map3D_raw_publisher;
 	ros::Publisher map3D_trunk_publisher;
-	ros::Publisher particle_publisher;
+	ros::Publisher pose_publisher;
 
 	// Classes object members
 	Localizer* localizer;
@@ -76,15 +78,15 @@ private:
 	// Map of landmarks with
 	// - the id of each landmark
 	// - the position and semantic information of each landmark
-	std::map<int, Landmark<double>> map2D;
+	std::map<int, Landmark<float>> map2D;
 
 	// Odometry pose variables
-	Pose<double> odom;
-	Pose<double> p_odom;
+	pose6D odom;
+	pose6D p_odom;
 
 	// Numberic input parameters
-	double img_width;
-	double h_fov;
+	float img_width;
+	float h_fov;
 
 	// Initialize flag
 	bool init;

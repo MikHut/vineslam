@@ -9,8 +9,9 @@
 #include <octomap/OcTreeKey.h>
 #include <octomap/octomap.h>
 
-typedef octomap::point3d point3D;
-typedef octomath::Quaternion quaternion;
+// math
+#include <math/point3D.hpp>
+#include <math/pose6D.hpp>
 
 // Typedefs
 typedef octomap::ColorOcTree OcTreeT;
@@ -26,8 +27,7 @@ public:
 	void init();
 
 	// Handles the loop process of the 3D mapper
-	void process(const float* depths, const point3D& sensor_origin,
-	             const quaternion&                    sensor_rot,
+	void process(const float* depths, pose6D& sensor_origin,
 	             const vision_msgs::Detection2DArray& dets);
 	// Returns the current raw point cloud
 	OcTreeT getRawPointCloud() const;
@@ -36,15 +36,12 @@ public:
 
 private:
 	// Function that handles the design of the raw 3D map
-	void buildRawMap(const float* depths, const point3D& sensor_origin,
-	                 const quaternion& sensor_rot);
+	void buildRawMap(const float* depths, pose6D& sensor_origin);
 	// Function that handles the design of the vine trunks 3D map
-	void buildTrunkMap(const float* depths, const point3D& sensor_origin,
-	                   const quaternion&                    sensor_rot,
+	void buildTrunkMap(const float* depths, pose6D& sensor_origin,
 	                   const vision_msgs::Detection2DArray& dets);
 	// Creates an OctoMap using the Octree structure
-	void createOctoMap(const point3D&              sensor_origin,
-	                   const std::vector<point3D>& pcl);
+	void createOctoMap(pose6D& sensor_origin, const std::vector<point3D>& pcl);
 
 	// TODO (André Aguiar): Misses documentation for this function
 	inline static void updateMinKey(const octomap::OcTreeKey& in,

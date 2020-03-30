@@ -13,7 +13,6 @@ void Mapper2D::init(pose6D& pose, const std::vector<float>& bearings,
                     const std::vector<int>&   labels)
 {
 	int       n_obsv    = bearings.size();
-	point3D   robot_pos = pose.getXYZ();
 	ellipse2D robot_std = pose.getDist();
 
 	// Compute initial covariance matrix
@@ -30,7 +29,7 @@ void Mapper2D::init(pose6D& pose, const std::vector<float>& bearings,
 		point3D X(pose.x + depths[i] * cos(th), pose.y + depths[i] * sin(th), 0.);
 
 		// Push back a Kalman Filter object for the respective landmark
-		KF kf(X.toEig2D(), robot_pos.toEig2D(), robot_std.toEig(), z, config_path);
+		KF kf(X.toEig2D(), pose.toEig2D(), robot_std.toEig(), z, config_path);
 		filters.push_back(kf);
 
 		// Insert the landmark on the map, with a single observation
@@ -99,26 +98,25 @@ void Mapper2D::predict(pose6D& pose, const std::vector<float>& bearings,
 {
 	int       n_obsv    = bearings.size();
 	ellipse2D robot_std = pose.getDist();
-	point3D   robot_pos = pose.getXYZ();
 
 	for (int i = 0; i < n_obsv; i++) {
 		// Calculate the landmark position based on the ith observation
 		float   th = normalizeAngle(bearings[i] + pose.yaw);
-		point3D X(robot_pos.x + depths[i] * cos(th),
-		          robot_pos.y + depths[i] * sin(th), 0.);
+		point3D X(pose.x + depths[i] * cos(th),
+		          pose.y + depths[i] * sin(th), 0.);
 		// Construct the observations vector
 		VectorXd z(2, 1);
 		z << depths[i], bearings[i];
 
 		// Check if the landmark already exists in the map
-		int landmark_id = findCorr(X, robot_pos);
+		int landmark_id = findCorr(X, pose.getXYZ());
 		// If not, initialize the landmark on the map, as well as the
 		// correspondent Kalman Filter
 		if (landmark_id < 0) {
 			Eigen::MatrixXd R(2, 2);
 
 			// Initialize the Kalman Filter
-			KF kf(X.toEig2D(), robot_pos.toEig2D(), robot_std.toEig(), z,
+			KF kf(X.toEig2D(), pose.toEig2D(), robot_std.toEig(), z,
 			      config_path);
 			filters.push_back(kf);
 
@@ -130,7 +128,7 @@ void Mapper2D::predict(pose6D& pose, const std::vector<float>& bearings,
 		// Filter call
 		else {
 			// Invocate the Kalman Filter
-			filters[landmark_id - 1].process(robot_pos.toEig2D(), robot_std.toEig(),
+			filters[landmark_id - 1].process(pose.toEig2D(), robot_std.toEig(),
 			                                 z);
 			// Get the state vector and the standard deviation associated
 			// with the estimation

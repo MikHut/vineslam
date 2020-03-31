@@ -8,7 +8,7 @@ Mapper2D::Mapper2D(const std::string& config_path) : config_path(config_path)
 	delta_d           = config["camera_info"]["delta_d"].as<double>();
 }
 
-void Mapper2D::init(const Pose<double>&        pose,
+void Mapper2D::init(Pose<double>&        pose,
                     const std::vector<double>& bearings,
                     const std::vector<double>& depths,
                     const std::vector<int>&    labels)
@@ -32,7 +32,7 @@ void Mapper2D::init(const Pose<double>&        pose,
 		                pose.pos.y + depths[i] * sin(th));
 
 		// Push back a Kalman Filter object for the respective landmark
-		KF kf(X.eig_2d(), pos.eig_2d(), particles_std.eig_2d(), z, config_path);
+		KF kf(X.eig_2d(), pose.eig_2d(), particles_std.eig_2d(), z, config_path);
 		filters.push_back(kf);
 
 		// Insert the landmark on the map, with a single observation
@@ -46,7 +46,7 @@ void Mapper2D::init(const Pose<double>&        pose,
 	}
 }
 
-void Mapper2D::process(const Pose<double>&        pose,
+void Mapper2D::process(Pose<double>&        pose,
                        const std::vector<double>& bearings,
                        const std::vector<double>& depths,
                        const tf::Transform&       cam2map,
@@ -66,7 +66,7 @@ void Mapper2D::process(const Pose<double>&        pose,
 }
 
 std::vector<Point<double>> Mapper2D::local_map(
-    const Pose<double>& pose, const std::vector<double>& bearings,
+    Pose<double>& pose, const std::vector<double>& bearings,
     const std::vector<double>& depths, const tf::Transform& cam2map)
 {
 	std::vector<Point<double>> landmarks;
@@ -100,7 +100,7 @@ std::vector<Point<double>> Mapper2D::local_map(
 	return landmarks;
 }
 
-void Mapper2D::predict(const Pose<double>&        pose,
+void Mapper2D::predict(Pose<double>&        pose,
                        const std::vector<double>& bearings,
                        const std::vector<double>& depths,
                        const std::vector<int>&    labels)
@@ -126,7 +126,7 @@ void Mapper2D::predict(const Pose<double>&        pose,
 			Eigen::MatrixXd R(2, 2);
 
 			// Initialize the Kalman Filter
-			KF kf(X.eig_2d(), pose_2d.pos.eig_2d(), particles_std.eig_2d(), z,
+			KF kf(X.eig_2d(), pose_2d.eig_2d(), particles_std.eig_2d(), z,
 			      config_path);
 			filters.push_back(kf);
 

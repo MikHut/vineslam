@@ -9,7 +9,7 @@
 #include <eigen3/Eigen/Dense>
 #include <iostream>
 #include <map>
-#include <math.h>
+#include <cmath>
 #include <numeric>
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
@@ -23,20 +23,14 @@ public:
 	Mapper2D(const std::string& config_path);
 
 	// Global function that handles all the mapping process
-	void process(const Pose<double>& pose, const std::vector<double>& bearings,
+	void process(Pose<double>& pose, const std::vector<double>& bearings,
 	             const std::vector<double>& depths,
 	             const tf::Transform& cam2world, const std::vector<int>& labels);
 
 	// Initializes the map
 	// - Invocated only once to insert the first observations on the map
-	void init(const Pose<double>& pose, const std::vector<double>& bearings,
+	void init(Pose<double>& pose, const std::vector<double>& bearings,
 	          const std::vector<double>& depths, const std::vector<int>& labels);
-
-	// Computes a local map, on robot's frame
-	std::vector<Point<double>> local_map(const Pose<double>&        pose,
-	                                     const std::vector<double>& bearings,
-	                                     const std::vector<double>& depths,
-	                                     const tf::Transform&       cam2map);
 
 	// Exports the current map to the high level ROS node
 	std::map<int, Landmark<double>> getMap() const;
@@ -56,9 +50,15 @@ private:
 	std::string config_path;
 
 	// Estimates landmark positions based on the current observations
-	void predict(const Pose<double>& pose, const std::vector<double>& bearings,
+	void predict(Pose<double>& pose, const std::vector<double>& bearings,
 	             const std::vector<double>& depths,
 	             const std::vector<int>&    labels);
+
+	// Computes a local map, on robot's frame
+	std::vector<Point<double>> local_map(Pose<double>&        pose,
+	                                     const std::vector<double>& bearings,
+	                                     const std::vector<double>& depths,
+	                                     const tf::Transform&       cam2map);
 
 	// Searches from correspondences between observations and landmarks
 	// already mapped

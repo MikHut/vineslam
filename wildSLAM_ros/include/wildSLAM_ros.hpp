@@ -23,6 +23,7 @@
 #include <vision_msgs/Detection2DArray.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <yaml-cpp/yaml.h>
+#include <cv_bridge/cv_bridge.h>
 
 // OCTOMAP
 #include <octomap_msgs/Octomap.h>
@@ -45,7 +46,8 @@ public:
 
 	// Callback function that subscribes both a disparity image
 	// and the bounding boxes that locate the objects on the image
-	void callbackFct(const sensor_msgs::ImageConstPtr&            depth_image,
+	void callbackFct(const sensor_msgs::ImageConstPtr&            left_image,
+                   const sensor_msgs::ImageConstPtr&            depth_image,
 	                 const vision_msgs::Detection2DArrayConstPtr& dets);
 	// Odometry callback function
 	void odomListener(const nav_msgs::OdometryConstPtr& msg);

@@ -99,27 +99,29 @@ void wildSLAM_ros::SLAMNode::publish2DMap(const std_msgs::Header& header,
 void wildSLAM_ros::SLAMNode::publish3DRawMap(const std_msgs::Header& header)
 {
 	// Get the raw point cloud to publish
-	OcTreeT octree = (*mapper3D).getRawPointCloud();
+	OcTreeT *octree = (*mapper3D).getRawPointCloud();
 
 	visualization_msgs::MarkerArray octomapviz;
 	// each array stores all cubes of a different size, one for each depth level:
-	octomapviz.markers.resize(octree.getTreeDepth() + 1);
+	octomapviz.markers.resize((*octree).getTreeDepth() + 1);
 
-	std_msgs::ColorRGBA _color;
-	_color.r = (255.0 / 255.);
-	_color.g = (0.0 / 255.);
-	_color.b = (0.0 / 255.);
-	_color.a = 1.0;
-
-	for (OcTreeT::iterator it  = octree.begin(octree.getTreeDepth()),
-	                       end = octree.end();
+  int j = 0;
+	for (OcTreeT::iterator it  = (*octree).begin(),
+	                       end = (*octree).end();
 	     it != end; ++it) {
 
-		if (octree.isNodeOccupied(*it)) {
+		//if ((*it).isColorSet()) {
+		if ((*octree).isNodeOccupied(*it)) {
 			double size = it.getSize();
 			double x    = it.getX();
 			double y    = it.getY();
 			double z    = it.getZ();
+
+			std_msgs::ColorRGBA _color;
+			_color.r = (*it).getColor().r / 255.;
+			_color.g = (*it).getColor().g / 255.;
+			_color.b = (*it).getColor().b / 255.;
+			_color.a = 1.0;
 
 			unsigned idx = it.getDepth();
 			assert(idx < octomapviz.markers.size());
@@ -135,17 +137,16 @@ void wildSLAM_ros::SLAMNode::publish3DRawMap(const std_msgs::Header& header)
 	}
 
 	for (unsigned i = 0; i < octomapviz.markers.size(); ++i) {
-		double size = octree.getNodeSize(i);
+		double size = (*octree).getNodeSize(i);
 
 		octomapviz.markers[i].header.frame_id = "map";
 		octomapviz.markers[i].header.stamp    = header.stamp;
 		octomapviz.markers[i].ns              = "map";
 		octomapviz.markers[i].id              = i;
-		octomapviz.markers[i].type        = visualization_msgs::Marker::CUBE_LIST;
-		octomapviz.markers[i].scale.x     = size;
-		octomapviz.markers[i].scale.y     = size;
-		octomapviz.markers[i].scale.z     = size;
-		octomapviz.markers[i].color = _color;
+		octomapviz.markers[i].type    = visualization_msgs::Marker::CUBE_LIST;
+		octomapviz.markers[i].scale.x = size;
+		octomapviz.markers[i].scale.y = size;
+		octomapviz.markers[i].scale.z = size;
 
 		if (octomapviz.markers[i].points.size() > 0)
 			octomapviz.markers[i].action = visualization_msgs::Marker::ADD;
@@ -159,27 +160,28 @@ void wildSLAM_ros::SLAMNode::publish3DRawMap(const std_msgs::Header& header)
 void wildSLAM_ros::SLAMNode::publish3DTrunkMap(const std_msgs::Header& header)
 {
 	// Get the raw point cloud to publish
-	OcTreeT octree = (*mapper3D).getTrunkPointCloud();
+	OcTreeT* octree = (*mapper3D).getTrunkPointCloud();
 
 	visualization_msgs::MarkerArray octomapviz;
 	// each array stores all cubes of a different size, one for each depth level:
-	octomapviz.markers.resize(octree.getTreeDepth() + 1);
+	octomapviz.markers.resize((*octree).getTreeDepth() + 1);
 
-	std_msgs::ColorRGBA _color;
-	_color.r = (255.0 / 255.);
-	_color.g = (0.0 / 255.);
-	_color.b = (0.0 / 255.);
-	_color.a = 1.0;
-
-	for (OcTreeT::iterator it  = octree.begin(octree.getTreeDepth()),
-	                       end = octree.end();
+	for (OcTreeT::iterator it  = (*octree).begin((*octree).getTreeDepth()),
+	                       end = (*octree).end();
 	     it != end; ++it) {
 
-		if (octree.isNodeOccupied(*it)) {
+		if ((*octree).isNodeOccupied(*it)) {
+		//if ((*it).isColorSet()) {
 			double size = it.getSize();
 			double x    = it.getX();
 			double y    = it.getY();
 			double z    = it.getZ();
+
+			std_msgs::ColorRGBA _color;
+			_color.r = (*it).getColor().r / 255.;
+			_color.g = (*it).getColor().g / 255.;
+			_color.b = (*it).getColor().b / 255.;
+			_color.a = 1.0;
 
 			unsigned idx = it.getDepth();
 			assert(idx < octomapviz.markers.size());
@@ -195,17 +197,16 @@ void wildSLAM_ros::SLAMNode::publish3DTrunkMap(const std_msgs::Header& header)
 	}
 
 	for (unsigned i = 0; i < octomapviz.markers.size(); ++i) {
-		double size = octree.getNodeSize(i);
+		double size = (*octree).getNodeSize(i);
 
 		octomapviz.markers[i].header.frame_id = "map";
 		octomapviz.markers[i].header.stamp    = header.stamp;
 		octomapviz.markers[i].ns              = "map";
 		octomapviz.markers[i].id              = i;
-		octomapviz.markers[i].type        = visualization_msgs::Marker::CUBE_LIST;
-		octomapviz.markers[i].scale.x     = size;
-		octomapviz.markers[i].scale.y     = size;
-		octomapviz.markers[i].scale.z     = size;
-		octomapviz.markers[i].color = _color;
+		octomapviz.markers[i].type    = visualization_msgs::Marker::CUBE_LIST;
+		octomapviz.markers[i].scale.x = size;
+		octomapviz.markers[i].scale.y = size;
+		octomapviz.markers[i].scale.z = size;
 
 		if (octomapviz.markers[i].points.size() > 0)
 			octomapviz.markers[i].action = visualization_msgs::Marker::ADD;

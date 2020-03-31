@@ -37,6 +37,7 @@ void wildSLAM_ros::SLAMNode::odomListener(const nav_msgs::OdometryConstPtr& msg)
 }
 
 void wildSLAM_ros::SLAMNode::callbackFct(
+    const sensor_msgs::ImageConstPtr&            left_image,
     const sensor_msgs::ImageConstPtr&            depth_image,
     const vision_msgs::Detection2DArrayConstPtr& dets)
 {
@@ -100,11 +101,34 @@ void wildSLAM_ros::SLAMNode::callbackFct(
 		// Get the curretn 2D map
 		map2D = (*mapper2D).getMap();
 
-		// Execute the 3D map estimation
+		// Store depth image in a 1D array
 		float* depths = (float*)(&(*depth_image).data[0]);
-		(*mapper3D).process(depths, octomap::pointTfToOctomap(cam2map.getOrigin()),
-		                    octomap::quaternionTfToOctomap(cam2map.getRotation()),
-		                    *dets);
+		// Convert ROS image to OpenCV image
+		cv::Mat m_img =
+		    cv_bridge::toCvCopy(left_image, sensor_msgs::image_encodings::BGR8)
+		        ->image;
+    // Loop over the image
+    std::vector<std::array<uint8_t, 3>> rgb_array;
+    rgb_array.resize(m_img.cols * m_img.rows);
+		for (int i = 0; i < m_img.cols; i++) {
+			for (int j = 0; j < m_img.rows; j++) {
+				// Get BRG values for the current index
+				cv::Point3_<uchar>* p = m_img.ptr<cv::Point3_<uchar>>(j, i);
+				// Calculate the 1D array index
+				int idx = i + j * m_img.cols;
+				// Store the RGB value
+				std::array<uint8_t, 3> m_rgb;
+				m_rgb[0] = (*p).z;
+				m_rgb[1] = (*p).y;
+				m_rgb[2] = (*p).x;
+				// Save the RGB value into the multi array
+				rgb_array[idx] = m_rgb;
+			}
+		}
+		// Execute the 3D map estimation
+		(*mapper3D).process(
+		    depths, rgb_array, octomap::pointTfToOctomap(cam2map.getOrigin()),
+		    octomap::quaternionTfToOctomap(cam2map.getRotation()), *dets);
 
 		// Publish 3D point clouds
 		//publish3DRawMap((*depth_image).header);

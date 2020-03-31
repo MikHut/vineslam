@@ -21,7 +21,7 @@ mapper3D:
   miss: 0.4
   thresh_min: 0.12
   thresh_max: 0.97
-  max_range: 16 # meters
+  max_range: 7 # meters
 
 # Particle filter constants to perform inovation and number of particles
 # std_rot_a = alpha_1 * |dt_rot_a| + alpha_2 * |t|

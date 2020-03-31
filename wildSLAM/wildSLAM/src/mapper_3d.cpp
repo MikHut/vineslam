@@ -35,25 +35,29 @@ void Mapper3D::init()
 	(*octree).setClampingThresMax(thresh_max);
 }
 
-void Mapper3D::process(const float* depths, const point3D& sensor_origin,
-                       const octomath::Quaternion&          sensor_rot,
-                       const vision_msgs::Detection2DArray& dets)
+void Mapper3D::process(const float*                               depths,
+                       const std::vector<std::array<uint8_t, 3>>& intensities,
+                       const point3D&                             sensor_origin,
+                       const octomath::Quaternion&                sensor_rot,
+                       const vision_msgs::Detection2DArray&       dets)
 {
 	// Build raw 3D map
-	//buildRawMap(depths, sensor_origin, sensor_rot);
+	//buildRawMap(depths, intensities, sensor_origin, sensor_rot);
 	// Build trunks 3D map
-	buildTrunkMap(depths, sensor_origin, sensor_rot, dets);
+	buildTrunkMap(depths, intensities, sensor_origin, sensor_rot, dets);
 }
 
-void Mapper3D::buildRawMap(const float* depths, const point3D& sensor_origin,
-                           const octomath::Quaternion& sensor_rot)
+void Mapper3D::buildRawMap(
+    const float* depths, const std::vector<std::array<uint8_t, 3>>& intensities,
+    const point3D& sensor_origin, const octomath::Quaternion& sensor_rot)
 {
 	// Define the minimum and maximum levels of disparity to consider
 	double range_min = 0.01;
 	double range_max = 10.0;
 
-	// Erase the last point cloud
-	raw_pcl.clear();
+	// Declare 3D point and intensities vectors
+	std::vector<point3D>                pts_array;
+	std::vector<std::array<uint8_t, 3>> ints_array;
 
 	// Loop over the entire disparity map image
 	for (int i = 0; i < img_width; i++) {
@@ -81,36 +85,39 @@ void Mapper3D::buildRawMap(const float* depths, const point3D& sensor_origin,
 				sensor_rot.toRotMatrix(rot_matrix);
 				point3D point_map;
 				point_map.x() = point_cam.x() * rot_matrix[0] +
-				                  point_cam.y() * rot_matrix[1] +
-				                  point_cam.z() * rot_matrix[2] + sensor_origin.x();
+				                point_cam.y() * rot_matrix[1] +
+				                point_cam.z() * rot_matrix[2] + sensor_origin.x();
 				point_map.y() = point_cam.x() * rot_matrix[3] +
-				                  point_cam.y() * rot_matrix[4] +
-				                  point_cam.z() * rot_matrix[5] + sensor_origin.y();
+				                point_cam.y() * rot_matrix[4] +
+				                point_cam.z() * rot_matrix[5] + sensor_origin.y();
 				point_map.z() = point_cam.x() * rot_matrix[6] +
-				                  point_cam.y() * rot_matrix[7] +
-				                  point_cam.z() * rot_matrix[8] + sensor_origin.z();
+				                point_cam.y() * rot_matrix[7] +
+				                point_cam.z() * rot_matrix[8] + sensor_origin.z();
 
 
 				// Fill the point cloud array
-				raw_pcl.push_back(point_map);
+				pts_array.push_back(point_map);
+				ints_array.push_back(intensities[idx]);
 			}
 		}
 	}
 
 	// Create octomap using the build PCL
-	createOctoMap(sensor_origin, raw_pcl);
+	createOctoMap(sensor_origin, pts_array, ints_array);
 }
 
-void Mapper3D::buildTrunkMap(const float* depths, const point3D& sensor_origin,
-                             const octomath::Quaternion&          sensor_rot,
-                             const vision_msgs::Detection2DArray& dets)
+void Mapper3D::buildTrunkMap(
+    const float* depths, const std::vector<std::array<uint8_t, 3>>& intensities,
+    const point3D& sensor_origin, const octomath::Quaternion& sensor_rot,
+    const vision_msgs::Detection2DArray& dets)
 {
 	// Define the minimum and maximum levels of disparity to consider
 	double range_min = 0.01;
 	double range_max = 10.0;
 
-	// Erase the last point cloud
-	trunk_pcl.clear();
+	// Declare 3D point and intensities vectors
+	std::vector<point3D>                pts_array;
+	std::vector<std::array<uint8_t, 3>> ints_array;
 
 	// Loop over all the bounding boxes
 	for (size_t n = 0; n < dets.detections.size(); n++) {
@@ -163,28 +170,29 @@ void Mapper3D::buildTrunkMap(const float* depths, const point3D& sensor_origin,
 					sensor_rot.toRotMatrix(rot_matrix);
 					point3D point_map;
 					point_map.x() = point_cam.x() * rot_matrix[0] +
-					                  point_cam.y() * rot_matrix[1] +
-					                  point_cam.z() * rot_matrix[2] + sensor_origin.x();
+					                point_cam.y() * rot_matrix[1] +
+					                point_cam.z() * rot_matrix[2] + sensor_origin.x();
 					point_map.y() = point_cam.x() * rot_matrix[3] +
-					                  point_cam.y() * rot_matrix[4] +
-					                  point_cam.z() * rot_matrix[5] + sensor_origin.y();
+					                point_cam.y() * rot_matrix[4] +
+					                point_cam.z() * rot_matrix[5] + sensor_origin.y();
 					point_map.z() = point_cam.x() * rot_matrix[6] +
-					                  point_cam.y() * rot_matrix[7] +
-					                  point_cam.z() * rot_matrix[8] + sensor_origin.z();
-
+					                point_cam.y() * rot_matrix[7] +
+					                point_cam.z() * rot_matrix[8] + sensor_origin.z();
 					// Fill the point cloud array
-					trunk_pcl.push_back(point_map);
+					pts_array.push_back(point_map);
+					ints_array.push_back(intensities[idx]);
 				}
 			}
 		}
 	}
 
-  // Create octomap using the built PCL
-	createOctoMap(sensor_origin, trunk_pcl);
+	// Create octomap using the built PCL
+	createOctoMap(sensor_origin, pts_array, ints_array);
 }
 
 void Mapper3D::createOctoMap(const point3D&              sensor_origin,
-                             const std::vector<point3D>& pcl)
+                             const std::vector<point3D>& pcl,
+                             const std::vector<std::array<uint8_t, 3>>& ints)
 {
 	// Declare cells structures to fill
 	KeySet occupied_cells;
@@ -203,23 +211,29 @@ void Mapper3D::createOctoMap(const point3D&              sensor_origin,
 
 				updateMinKey(key, update_BBXMin);
 				updateMinKey(key, update_BBXMax);
+
+				uint8_t r = ints[i][0];
+				uint8_t g = ints[i][1];
+				uint8_t b = ints[i][2];
+
+				(*octree).averageNodeColor(key, r, g, b);
 			}
 		}
 	}
 
 	// Mark all occupied cells
 	for (KeySet::iterator it = occupied_cells.begin(), end = occupied_cells.end();
-	     it != end; it++)
+	     it != end; it++) {
 		(*octree).updateNode(*it, true);
+  }
 }
 
-OcTreeT Mapper3D::getRawPointCloud() const
+OcTreeT* Mapper3D::getRawPointCloud()
 {
-	return (*octree);
+	return octree;
 }
 
-OcTreeT Mapper3D::getTrunkPointCloud() const
+OcTreeT* Mapper3D::getTrunkPointCloud()
 {
-	return (*octree);
+	return octree;
 }
-

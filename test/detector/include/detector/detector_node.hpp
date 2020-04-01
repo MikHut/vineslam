@@ -65,12 +65,6 @@ private:
 	                const sensor_msgs::ImageConstPtr&             depth_image,
 	                cv::Mat&                                      bboxes,
 	                const std::vector<coral::DetectionCandidate>& res);
-	// DEGUB method
-	// - Computes the depth of a trunk giving a bounding box and a depth
-	// image
-	Point<double> computeDepth(const sensor_msgs::Image& depth_img,
-	                           const int& xmin, const int& ymin, const int& xmax,
-	                           const int& ymax);
 
 	// DEGUB method
 	// - Computes the depth of a trunk giving a bounding box and a depth

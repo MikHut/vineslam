@@ -198,7 +198,7 @@ Visualization Manager:
       Marker Topic: /wildSLAM/map3D/trunks
       Name: MarkerArray
       Namespaces:
-        map: true
+        {}
       Queue Size: 100
       Value: false
   Enabled: true
@@ -229,15 +229,15 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 34.48929214477539
+      Distance: 43.26336669921875
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 8.089478492736816
-        Y: -10.444612503051758
+        X: 6.85392951965332
+        Y: -13.160026550292969
         Z: 3.7321506169973873e-6
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806

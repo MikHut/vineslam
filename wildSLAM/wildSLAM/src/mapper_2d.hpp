@@ -32,11 +32,6 @@ public:
 	void init(pose6D& pose, const std::vector<float>& bearings,
 	          const std::vector<float>& depths, const std::vector<int>& labels);
 
-	// Computes a local map, on robot's frame
-	std::vector<point3D> local_map(pose6D&                   pose,
-	                               const std::vector<float>& bearings,
-	                               const std::vector<float>& depths);
-
 	// Exports the current map to the high level ROS node
 	std::map<int, Landmark<float>> getMap() const;
 
@@ -60,10 +55,9 @@ private:
 	             const std::vector<int>&   labels);
 
 	// Computes a local map, on robot's frame
-	std::vector<Point<double>> local_map(Pose<double>&        pose,
-	                                     const std::vector<double>& bearings,
-	                                     const std::vector<double>& depths,
-	                                     const tf::Transform&       cam2map);
+	std::vector<point3D> local_map(pose6D&                   pose,
+	                               const std::vector<float>& bearings,
+	                               const std::vector<float>& depths);
 
 	// Searches from correspondences between observations and landmarks
 	// already mapped

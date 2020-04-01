@@ -95,14 +95,6 @@ void wildSLAM_ros::SLAMNode::callbackFct(
 		geometry_msgs::PoseArray poses      = (*localizer).getPoseArray();
 		tf::Transform            cam2map    = (*localizer).getTf();
 
-		// Execute the 2D map estimation
-		(*mapper2D).process(robot_pose, bearings, depths, cam2map, labels);
-
-		// Get the curretn 2D map
-		map2D = (*mapper2D).getMap();
-
-		// Store depth image in a 1D array
-		float* depths = (float*)(&(*depth_image).data[0]);
 		// Convert ROS image to OpenCV image
 		cv::Mat m_img =
 		    cv_bridge::toCvCopy(left_image, sensor_msgs::image_encodings::BGR8)
@@ -125,14 +117,20 @@ void wildSLAM_ros::SLAMNode::callbackFct(
 				rgb_array[idx] = m_rgb;
 			}
 		}
+		// Store depth image in a 1D array
+		float* all_depths = (float*)(&(*depth_image).data[0]);
 		// Execute the 3D map estimation
 		(*mapper3D).process(
-		    depths, rgb_array, octomap::pointTfToOctomap(cam2map.getOrigin()),
+		    all_depths, rgb_array, octomap::pointTfToOctomap(cam2map.getOrigin()),
 		    octomap::quaternionTfToOctomap(cam2map.getRotation()), *dets);
 
-		// Publish 3D point clouds
-		//publish3DRawMap((*depth_image).header);
+		// Publish 3D point cloud
 		publish3DTrunkMap((*depth_image).header);
+
+		// Execute the 2D map estimation
+		(*mapper2D).process(robot_pose, bearings, depths, cam2map, labels);
+		// Get the curretn 2D map
+		map2D = (*mapper2D).getMap();
 
 		// Publish the 2D map and particle filter
 		publish2DMap((*depth_image).header, robot_pose);
@@ -157,6 +155,10 @@ double wildSLAM_ros::SLAMNode::computeDepth(const sensor_msgs::Image& depth_img,
 	double range_min = 0.01;
 	double range_max = 10.0;
 
+  double min_value = 50.0;
+  
+  Point<double> min_index;
+
 	std::vector<float> depth_array;
 	for (int x = xmin; x < xmax; x++) {
 		for (int y = ymin; y < ymax; y++) {
@@ -164,19 +166,21 @@ double wildSLAM_ros::SLAMNode::computeDepth(const sensor_msgs::Image& depth_img,
 
 			// Fill the depth array with the values of interest
 			if (std::isfinite(depths[idx]) && depths[idx] > range_min &&
-			    depths[idx] < range_max)
+			    depths[idx] < range_max) {
 				depth_array.push_back(depths[idx]);
+        if (depths[idx] < min_value) {
+          min_value = depths[idx];
+          min_index = Point<double>(x,y);
+        }
+      }
 		}
 	}
 
-	// compute median of all observations
+	// compute minimum of all observations
 	size_t n_depths = depth_array.size();
 	if (n_depths > 0) {
 		std::sort(depth_array.begin(), depth_array.end());
-		if (n_depths % 2 == 0)
-			return (depth_array[n_depths / 2 - 1] + depth_array[n_depths / 2]) / 2;
-		else
-			return depth_array[n_depths / 2];
+    return depth_array[0];
 	}
 	else
 		return -1;

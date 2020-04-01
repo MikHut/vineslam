@@ -105,13 +105,12 @@ void wildSLAM_ros::SLAMNode::publish3DRawMap(const std_msgs::Header& header)
 	// each array stores all cubes of a different size, one for each depth level:
 	octomapviz.markers.resize((*octree).getTreeDepth() + 1);
 
-  int j = 0;
 	for (OcTreeT::iterator it  = (*octree).begin(),
 	                       end = (*octree).end();
 	     it != end; ++it) {
 
-		//if ((*it).isColorSet()) {
-		if ((*octree).isNodeOccupied(*it)) {
+		if ((*it).isColorSet()) {
+		//if ((*octree).isNodeOccupied(*it)) {
 			double size = it.getSize();
 			double x    = it.getX();
 			double y    = it.getY();
@@ -170,8 +169,8 @@ void wildSLAM_ros::SLAMNode::publish3DTrunkMap(const std_msgs::Header& header)
 	                       end = (*octree).end();
 	     it != end; ++it) {
 
-		if ((*octree).isNodeOccupied(*it)) {
-		//if ((*it).isColorSet()) {
+		//if ((*octree).isNodeOccupied(*it)) {
+		if ((*it).isColorSet()) {
 			double size = it.getSize();
 			double x    = it.getX();
 			double y    = it.getY();

@@ -196,6 +196,7 @@ void Mapper3D::createOctoMap(const point3D&              sensor_origin,
 {
 	// Declare cells structures to fill
 	KeySet occupied_cells;
+	KeySet free_cells;
 
 	// Loop over all the point in the point cloud
 	for (size_t i = 0; i < pcl.size(); i++) {
@@ -225,7 +226,7 @@ void Mapper3D::createOctoMap(const point3D&              sensor_origin,
 	for (KeySet::iterator it = occupied_cells.begin(), end = occupied_cells.end();
 	     it != end; it++) {
 		(*octree).updateNode(*it, true);
-  }
+	}
 }
 
 OcTreeT* Mapper3D::getRawPointCloud()

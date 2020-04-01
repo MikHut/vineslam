@@ -6,6 +6,7 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /TF1
         - /Odometry1/Shape1
         - /MarkerArray2
       Splitter Ratio: 0.5288461446762085
@@ -69,7 +70,7 @@ Visualization Manager:
       Axes Radius: 0.009999999776482582
       Class: rviz/PoseArray
       Color: 255; 25; 0
-      Enabled: true
+      Enabled: false
       Head Length: 0.07000000029802322
       Head Radius: 0.05000000074505806
       Name: PoseArray
@@ -78,7 +79,7 @@ Visualization Manager:
       Shape: Arrow (3D)
       Topic: /wildSLAM/particles
       Unreliable: true
-      Value: true
+      Value: false
     - Class: rviz/TF
       Enabled: true
       Frame Timeout: 15
@@ -114,7 +115,7 @@ Visualization Manager:
           Value: true
         velodyne:
           Value: true
-      Marker Scale: 1
+      Marker Scale: 5
       Name: TF
       Show Arrows: true
       Show Axes: true
@@ -285,10 +286,10 @@ Visualization Manager:
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /wildSLAM/map3D/raw
+      Marker Topic: /wildSLAM/map3D/trunks
       Name: MarkerArray
       Namespaces:
-        {}
+        map: true
       Queue Size: 100
       Value: true
   Enabled: true
@@ -318,26 +319,21 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Class: rviz/XYOrbit
-      Distance: 26.412647247314453
+      Angle: 0
+      Class: rviz/TopDownOrtho
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
-      Focal Point:
-        X: 4.500174522399902
-        Y: -4.035323143005371
-        Z: 3.7321506169973873e-6
-      Focal Shape Fixed Size: true
-      Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.6547966599464417
+      Scale: 79.13211059570312
       Target Frame: <Fixed Frame>
-      Value: XYOrbit (rviz)
-      Yaw: 2.9402341842651367
+      Value: TopDownOrtho (rviz)
+      X: 6.181256294250488
+      Y: -3.339233160018921
     Saved: ~
 Window Geometry:
   Displays:

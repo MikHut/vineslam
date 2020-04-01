@@ -4,7 +4,7 @@ Localizer::Localizer(const std::string& config_path)
 {
 	YAML::Node config = YAML::LoadFile(config_path.c_str());
 	n_particles       = config["pf"]["n_particles"].as<int>();
-	cam_pitch         = config["camera_info"]["cam_pitch"].as<int>() * PI / 180;
+	cam_pitch         = config["camera_info"]["cam_pitch"].as<double>() * PI / 180;
 }
 
 void Localizer::init(const Pose<double>& initial_pose)

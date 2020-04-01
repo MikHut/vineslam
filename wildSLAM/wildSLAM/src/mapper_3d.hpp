@@ -27,7 +27,7 @@ public:
 	void init();
 
 	// Handles the loop process of the 3D mapper
-	void process(const float*                               depths,
+  void process(const float*                               depths,
 	             const std::vector<std::array<uint8_t, 3>>& intensities,
 	             const point3D& sensor_origin, const quaternion& sensor_rot,
 	             const vision_msgs::Detection2DArray& dets);
@@ -42,7 +42,7 @@ private:
 	                 const std::vector<std::array<uint8_t, 3>>& intensities,
 	                 const point3D& sensor_origin, const quaternion& sensor_rot);
 	// Function that handles the design of the vine trunks 3D map
-	void buildTrunkMap(const float*                               depths,
+  void buildTrunkMap(const float*                               depths,
 	                   const std::vector<std::array<uint8_t, 3>>& intensities,
 	                   const point3D& sensor_origin, const quaternion& sensor_rot,
 	                   const vision_msgs::Detection2DArray& dets);

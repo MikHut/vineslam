@@ -6,9 +6,9 @@ KF::KF(const VectorXd& X0, const VectorXd& s, const VectorXd& g,
 {
   // Load input parameters
 	YAML::Node config = YAML::LoadFile(config_path.c_str());
-	fx                = config["camera_info"]["fx"].as<double>();
-	baseline          = config["camera_info"]["baseline"].as<double>();
-	delta_d           = config["camera_info"]["delta_d"].as<double>();
+	fx                = config["camera_info"]["fx"].as<float>();
+	baseline          = config["camera_info"]["baseline"].as<float>();
+	delta_d           = config["camera_info"]["delta_d"].as<float>();
 
 	// Initialize the process covariance P
 	computeR(s, g, z);
@@ -53,8 +53,8 @@ void KF::predict()
 void KF::correct(const VectorXd& s, const VectorXd& z)
 {
 	// Apply the observation model using the current state vector
-	double d   = sqrt(pow(X[0] - s[0], 2) + pow(X[1] - s[1], 2));
-	double phi = atan2(X[1] - s[1], X[0] - s[0]) - s[2];
+	float d   = sqrt(pow(X[0] - s[0], 2) + pow(X[1] - s[1], 2));
+	float phi = atan2(X[1] - s[1], X[0] - s[0]) - s[2];
 
 	VectorXd z_(2, 1);
 	z_ << d, normalizeAngle(phi);
@@ -77,21 +77,21 @@ void KF::correct(const VectorXd& s, const VectorXd& z)
 	P = (MatrixXd::Identity(2, 2) - K * G) * P;
 }
 
-Point<double> KF::getState() const
+point3D KF::getState() const
 {
-	return Point<double>(X[0], X[1]);
+	return point3D(X[0], X[1], 0.);
 }
 
-Ellipse<double> KF::getStdev() const
+ellipse2D KF::getStdev() const
 {
-	double a = P(0, 0);
-	double b = P(0, 1);
-	double c = P(1, 1);
+	float a = P(0, 0);
+	float b = P(0, 1);
+	float c = P(1, 1);
 
-	double lambda_1 = (a + c) / 2 + sqrt(pow((a - c) / 2, 2) + pow(b, 2));
-	double lambda_2 = (a + c) / 2 - sqrt(pow((a - c) / 2, 2) + pow(b, 2));
+	float lambda_1 = (a + c) / 2 + sqrt(pow((a - c) / 2, 2) + pow(b, 2));
+	float lambda_2 = (a + c) / 2 - sqrt(pow((a - c) / 2, 2) + pow(b, 2));
 
-	double th;
+	float th;
 	if (b == 0 && a >= c)
 		th = 0;
 	else if (b == 0 && a < c)
@@ -99,10 +99,10 @@ Ellipse<double> KF::getStdev() const
 	else
 		th = atan2(lambda_1 - a, b);
 
-	// double std_x = sqrt(lambda_1);
-	// double std_y = sqrt(lambda_2);
-	double std_x = sqrt(a);
-	double std_y = sqrt(c);
+	// float std_x = sqrt(lambda_1);
+	// float std_y = sqrt(lambda_2);
+	float std_x = sqrt(a);
+	float std_y = sqrt(c);
 
-	return Ellipse<double>(std_x, std_y, 0);
+	return ellipse2D(std_x, std_y, 0.);
 }

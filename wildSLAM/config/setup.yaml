@@ -5,7 +5,7 @@ camera_info:
   baseline: 0.12       # meters
   delta_d: 1.0         # stereo matcher disparity error in pixels
   h_fov: 85            # ZED's horizontal field of view in degrees
-  cam_pitch: 10        # camera inclination in degrees
+  cam_pitch: 11.3      # camera inclination in degrees
   cam_height: 1.0      # camera height in meters
   img_width: 1280      # pixels
   img_height: 720      # pixels
@@ -21,7 +21,7 @@ mapper3D:
   miss: 0.4
   thresh_min: 0.12
   thresh_max: 0.97
-  max_range: 16 # meters
+  max_range: 7 # meters
 
 # Particle filter constants to perform inovation and number of particles
 # std_rot_a = alpha_1 * |dt_rot_a| + alpha_2 * |t|

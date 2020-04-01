@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <vision_msgs/Detection2D.h>
 #include <vision_msgs/Detection2DArray.h>
 #include <yaml-cpp/yaml.h>
@@ -9,8 +10,9 @@
 #include <octomap/OcTreeKey.h>
 #include <octomap/octomap.h>
 
-typedef octomap::point3d point3D;
-typedef octomath::Quaternion quaternion;
+// math
+#include <math/point3D.hpp>
+#include <math/pose6D.hpp>
 
 // Typedefs
 typedef octomap::ColorOcTree OcTreeT;
@@ -26,25 +28,29 @@ public:
 	void init();
 
 	// Handles the loop process of the 3D mapper
-	void process(const float* depths, const point3D& sensor_origin,
-	             const quaternion&                    sensor_rot,
-	             const vision_msgs::Detection2DArray& dets);
+	void process(const float*                               depths,
+	             const std::vector<std::array<uint8_t, 3>>& intensities,
+	             pose6D&                                    sensor_origin,
+	             const vision_msgs::Detection2DArray&       dets);
 	// Returns the current raw point cloud
-	OcTreeT getRawPointCloud() const;
+	OcTreeT* getRawPointCloud() const;
 	// Returns the current trunk point cloud
-	OcTreeT getTrunkPointCloud() const;
+	OcTreeT* getTrunkPointCloud() const;
 
 private:
 	// Function that handles the design of the raw 3D map
-	void buildRawMap(const float* depths, const point3D& sensor_origin,
-	                 const quaternion& sensor_rot);
+	void buildRawMap(const float*                               depths,
+	                 const std::vector<std::array<uint8_t, 3>>& intensities,
+	                 pose6D&                                    sensor_origin);
 	// Function that handles the design of the vine trunks 3D map
-	void buildTrunkMap(const float* depths, const point3D& sensor_origin,
-	                   const quaternion&                    sensor_rot,
-	                   const vision_msgs::Detection2DArray& dets);
+	void buildTrunkMap(const float*                               depths,
+	                   const std::vector<std::array<uint8_t, 3>>& intensities,
+	                   pose6D&                                    sensor_origin,
+	                   const vision_msgs::Detection2DArray&       dets);
 	// Creates an OctoMap using the Octree structure
-	void createOctoMap(const point3D&              sensor_origin,
-	                   const std::vector<point3D>& pcl);
+	void createOctoMap(pose6D&                                    sensor_origin,
+	                   const std::vector<point3D>&                pcl,
+	                   const std::vector<std::array<uint8_t, 3>>& ints);
 
 	// TODO (André Aguiar): Misses documentation for this function
 	inline static void updateMinKey(const octomap::OcTreeKey& in,
@@ -61,10 +67,6 @@ private:
 		for (unsigned i = 0; i < 3; ++i)
 			max[i] = std::max(in[i], max[i]);
 	};
-
-	// Point cloud variables
-	std::vector<point3D> raw_pcl;
-	std::vector<point3D> trunk_pcl;
 
 	// Octree variables
 	OcTreeT*           octree;

@@ -11,7 +11,8 @@
 
   <!-- slam node -->
   <node pkg="wildSLAM_ros" type="wildSLAM_ros" name="wildSLAM_ros" output="screen">
-    <remap from="/image" to="/zed/zed_node/depth/depth_registered" />
+    <remap from="/left_image"  to="/zed/zed_node/left/image_rect_color"/>
+    <remap from="/depth_image" to="/zed/zed_node/depth/depth_registered" />
     <remap from="/detections" to="detections" />
     <remap from="/odom" to="/husky_velocity_controller/odom" />
     

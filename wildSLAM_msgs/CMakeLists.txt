@@ -11,6 +11,11 @@ add_message_files(
   FILES feature.msg featureMap.msg
 )
 
-generate_messages(DEPENDENCIES std_msgs nav_msgs visualization_msgs)
+generate_messages(DEPENDENCIES std_msgs 
+	                       nav_msgs 
+			       visualization_msgs)
 
-catkin_package(DEPENDS message_runtime std_msgs nav_msgs visualization_msgs)
+catkin_package(DEPENDS message_runtime 
+	               std_msgs 
+		       nav_msgs 
+		       visualization_msgs)

@@ -1,7 +1,7 @@
 #include "../include/wildSLAM_ros.hpp"
 
 void wildSLAM_ros::SLAMNode::publish2DMap(const std_msgs::Header& header,
-                                          const Pose<double>&     pose)
+                                          const pose6D&     pose)
 {
 	visualization_msgs::MarkerArray marker_array;
 	visualization_msgs::Marker      marker;
@@ -52,7 +52,7 @@ void wildSLAM_ros::SLAMNode::publish2DMap(const std_msgs::Header& header,
 
 		// Draw landmark standard deviation
 		tf2::Quaternion q;
-		q.setRPY(0, 0, m_map.second.stdev.th);
+		q.setRPY(0, 0, m_map.second.stdev.TH);
 
 		ellipse.id                 = m_map.first;
 		ellipse.header             = header;
@@ -60,8 +60,8 @@ void wildSLAM_ros::SLAMNode::publish2DMap(const std_msgs::Header& header,
 		ellipse.pose.position.x    = m_map.second.pos.x;
 		ellipse.pose.position.y    = m_map.second.pos.y;
 		ellipse.pose.position.z    = 0;
-		ellipse.scale.x            = 3 * m_map.second.stdev.std_x;
-		ellipse.scale.y            = 3 * m_map.second.stdev.std_y;
+		ellipse.scale.x            = 3 * m_map.second.stdev.stdX;
+		ellipse.scale.y            = 3 * m_map.second.stdev.stdY;
 		ellipse.pose.orientation.x = q.x();
 		ellipse.pose.orientation.y = q.y();
 		ellipse.pose.orientation.z = q.z();
@@ -72,16 +72,16 @@ void wildSLAM_ros::SLAMNode::publish2DMap(const std_msgs::Header& header,
 
 	// Draw ellipse that characterizes particles distribution
 	tf2::Quaternion q;
-	q.setRPY(0, 0, pose.gaussian.th);
+	q.setRPY(0, 0, pose.dist.TH);
 
 	ellipse.id                 = map2D.size() + 1;
 	ellipse.header             = header;
 	ellipse.header.frame_id    = "map";
-	ellipse.pose.position.x    = pose.pos.x;
-	ellipse.pose.position.y    = pose.pos.y;
+	ellipse.pose.position.x    = pose.x;
+	ellipse.pose.position.y    = pose.y;
 	ellipse.pose.position.z    = 0;
-	ellipse.scale.x            = 3 * pose.gaussian.std_x;
-	ellipse.scale.y            = 3 * pose.gaussian.std_y;
+	ellipse.scale.x            = 3 * pose.dist.stdX;
+	ellipse.scale.y            = 3 * pose.dist.stdY;
 	ellipse.pose.orientation.x = q.x();
 	ellipse.pose.orientation.y = q.y();
 	ellipse.pose.orientation.z = q.z();
@@ -99,27 +99,27 @@ void wildSLAM_ros::SLAMNode::publish2DMap(const std_msgs::Header& header,
 void wildSLAM_ros::SLAMNode::publish3DRawMap(const std_msgs::Header& header)
 {
 	// Get the raw point cloud to publish
-	OcTreeT octree = (*mapper3D).getRawPointCloud();
+	OcTreeT *octree = (*mapper3D).getRawPointCloud();
 
 	visualization_msgs::MarkerArray octomapviz;
 	// each array stores all cubes of a different size, one for each depth level:
-	octomapviz.markers.resize(octree.getTreeDepth() + 1);
+	octomapviz.markers.resize((*octree).getTreeDepth() + 1);
 
-	std_msgs::ColorRGBA _color;
-	_color.r = (255.0 / 255.);
-	_color.g = (0.0 / 255.);
-	_color.b = (0.0 / 255.);
-	_color.a = 1.0;
-
-	for (OcTreeT::iterator it  = octree.begin(octree.getTreeDepth()),
-	                       end = octree.end();
+	for (OcTreeT::iterator it  = (*octree).begin((*octree).getTreeDepth()),
+	                       end = (*octree).end();
 	     it != end; ++it) {
 
-		if (octree.isNodeOccupied(*it)) {
+		if ((*it).isColorSet()) {
 			double size = it.getSize();
 			double x    = it.getX();
 			double y    = it.getY();
 			double z    = it.getZ();
+
+			std_msgs::ColorRGBA _color;
+			_color.r = (*it).getColor().r / 255.;
+			_color.g = (*it).getColor().g / 255.;
+			_color.b = (*it).getColor().b / 255.;
+			_color.a = 1.0;
 
 			unsigned idx = it.getDepth();
 			assert(idx < octomapviz.markers.size());
@@ -135,7 +135,7 @@ void wildSLAM_ros::SLAMNode::publish3DRawMap(const std_msgs::Header& header)
 	}
 
 	for (unsigned i = 0; i < octomapviz.markers.size(); ++i) {
-		double size = octree.getNodeSize(i);
+		double size = (*octree).getNodeSize(i);
 
 		octomapviz.markers[i].header.frame_id = "map";
 		octomapviz.markers[i].header.stamp    = header.stamp;
@@ -145,7 +145,6 @@ void wildSLAM_ros::SLAMNode::publish3DRawMap(const std_msgs::Header& header)
 		octomapviz.markers[i].scale.x     = size;
 		octomapviz.markers[i].scale.y     = size;
 		octomapviz.markers[i].scale.z     = size;
-		octomapviz.markers[i].color = _color;
 
 		if (octomapviz.markers[i].points.size() > 0)
 			octomapviz.markers[i].action = visualization_msgs::Marker::ADD;
@@ -159,27 +158,27 @@ void wildSLAM_ros::SLAMNode::publish3DRawMap(const std_msgs::Header& header)
 void wildSLAM_ros::SLAMNode::publish3DTrunkMap(const std_msgs::Header& header)
 {
 	// Get the raw point cloud to publish
-	OcTreeT octree = (*mapper3D).getTrunkPointCloud();
+	OcTreeT *octree = (*mapper3D).getTrunkPointCloud();
 
 	visualization_msgs::MarkerArray octomapviz;
 	// each array stores all cubes of a different size, one for each depth level:
-	octomapviz.markers.resize(octree.getTreeDepth() + 1);
+	octomapviz.markers.resize((*octree).getTreeDepth() + 1);
 
-	std_msgs::ColorRGBA _color;
-	_color.r = (255.0 / 255.);
-	_color.g = (0.0 / 255.);
-	_color.b = (0.0 / 255.);
-	_color.a = 1.0;
-
-	for (OcTreeT::iterator it  = octree.begin(octree.getTreeDepth()),
-	                       end = octree.end();
+	for (OcTreeT::iterator it  = (*octree).begin((*octree).getTreeDepth()),
+	                       end = (*octree).end();
 	     it != end; ++it) {
 
-		if (octree.isNodeOccupied(*it)) {
+		if ((*it).isColorSet()) {
 			double size = it.getSize();
 			double x    = it.getX();
 			double y    = it.getY();
 			double z    = it.getZ();
+
+			std_msgs::ColorRGBA _color;
+			_color.r = (*it).getColor().r / 255.;
+			_color.g = (*it).getColor().g / 255.;
+			_color.b = (*it).getColor().b / 255.;
+			_color.a = 1.0;
 
 			unsigned idx = it.getDepth();
 			assert(idx < octomapviz.markers.size());
@@ -195,7 +194,7 @@ void wildSLAM_ros::SLAMNode::publish3DTrunkMap(const std_msgs::Header& header)
 	}
 
 	for (unsigned i = 0; i < octomapviz.markers.size(); ++i) {
-		double size = octree.getNodeSize(i);
+		double size = (*octree).getNodeSize(i);
 
 		octomapviz.markers[i].header.frame_id = "map";
 		octomapviz.markers[i].header.stamp    = header.stamp;
@@ -205,7 +204,6 @@ void wildSLAM_ros::SLAMNode::publish3DTrunkMap(const std_msgs::Header& header)
 		octomapviz.markers[i].scale.x     = size;
 		octomapviz.markers[i].scale.y     = size;
 		octomapviz.markers[i].scale.z     = size;
-		octomapviz.markers[i].color = _color;
 
 		if (octomapviz.markers[i].points.size() > 0)
 			octomapviz.markers[i].action = visualization_msgs::Marker::ADD;

@@ -1,7 +1,6 @@
 #pragma once
 
-// wildSLAM structures
-#include <pose.hpp>
+#include <math/point3D.hpp>
 
 // ROS and iostream
 #include <cv_bridge/cv_bridge.h>
@@ -62,9 +61,16 @@ private:
 
 	// DEBUG method
 	// - Publishes and image showing the detection bounding boxes
-	void showBBoxes(const sensor_msgs::ImageConstPtr& msg, cv::Mat& bboxes,
+	void showBBoxes(const sensor_msgs::ImageConstPtr&             left_image,
+	                const sensor_msgs::ImageConstPtr&             depth_image,
+	                cv::Mat&                                      bboxes,
 	                const std::vector<coral::DetectionCandidate>& res);
 
+	// DEGUB method
+	// - Computes the depth of a trunk giving a bounding box and a depth
+	// image
+	point3D computeDepth(const sensor_msgs::Image& depth_img, const int& xmin,
+	                     const int& ymin, const int& xmax, const int& ymax);
 
 	// ROS publishers
 	ros::Publisher             bbox_publisher;

@@ -81,7 +81,7 @@ void Detector::imageListener(const sensor_msgs::ImageConstPtr& msg_left,
 	bbox_publisher.publish(dets);
 
 	// Draw bounding boxes on incoming image
-	showBBoxes(msg_left, left_bboxes, left_res);
+	showBBoxes(msg_left, msg_depth, left_bboxes, left_res);
 
 	// Publish image with corresponding bboxes
 	sensor_msgs::ImagePtr left_det_img =

@@ -4,13 +4,14 @@
 #include <localizer.hpp>
 #include <mapper_2d.hpp>
 #include <mapper_3d.hpp>
-#include <math/pose6D.hpp>
 #include <math/point3D.hpp>
+#include <math/pose6D.hpp>
 
 // std
 #include <iostream>
 
 // ROS
+#include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
@@ -27,13 +28,13 @@
 #include <yaml-cpp/yaml.h>
 
 // OCTOMAP
-#include <octomap_msgs/Octomap.h>
-#include <octomap_msgs/GetOctomap.h>
+#include <octomap/OcTreeKey.h>
+#include <octomap/octomap.h>
 #include <octomap_msgs/BoundingBoxQuery.h>
+#include <octomap_msgs/GetOctomap.h>
+#include <octomap_msgs/Octomap.h>
 #include <octomap_msgs/conversions.h>
 #include <octomap_ros/conversions.h>
-#include <octomap/octomap.h>
-#include <octomap/OcTreeKey.h>
 
 namespace wildSLAM_ros
 {
@@ -45,9 +46,10 @@ public:
 	// - Defines the publish and subscribe topics
 	SLAMNode(int argc, char** argv);
 
-	// Callback function that subscribes both a disparity image
+	// Callback function that subscribes a rgb image, a  disparity image,
 	// and the bounding boxes that locate the objects on the image
-	void callbackFct(const sensor_msgs::ImageConstPtr&            depth_image,
+	void callbackFct(const sensor_msgs::ImageConstPtr&            left_image,
+	                 const sensor_msgs::ImageConstPtr&            depth_image,
 	                 const vision_msgs::Detection2DArrayConstPtr& dets);
 	// Odometry callback function
 	void odomListener(const nav_msgs::OdometryConstPtr& msg);
@@ -55,14 +57,14 @@ public:
 private:
 	// Publish map on rviz
 	void publish2DMap(const std_msgs::Header& header, const pose6D& pose);
-	// Publish the 3D raw map using a pcl 
+	// Publish the 3D raw map using a pcl
 	void publish3DRawMap(const std_msgs::Header& header);
-	// Publish the 3D trunk map using a pcl 
+	// Publish the 3D trunk map using a pcl
 	void publish3DTrunkMap(const std_msgs::Header& header);
 	// Computes the depth of an object using the ZED disparity image
 	// - Calculates the median of all points to remove outliers
 	float computeDepth(const sensor_msgs::Image& depth_img, const int& xmin,
-	                    const int& ymin, const int& xmax, const int& ymax);
+	                   const int& ymin, const int& xmax, const int& ymax);
 
 	// Definitions of the ROS publishers
 	ros::Publisher map2D_publisher;

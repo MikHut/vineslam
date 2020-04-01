@@ -37,6 +37,7 @@ void wildSLAM_ros::SLAMNode::odomListener(const nav_msgs::OdometryConstPtr& msg)
 }
 
 void wildSLAM_ros::SLAMNode::callbackFct(
+    const sensor_msgs::ImageConstPtr&            left_image,
     const sensor_msgs::ImageConstPtr&            depth_image,
     const vision_msgs::Detection2DArrayConstPtr& dets)
 {
@@ -92,38 +93,61 @@ void wildSLAM_ros::SLAMNode::callbackFct(
 		(*localizer).process(odom, bearings, depths, map2D);
 		pose6D robot_pose = (*localizer).getPose();
 
-		// Execute the 2D map estimation
-		(*mapper2D).process(robot_pose, bearings, depths, labels);
-
-		// Get the curretn 2D map
-		map2D = (*mapper2D).getMap();
+		// Convert ROS image to OpenCV image
+		cv::Mat m_img =
+		    cv_bridge::toCvCopy(left_image, sensor_msgs::image_encodings::BGR8)
+		        ->image;
+		// Loop over the image
+		std::vector<std::array<uint8_t, 3>> rgb_array;
+		rgb_array.resize(m_img.cols * m_img.rows);
+		for (int i = 0; i < m_img.cols; i++) {
+			for (int j = 0; j < m_img.rows; j++) {
+				// Get BRG values for the current index
+				cv::Point3_<uchar>* p = m_img.ptr<cv::Point3_<uchar>>(j, i);
+				// Calculate the 1D array index
+				int idx = i + j * m_img.cols;
+				// Store the RGB value
+				std::array<uint8_t, 3> m_rgb;
+				m_rgb[0] = (*p).z;
+				m_rgb[1] = (*p).y;
+				m_rgb[2] = (*p).x;
+				// Save the RGB value into the multi array
+				rgb_array[idx] = m_rgb;
+			}
+		}
 
 		// Execute the 3D map estimation
-		float* depths = (float*)(&(*depth_image).data[0]);
-		(*mapper3D).process(depths, robot_pose, *dets);
+		float* all_depths = (float*)(&(*depth_image).data[0]);
+		(*mapper3D).process(all_depths, rgb_array, robot_pose, *dets);
 
 		// Publish 3D point clouds
 		// publish3DRawMap((*depth_image).header);
 		publish3DTrunkMap((*depth_image).header);
 
-		// Publish the 2D map and particle filter
+		// Execute the 2D map estimation
+		(*mapper2D).process(robot_pose, bearings, depths, labels);
+		// Get the curretn 2D map
+		map2D = (*mapper2D).getMap();
+		// Publish the 2D map
 		publish2DMap((*depth_image).header, robot_pose);
-    geometry_msgs::PoseStamped pose;
+
+		// Publish robot pose
+		geometry_msgs::PoseStamped pose;
 		pose.header          = (*depth_image).header;
 		pose.header.frame_id = "map";
 		pose_publisher.publish(pose);
 
-    // Convert robot pose to tf::Transform corresponding 
-    // to the camera to map transformation
-    tf::Quaternion q;
-    q.setRPY(robot_pose.roll, robot_pose.pitch, robot_pose.yaw);
-    q.normalize();
-    tf::Transform cam2map;
-    cam2map.setRotation(q);
-    cam2map.setOrigin(tf::Vector3(robot_pose.x, robot_pose.y, robot_pose.z));
+		// Convert robot pose to tf::Transform corresponding
+		// to the camera to map transformation
+		tf::Quaternion q;
+		q.setRPY(robot_pose.roll, robot_pose.pitch, robot_pose.yaw);
+		q.normalize();
+		tf::Transform cam2map;
+		cam2map.setRotation(q);
+		cam2map.setOrigin(tf::Vector3(robot_pose.x, robot_pose.y, robot_pose.z));
 
-    // Convert wildSLAM pose to ROS pose
-    // ...
+		// Convert wildSLAM pose to ROS pose
+		// ...
 
 		// Publish cam-to-map tf::Transform
 		static tf::TransformBroadcaster br;
@@ -158,10 +182,7 @@ float wildSLAM_ros::SLAMNode::computeDepth(const sensor_msgs::Image& depth_img,
 	size_t n_depths = depth_array.size();
 	if (n_depths > 0) {
 		std::sort(depth_array.begin(), depth_array.end());
-		if (n_depths % 2 == 0)
-			return (depth_array[n_depths / 2 - 1] + depth_array[n_depths / 2]) / 2;
-		else
-			return depth_array[n_depths / 2];
+		return depth_array[0];
 	}
 	else
 		return -1;

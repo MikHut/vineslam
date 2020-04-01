@@ -43,6 +43,7 @@ public:
 		roll  = other.roll;
 		pitch = other.pitch;
 		yaw   = other.yaw;
+		dist  = other.dist;
 	}
 
 	// Construct from set of poses
@@ -67,8 +68,8 @@ public:
 		th         = tan(mean.yaw);
 
 		// Save pose and gaussian distribution
-		(*this)      = mean;
-		(*this).dist = gauss;
+		(*this) = mean;
+		(*this).setDist(gauss);
 	}
 
 	// Assignment operator
@@ -129,13 +130,13 @@ public:
 	}
 
 	// Set gaussian noise characterizing the robot pose
-	void setGaussian(const ellipse2D& other) { dist = other; }
+	void setDist(const ellipse2D& other) { dist = other; }
 
 	// Function to get the 3D point of the corresponding pose
 	point3D getXYZ() { return point3D(x, y, z); }
 
-	// Function to get the gaussian distribution 
-	ellipse2D getDist() { return (*this).dist; }
+	// Function to get the gaussian distribution
+	ellipse2D getDist() { return dist; }
 
 	// 3D euclidean distance
 	float distance(const pose6D& other) const
@@ -169,7 +170,7 @@ public:
 		float ss = si * sh;
 
 		// Resize vector to store rotation matrix
-    m_rot.resize(9);
+		m_rot.resize(9);
 
 		// Store the values
 		m_rot[0] = cj * ch;
@@ -216,6 +217,8 @@ private:
 // stdout operator
 static std::ostream& operator<<(std::ostream& out, pose6D const& p)
 {
-	return out << '(' << p.x << ' ' << p.y << ' ' << p.z << ' ' << p.roll << ' '
-	           << p.pitch << ' ' << p.yaw << ")\n";
+	return out << "Pose (" << p.x << ' ' << p.y << ' ' << p.z << ' ' << p.roll
+	           << ' ' << p.pitch << ' ' << p.yaw << ")\n"
+	           << "Distribution: (" << p.dist.stdX << ' ' << p.dist.stdY << ' '
+	           << p.dist.TH << ")\n";
 }

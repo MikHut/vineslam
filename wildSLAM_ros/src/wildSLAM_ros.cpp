@@ -122,6 +122,9 @@ void wildSLAM_ros::SLAMNode::callbackFct(
     cam2map.setRotation(q);
     cam2map.setOrigin(tf::Vector3(robot_pose.x, robot_pose.y, robot_pose.z));
 
+    // Convert wildSLAM pose to ROS pose
+    // ...
+
 		// Publish cam-to-map tf::Transform
 		static tf::TransformBroadcaster br;
 		br.sendTransform(

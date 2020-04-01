@@ -7,7 +7,7 @@ PF::PF(const int& n_particles, const pose6D& initial_pose)
 	float std_rpy = 10.0 * PI / 180; // ten degrees of initial uncertainty
 
 	// Initialize normal distributions
-	std::default_random_engine       generator;
+	std::default_random_engine      generator;
 	std::normal_distribution<float> gauss_x(initial_pose.x, std_xy);
 	std::normal_distribution<float> gauss_y(initial_pose.y, std_xy);
 	std::normal_distribution<float> gauss_rp(0.0, 0.0);
@@ -21,8 +21,8 @@ PF::PF(const int& n_particles, const pose6D& initial_pose)
 		// Calculate the initial pose for each particle considering
 		// - the input initial pose
 		// - a sample distribution to spread the particles
-		pose6D pose(gauss_x(generator), gauss_y(generator), 0, gauss_rp(generator),
-		            gauss_rp(generator), gauss_yaw(generator));
+		pose6D pose(gauss_x(generator), gauss_y(generator), 0., 0., 0.,
+		            gauss_yaw(generator));
 		// Compute initial weight of each particle
 		float weight = 1 / (float)n_particles;
 		// Insert the particle into the particles array
@@ -71,7 +71,7 @@ void PF::predict(const pose6D& odom)
 	float std_rp = 1.5 * PI / 180;
 
 	// Declare normal Gaussian distributions to innovate the particles
-	std::default_random_engine       generator;
+	std::default_random_engine      generator;
 	std::normal_distribution<float> gauss_trans(0.0, std_trans);
 	std::normal_distribution<float> gauss_rot_a(0.0, std_rot_a);
 	std::normal_distribution<float> gauss_rot_b(0.0, std_rot_b);
@@ -87,7 +87,7 @@ void PF::predict(const pose6D& odom)
 		float s_p     = gauss_rp(generator);
 
 		// Compute the relative pose considering the samples
-		float p_yaw = particles[i].pose.yaw;
+		float  p_yaw = particles[i].pose.yaw;
 		pose6D dt_pose;
 		dt_pose.x     = dt_trans * cos(normalizeAngle(p_yaw + s_rot_a));
 		dt_pose.y     = dt_trans * sin(normalizeAngle(p_yaw + s_rot_a));
@@ -121,7 +121,7 @@ void PF::correct(const std::vector<float>&             bearings,
 		for (size_t j = 0; j < bearings.size(); j++) {
 			// for (size_t j = 0; j < 0; j++) {
 			// Calculate the estimation of the landmark
-			float  th = bearings[j] + particles[i].pose.yaw;
+			float   th = bearings[j] + particles[i].pose.yaw;
 			point3D X(particles[i].pose.x + depths[j] * cos(th),
 			          particles[i].pose.y + depths[j] * sin(th), 0.);
 
@@ -173,7 +173,7 @@ void PF::resample()
 	std::vector<int> index(M);
 	while (i < M) {
 		float sample = ((float)std::rand() / (RAND_MAX));
-		int    j      = 1;
+		int   j      = 1;
 
 		while (Q[j] < sample)
 			j++;

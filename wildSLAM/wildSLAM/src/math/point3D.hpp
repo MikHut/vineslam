@@ -69,7 +69,7 @@ public:
 		float dist_x = x - other.x;
 		float dist_y = y - other.y;
 		float dist_z = z - other.z;
-		return sqrt(dist_x * dist_x + dist_y * dist_y + dist_z * dist_z);
+		return sqrt(pow(dist_x, 2) + pow(dist_y, 2) + pow(dist_z, 2));
 	}
 
 	// 2D euclidean distance
@@ -77,7 +77,7 @@ public:
 	{
 		float dist_x = x - other.x;
 		float dist_y = y - other.y;
-		return sqrt(dist_x * dist_x + dist_y * dist_y);
+		return sqrt(pow(dist_x, 2) + pow(dist_y, 2));
 	}
 
 	// Convert point3D to Eigen 3D vector

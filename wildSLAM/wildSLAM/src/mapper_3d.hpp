@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <vision_msgs/Detection2D.h>
 #include <vision_msgs/Detection2DArray.h>
 #include <yaml-cpp/yaml.h>

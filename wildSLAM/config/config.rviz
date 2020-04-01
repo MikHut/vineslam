@@ -198,7 +198,7 @@ Visualization Manager:
       Marker Topic: /wildSLAM/map3D/trunks
       Name: MarkerArray
       Namespaces:
-        {}
+        map: true
       Queue Size: 100
       Value: false
   Enabled: true

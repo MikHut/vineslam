@@ -59,6 +59,12 @@ private:
 	             const std::vector<float>& depths,
 	             const std::vector<int>&   labels);
 
+	// Computes a local map, on robot's frame
+	std::vector<Point<double>> local_map(Pose<double>&        pose,
+	                                     const std::vector<double>& bearings,
+	                                     const std::vector<double>& depths,
+	                                     const tf::Transform&       cam2map);
+
 	// Searches from correspondences between observations and landmarks
 	// already mapped
 	int findCorr(const point3D& l_pos, const point3D& r_pos);

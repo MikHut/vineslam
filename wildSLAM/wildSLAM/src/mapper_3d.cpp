@@ -195,6 +195,7 @@ void Mapper3D::createOctoMap(pose6D&                     sensor_origin,
 {
 	// Declare cells structures to fill
 	KeySet occupied_cells;
+	KeySet free_cells;
 
 	// Convert sensor origin to octomap format
 	octomap::point3d m_sensor_origin(sensor_origin.x, sensor_origin.y,
@@ -226,8 +227,9 @@ void Mapper3D::createOctoMap(pose6D&                     sensor_origin,
 
 	// Mark all occupied cells
 	for (KeySet::iterator it = occupied_cells.begin(), end = occupied_cells.end();
-	     it != end; it++)
+	     it != end; it++) {
 		(*octree).updateNode(*it, true);
+	}
 }
 
 OcTreeT *Mapper3D::getRawPointCloud() const
@@ -239,4 +241,3 @@ OcTreeT *Mapper3D::getTrunkPointCloud() const
 {
 	return octree;
 }
-

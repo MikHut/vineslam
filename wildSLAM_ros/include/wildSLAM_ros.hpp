@@ -26,6 +26,7 @@
 #include <vision_msgs/Detection2DArray.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <yaml-cpp/yaml.h>
+#include <cv_bridge/cv_bridge.h>
 
 // OCTOMAP
 #include <octomap/OcTreeKey.h>

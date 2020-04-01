@@ -166,6 +166,10 @@ float wildSLAM_ros::SLAMNode::computeDepth(const sensor_msgs::Image& depth_img,
 	float range_min = 0.01;
 	float range_max = 10.0;
 
+  double min_value = 50.0;
+  
+  Point<double> min_index;
+
 	std::vector<float> depth_array;
 	for (int x = xmin; x < xmax; x++) {
 		for (int y = ymin; y < ymax; y++) {
@@ -173,12 +177,17 @@ float wildSLAM_ros::SLAMNode::computeDepth(const sensor_msgs::Image& depth_img,
 
 			// Fill the depth array with the values of interest
 			if (std::isfinite(depths[idx]) && depths[idx] > range_min &&
-			    depths[idx] < range_max)
+			    depths[idx] < range_max) {
 				depth_array.push_back(depths[idx]);
+        if (depths[idx] < min_value) {
+          min_value = depths[idx];
+          min_index = Point<double>(x,y);
+        }
+      }
 		}
 	}
 
-	// compute median of all observations
+	// compute minimum of all observations
 	size_t n_depths = depth_array.size();
 	if (n_depths > 0) {
 		std::sort(depth_array.begin(), depth_array.end());

@@ -37,23 +37,22 @@ void Mapper3D::init()
 
 void Mapper3D::process(const float*                               depths,
                        const std::vector<std::array<uint8_t, 3>>& intensities,
-                       const point3D&                             sensor_origin,
-                       const octomath::Quaternion&                sensor_rot,
+                       pose6D&                                    sensor_origin,
                        const vision_msgs::Detection2DArray&       dets)
 {
 	// Build raw 3D map
-	//buildRawMap(depths, intensities, sensor_origin, sensor_rot);
+	// buildRawMap(depths, sensor_origin);
 	// Build trunks 3D map
-	buildTrunkMap(depths, intensities, sensor_origin, sensor_rot, dets);
+	buildTrunkMap(depths, intensities, sensor_origin, dets);
 }
 
 void Mapper3D::buildRawMap(
     const float* depths, const std::vector<std::array<uint8_t, 3>>& intensities,
-    const point3D& sensor_origin, const octomath::Quaternion& sensor_rot)
+    pose6D& sensor_origin)
 {
 	// Define the minimum and maximum levels of disparity to consider
-	double range_min = 0.01;
-	double range_max = 10.0;
+	float range_min = 0.01;
+	float range_max = 10.0;
 
 	// Declare 3D point and intensities vectors
 	std::vector<point3D>                pts_array;
@@ -70,29 +69,29 @@ void Mapper3D::buildRawMap(
 				// Compute the 3D point considering the disparity and
 				// the camera parameters
 				point3D point;
-				point.z() = depths[idx];
-				point.x() = (double)(i - cx) * (point.z() / fx);
-				point.y() = (double)(j - cy) * (point.z() / fy) - cam_height;
+				point.z = depths[idx];
+				point.x = (float)(i - cx) * (point.z / fx);
+				point.y = (float)(j - cy) * (point.z / fy) - cam_height;
 
 				// Rotate camera axis to map axis
 				point3D point_cam;
-				point_cam.x() = +point.z();
-				point_cam.y() = -point.x();
-				point_cam.z() = -point.y();
+				point_cam.x = +point.z;
+				point_cam.y = -point.x;
+				point_cam.z = -point.y;
 
 				// Camera to map point cloud conversion
-				std::vector<double> rot_matrix;
-				sensor_rot.toRotMatrix(rot_matrix);
+				std::vector<float> rot_matrix;
+				sensor_origin.toRotMatrix(rot_matrix);
 				point3D point_map;
-				point_map.x() = point_cam.x() * rot_matrix[0] +
-				                point_cam.y() * rot_matrix[1] +
-				                point_cam.z() * rot_matrix[2] + sensor_origin.x();
-				point_map.y() = point_cam.x() * rot_matrix[3] +
-				                point_cam.y() * rot_matrix[4] +
-				                point_cam.z() * rot_matrix[5] + sensor_origin.y();
-				point_map.z() = point_cam.x() * rot_matrix[6] +
-				                point_cam.y() * rot_matrix[7] +
-				                point_cam.z() * rot_matrix[8] + sensor_origin.z();
+				point_map.x = point_cam.x * rot_matrix[0] +
+				              point_cam.y * rot_matrix[1] +
+				              point_cam.z * rot_matrix[2] + sensor_origin.x;
+				point_map.y = point_cam.x * rot_matrix[3] +
+				              point_cam.y * rot_matrix[4] +
+				              point_cam.z * rot_matrix[5] + sensor_origin.y;
+				point_map.z = point_cam.x * rot_matrix[6] +
+				              point_cam.y * rot_matrix[7] +
+				              point_cam.z * rot_matrix[8] + sensor_origin.z;
 
 
 				// Fill the point cloud array
@@ -108,12 +107,11 @@ void Mapper3D::buildRawMap(
 
 void Mapper3D::buildTrunkMap(
     const float* depths, const std::vector<std::array<uint8_t, 3>>& intensities,
-    const point3D& sensor_origin, const octomath::Quaternion& sensor_rot,
-    const vision_msgs::Detection2DArray& dets)
+    pose6D& sensor_origin, const vision_msgs::Detection2DArray& dets)
 {
 	// Define the minimum and maximum levels of disparity to consider
-	double range_min = 0.01;
-	double range_max = 10.0;
+	float range_min = 0.01;
+	float range_max = 10.0;
 
 	// Declare 3D point and intensities vectors
 	std::vector<point3D>                pts_array;
@@ -124,14 +122,14 @@ void Mapper3D::buildTrunkMap(
 		// Load a single bounding box detection
 		vision_msgs::BoundingBox2D m_bbox = dets.detections[n].bbox;
 		// Compute the limites of the bounding boxes
-		double xmin = m_bbox.center.x - m_bbox.size_x / 2;
-		double xmax = m_bbox.center.x + m_bbox.size_x / 2;
-		double ymin = m_bbox.center.y - m_bbox.size_y / 2;
-		double ymax = m_bbox.center.y + m_bbox.size_y / 2;
+		float xmin = m_bbox.center.x - m_bbox.size_x / 2;
+		float xmax = m_bbox.center.x + m_bbox.size_x / 2;
+		float ymin = m_bbox.center.y - m_bbox.size_y / 2;
+		float ymax = m_bbox.center.y + m_bbox.size_y / 2;
 
 		// Initialize and compute average depth inside the bbox
-		double mean_depth = 0;
-		int    it         = 0;
+		float mean_depth = 0;
+		int   it         = 0;
 		for (int x = xmin; x < xmax; x++) {
 			for (int y = ymin; y < ymax; y++) {
 				int idx = x + img_width * y;
@@ -143,7 +141,7 @@ void Mapper3D::buildTrunkMap(
 				}
 			}
 		}
-		mean_depth /= (double)it;
+		mean_depth /= (float)it;
 
 
 		for (int x = xmin; x < xmax; x++) {
@@ -155,29 +153,30 @@ void Mapper3D::buildTrunkMap(
 					// Compute the 3D point considering the disparity and
 					// the camera parameters
 					point3D point;
-					point.z() = depths[idx];
-					point.x() = (double)(x - cx) * (point.z() / fx);
-					point.y() = (double)(y - cy) * (point.z() / fy) - cam_height;
+					point.z = depths[idx];
+					point.x = (float)(x - cx) * (point.z / fx);
+					point.y = (float)(y - cy) * (point.z / fy) - cam_height;
 
 					// Rotate camera axis to map axis
 					point3D point_cam;
-					point_cam.x() = +point.z();
-					point_cam.y() = -point.x();
-					point_cam.z() = -point.y();
+					point_cam.x = +point.z;
+					point_cam.y = -point.x;
+					point_cam.z = -point.y;
 
 					// Camera to map point cloud conversion
-					std::vector<double> rot_matrix;
-					sensor_rot.toRotMatrix(rot_matrix);
+					std::vector<float> rot_matrix;
+					sensor_origin.toRotMatrix(rot_matrix);
 					point3D point_map;
-					point_map.x() = point_cam.x() * rot_matrix[0] +
-					                point_cam.y() * rot_matrix[1] +
-					                point_cam.z() * rot_matrix[2] + sensor_origin.x();
-					point_map.y() = point_cam.x() * rot_matrix[3] +
-					                point_cam.y() * rot_matrix[4] +
-					                point_cam.z() * rot_matrix[5] + sensor_origin.y();
-					point_map.z() = point_cam.x() * rot_matrix[6] +
-					                point_cam.y() * rot_matrix[7] +
-					                point_cam.z() * rot_matrix[8] + sensor_origin.z();
+					point_map.x = point_cam.x * rot_matrix[0] +
+					              point_cam.y * rot_matrix[1] +
+					              point_cam.z * rot_matrix[2] + sensor_origin.x;
+					point_map.y = point_cam.x * rot_matrix[3] +
+					              point_cam.y * rot_matrix[4] +
+					              point_cam.z * rot_matrix[5] + sensor_origin.y;
+					point_map.z = point_cam.x * rot_matrix[6] +
+					              point_cam.y * rot_matrix[7] +
+					              point_cam.z * rot_matrix[8] + sensor_origin.z;
+
 					// Fill the point cloud array
 					pts_array.push_back(point_map);
 					ints_array.push_back(intensities[idx]);
@@ -190,7 +189,7 @@ void Mapper3D::buildTrunkMap(
 	createOctoMap(sensor_origin, pts_array, ints_array);
 }
 
-void Mapper3D::createOctoMap(const point3D&              sensor_origin,
+void Mapper3D::createOctoMap(pose6D&                     sensor_origin,
                              const std::vector<point3D>& pcl,
                              const std::vector<std::array<uint8_t, 3>>& ints)
 {
@@ -198,13 +197,17 @@ void Mapper3D::createOctoMap(const point3D&              sensor_origin,
 	KeySet occupied_cells;
 	KeySet free_cells;
 
+	// Convert sensor origin to octomap format
+	octomap::point3d m_sensor_origin(sensor_origin.x, sensor_origin.y,
+	                                 sensor_origin.z);
+
 	// Loop over all the point in the point cloud
 	for (size_t i = 0; i < pcl.size(); i++) {
 		// Load the current point
-		point3D point = pcl[i];
+		point3d point(pcl[i].x, pcl[i].y, pcl[i].z);
 
 		// Check max range
-		if ((max_range < 0.0) || ((point - sensor_origin).norm() <= max_range)) {
+		if ((max_range < 0.0) || ((point - m_sensor_origin).norm() <= max_range)) {
 
 			OcTreeKey key;
 			if ((*octree).coordToKeyChecked(point, key)) {
@@ -229,12 +232,12 @@ void Mapper3D::createOctoMap(const point3D&              sensor_origin,
 	}
 }
 
-OcTreeT* Mapper3D::getRawPointCloud()
+OcTreeT *Mapper3D::getRawPointCloud() const
 {
 	return octree;
 }
 
-OcTreeT* Mapper3D::getTrunkPointCloud()
+OcTreeT *Mapper3D::getTrunkPointCloud() const
 {
 	return octree;
 }

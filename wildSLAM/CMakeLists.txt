@@ -13,7 +13,7 @@ find_package(Eigen3 REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
 catkin_package(
-  INCLUDE_DIRS ${PROJECT_NAME}/src
+  INCLUDE_DIRS ${PROJECT_NAME}/src ${PROJECT_NAME}/src/math
   LIBRARIES wildSLAM
 )
 

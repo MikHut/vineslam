@@ -6,7 +6,7 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /TF1
+        - /MarkerArray1/Status1
         - /Odometry1/Shape1
         - /MarkerArray2
       Splitter Ratio: 0.5288461446762085
@@ -64,57 +64,41 @@ Visualization Manager:
         /markers: true
       Queue Size: 100
       Value: true
-    - Alpha: 1
-      Arrow Length: 0.5
-      Axes Length: 0.30000001192092896
-      Axes Radius: 0.009999999776482582
-      Class: rviz/PoseArray
-      Color: 255; 25; 0
-      Enabled: false
-      Head Length: 0.07000000029802322
-      Head Radius: 0.05000000074505806
-      Name: PoseArray
-      Shaft Length: 0.4000000059604645
-      Shaft Radius: 0.10000000149011612
-      Shape: Arrow (3D)
-      Topic: /wildSLAM/particles
-      Unreliable: true
-      Value: false
     - Class: rviz/TF
       Enabled: true
       Frame Timeout: 15
       Frames:
         All Enabled: false
         base_link:
-          Value: true
+          Value: false
         cam:
           Value: true
         camerat265_odom_frame:
-          Value: true
+          Value: false
         camerat265_pose_frame:
-          Value: true
+          Value: false
         front_left_wheel_link:
-          Value: true
+          Value: false
         front_right_wheel_link:
-          Value: true
+          Value: false
         gps:
-          Value: true
+          Value: false
         hokuyo_link:
-          Value: true
+          Value: false
         imu_link:
-          Value: true
+          Value: false
         map:
           Value: true
         odom:
           Value: true
         rear_left_wheel_link:
-          Value: true
+          Value: false
         rear_right_wheel_link:
-          Value: true
+          Value: false
         tower_base:
-          Value: true
+          Value: false
         velodyne:
-          Value: true
+          Value: false
       Marker Scale: 5
       Name: TF
       Show Arrows: true
@@ -183,94 +167,19 @@ Visualization Manager:
       Unreliable: true
       Value: true
     - Alpha: 1
-      Autocompute Intensity Bounds: true
-      Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
-      Axis: Z
-      Channel Name: intensity
-      Class: rviz/PointCloud2
-      Color: 255; 255; 255
-      Color Transformer: Intensity
-      Decay Time: 0
+      Axes Length: 1
+      Axes Radius: 0.10000000149011612
+      Class: rviz/Pose
+      Color: 255; 25; 0
       Enabled: true
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Max Intensity: 37
-      Min Color: 0; 0; 0
-      Min Intensity: 0
-      Name: PointCloud2
-      Position Transformer: XYZ
-      Queue Size: 1
-      Selectable: true
-      Size (Pixels): 3
-      Size (m): 0.20000000298023224
-      Style: Flat Squares
-      Topic: /key_pose_origin
+      Head Length: 0.30000001192092896
+      Head Radius: 0.10000000149011612
+      Name: Pose
+      Shaft Length: 1
+      Shaft Radius: 1
+      Shape: Arrow
+      Topic: /wildSLAM/pose
       Unreliable: false
-      Use Fixed Frame: true
-      Use rainbow: true
-      Value: true
-    - Alpha: 1
-      Autocompute Intensity Bounds: true
-      Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
-      Axis: Z
-      Channel Name: intensity
-      Class: rviz/PointCloud2
-      Color: 255; 255; 255
-      Color Transformer: Intensity
-      Decay Time: 0
-      Enabled: true
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Max Intensity: 15.170999526977539
-      Min Color: 0; 0; 0
-      Min Intensity: 0
-      Name: PointCloud2
-      Position Transformer: XYZ
-      Queue Size: 10
-      Selectable: true
-      Size (Pixels): 3
-      Size (m): 0.009999999776482582
-      Style: Flat Squares
-      Topic: /laser_cloud_surround
-      Unreliable: false
-      Use Fixed Frame: true
-      Use rainbow: true
-      Value: true
-    - Alpha: 1
-      Autocompute Intensity Bounds: true
-      Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
-      Axis: Z
-      Channel Name: intensity
-      Class: rviz/PointCloud2
-      Color: 255; 170; 255
-      Color Transformer: FlatColor
-      Decay Time: 0
-      Enabled: true
-      Invert Rainbow: false
-      Max Color: 255; 170; 255
-      Max Intensity: 15.081634521484375
-      Min Color: 0; 0; 0
-      Min Intensity: -0.02276621386408806
-      Name: PointCloud2
-      Position Transformer: XYZ
-      Queue Size: 2
-      Selectable: true
-      Size (Pixels): 3
-      Size (m): 0.05000000074505806
-      Style: Flat Squares
-      Topic: /laser_cloud_less_flat
-      Unreliable: false
-      Use Fixed Frame: true
-      Use rainbow: true
       Value: true
     - Class: rviz/Image
       Enabled: true
@@ -285,13 +194,13 @@ Visualization Manager:
       Unreliable: false
       Value: true
     - Class: rviz/MarkerArray
-      Enabled: true
+      Enabled: false
       Marker Topic: /wildSLAM/map3D/trunks
       Name: MarkerArray
       Namespaces:
         map: true
       Queue Size: 100
-      Value: true
+      Value: false
   Enabled: true
   Global Options:
     Background Color: 0; 0; 0
@@ -319,21 +228,26 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Angle: 0
-      Class: rviz/TopDownOrtho
+      Class: rviz/XYOrbit
+      Distance: 34.48929214477539
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
+      Focal Point:
+        X: 8.089478492736816
+        Y: -10.444612503051758
+        Z: 3.7321506169973873e-6
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 79.13211059570312
+      Pitch: 1.5647963285446167
       Target Frame: <Fixed Frame>
-      Value: TopDownOrtho (rviz)
-      X: 6.181256294250488
-      Y: -3.339233160018921
+      Value: XYOrbit (rviz)
+      Yaw: 3.1402485370635986
     Saved: ~
 Window Geometry:
   Displays:

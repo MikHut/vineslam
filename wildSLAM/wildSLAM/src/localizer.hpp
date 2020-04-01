@@ -3,14 +3,15 @@
 // Class objects
 #include <landmark.hpp>
 #include <pf.hpp>
+#include <math/point3D.hpp>
+#include <math/pose6D.hpp>
 
-// ROS, std, eigen
-#include <geometry_msgs/PoseArray.h>
+// std, eigen
 #include <iostream>
 #include <map>
-#include <ros/ros.h>
-#include <tf/transform_listener.h>
 #include <yaml-cpp/yaml.h>
+
+#define PI 3.14159265359
 
 class Localizer
 {
@@ -20,38 +21,27 @@ public:
 
 	// Initializes the particle filter with the number of particles
 	// and the first odometry pose
-	void init(const Pose<double>& initial_pose);
+	void init(const pose6D& initial_pose);
 
 	// Global function that handles all the localization process
-	void process(const Pose<double>& odom, const std::vector<double>& bearings,
-	             const std::vector<double>&             depths,
-	             const std::map<int, Landmark<double>>& map);
-
-	// Export the matrix that transforms the camera into the world's
-	// referential frame in ROS mode
-	tf::Transform getTf() const;
-
-	// Export the array of poses in ROS mode relative to all particles
-	geometry_msgs::PoseArray getPoseArray() const;
+	void process(const pose6D& odom, const std::vector<float>& bearings,
+	             const std::vector<float>&             depths,
+	             const std::map<int, Landmark<float>>& map);
 
 	// Export the final pose resultant from the localization procedure
-	Pose<double> getPose() const;
+	pose6D getPose() const;
 
 private:
-	// ROS Homogeneous transformation from camera to world
-	tf::Transform cam2map;
-	// ROS Array of poses relative to all particles
-	geometry_msgs::PoseArray poses;
 	// Average particles pose
-	Pose<double> average_pose;
+	pose6D average_pose;
 	// Particle filter object
 	PF* pf;
 	// Input parameters
 	int    n_particles;
-	double cam_pitch;
+	float cam_pitch;
 
 	// Auxiliar function that normalizes an angle in the [-pi,pi] range
-	double normalizeAngle(const double& angle)
+	float normalizeAngle(const float& angle)
 	{
 		return (std::fmod(angle + PI, 2 * PI) - PI);
 	}

@@ -2,6 +2,8 @@
 
 // Object members
 #include <landmark.hpp>
+#include <math/point3D.hpp>
+#include <math/ellipse2D.hpp>
 
 // ROS, std, Eigen
 #include <eigen3/Eigen/Dense>
@@ -25,10 +27,10 @@ public:
 	// Function that processes all the Kalman Filter routines
 	void process(const VectorXd& s, const VectorXd& g, const VectorXd& z);
 	// Function that outputs the current state of the Kalman Filter
-	Point<double> getState() const;
+	point3D getState() const;
 	// Function that outputs the current standard deviation of the
 	// Kalman Filter
-	Ellipse<double> getStdev() const;
+	ellipse2D getStdev() const;
 
 	MatrixXd P;
 
@@ -40,9 +42,9 @@ private:
 	MatrixXd R;
 
 	// Input parameters
-	double baseline;
-	double delta_d;
-	double fx;
+	float baseline;
+	float delta_d;
+	float fx;
 
 	// Function that implements the prediction step of the Kalman Filter
 	void predict();
@@ -52,13 +54,13 @@ private:
 	void computeR(const VectorXd& s, const VectorXd& g, const VectorXd& z);
 
 	// Auxiliar function that normalizes an angle in the [-pi,pi] range
-	double normalizeAngle(const double& angle)
+	float normalizeAngle(const float& angle)
 	{
 		return (std::fmod(angle + PI, 2 * PI) - PI);
 	}
 
 	// Calculates the disparity error using the disparity noise model
-	double dispError(const double& depth)
+	float dispError(const float& depth)
 	{
 		return pow(depth, 2) / (baseline * fx) * delta_d;
 	}

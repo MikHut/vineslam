@@ -1,7 +1,8 @@
 #pragma once
 
 #include <iostream>
-#include <pose.hpp>
+#include <math/ellipse2D.hpp>
+#include <math/point3D.hpp>
 
 // Structure to represent the semantic information about
 // each feature:
@@ -60,7 +61,7 @@ public:
 	// Class constructor
 	// - initializes its pose, standard deviation and
 	// - its sematic information
-	Landmark(const Point<T>& pos, const Ellipse<T>& stdev, const int& label)
+	Landmark(const point3D& pos, const ellipse2D& stdev, const int& label)
 	{
 		(*this).pos   = pos;
 		(*this).stdev = stdev;
@@ -68,7 +69,7 @@ public:
 	}
 	// Class constructor
 	// - initializes its pose, standard deviation
-	Landmark(const Point<T>& pos, const Ellipse<T>& stdev)
+	Landmark(const point3D& pos, const ellipse2D& stdev)
 	{
 		(*this).pos   = pos;
 		(*this).stdev = stdev;
@@ -84,12 +85,12 @@ public:
 		std::cout << "   description: " << info.description << std::endl;
 		std::cout << "   character:   " << c << std::endl;
 		std::cout << "   position:    " << pos;
-		std::cout << "   stdev:      [" << stdev.std_x << "," << stdev.std_y << "]"
+		std::cout << "   stdev:      [" << stdev.stdX << "," << stdev.stdY << "]"
 		          << std::endl;
 	}
 
-	Point<T>     pos;
-	Ellipse<T>   stdev;
+	point3D      pos;
+	ellipse2D    stdev;
 	SemanticInfo info;
 
 private:

@@ -32,8 +32,8 @@ wildSLAM_ros::SLAMNode::SLAMNode(int argc, char** argv)
 	    nh.advertise<visualization_msgs::MarkerArray>("/wildSLAM/map3D/raw", 1);
 	map3D_trunk_publisher = nh.advertise<visualization_msgs::MarkerArray>(
 	    "/wildSLAM/map3D/trunks", 1);
-	particle_publisher =
-	    nh.advertise<geometry_msgs::PoseArray>("/wildSLAM/particles", 1);
+	pose_publisher =
+	    nh.advertise<geometry_msgs::PoseStamped>("/wildSLAM/pose", 1);
 
 	// Load params
 	std::string config_path;

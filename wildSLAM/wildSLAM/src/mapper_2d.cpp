@@ -15,6 +15,11 @@ void Mapper2D::init(pose6D& pose, const std::vector<float>& bearings,
 	int       n_obsv    = bearings.size();
 	ellipse2D robot_std = pose.getDist();
 
+	// Convert 6-DOF pose to homogenous transformation
+	std::vector<float> Rot;
+	point3D            trans = pose.getXYZ();
+	pose.toRotMatrix(Rot);
+
 	// Compute initial covariance matrix
 	// - proportional to the pose signal and the distance to the robot
 	for (int i = 0; i < n_obsv; i++) {
@@ -23,10 +28,13 @@ void Mapper2D::init(pose6D& pose, const std::vector<float>& bearings,
 		z << depths[i], bearings[i];
 
 		// Calculate
-		// - the initial estimation of the landmark
-		// - the initial observation covariance of the landmark
-		float   th = bearings[i] + pose.yaw;
-		point3D X(pose.x + depths[i] * cos(th), pose.y + depths[i] * sin(th), 0.);
+		// - the initial estimation of the landmark on map's referential frame
+		float   th = normalizeAngle(bearings[i]);
+		point3D X_cam(depths[i] * cos(th), depths[i] * sin(th), 0.);
+		point3D X;
+		X.x = X_cam.x * Rot[0] + X_cam.y * Rot[1] + X_cam.z * Rot[2] + trans.x;
+		X.y = X_cam.x * Rot[3] + X_cam.y * Rot[4] + X_cam.z * Rot[5] + trans.y;
+		X.z = 0.;
 
 		// Push back a Kalman Filter object for the respective landmark
 		KF kf(X.toEig2D(), pose.toEig2D(), robot_std.toEig(), z, config_path);
@@ -74,7 +82,7 @@ std::vector<point3D> Mapper2D::local_map(pose6D&                   pose,
 	for (size_t i = 0; i < bearings.size(); i++) {
 		// Calculate the estimation of the landmark position on
 		// camera's referential frame
-		float   th = bearings[i];
+		float   th = normalizeAngle(bearings[i]);
 		point3D X_cam(depths[i] * cos(th), depths[i] * sin(th), 0.);
 
 		// Convert landmark to map's referential frame
@@ -99,11 +107,21 @@ void Mapper2D::predict(pose6D& pose, const std::vector<float>& bearings,
 	int       n_obsv    = bearings.size();
 	ellipse2D robot_std = pose.getDist();
 
+	// Convert 6DOF pose to homogenous transformation
+	std::vector<float> Rot;
+	pose.toRotMatrix(Rot);
+	point3D trans = pose.getXYZ();
+
 	for (int i = 0; i < n_obsv; i++) {
-		// Calculate the landmark position based on the ith observation
-		float   th = normalizeAngle(bearings[i] + pose.yaw);
-		point3D X(pose.x + depths[i] * cos(th),
-		          pose.y + depths[i] * sin(th), 0.);
+		// Calculate the landmark position on map's referential frame
+		// based on the ith observation
+		float   th = normalizeAngle(bearings[i]);
+		point3D X_cam(depths[i] * cos(th), depths[i] * sin(th), 0.);
+		point3D X;
+		X.x = X_cam.x * Rot[0] + X_cam.y * Rot[1] + X_cam.z * Rot[2] + trans.x;
+		X.y = X_cam.x * Rot[3] + X_cam.y * Rot[4] + X_cam.z * Rot[5] + trans.y;
+		X.z = 0.;
+
 		// Construct the observations vector
 		VectorXd z(2, 1);
 		z << depths[i], bearings[i];
@@ -112,13 +130,11 @@ void Mapper2D::predict(pose6D& pose, const std::vector<float>& bearings,
 		int landmark_id = findCorr(X, pose.getXYZ());
 		// If not, initialize the landmark on the map, as well as the
 		// correspondent Kalman Filter
-		//if (1) {
 		if (landmark_id < 0) {
 			Eigen::MatrixXd R(2, 2);
 
 			// Initialize the Kalman Filter
-			KF kf(X.toEig2D(), pose.toEig2D(), robot_std.toEig(), z,
-			      config_path);
+			KF kf(X.toEig2D(), pose.toEig2D(), robot_std.toEig(), z, config_path);
 			filters.push_back(kf);
 
 			// Insert the landmark on the map, with a single observation
@@ -129,8 +145,7 @@ void Mapper2D::predict(pose6D& pose, const std::vector<float>& bearings,
 		// Filter call
 		else {
 			// Invocate the Kalman Filter
-			filters[landmark_id - 1].process(pose.toEig2D(), robot_std.toEig(),
-			                                 z);
+			filters[landmark_id - 1].process(pose.toEig2D(), robot_std.toEig(), z);
 			// Get the state vector and the standard deviation associated
 			// with the estimation
 			point3D   X_out = filters[landmark_id - 1].getState();

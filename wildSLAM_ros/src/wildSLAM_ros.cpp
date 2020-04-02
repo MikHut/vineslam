@@ -51,20 +51,17 @@ void wildSLAM_ros::SLAMNode::callbackFct(
 		// Load a single bounding box detection
 		vision_msgs::BoundingBox2D m_bbox = (*dets).detections[i].bbox;
 
-		// Calculate the depth of the detected object
-		float depth =
-		    computeDepth(*depth_image, m_bbox.center.x - m_bbox.size_x / 2,
-		                 m_bbox.center.y - m_bbox.size_y / 2,
-		                 m_bbox.center.x + m_bbox.size_x / 2,
-		                 m_bbox.center.y + m_bbox.size_y / 2);
+		// Calculate the bearing and depth of the detected object
+		float depth;
+		float bearing;
+		computeObsv(*depth_image, m_bbox.center.x - m_bbox.size_x / 2,
+		            m_bbox.center.y - m_bbox.size_y / 2,
+		            m_bbox.center.x + m_bbox.size_x / 2,
+		            m_bbox.center.y + m_bbox.size_y / 2, depth, bearing);
 
 		// Check if the calculated depth is valid
 		if (depth == -1)
 			continue;
-
-		// Calculate the correspondent bearing observations
-		float column  = m_bbox.center.x;
-		float bearing = -(-h_fov / img_width) * (img_width / 2 - column);
 
 		// Insert the measures in the observations arrays
 		labels.push_back((*dets).detections[i].results[0].id);
@@ -160,39 +157,42 @@ void wildSLAM_ros::SLAMNode::callbackFct(
 	}
 }
 
-float wildSLAM_ros::SLAMNode::computeDepth(const sensor_msgs::Image& depth_img,
-                                           const int& xmin, const int& ymin,
-                                           const int& xmax, const int& ymax)
+void wildSLAM_ros::SLAMNode::computeObsv(const sensor_msgs::Image& depth_img,
+                                         const int& xmin, const int& ymin,
+                                         const int& xmax, const int& ymax,
+                                         float& depth, float& bearing)
 {
 	// Declare array with all the disparities computed
 	float* depths = (float*)(&(depth_img).data[0]);
 
+	// Set minimum and maximum depth values to consider
 	float range_min = 0.01;
 	float range_max = 10.0;
 
-	double min_value = 50.0;
-
-	point3D min_index;
-
-	std::vector<float> depth_array;
-	for (int x = xmin; x < xmax; x++) {
-		for (int y = ymin; y < ymax; y++) {
-			int idx = x + depth_img.width * y;
+	std::map<float, float> dtheta;
+	for (int i = xmin; i < xmax; i++) {
+		for (int j = ymin; j < ymax; j++) {
+			int idx = i + depth_img.width * j;
 
 			// Fill the depth array with the values of interest
 			if (std::isfinite(depths[idx]) && depths[idx] > range_min &&
 			    depths[idx] < range_max) {
-				depth_array.push_back(depths[idx]);
+				float x         = depths[idx];
+				float y         = -(float)(i - cx) * (x / fx);
+				float m_depth   = sqrt(pow(x, 2) + pow(y, 2));
+				dtheta[m_depth] = atan2(y, x);
 			}
 		}
 	}
 
 	// compute minimum of all observations
-	size_t n_depths = depth_array.size();
+	size_t n_depths = dtheta.size();
 	if (n_depths > 0) {
-		std::sort(depth_array.begin(), depth_array.end());
-		return depth_array[0];
+		depth   = dtheta.begin()->first;
+		bearing = dtheta.begin()->second;
 	}
-	else
-		return -1;
+	else {
+		depth   = -1;
+		bearing = -1;
+	}
 }

@@ -69,8 +69,9 @@ private:
 	// DEGUB method
 	// - Computes the depth of a trunk giving a bounding box and a depth
 	// image
-	point3D computeDepth(const sensor_msgs::Image& depth_img, const int& xmin,
-	                     const int& ymin, const int& xmax, const int& ymax);
+	std::pair<float, point3D> computeDepth(const sensor_msgs::Image& depth_img,
+	                                       const int& xmin, const int& ymin,
+	                                       const int& xmax, const int& ymax);
 
 	// ROS publishers
 	ros::Publisher             bbox_publisher;

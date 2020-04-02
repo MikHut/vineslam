@@ -6,11 +6,11 @@ void Detector::showBBoxes(const sensor_msgs::ImageConstPtr& left_image,
                           const std::vector<coral::DetectionCandidate>& res)
 {
 	for (auto result : res) {
-		double xmin = result.corners.ymin * (*left_image).width;
-		double ymin = result.corners.xmin * (*left_image).height;
-		double xmax = result.corners.ymax * (*left_image).width;
-		double ymax = result.corners.xmax * (*left_image).height;
-		double xavg = (xmin + xmax) / 2;
+		float xmin = result.corners.ymin * (*left_image).width;
+		float ymin = result.corners.xmin * (*left_image).height;
+		float xmax = result.corners.ymax * (*left_image).width;
+		float ymax = result.corners.xmax * (*left_image).height;
+		float xavg = (xmin + xmax) / 2;
 
 		point3D tmp((xmin + xmax) / 2, (ymin + ymax) / 2, 0.);
 
@@ -20,23 +20,29 @@ void Detector::showBBoxes(const sensor_msgs::ImageConstPtr& left_image,
 			cv::line(bboxes, cv::Point(xavg, ymin), cv::Point(xavg, ymax),
 			         cv::Scalar(0, 255, 0), 2);
 
-			point3D index = computeDepth(*depth_image, (int)xmin, (int)ymin,
-			                             (int)xmax, (int)ymax);
-			cv::circle(bboxes, cv::Point(index.x, index.y), 5, cv::Scalar(0, 0, 0),
-			           5);
+			std::pair<float, point3D> depth = computeDepth(
+			    *depth_image, (int)xmin, (int)ymin, (int)xmax, (int)ymax);
+			cv::circle(bboxes, cv::Point(depth.second.x, depth.second.y), 5,
+			           cv::Scalar(0, 0, 0), 5);
+			// Draw depths on debug detection image
+			if (depth.first > 0) {
+				std::string s = boost::lexical_cast<std::string>(depth.first);
+				cv::putText(bboxes, s, cv::Point((xmin + xmax) / 2, ymin - 10),
+				            cv::FONT_HERSHEY_DUPLEX, 1.0, cv::Scalar(255, 0, 0));
+			}
 		}
 	}
 }
 
-point3D Detector::computeDepth(const sensor_msgs::Image& depth_img,
-                               const int& xmin, const int& ymin,
-                               const int& xmax, const int& ymax)
+std::pair<float, point3D>
+Detector::computeDepth(const sensor_msgs::Image& depth_img, const int& xmin,
+                       const int& ymin, const int& xmax, const int& ymax)
 {
 	// Declare array with all the disparities computed
 	float* depths = (float*)(&(depth_img).data[0]);
 
-	double range_min = 0.01;
-	double range_max = 10.0;
+	float range_min = 0.01;
+	float range_max = 10.0;
 
 	std::map<float, point3D> depth_map;
 
@@ -51,5 +57,8 @@ point3D Detector::computeDepth(const sensor_msgs::Image& depth_img,
 			}
 		}
 	}
-	return depth_map.begin()->second;
+	std::pair<float, point3D> p;
+	p.first  = depth_map.begin()->first;
+	p.second = depth_map.begin()->second;
+	return p;
 }

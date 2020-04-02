@@ -8,21 +8,21 @@ Mapper3D::Mapper3D(const std::string& config_path)
 	YAML::Node config = YAML::LoadFile(config_path.c_str());
 
 	// Load camera info parameters
-	img_width  = config["camera_info"]["img_width"].as<double>();
-	img_height = config["camera_info"]["img_height"].as<double>();
-	cam_height = config["camera_info"]["cam_height"].as<double>();
-	fx         = config["camera_info"]["fx"].as<double>();
-	fy         = config["camera_info"]["fy"].as<double>();
-	cx         = config["camera_info"]["cx"].as<double>();
-	cy         = config["camera_info"]["cy"].as<double>();
+	img_width  = config["camera_info"]["img_width"].as<float>();
+	img_height = config["camera_info"]["img_height"].as<float>();
+	cam_height = config["camera_info"]["cam_height"].as<float>();
+	fx         = config["camera_info"]["fx"].as<float>();
+	fy         = config["camera_info"]["fy"].as<float>();
+	cx         = config["camera_info"]["cx"].as<float>();
+	cy         = config["camera_info"]["cy"].as<float>();
 
 	// Load octree parameters
-	res        = config["mapper3D"]["resolution"].as<double>();
-	prob_hit   = config["mapper3D"]["hit"].as<double>();
-	prob_miss  = config["mapper3D"]["miss"].as<double>();
-	thresh_min = config["mapper3D"]["thresh_min"].as<double>();
-	thresh_max = config["mapper3D"]["thresh_max"].as<double>();
-	max_range  = config["mapper3D"]["max_range"].as<double>();
+	res        = config["mapper3D"]["resolution"].as<float>();
+	prob_hit   = config["mapper3D"]["hit"].as<float>();
+	prob_miss  = config["mapper3D"]["miss"].as<float>();
+	thresh_min = config["mapper3D"]["thresh_min"].as<float>();
+	thresh_max = config["mapper3D"]["thresh_max"].as<float>();
+	max_range  = config["mapper3D"]["max_range"].as<float>();
 }
 
 void Mapper3D::init()
@@ -58,6 +58,10 @@ void Mapper3D::buildRawMap(
 	std::vector<point3D>                pts_array;
 	std::vector<std::array<uint8_t, 3>> ints_array;
 
+	// Convert pose6D to rotation matrix
+	std::vector<float> rot_matrix;
+	sensor_origin.toRotMatrix(rot_matrix);
+
 	// Loop over the entire disparity map image
 	for (int i = 0; i < img_width; i++) {
 		for (int j = 0; j < img_height; j++) {
@@ -80,8 +84,6 @@ void Mapper3D::buildRawMap(
 				point_cam.z = -point.y;
 
 				// Camera to map point cloud conversion
-				std::vector<float> rot_matrix;
-				sensor_origin.toRotMatrix(rot_matrix);
 				point3D point_map;
 				point_map.x = point_cam.x * rot_matrix[0] +
 				              point_cam.y * rot_matrix[1] +
@@ -116,6 +118,10 @@ void Mapper3D::buildTrunkMap(
 	// Declare 3D point and intensities vectors
 	std::vector<point3D>                pts_array;
 	std::vector<std::array<uint8_t, 3>> ints_array;
+
+	// Convert pose6D to rotation matrix
+	std::vector<float> rot_matrix;
+	sensor_origin.toRotMatrix(rot_matrix);
 
 	// Loop over all the bounding boxes
 	for (size_t n = 0; n < dets.detections.size(); n++) {
@@ -164,8 +170,6 @@ void Mapper3D::buildTrunkMap(
 					point_cam.z = -point.y;
 
 					// Camera to map point cloud conversion
-					std::vector<float> rot_matrix;
-					sensor_origin.toRotMatrix(rot_matrix);
 					point3D point_map;
 					point_map.x = point_cam.x * rot_matrix[0] +
 					              point_cam.y * rot_matrix[1] +
@@ -232,12 +236,12 @@ void Mapper3D::createOctoMap(pose6D&                     sensor_origin,
 	}
 }
 
-OcTreeT *Mapper3D::getRawPointCloud() const
+OcTreeT* Mapper3D::getRawPointCloud() const
 {
 	return octree;
 }
 
-OcTreeT *Mapper3D::getTrunkPointCloud() const
+OcTreeT* Mapper3D::getTrunkPointCloud() const
 {
 	return octree;
 }

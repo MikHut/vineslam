@@ -64,7 +64,7 @@ void wildSLAM_ros::SLAMNode::callbackFct(
 
 		// Calculate the correspondent bearing observations
 		float column  = m_bbox.center.x;
-		float bearing = (-h_fov / img_width) * (img_width / 2 - column);
+		float bearing = -(-h_fov / img_width) * (img_width / 2 - column);
 
 		// Insert the measures in the observations arrays
 		labels.push_back((*dets).detections[i].results[0].id);
@@ -131,28 +131,32 @@ void wildSLAM_ros::SLAMNode::callbackFct(
 		// Publish the 2D map
 		publish2DMap((*depth_image).header, robot_pose);
 
-		// Publish robot pose
-		geometry_msgs::PoseStamped pose;
-		pose.header          = (*depth_image).header;
-		pose.header.frame_id = "map";
-		pose_publisher.publish(pose);
-
 		// Convert robot pose to tf::Transform corresponding
 		// to the camera to map transformation
 		tf::Quaternion q;
 		q.setRPY(robot_pose.roll, robot_pose.pitch, robot_pose.yaw);
 		q.normalize();
-		tf::Transform cam2map;
-		cam2map.setRotation(q);
-		cam2map.setOrigin(tf::Vector3(robot_pose.x, robot_pose.y, robot_pose.z));
+		tf::Transform map2cam;
+		map2cam.setRotation(q);
+		map2cam.setOrigin(tf::Vector3(robot_pose.x, robot_pose.y, robot_pose.z));
 
-		// Convert wildSLAM pose to ROS pose
-		// ...
+		// Convert wildSLAM pose to ROS pose and publish it
+		geometry_msgs::PoseStamped pose;
+		pose.header             = (*depth_image).header;
+		pose.header.frame_id    = "map";
+		pose.pose.position.x    = robot_pose.x;
+		pose.pose.position.y    = robot_pose.y;
+		pose.pose.position.z    = robot_pose.z;
+		pose.pose.orientation.x = q.x();
+		pose.pose.orientation.y = q.y();
+		pose.pose.orientation.z = q.z();
+		pose.pose.orientation.w = q.w();
+		pose_publisher.publish(pose);
 
 		// Publish cam-to-map tf::Transform
 		static tf::TransformBroadcaster br;
 		br.sendTransform(
-		    tf::StampedTransform(cam2map, pose.header.stamp, "map", "cam"));
+		    tf::StampedTransform(map2cam, pose.header.stamp, "map", "cam"));
 	}
 }
 

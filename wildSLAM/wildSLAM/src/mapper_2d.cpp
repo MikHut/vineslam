@@ -112,6 +112,7 @@ void Mapper2D::predict(pose6D& pose, const std::vector<float>& bearings,
 		int landmark_id = findCorr(X, pose.getXYZ());
 		// If not, initialize the landmark on the map, as well as the
 		// correspondent Kalman Filter
+		//if (1) {
 		if (landmark_id < 0) {
 			Eigen::MatrixXd R(2, 2);
 

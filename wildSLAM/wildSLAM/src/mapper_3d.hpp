@@ -48,8 +48,7 @@ private:
 	                   pose6D&                                    sensor_origin,
 	                   const vision_msgs::Detection2DArray&       dets);
 	// Creates an OctoMap using the Octree structure
-	void createOctoMap(pose6D&                                    sensor_origin,
-	                   const std::vector<point3D>&                pcl,
+	void createOctoMap(pose6D& sensor_origin, const std::vector<point3D>& pcl,
 	                   const std::vector<std::array<uint8_t, 3>>& ints);
 
 	// TODO (André Aguiar): Misses documentation for this function
@@ -75,19 +74,19 @@ private:
 	octomap::OcTreeKey update_BBXMax;
 
 	// Octree parameters
-	double res;
-	double prob_hit;
-	double prob_miss;
-	double thresh_min;
-	double thresh_max;
-	double max_range;
+	float res;
+	float prob_hit;
+	float prob_miss;
+	float thresh_min;
+	float thresh_max;
+	float max_range;
 
 	// Camera info parameters
-	double img_width;
-	double img_height;
-	double cam_height;
-	double fx;
-	double fy;
-	double cx;
-	double cy;
+	float img_width;
+	float img_height;
+	float cam_height;
+	float fx;
+	float fy;
+	float cx;
+	float cy;
 };

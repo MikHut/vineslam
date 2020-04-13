@@ -42,10 +42,17 @@ wildSLAM_ros::SLAMNode::SLAMNode(int argc, char** argv)
 		return;
 	}
 
-	// Load input numeric parameters
+	// Load camera info parameters
 	YAML::Node config = YAML::LoadFile(config_path);
-	img_width         = config["camera_info"]["img_width"].as<double>();
 	h_fov             = config["camera_info"]["h_fov"].as<double>() * PI / 180;
+	img_width         = config["camera_info"]["img_width"].as<float>();
+	img_height        = config["camera_info"]["img_height"].as<float>();
+	cam_height        = config["camera_info"]["cam_height"].as<float>();
+	fx                = config["camera_info"]["fx"].as<float>();
+	fy                = config["camera_info"]["fy"].as<float>();
+	cx                = config["camera_info"]["cx"].as<float>();
+	cy                = config["camera_info"]["cy"].as<float>();
+
 
 	// Declarate the Mappers and Localizer objects
 	localizer = new Localizer(config_path);

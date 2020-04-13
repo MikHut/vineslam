@@ -26,7 +26,6 @@
 #include <vision_msgs/Detection2DArray.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <yaml-cpp/yaml.h>
-#include <cv_bridge/cv_bridge.h>
 
 // OCTOMAP
 #include <octomap/OcTreeKey.h>
@@ -62,10 +61,11 @@ private:
 	void publish3DRawMap(const std_msgs::Header& header);
 	// Publish the 3D trunk map using a pcl
 	void publish3DTrunkMap(const std_msgs::Header& header);
-	// Computes the depth of an object using the ZED disparity image
-	// - Calculates the median of all points to remove outliers
-	float computeDepth(const sensor_msgs::Image& depth_img, const int& xmin,
-	                   const int& ymin, const int& xmax, const int& ymax);
+	// Computes the bearing depth of an object using the ZED disparity image
+	// - Uses the point with minimum depth inside the bounding box
+	void computeObsv(const sensor_msgs::Image& depth_img, const int& xmin,
+	                 const int& ymin, const int& xmax, const int& ymax,
+	                 float& depth, float& bearing);
 
 	// Definitions of the ROS publishers
 	ros::Publisher map2D_publisher;
@@ -88,8 +88,14 @@ private:
 	pose6D p_odom;
 
 	// Numberic input parameters
-	float img_width;
 	float h_fov;
+	float img_width;
+	float img_height;
+	float cam_height;
+	float fx;
+	float fy;
+	float cx;
+	float cy;
 
 	// Initialize flag
 	bool init;

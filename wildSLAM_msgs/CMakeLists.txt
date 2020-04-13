@@ -4,6 +4,8 @@ project(wildSLAM_msgs)
 find_package(catkin REQUIRED COMPONENTS message_generation 
 					std_msgs
 					nav_msgs
+					geometry_msgs
+					sensor_msgs
 					visualization_msgs)
 
 add_message_files(
@@ -13,9 +15,13 @@ add_message_files(
 
 generate_messages(DEPENDENCIES std_msgs 
 	                       nav_msgs 
+			       geometry_msgs
+			       sensor_msgs
 			       visualization_msgs)
 
 catkin_package(DEPENDS message_runtime 
 	               std_msgs 
 		       nav_msgs 
+		       geometry_msgs
+		       sensor_msgs
 		       visualization_msgs)

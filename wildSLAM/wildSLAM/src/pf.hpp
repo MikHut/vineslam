@@ -4,10 +4,11 @@
 #include <landmark.hpp>
 #include <math/pose6D.hpp>
 
-// Include std members
+// Include std members and yaml-cpp
 #include <iostream>
 #include <map>
 #include <random>
+#include <yaml-cpp/yaml.h>
 
 #define PI 3.14159265359
 
@@ -40,7 +41,8 @@ class PF
 public:
 	// Class constructor
 	// - initializes the total set of particles
-	PF(const int& n_particles, const pose6D& initial_pose);
+	PF(const std::string& config_path, const int& n_particles,
+	   const pose6D& initial_pose);
 
 	// Global function that handles all the particle filter processes
 	void process(const pose6D& odom, const std::vector<float>& bearings,
@@ -74,4 +76,8 @@ private:
 	pose6D p_odom;
 	// Array of particles
 	std::vector<Particle> particles;
+
+	// Input numeric parameters
+	float alpha_trans;
+	float alpha_rot;
 };

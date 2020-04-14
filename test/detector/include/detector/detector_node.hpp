@@ -66,13 +66,6 @@ private:
 	                cv::Mat&                                      bboxes,
 	                const std::vector<coral::DetectionCandidate>& res);
 
-	// DEGUB method
-	// - Computes the depth of a trunk giving a bounding box and a depth
-	// image
-	std::pair<float, point3D> computeDepth(const sensor_msgs::Image& depth_img,
-	                                       const int& xmin, const int& ymin,
-	                                       const int& xmax, const int& ymax);
-
 	// ROS publishers
 	ros::Publisher             bbox_publisher;
 	image_transport::Publisher l_img_publisher;

@@ -38,10 +38,6 @@ public:
 	OcTreeT* getTrunkPointCloud() const;
 
 private:
-	// Function that handles the design of the raw 3D map
-	void buildRawMap(const float*                               depths,
-	                 const std::vector<std::array<uint8_t, 3>>& intensities,
-	                 pose6D&                                    sensor_origin);
 	// Function that handles the design of the vine trunks 3D map
 	void buildTrunkMap(const float*                               depths,
 	                   const std::vector<std::array<uint8_t, 3>>& intensities,

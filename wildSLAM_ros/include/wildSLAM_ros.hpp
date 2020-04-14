@@ -26,6 +26,7 @@
 #include <vision_msgs/Detection2DArray.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <yaml-cpp/yaml.h>
+#include <geometry_msgs/PoseArray.h>
 
 // OCTOMAP
 #include <octomap/OcTreeKey.h>
@@ -56,9 +57,9 @@ public:
 
 private:
 	// Publish map on rviz
-	void publish2DMap(const std_msgs::Header& header, const pose6D& pose);
-	// Publish the 3D raw map using a pcl
-	void publish3DRawMap(const std_msgs::Header& header);
+	void publish2DMap(const std_msgs::Header& header, const pose6D& pose,
+	                  const std::vector<float>& bearings,
+	                  const std::vector<float>& depths);
 	// Publish the 3D trunk map using a pcl
 	void publish3DTrunkMap(const std_msgs::Header& header);
 	// Computes the bearing depth of an object using the ZED disparity image
@@ -69,9 +70,9 @@ private:
 
 	// Definitions of the ROS publishers
 	ros::Publisher map2D_publisher;
-	ros::Publisher map3D_raw_publisher;
-	ros::Publisher map3D_trunk_publisher;
+	ros::Publisher map3D_publisher;
 	ros::Publisher pose_publisher;
+	ros::Publisher poses_publisher;
 
 	// Classes object members
 	Localizer* localizer;

@@ -30,6 +30,8 @@ public:
 
 	// Export the final pose resultant from the localization procedure
 	pose6D getPose() const;
+	// Export the all the poses referent to all the particles
+	void getParticles(std::vector<pose6D>& in) const;
 
 private:
 	// Average particles pose
@@ -39,6 +41,8 @@ private:
 	// Input parameters
 	int    n_particles;
 	float cam_pitch;
+  // Input parameters file name
+  std::string config_path;
 
 	// Auxiliar function that normalizes an angle in the [-pi,pi] range
 	float normalizeAngle(const float& angle)

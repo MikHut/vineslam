@@ -61,7 +61,7 @@ Visualization Manager:
       Namespaces:
         /ellipses: true
         /markers: true
-      Queue Size: 100
+      Queue Size: 10000
       Value: true
     - Class: rviz/TF
       Enabled: false
@@ -146,6 +146,22 @@ Visualization Manager:
         {}
       Queue Size: 100
       Value: false
+    - Alpha: 1
+      Arrow Length: 0.30000001192092896
+      Axes Length: 0.30000001192092896
+      Axes Radius: 0.009999999776482582
+      Class: rviz/PoseArray
+      Color: 255; 25; 0
+      Enabled: false
+      Head Length: 0.07000000029802322
+      Head Radius: 0.029999999329447746
+      Name: PoseArray
+      Shaft Length: 0.23000000417232513
+      Shaft Radius: 0.009999999776482582
+      Shape: Arrow (Flat)
+      Topic: /wildSLAM/poses
+      Unreliable: false
+      Value: false
   Enabled: true
   Global Options:
     Background Color: 0; 0; 0
@@ -174,25 +190,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 47.41623306274414
+      Distance: 39.161529541015625
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 8.308235168457031
-        Y: -14.296935081481934
+        X: -5.941155433654785
+        Y: -2.237215518951416
         Z: 3.823962742899312e-6
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: 1.3647961616516113
       Target Frame: <Fixed Frame>
       Value: XYOrbit (rviz)
-      Yaw: 3.1652543544769287
+      Yaw: 3.1652560234069824
     Saved: ~
 Window Geometry:
   Displays:

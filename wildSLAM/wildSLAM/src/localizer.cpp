@@ -1,16 +1,17 @@
 #include "localizer.hpp"
 
-Localizer::Localizer(const std::string& config_path)
+Localizer::Localizer(const std::string& config_path) : config_path(config_path)
 {
+	// Read input parameters
 	YAML::Node config = YAML::LoadFile(config_path.c_str());
 	n_particles       = config["pf"]["n_particles"].as<int>();
-	cam_pitch         = config["camera_info"]["cam_pitch"].as<double>() * PI / 180;
+	cam_pitch = config["camera_info"]["cam_pitch"].as<double>() * PI / 180;
 }
 
 void Localizer::init(const pose6D& initial_pose)
 {
 	// Initialize the particle filter
-	pf = new PF(n_particles, initial_pose);
+	pf = new PF(config_path, n_particles, initial_pose);
 
 	// Get the first distribution of particles
 	std::vector<Particle> particles;
@@ -39,7 +40,7 @@ void Localizer::process(const pose6D& odom, const std::vector<float>& bearings,
 	std::vector<pose6D> m_poses;
 	for (size_t i = 0; i < particles.size(); i++) {
 		// Push back to the poses array
-    pose6D m_pose = particles[i].pose;
+		pose6D m_pose = particles[i].pose;
 		m_poses.push_back(m_pose);
 	}
 	average_pose = pose6D(m_poses);
@@ -52,4 +53,15 @@ void Localizer::process(const pose6D& odom, const std::vector<float>& bearings,
 pose6D Localizer::getPose() const
 {
 	return average_pose;
+}
+
+void Localizer::getParticles(std::vector<pose6D>& in) const
+{
+  // Get particles and resize input vector
+  std::vector<Particle> particles;
+  (*pf).getParticles(particles);
+  in.resize(particles.size());
+
+  for(size_t i = 0; i < in.size(); i++)
+   in[i] = particles[i].pose; 
 }

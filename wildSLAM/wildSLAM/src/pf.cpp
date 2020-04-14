@@ -1,7 +1,13 @@
 #include "pf.hpp"
 
-PF::PF(const int& n_particles, const pose6D& initial_pose)
+PF::PF(const std::string& config_path, const int& n_particles,
+       const pose6D& initial_pose)
 {
+	// Read input parameters
+	YAML::Node config = YAML::LoadFile(config_path.c_str());
+	alpha_trans       = config["pf"]["alpha_trans"].as<float>();
+	alpha_rot         = config["pf"]["alpha_rot"].as<float>();
+
 	// Declare mean and std of each gaussian
 	float std_xy  = 0.5;             // alpha a meter of initial uncertainty
 	float std_rpy = 10.0 * PI / 180; // ten degrees of initial uncertainty
@@ -41,8 +47,9 @@ void PF::process(const pose6D& odom, const std::vector<float>& bearings,
 	predict(odom);
 	// Invocate the correction step to compute the weights
 	correct(bearings, depths, map);
-	// Resample all particles
-	resample();
+	// Resample all particles only if the filter receives new information
+  if(bearings.size() > 0) 
+	  resample();
 }
 
 void PF::predict(const pose6D& odom)
@@ -53,19 +60,9 @@ void PF::predict(const pose6D& odom)
 	    normalizeAngle(atan2(odom.y - p_odom.y, odom.x - p_odom.x) - p_odom.yaw);
 	float dt_rot_b = normalizeAngle(odom.yaw - p_odom.yaw - dt_rot_a);
 
-	// Define alphas to calculate the standard deviations of the samples
-	float alpha_1 = 0.5;
-	float alpha_2 = 0.5;
-	float alpha_3 = 0.5;
-	float alpha_4 = 0.5;
-
 	// Standard deviations of the odometry motion model
-	float std_rot_a =
-	    alpha_1 * std::fabs(dt_rot_a) + alpha_2 * std::fabs(dt_trans);
-	float std_trans =
-	    alpha_3 * std::fabs(dt_trans) + alpha_4 * std::fabs(dt_rot_a * dt_rot_b);
-	float std_rot_b =
-	    alpha_1 * std::fabs(dt_rot_b) + alpha_2 * std::fabs(dt_trans);
+	float std_trans = dt_trans * alpha_trans;
+	float std_rot   = (dt_rot_a + dt_rot_b) * alpha_rot;
 
 	// Standard deviation of the non-observable states (roll, pitch)
 	float std_rp = 1.5 * PI / 180;
@@ -73,15 +70,14 @@ void PF::predict(const pose6D& odom)
 	// Declare normal Gaussian distributions to innovate the particles
 	std::default_random_engine      generator;
 	std::normal_distribution<float> gauss_trans(0.0, std_trans);
-	std::normal_distribution<float> gauss_rot_a(0.0, std_rot_a);
-	std::normal_distribution<float> gauss_rot_b(0.0, std_rot_b);
+	std::normal_distribution<float> gauss_rot(0.0, std_rot);
 	std::normal_distribution<float> gauss_rp(0.0, 0.0);
 
 	// Apply the motion model to all particles
 	for (size_t i = 0; i < particles.size(); i++) {
 		// Sample the normal distribution functions
-		float s_rot_a = dt_rot_a + gauss_rot_a(generator);
-		float s_rot_b = dt_rot_b + gauss_rot_b(generator);
+		float s_rot_a = dt_rot_a + gauss_rot(generator);
+		float s_rot_b = dt_rot_b + gauss_rot(generator);
 		float s_trans = dt_trans + gauss_trans(generator);
 		float s_r     = gauss_rp(generator);
 		float s_p     = gauss_rp(generator);
@@ -89,8 +85,8 @@ void PF::predict(const pose6D& odom)
 		// Compute the relative pose considering the samples
 		float  p_yaw = particles[i].pose.yaw;
 		pose6D dt_pose;
-		dt_pose.x     = dt_trans * cos(normalizeAngle(p_yaw + s_rot_a));
-		dt_pose.y     = dt_trans * sin(normalizeAngle(p_yaw + s_rot_a));
+		dt_pose.x     = s_trans * cos(normalizeAngle(p_yaw + s_rot_a));
+		dt_pose.y     = s_trans * sin(normalizeAngle(p_yaw + s_rot_a));
 		dt_pose.z     = 0.0;
 		dt_pose.roll  = 0.0;
 		dt_pose.pitch = 0.0;
@@ -118,12 +114,23 @@ void PF::correct(const std::vector<float>&             bearings,
 	for (size_t i = 0; i < particles.size(); i++) {
 		// Calculation of a local map for each particle
 		float error_sum = 0.0;
+		// Convert particle i pose to Rotation matrix
+		std::vector<float> Rot;
+		particles[i].pose.toRotMatrix(Rot);
 		for (size_t j = 0; j < bearings.size(); j++) {
-			// for (size_t j = 0; j < 0; j++) {
-			// Calculate the estimation of the landmark
-			float   th = bearings[j] + particles[i].pose.yaw;
-			point3D X(particles[i].pose.x + depths[j] * cos(th),
-			          particles[i].pose.y + depths[j] * sin(th), 0.);
+		//for (size_t j = 0; j < 0; j++) {
+			// Calculate the estimation of the landmark on particles
+			// referential frame
+			float   th = bearings[j];
+			point3D X_local(depths[j] * cos(th), depths[j] * sin(th), 0.);
+			// Convert landmark to map's referential frame considering the
+			// particle pose
+			point3D X;
+			X.x = X_local.x * Rot[0] + X_local.y * Rot[1] + X_local.z * Rot[2] +
+			      particles[i].pose.x;
+			X.y = X_local.x * Rot[3] + X_local.y * Rot[4] + X_local.z * Rot[5] +
+			      particles[i].pose.y;
+			X.z = 0.;
 
 			// Loop over landmarks on global map in local map
 			// to get the best correspondence

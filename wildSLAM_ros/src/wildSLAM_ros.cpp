@@ -80,7 +80,7 @@ void wildSLAM_ros::SLAMNode::callbackFct(
 		// Initialize the mapper3D
 		(*mapper3D).init();
 
-		// Get first map2D
+		// Get first cam2map
 		map2D = (*mapper2D).getMap();
 
 		init = false;
@@ -118,7 +118,6 @@ void wildSLAM_ros::SLAMNode::callbackFct(
 		(*mapper3D).process(all_depths, rgb_array, robot_pose, *dets);
 
 		// Publish 3D point clouds
-		// publish3DRawMap((*depth_image).header);
 		publish3DTrunkMap((*depth_image).header);
 
 		// Execute the 2D map estimation
@@ -126,16 +125,16 @@ void wildSLAM_ros::SLAMNode::callbackFct(
 		// Get the curretn 2D map
 		map2D = (*mapper2D).getMap();
 		// Publish the 2D map
-		publish2DMap((*depth_image).header, robot_pose);
+		publish2DMap((*depth_image).header, robot_pose, bearings, depths);
 
 		// Convert robot pose to tf::Transform corresponding
 		// to the camera to map transformation
 		tf::Quaternion q;
 		q.setRPY(robot_pose.roll, robot_pose.pitch, robot_pose.yaw);
 		q.normalize();
-		tf::Transform map2cam;
-		map2cam.setRotation(q);
-		map2cam.setOrigin(tf::Vector3(robot_pose.x, robot_pose.y, robot_pose.z));
+		tf::Transform cam2map;
+		cam2map.setRotation(q);
+		cam2map.setOrigin(tf::Vector3(robot_pose.x, robot_pose.y, robot_pose.z));
 
 		// Convert wildSLAM pose to ROS pose and publish it
 		geometry_msgs::PoseStamped pose;
@@ -153,7 +152,33 @@ void wildSLAM_ros::SLAMNode::callbackFct(
 		// Publish cam-to-map tf::Transform
 		static tf::TransformBroadcaster br;
 		br.sendTransform(
-		    tf::StampedTransform(map2cam, pose.header.stamp, "map", "cam"));
+		    tf::StampedTransform(cam2map, pose.header.stamp, "map", "cam"));
+
+#ifdef DEBUG
+		// Publish all poses for DEBUG
+		std::vector<pose6D> poses;
+		(*localizer).getParticles(poses);
+		geometry_msgs::PoseArray ros_poses;
+		ros_poses.header          = (*depth_image).header;
+		ros_poses.header.frame_id = "map";
+		for (size_t i = 0; i < poses.size(); i++) {
+			tf::Quaternion q;
+			q.setRPY(poses[i].roll, poses[i].pitch, poses[i].yaw);
+			q.normalize();
+
+			geometry_msgs::Pose m_pose;
+			m_pose.position.x    = poses[i].x;
+			m_pose.position.y    = poses[i].y;
+			m_pose.position.z    = poses[i].z;
+			m_pose.orientation.x = q.x();
+			m_pose.orientation.y = q.y();
+			m_pose.orientation.z = q.z();
+			m_pose.orientation.w = q.w();
+
+			ros_poses.poses.push_back(m_pose);
+		}
+		poses_publisher.publish(ros_poses);
+#endif
 	}
 }
 

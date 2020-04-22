@@ -86,39 +86,30 @@ void wildSLAM_ros::SLAMNode::callbackFct(
 		init = false;
 	}
 	else if (init == false) {
-		// Execute the localization procedure
-		(*localizer).process(odom, bearings, depths, map2D);
-		pose6D robot_pose = (*localizer).getPose();
-
 		// Convert ROS image to OpenCV image
 		cv::Mat m_img =
 		    cv_bridge::toCvCopy(left_image, sensor_msgs::image_encodings::BGR8)
 		        ->image;
-		// Loop over the image
-		std::vector<std::array<uint8_t, 3>> rgb_array;
-		rgb_array.resize(m_img.cols * m_img.rows);
-		for (int i = 0; i < m_img.cols; i++) {
-			for (int j = 0; j < m_img.rows; j++) {
-				// Get BRG values for the current index
-				cv::Point3_<uchar>* p = m_img.ptr<cv::Point3_<uchar>>(j, i);
-				// Calculate the 1D array index
-				int idx = i + j * m_img.cols;
-				// Store the RGB value
-				std::array<uint8_t, 3> m_rgb;
-				m_rgb[0] = (*p).z;
-				m_rgb[1] = (*p).y;
-				m_rgb[2] = (*p).x;
-				// Save the RGB value into the multi array
-				rgb_array[idx] = m_rgb;
-			}
-		}
+
+		float* raw_depths = (float*)(&(*depth_image).data[0]);
+
+		// Execute the localization procedure
+		(*localizer).process(odom, bearings, depths, map2D, raw_depths, *dets);
+		pose6D robot_pose = (*localizer).getPose();
 
 		// Execute the 3D map estimation
-		float* all_depths = (float*)(&(*depth_image).data[0]);
-		(*mapper3D).process(all_depths, rgb_array, robot_pose, *dets);
-
-		// Publish 3D point clouds
-		publish3DTrunkMap((*depth_image).header);
+#if MAP3D == 1
+    // User chose 3D trunk map
+		(*mapper3D).trunkMap(trunk_octree, raw_depths, m_img, robot_pose, *dets);
+#else
+    // User chose 3D feature map
+		std::vector<Feature> features;
+		featureExtract(m_img, features);
+		(*mapper3D).featureMap(feature_octree, raw_depths, m_img, robot_pose,
+		                       features);
+#endif
+		// Publish 3D point map
+		publish3DMap((*depth_image).header);
 
 		// Execute the 2D map estimation
 		(*mapper2D).process(robot_pose, bearings, depths, labels);
@@ -219,5 +210,81 @@ void wildSLAM_ros::SLAMNode::computeObsv(const sensor_msgs::Image& depth_img,
 	else {
 		depth   = -1;
 		bearing = -1;
+	}
+}
+
+void wildSLAM_ros::SLAMNode::featureExtract(cv::Mat               in,
+                                            std::vector<Feature>& out)
+{
+	// Array to store the features
+	std::vector<cv::KeyPoint> kpts;
+	// String to store the type of feature
+	std::string type;
+
+	// Perform feature extraction using one of the following
+	// feature detectors
+	if (STAR_ == 1) {
+#ifdef DEBUG
+		std::cout << "Using STAR feature extractor..." << std::endl;
+#endif
+		type      = "star";
+		auto star = cv::xfeatures2d::StarDetector::create(32);
+		star->detect(in, kpts);
+	}
+	else if (BRISK_ == 1) {
+#ifdef DEBUG
+		std::cout << "Using BRISK feature extractor..." << std::endl;
+#endif
+		type       = "brisk";
+		auto brisk = cv::BRISK::create();
+		brisk->detect(in, kpts);
+	}
+	else if (FAST_ == 1) {
+#ifdef DEBUG
+		std::cout << "Using FAST feature extractor..." << std::endl;
+#endif
+		type      = "fast";
+		auto fast = cv::FastFeatureDetector::create();
+		fast->detect(in, kpts);
+	}
+	else if (ORB_ == 1) {
+#ifdef DEBUG
+		std::cout << "Using ORB feature extractor..." << std::endl;
+#endif
+		type     = "orb";
+		auto orb = cv::ORB::create();
+		orb->detect(in, kpts);
+	}
+	else if (KAZE_ == 1) {
+#ifdef DEBUG
+		std::cout << "Using KAZE feature extractor..." << std::endl;
+#endif
+		type      = "kaze";
+		auto kaze = cv::KAZE::create();
+		kaze->detect(in, kpts);
+	}
+	else if (AKAZE_ == 1) {
+#ifdef DEBUG
+		std::cout << "Using AKAZE feature extractor..." << std::endl;
+#endif
+		type       = "akaze";
+		auto akaze = cv::AKAZE::create();
+		akaze->detect(in, kpts);
+	}
+
+	// Draw features into the output image
+	cv::Mat out_img;
+	cv::drawKeypoints(in, kpts, out_img);
+
+	// Show (or not) the feature extraction result
+	if (IMSHOW == 1) {
+		cv::imshow("Feature extraction", out_img);
+		cv::waitKey(0);
+	}
+
+	// Save features in the output array
+	for (size_t i = 0; i < kpts.size(); i++) {
+		Feature m_ft(kpts[i].pt.x, kpts[i].pt.y, type);
+		out.push_back(m_ft);
 	}
 }

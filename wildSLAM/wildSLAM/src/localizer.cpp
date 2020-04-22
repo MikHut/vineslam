@@ -25,12 +25,17 @@ void Localizer::init(const pose6D& initial_pose)
 	average_pose = pose6D(poses);
 }
 
-void Localizer::process(const pose6D& odom, const std::vector<float>& bearings,
-                        const std::vector<float>&             depths,
-                        const std::map<int, Landmark<float>>& map)
+void Localizer::process(const pose6D&                              odom,
+                        const std::vector<float>&                  bearings2D,
+                        const std::vector<float>&                  depths2D,
+                        const std::map<int, Landmark<float>>&      map,
+                        float*                                     depths3D,
+                        const vision_msgs::Detection2DArray&       dets)
 {
+	// Set raw sensor data to PF process 3D metric localization
+	//setSensorData(depths3D, intensities, dets);
 	// Invocate the particle filter loop
-	(*pf).process(odom, bearings, depths, map);
+	(*pf).process(odom, bearings2D, depths2D, map);
 	// Import the resultant set of particles
 	std::vector<Particle> particles;
 	(*pf).getParticles(particles);
@@ -46,7 +51,8 @@ void Localizer::process(const pose6D& odom, const std::vector<float>& bearings,
 	average_pose = pose6D(m_poses);
 	// Normalize average pose angles between [-pi,pi]
 	average_pose.roll  = normalizeAngle(average_pose.roll);
-	average_pose.pitch = cam_pitch + normalizeAngle(average_pose.pitch);
+	//average_pose.pitch = cam_pitch + normalizeAngle(average_pose.pitch);
+	average_pose.pitch = normalizeAngle(average_pose.pitch);
 	average_pose.yaw   = normalizeAngle(average_pose.yaw);
 }
 
@@ -57,11 +63,18 @@ pose6D Localizer::getPose() const
 
 void Localizer::getParticles(std::vector<pose6D>& in) const
 {
-  // Get particles and resize input vector
-  std::vector<Particle> particles;
-  (*pf).getParticles(particles);
-  in.resize(particles.size());
+	// Get particles and resize input vector
+	std::vector<Particle> particles;
+	(*pf).getParticles(particles);
+	in.resize(particles.size());
 
-  for(size_t i = 0; i < in.size(); i++)
-   in[i] = particles[i].pose; 
+	for (size_t i = 0; i < in.size(); i++)
+		in[i] = particles[i].pose;
+}
+
+void Localizer::setSensorData(
+    float* raw_depths, const std::vector<std::array<uint8_t, 3>>& intensities,
+    const vision_msgs::Detection2DArray& dets)
+{
+	(*pf).setSensorData(raw_depths, dets);
 }

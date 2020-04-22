@@ -10,9 +10,18 @@
 #include <octomap/OcTreeKey.h>
 #include <octomap/octomap.h>
 
-// math
+// OpenCV
+#include <opencv2/core.hpp>
+#include <opencv2/highgui.hpp>
+
+// Math
 #include <math/point3D.hpp>
 #include <math/pose6D.hpp>
+
+// Classes
+#include <feature.hpp>
+
+#define PI 3.14159265359
 
 // Typedefs
 typedef octomap::ColorOcTree OcTreeT;
@@ -27,24 +36,18 @@ public:
 	// Initialization function
 	void init();
 
-	// Handles the loop process of the 3D mapper
-	void process(const float*                               depths,
-	             const std::vector<std::array<uint8_t, 3>>& intensities,
-	             pose6D&                                    sensor_origin,
-	             const vision_msgs::Detection2DArray&       dets);
-	// Returns the current raw point cloud
-	OcTreeT* getRawPointCloud() const;
-	// Returns the current trunk point cloud
-	OcTreeT* getTrunkPointCloud() const;
+	// Function that handles the design of the vine trunks 3D map
+	void trunkMap(OcTreeT* octree, const float* depths, cv::Mat image,
+	              pose6D                               sensor_origin,
+	              const vision_msgs::Detection2DArray& dets);
+	// Function that handles the design of the feature 3D map
+	void featureMap(OcTreeT* octree, const float* depths, cv::Mat image,
+	                pose6D sensor_origin, const std::vector<Feature>& features);
 
 private:
-	// Function that handles the design of the vine trunks 3D map
-	void buildTrunkMap(const float*                               depths,
-	                   const std::vector<std::array<uint8_t, 3>>& intensities,
-	                   pose6D&                                    sensor_origin,
-	                   const vision_msgs::Detection2DArray&       dets);
 	// Creates an OctoMap using the Octree structure
-	void createOctoMap(pose6D& sensor_origin, const std::vector<point3D>& pcl,
+	void updateOctoMap(OcTreeT* octree, pose6D& sensor_origin,
+	                   const std::vector<point3D>&                pcl,
 	                   const std::vector<std::array<uint8_t, 3>>& ints);
 
 	// TODO (André Aguiar): Misses documentation for this function
@@ -62,12 +65,6 @@ private:
 		for (unsigned i = 0; i < 3; ++i)
 			max[i] = std::max(in[i], max[i]);
 	};
-
-	// Octree variables
-	OcTreeT*           octree;
-	octomap::KeyRay    key_ray;
-	octomap::OcTreeKey update_BBXMin;
-	octomap::OcTreeKey update_BBXMax;
 
 	// Octree parameters
 	float res;

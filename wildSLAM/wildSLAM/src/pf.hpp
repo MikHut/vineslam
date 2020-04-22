@@ -2,19 +2,27 @@
 
 // Include class objects
 #include <landmark.hpp>
+#include <mapper_3d.hpp>
 #include <math/pose6D.hpp>
 
 // Include std members and yaml-cpp
 #include <iostream>
 #include <map>
 #include <random>
+#include <vision_msgs/Detection2D.h>
+#include <vision_msgs/Detection2DArray.h>
 #include <yaml-cpp/yaml.h>
 
 #define PI 3.14159265359
 
+#define FEATURE_MAP 1
+#define METRIC_MAP 1
+#define TOPOLOGICAL_MAP 0
+
 // Struct that represents a single particle with
 // - identification number
 // - 6-DOF pose
+// - &-DOF previous pose of the particle
 // - weight
 struct Particle
 {
@@ -27,6 +35,7 @@ struct Particle
 	}
 	int    id;
 	pose6D pose;
+	pose6D p_pose;
 	float  w;
 };
 
@@ -51,6 +60,11 @@ public:
 
 	// Export the array of particles
 	void getParticles(std::vector<Particle>& in);
+
+	// Set sensor data to process 3D map
+	void setSensorData(float*                                     raw_depths,
+	                   const vision_msgs::Detection2DArray&       dets);
+
 
 private:
 	// Prediction step - particles inovation using a motion model
@@ -77,7 +91,14 @@ private:
 	// Array of particles
 	std::vector<Particle> particles;
 
+	// Input parameters file name
+	std::string config_path;
 	// Input numeric parameters
 	float alpha_trans;
 	float alpha_rot;
+  float cam_pitch;
+
+	// Sensor data to process 3D maps
+	float*                              raw_depths;
+	vision_msgs::Detection2DArray       dets;
 };

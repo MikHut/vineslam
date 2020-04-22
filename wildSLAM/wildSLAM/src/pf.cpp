@@ -2,11 +2,13 @@
 
 PF::PF(const std::string& config_path, const int& n_particles,
        const pose6D& initial_pose)
+    : config_path(config_path)
 {
 	// Read input parameters
 	YAML::Node config = YAML::LoadFile(config_path.c_str());
-	alpha_trans       = config["pf"]["alpha_trans"].as<float>();
-	alpha_rot         = config["pf"]["alpha_rot"].as<float>();
+	cam_pitch   = config["camera_info"]["cam_pitch"].as<double>() * PI / 180;
+	alpha_trans = config["pf"]["alpha_trans"].as<float>();
+	alpha_rot   = config["pf"]["alpha_rot"].as<float>();
 
 	// Declare mean and std of each gaussian
 	float std_xy  = 0.5;             // alpha a meter of initial uncertainty
@@ -16,7 +18,8 @@ PF::PF(const std::string& config_path, const int& n_particles,
 	std::default_random_engine      generator;
 	std::normal_distribution<float> gauss_x(initial_pose.x, std_xy);
 	std::normal_distribution<float> gauss_y(initial_pose.y, std_xy);
-	std::normal_distribution<float> gauss_rp(0.0, 0.0);
+	std::normal_distribution<float> gauss_roll(0.0, 0.0);
+	std::normal_distribution<float> gauss_pitch(cam_pitch, std_rpy);
 	std::normal_distribution<float> gauss_yaw(initial_pose.yaw, std_rpy);
 
 	// Resize particles array
@@ -27,8 +30,8 @@ PF::PF(const std::string& config_path, const int& n_particles,
 		// Calculate the initial pose for each particle considering
 		// - the input initial pose
 		// - a sample distribution to spread the particles
-		pose6D pose(gauss_x(generator), gauss_y(generator), 0., 0., 0.,
-		            gauss_yaw(generator));
+		pose6D pose(gauss_x(generator), gauss_y(generator), 0., 0.,
+		            gauss_pitch(generator), gauss_yaw(generator));
 		// Compute initial weight of each particle
 		float weight = 1 / (float)n_particles;
 		// Insert the particle into the particles array
@@ -48,8 +51,8 @@ void PF::process(const pose6D& odom, const std::vector<float>& bearings,
 	// Invocate the correction step to compute the weights
 	correct(bearings, depths, map);
 	// Resample all particles only if the filter receives new information
-  if(bearings.size() > 0) 
-	  resample();
+	if (bearings.size() > 0)
+		resample();
 }
 
 void PF::predict(const pose6D& odom)
@@ -117,8 +120,8 @@ void PF::correct(const std::vector<float>&             bearings,
 		// Convert particle i pose to Rotation matrix
 		std::vector<float> Rot;
 		particles[i].pose.toRotMatrix(Rot);
+
 		for (size_t j = 0; j < bearings.size(); j++) {
-		//for (size_t j = 0; j < 0; j++) {
 			// Calculate the estimation of the landmark on particles
 			// referential frame
 			float   th = bearings[j];
@@ -146,7 +149,6 @@ void PF::correct(const std::vector<float>&             bearings,
 
 		// Save the particle i weight
 		particles[i].w = (1 / sqrt(2 * PI)) * exp(-pow(error_sum, 2) / 2);
-		// particles[i].w = (error_sum > 0) ? (1 / error_sum) : 0.0;
 		weights_sum += particles[i].w;
 	}
 	// Normalize the particles weights to [0,1]
@@ -203,3 +205,11 @@ void PF::getParticles(std::vector<Particle>& in)
 	for (size_t i = 0; i < particles.size(); i++)
 		in[i] = particles[i];
 }
+
+void PF::setSensorData(float*                               raw_depths,
+                       const vision_msgs::Detection2DArray& dets)
+{
+	(*this).raw_depths  = raw_depths;
+	(*this).dets        = dets;
+}
+

@@ -42,22 +42,44 @@ wildSLAM_ros::SLAMNode::SLAMNode(int argc, char** argv)
 		return;
 	}
 
-	// Load camera info parameters
+	// Load config file
 	YAML::Node config = YAML::LoadFile(config_path);
-	h_fov             = config["camera_info"]["h_fov"].as<double>() * PI / 180;
-	img_width         = config["camera_info"]["img_width"].as<float>();
-	img_height        = config["camera_info"]["img_height"].as<float>();
-	cam_height        = config["camera_info"]["cam_height"].as<float>();
-	fx                = config["camera_info"]["fx"].as<float>();
-	fy                = config["camera_info"]["fy"].as<float>();
-	cx                = config["camera_info"]["cx"].as<float>();
-	cy                = config["camera_info"]["cy"].as<float>();
-
+	// Load camera info parameters
+	h_fov      = config["camera_info"]["h_fov"].as<double>() * PI / 180;
+	img_width  = config["camera_info"]["img_width"].as<float>();
+	img_height = config["camera_info"]["img_height"].as<float>();
+	cam_height = config["camera_info"]["cam_height"].as<float>();
+	fx         = config["camera_info"]["fx"].as<float>();
+	fy         = config["camera_info"]["fy"].as<float>();
+	cx         = config["camera_info"]["cx"].as<float>();
+	cy         = config["camera_info"]["cy"].as<float>();
+  // Load 3D octomap parameters
+	res        = config["mapper3D"]["resolution"].as<float>();
+	prob_hit   = config["mapper3D"]["hit"].as<float>();
+	prob_miss  = config["mapper3D"]["miss"].as<float>();
+	thresh_min = config["mapper3D"]["thresh_min"].as<float>();
+	thresh_max = config["mapper3D"]["thresh_max"].as<float>();
+	max_range  = config["mapper3D"]["max_range"].as<float>();
 
 	// Declarate the Mappers and Localizer objects
 	localizer = new Localizer(config_path);
 	mapper2D  = new Mapper2D(config_path);
 	mapper3D  = new Mapper3D(config_path);
+
+  // Initialize 3D octomap(s)
+#if MAP3D == 1
+	trunk_octree = new OcTreeT(res);
+	(*trunk_octree).setProbHit(prob_hit);
+	(*trunk_octree).setProbMiss(prob_miss);
+	(*trunk_octree).setClampingThresMin(thresh_min);
+	(*trunk_octree).setClampingThresMax(thresh_max);
+#else
+	feature_octree = new OcTreeT(res);
+	(*feature_octree).setProbHit(prob_hit);
+	(*feature_octree).setProbMiss(prob_miss);
+	(*feature_octree).setClampingThresMin(thresh_min);
+	(*feature_octree).setClampingThresMax(thresh_max);
+#endif
 
 	ros::spin();
 	ROS_INFO("ROS shutting down...");

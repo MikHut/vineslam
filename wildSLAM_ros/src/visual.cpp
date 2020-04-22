@@ -98,10 +98,14 @@ void wildSLAM_ros::SLAMNode::publish2DMap(const std_msgs::Header&   header,
 	map2D_publisher.publish(ellipse_array);
 }
 
-void wildSLAM_ros::SLAMNode::publish3DTrunkMap(const std_msgs::Header& header)
+void wildSLAM_ros::SLAMNode::publish3DMap(const std_msgs::Header& header)
 {
-	// Get the raw point cloud to publish
-	OcTreeT* octree = (*mapper3D).getTrunkPointCloud();
+  // Declare the octree to map (trunk map or feature map)
+#if MAP3D == 1
+  OcTreeT* octree = trunk_octree;
+#else
+  OcTreeT* octree = feature_octree;
+#endif
 
 	visualization_msgs::MarkerArray octomapviz;
 	// each array stores all cubes of a different size, one for each depth level:
@@ -111,8 +115,8 @@ void wildSLAM_ros::SLAMNode::publish3DTrunkMap(const std_msgs::Header& header)
 	                       end = (*octree).end();
 	     it != end; ++it) {
 
-		if ((*it).isColorSet()) {
-			// if ((*octree).isNodeOccupied(*it)) {
+		 if ((*it).isColorSet()) {
+		 // if ((*octree).isNodeOccupied(*it)) {
 			double size = it.getSize();
 			double x    = it.getX();
 			double y    = it.getY();

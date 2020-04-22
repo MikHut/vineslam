@@ -21,7 +21,8 @@ find_package(catkin REQUIRED
 		    image_geometry
 		    image_transport)
 
-find_package(OpenCV REQUIRED)
+set("OpenCV_DIR" /usr/local/include/opencv2)
+find_package(OpenCV 3.2.0 REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
 catkin_package()

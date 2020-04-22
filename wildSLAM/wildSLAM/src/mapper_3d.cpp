@@ -28,25 +28,11 @@ Mapper3D::Mapper3D(const std::string& config_path)
 void Mapper3D::init()
 {
 	// Initialize Octree
-	octree = new OcTreeT(res);
-	(*octree).setProbHit(prob_hit);
-	(*octree).setProbMiss(prob_miss);
-	(*octree).setClampingThresMin(thresh_min);
-	(*octree).setClampingThresMax(thresh_max);
 }
 
-void Mapper3D::process(const float*                               depths,
-                       const std::vector<std::array<uint8_t, 3>>& intensities,
-                       pose6D&                                    sensor_origin,
-                       const vision_msgs::Detection2DArray&       dets)
-{
-	// Build trunks 3D map
-	buildTrunkMap(depths, intensities, sensor_origin, dets);
-}
-
-void Mapper3D::buildTrunkMap(
-    const float* depths, const std::vector<std::array<uint8_t, 3>>& intensities,
-    pose6D& sensor_origin, const vision_msgs::Detection2DArray& dets)
+void Mapper3D::trunkMap(OcTreeT* octree, const float* depths, cv::Mat image,
+                        pose6D                               sensor_origin,
+                        const vision_msgs::Detection2DArray& dets)
 {
 	// Define the minimum and maximum levels of disparity to consider
 	float range_min = 0.01;
@@ -55,6 +41,11 @@ void Mapper3D::buildTrunkMap(
 	// Declare 3D point and intensities vectors
 	std::vector<point3D>                pts_array;
 	std::vector<std::array<uint8_t, 3>> ints_array;
+
+	// Compute camera-world axis align matrix
+	pose6D             align_pose(0., 0., cam_height, -PI / 2, 0., -PI / 2);
+	std::vector<float> c2w_rot;
+	align_pose.toRotMatrix(c2w_rot);
 
 	// Convert pose6D to rotation matrix
 	std::vector<float> rot_matrix;
@@ -98,15 +89,21 @@ void Mapper3D::buildTrunkMap(
 					point3D point;
 					point.z = depths[idx];
 					point.x = (float)(x - cx) * (point.z / fx);
-					point.y = (float)(y - cy) * (point.z / fy) - cam_height;
-
-					// Rotate camera axis to map axis
-					point3D point_cam;
-					point_cam.x = +point.z;
-					point_cam.y = -point.x;
-					point_cam.z = -point.y;
+					point.y = (float)(y - cy) * (point.z / fy);
 
 					// Camera to map point cloud conversion
+					// -------------------------------------------------------
+					// Align world and camera axis
+					point3D point_cam;
+					point_cam.x = c2w_rot[0] * point.x + c2w_rot[1] * point.y +
+					              c2w_rot[2] * point.z + align_pose.x;
+					point_cam.y = c2w_rot[3] * point.x + c2w_rot[4] * point.y +
+					              c2w_rot[5] * point.z + align_pose.y;
+					point_cam.z = c2w_rot[6] * point.x + c2w_rot[7] * point.y +
+					              c2w_rot[8] * point.z + align_pose.z;
+					// -------------------------------------------------------
+					// Apply robot pose to convert points to map's referential
+					// frame
 					point3D point_map;
 					point_map.x = point_cam.x * rot_matrix[0] +
 					              point_cam.y * rot_matrix[1] +
@@ -117,21 +114,111 @@ void Mapper3D::buildTrunkMap(
 					point_map.z = point_cam.x * rot_matrix[6] +
 					              point_cam.y * rot_matrix[7] +
 					              point_cam.z * rot_matrix[8] + sensor_origin.z;
+					// -------------------------------------------------------
 
 					// Fill the point cloud array
 					pts_array.push_back(point_map);
-					ints_array.push_back(intensities[idx]);
+
+					// Access to the pixel intensity corresponding to the 2D pixel
+					// that was converted to a 3D point
+					cv::Point3_<uchar>* p = image.ptr<cv::Point3_<uchar>>(y, x);
+					// Store the RGB value
+					std::array<uint8_t, 3> m_rgb;
+					m_rgb[0] = (*p).z;
+					m_rgb[1] = (*p).y;
+					m_rgb[2] = (*p).x;
+					// Save the RGB value into the multi array
+					ints_array.push_back(m_rgb);
 				}
 			}
 		}
 	}
 
-	// Create octomap using the built PCL
-	createOctoMap(sensor_origin, pts_array, ints_array);
+	// Create octomap using the built PCL and return the corresponding
+	// octree
+	updateOctoMap(octree, sensor_origin, pts_array, ints_array);
 }
 
-void Mapper3D::createOctoMap(pose6D&                     sensor_origin,
-                             const std::vector<point3D>& pcl,
+void Mapper3D::featureMap(OcTreeT* octree, const float* depths, cv::Mat image,
+                          pose6D                      sensor_origin,
+                          const std::vector<Feature>& features)
+{
+	// Declare inputs for map creation
+	std::vector<point3D>                pts;
+	std::vector<std::array<uint8_t, 3>> ints;
+
+	// Compute camera-world axis align matrix
+	pose6D             align_pose(0., 0., cam_height, -PI / 2, 0., -PI / 2);
+	std::vector<float> c2w_rot;
+	align_pose.toRotMatrix(c2w_rot);
+
+	// Convert pose6D to rotation matrix
+	std::vector<float> rot_matrix;
+	sensor_origin.toRotMatrix(rot_matrix);
+
+	for (size_t i = 0; i < features.size(); i++) {
+		// Compute depth of image feature
+		int   x     = features[i].u;
+		int   y     = features[i].v;
+		int   idx   = x + image.cols * y;
+		float depth = depths[idx];
+
+		// Check validity of depth information
+		if (!std::isfinite(depths[idx]))
+			continue;
+
+		// Project 2D feature into 3D world point in
+		// camera's referential frame
+		point3D point;
+		point.x = (float)((x - cx) * (depth / fx));
+		point.y = (float)((y - cy) * (depth / fy));
+		point.z = depth;
+
+		// Camera to map point cloud conversion
+		// -------------------------------------------------------
+		// Align world and camera axis
+		point3D point_cam;
+		point_cam.x = c2w_rot[0] * point.x + c2w_rot[1] * point.y +
+		              c2w_rot[2] * point.z + align_pose.x;
+		point_cam.y = c2w_rot[3] * point.x + c2w_rot[4] * point.y +
+		              c2w_rot[5] * point.z + align_pose.y;
+		point_cam.z = c2w_rot[6] * point.x + c2w_rot[7] * point.y +
+		              c2w_rot[8] * point.z + align_pose.z;
+		// -------------------------------------------------------
+		// Apply robot pose to convert points to map's referential
+		// frame
+		point3D point_map;
+		point_map.x = point_cam.x * rot_matrix[0] + point_cam.y * rot_matrix[1] +
+		              point_cam.z * rot_matrix[2] + sensor_origin.x;
+		point_map.y = point_cam.x * rot_matrix[3] + point_cam.y * rot_matrix[4] +
+		              point_cam.z * rot_matrix[5] + sensor_origin.y;
+		point_map.z = point_cam.x * rot_matrix[6] + point_cam.y * rot_matrix[7] +
+		              point_cam.z * rot_matrix[8] + sensor_origin.z;
+		// -------------------------------------------------------
+
+		// Store information on arrays
+		//----------------------------------------------------------------
+		point3D m_pt;
+		m_pt.x = point_map.x;
+		m_pt.y = point_map.y;
+		m_pt.z = point_map.z;
+		pts.push_back(m_pt);
+		//----------------------------------------------------------------
+		cv::Point3_<uchar>*    p = image.ptr<cv::Point3_<uchar>>(y, x);
+		std::array<uint8_t, 3> m_rgb;
+		m_rgb[0] = (*p).z;
+		m_rgb[1] = (*p).y;
+		m_rgb[2] = (*p).x;
+		ints.push_back(m_rgb);
+		//----------------------------------------------------------------
+	}
+
+	// Build 3D map
+	updateOctoMap(octree, sensor_origin, pts, ints);
+}
+
+void Mapper3D::updateOctoMap(OcTreeT* octree, pose6D& sensor_origin,
+                             const std::vector<point3D>&                pcl,
                              const std::vector<std::array<uint8_t, 3>>& ints)
 {
 	// Declare cells structures to fill
@@ -151,15 +238,15 @@ void Mapper3D::createOctoMap(pose6D&                     sensor_origin,
 
 			OcTreeKey key;
 			if ((*octree).coordToKeyChecked(point, key)) {
+				// Insert the cell into the KeySet
 				occupied_cells.insert(key);
 
-				updateMinKey(key, update_BBXMin);
-				updateMaxKey(key, update_BBXMax);
-
+				// Declare the 3-channel RGB color for the voxel
 				uint8_t r = ints[i][0];
 				uint8_t g = ints[i][1];
 				uint8_t b = ints[i][2];
 
+				// Give color to the voxel
 				(*octree).averageNodeColor(key, r, g, b);
 			}
 		}
@@ -170,14 +257,4 @@ void Mapper3D::createOctoMap(pose6D&                     sensor_origin,
 	     it != end; it++) {
 		(*octree).updateNode(*it, true);
 	}
-}
-
-OcTreeT* Mapper3D::getRawPointCloud() const
-{
-	return octree;
-}
-
-OcTreeT* Mapper3D::getTrunkPointCloud() const
-{
-	return octree;
 }

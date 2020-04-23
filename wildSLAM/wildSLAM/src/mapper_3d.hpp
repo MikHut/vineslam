@@ -29,57 +29,53 @@ typedef octomap::ColorOcTree OcTreeT;
 class Mapper3D
 {
 public:
-	// Class constructor - receives and saves the system
-	// parameters
-	Mapper3D(const std::string& config_path);
+  // Class constructor - receives and saves the system
+  // parameters
+  Mapper3D(const std::string& config_path);
 
-	// Initialization function
-	void init();
-
-	// Function that handles the design of the vine trunks 3D map
-	void trunkMap(OcTreeT* octree, const float* depths, cv::Mat image,
-	              pose6D                               sensor_origin,
-	              const vision_msgs::Detection2DArray& dets);
-	// Function that handles the design of the feature 3D map
-	void featureMap(OcTreeT* octree, const float* depths, cv::Mat image,
-	                pose6D sensor_origin, const std::vector<Feature>& features);
+  // Function that handles the design of the vine trunks 3D map
+  void trunkMap(OcTreeT*                             octree,
+                const float*                         depths,
+                cv::Mat                              image,
+                pose6D                               sensor_origin,
+                const vision_msgs::Detection2DArray& dets);
+  // Function that handles the design of the feature 3D map
+  void featureMap(OcTreeT*                    octree,
+                  const float*                depths,
+                  cv::Mat                     image,
+                  pose6D                      sensor_origin,
+                  const std::vector<Feature>& features);
 
 private:
-	// Creates an OctoMap using the Octree structure
-	void updateOctoMap(OcTreeT* octree, pose6D& sensor_origin,
-	                   const std::vector<point3D>&                pcl,
-	                   const std::vector<std::array<uint8_t, 3>>& ints);
+  // Creates an OctoMap using the Octree structure
+  void updateOctoMap(OcTreeT*                                   octree,
+                     pose6D&                                    sensor_origin,
+                     const std::vector<point3D>&                pcl,
+                     const std::vector<std::array<uint8_t, 3>>& ints);
 
-	// TODO (André Aguiar): Misses documentation for this function
-	inline static void updateMinKey(const octomap::OcTreeKey& in,
-	                                octomap::OcTreeKey&       min)
-	{
-		for (unsigned i = 0; i < 3; ++i)
-			min[i] = std::min(in[i], min[i]);
-	};
+  // TODO (André Aguiar): Misses documentation for this function
+  inline static void updateMinKey(const octomap::OcTreeKey& in,
+                                  octomap::OcTreeKey&       min)
+  {
+    for (unsigned i = 0; i < 3; ++i) min[i] = std::min(in[i], min[i]);
+  };
 
-	// TODO (André Aguiar): Misses documentation for this function
-	inline static void updateMaxKey(const octomap::OcTreeKey& in,
-	                                octomap::OcTreeKey&       max)
-	{
-		for (unsigned i = 0; i < 3; ++i)
-			max[i] = std::max(in[i], max[i]);
-	};
+  // TODO (André Aguiar): Misses documentation for this function
+  inline static void updateMaxKey(const octomap::OcTreeKey& in,
+                                  octomap::OcTreeKey&       max)
+  {
+    for (unsigned i = 0; i < 3; ++i) max[i] = std::max(in[i], max[i]);
+  };
 
-	// Octree parameters
-	float res;
-	float prob_hit;
-	float prob_miss;
-	float thresh_min;
-	float thresh_max;
-	float max_range;
+  // Octree parameters
+  float max_range;
 
-	// Camera info parameters
-	float img_width;
-	float img_height;
-	float cam_height;
-	float fx;
-	float fy;
-	float cx;
-	float cy;
+  // Camera info parameters
+  float img_width;
+  float img_height;
+  float cam_height;
+  float fx;
+  float fy;
+  float cx;
+  float cy;
 };

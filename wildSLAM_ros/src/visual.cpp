@@ -101,7 +101,7 @@ void wildSLAM_ros::SLAMNode::publish2DMap(const std_msgs::Header&   header,
 void wildSLAM_ros::SLAMNode::publish3DMap(const std_msgs::Header& header)
 {
   // Declare the octree to map (trunk map or feature map)
-#if MAP3D == 1
+#if WHICH3DMAP == 1
   OcTreeT* octree = trunk_octree;
 #else
   OcTreeT* octree = feature_octree;

@@ -67,7 +67,7 @@ wildSLAM_ros::SLAMNode::SLAMNode(int argc, char** argv)
 	mapper3D  = new Mapper3D(config_path);
 
   // Initialize 3D octomap(s)
-#if MAP3D == 1
+#if WHICH3DMAP == 1
 	trunk_octree = new OcTreeT(res);
 	(*trunk_octree).setProbHit(prob_hit);
 	(*trunk_octree).setProbMiss(prob_miss);

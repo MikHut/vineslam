@@ -91,22 +91,48 @@ void wildSLAM_ros::SLAMNode::callbackFct(
 
     float* raw_depths = (float*)(&(*depth_image).data[0]);
 
+    // Execute the 3D map estimation
+#if WHICH3DMAP == 1
+    // Compute image features as the pixels inside the
+    // bounding boxes
+    std::vector<Feature> features;
+    // Loop over all the bounding boxes
+    for (size_t i = 0; i < (*dets).detections.size(); i++) {
+      // Load a single bounding box detection
+      vision_msgs::BoundingBox2D m_bbox = (*dets).detections[i].bbox;
+      // Compute the limites of the bounding boxes
+      float xmin = m_bbox.center.x - m_bbox.size_x / 2;
+      float xmax = m_bbox.center.x + m_bbox.size_x / 2;
+      float ymin = m_bbox.center.y - m_bbox.size_y / 2;
+      float ymax = m_bbox.center.y + m_bbox.size_y / 2;
+      // Save each pixel as a feature
+      for (int x = xmin; x < xmax; x++) {
+        for (int y = ymin; y < ymax; y++) {
+          int idx = x + img_width * y;
+          // Check if the current disparity value is valid
+          if (std::isfinite(raw_depths[idx])) {
+            Feature m_feature(x, y, "Bounding Box Region");
+            features.push_back(m_feature);
+          }
+        }
+      }
+    }
+#else
     // Perform image feature extraction
     std::vector<Feature> features;
     featureExtract(m_img, features);
+#endif
+
+    // Add new features to the global 3D map
+    map3D.insert(map3D.begin(), features.begin(), features.end());
 
     // Execute the localization procedure
     (*localizer).process(odom, bearings, depths, map2D, raw_depths, features);
     pose6D robot_pose = (*localizer).getPose();
 
-    // Execute the 3D map estimation
-#if WHICH3DMAP == 1
-    // User chose 3D trunk map
-    (*mapper3D).trunkMap(trunk_octree, raw_depths, m_img, robot_pose, *dets);
-#else
-    // User chose 3D feature map
+    // User chose 3D to map features extracted from the image
     (*mapper3D).featureMap(feature_octree, raw_depths, m_img, robot_pose, features);
-#endif
+
     // Publish 3D point map
     publish3DMap((*depth_image).header);
 

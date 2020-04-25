@@ -33,12 +33,6 @@ public:
   // parameters
   Mapper3D(const std::string& config_path);
 
-  // Function that handles the design of the vine trunks 3D map
-  void trunkMap(OcTreeT*                             octree,
-                const float*                         depths,
-                cv::Mat                              image,
-                pose6D                               sensor_origin,
-                const vision_msgs::Detection2DArray& dets);
   // Function that handles the design of the feature 3D map
   void featureMap(OcTreeT*                    octree,
                   const float*                depths,

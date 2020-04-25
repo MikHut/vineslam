@@ -18,8 +18,8 @@
 #define PI 3.14159265359
 
 // Layers of multi-layer map to consider
-#define MAP2D 0
-#define MAP3D 1
+#define MAP2D 1
+#define MAP3D 0
 #define TOPOLOGICAL_MAP 0
 
 // Struct that represents a single particle with
@@ -66,10 +66,6 @@ public:
 
   // Export the array of particles
   void getParticles(std::vector<Particle>& in);
-
-  // Sensor data to process 3D maps (public so that localizer can access them)
-  float*               p_feature_depths;
-  std::vector<Feature> p_features;
 
 private:
   // Prediction step - particles inovation using a motion model

@@ -49,15 +49,18 @@
 #define STAR_ 0
 #define BRISK_ 0
 #define FAST_ 0
-#define ORB_ 0
+#define ORB_ 1
 #define KAZE_ 0
 #define AKAZE_ 0
+// --------------- WARNING --------------------
 // Setting this to 1 raises an OpenCV imshow and
 // blockes the system operation
 #define IMSHOW 0
 
 // 3D Map definitions
-#define WHICH3DMAP 2 // 1 -> trunk map; other -> feature map
+// (1)     : map regions inside bounding boxes
+// (other) : map features extracted from image
+#define WHICH3DMAP 2
 
 namespace wildSLAM_ros
 {
@@ -108,13 +111,14 @@ private:
   Mapper2D*  mapper2D;
   Mapper3D*  mapper3D;
 
-  // Map of landmarks with
+  // Map 2D of landmarks with
   // - the id of each landmark
   // - the position and semantic information of each landmark
   std::map<int, Landmark<float>> map2D;
+  // Map 3D of features
+  std::vector<Feature> map3D;
 
   // 3D maps variables
-  OcTreeT* trunk_octree;
   OcTreeT* feature_octree;
 
   // Odometry pose variables

@@ -101,11 +101,7 @@ void wildSLAM_ros::SLAMNode::publish2DMap(const std_msgs::Header&   header,
 void wildSLAM_ros::SLAMNode::publish3DMap(const std_msgs::Header& header)
 {
   // Declare the octree to map (trunk map or feature map)
-#if WHICH3DMAP == 1
-  OcTreeT* octree = trunk_octree;
-#else
   OcTreeT* octree = feature_octree;
-#endif
 
 	visualization_msgs::MarkerArray octomapviz;
 	// each array stores all cubes of a different size, one for each depth level:
@@ -117,10 +113,10 @@ void wildSLAM_ros::SLAMNode::publish3DMap(const std_msgs::Header& header)
 
 		 if ((*it).isColorSet()) {
 		 // if ((*octree).isNodeOccupied(*it)) {
-			double size = it.getSize();
-			double x    = it.getX();
-			double y    = it.getY();
-			double z    = it.getZ();
+			float size = it.getSize();
+			float x    = it.getX();
+			float y    = it.getY();
+			float z    = it.getZ();
 
 			std_msgs::ColorRGBA _color;
 			_color.r = (*it).getColor().r / 255.;
@@ -142,7 +138,7 @@ void wildSLAM_ros::SLAMNode::publish3DMap(const std_msgs::Header& header)
 	}
 
 	for (unsigned i = 0; i < octomapviz.markers.size(); ++i) {
-		double size = (*octree).getNodeSize(i);
+		float size = (*octree).getNodeSize(i);
 
 		octomapviz.markers[i].header.frame_id = "map";
 		octomapviz.markers[i].header.stamp    = header.stamp;

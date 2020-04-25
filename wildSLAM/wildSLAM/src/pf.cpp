@@ -54,7 +54,7 @@ PF::PF(const std::string& config_path,
                 gauss_y(generator),
                 0.,
                 0.,
-                gauss_pitch(generator),
+                cam_pitch,
                 gauss_yaw(generator));
 #endif
     // Compute initial weight of each particle
@@ -198,60 +198,6 @@ void PF::correct(const std::vector<float>&             landmark_bearings,
 #endif
 
 #if MAP3D == 1
-    // ----- 3D scan map fitting -----
-    // Calculation of a local 3D scan map for each particle
-    for (size_t j = 0; j < p_features.size(); j++) {
-      // Loop over the current features to find the best correspondence
-      // with the jth previous one
-      float best_correspondence = 1e6;
-      for (size_t k = 0; k < features.size(); k++) {
-        // Compute depth of image feature
-        int   x     = features[k].u;
-        int   y     = features[k].v;
-        int   idx   = x + img_width * y;
-        float depth = feature_depths[idx];
-
-        // Check validity of depth information
-        if (!std::isfinite(feature_depths[idx]))
-          continue;
-
-        // Project 2D feature into 3D world point in
-        // camera's referential frame
-        point3D point;
-        point.x = (float)((x - cx) * (depth / fx));
-        point.y = (float)((y - cy) * (depth / fy));
-        point.z = depth;
-
-        // Camera to map point cloud conversion
-        // -------------------------------------------------------
-        // Align world and camera axis
-        point3D point_cam;
-        point_cam.x = c2w_rot[0] * point.x + c2w_rot[1] * point.y +
-                      c2w_rot[2] * point.z + align_pose.x;
-        point_cam.y = c2w_rot[3] * point.x + c2w_rot[4] * point.y +
-                      c2w_rot[5] * point.z + align_pose.y;
-        point_cam.z = c2w_rot[6] * point.x + c2w_rot[7] * point.y +
-                      c2w_rot[8] * point.z + align_pose.z;
-        // -------------------------------------------------------
-        // Apply robot pose to convert points to map's referential
-        // frame
-        point3D point_map;
-        point_map.x = point_cam.x * Rot[0] + point_cam.y * Rot[1] +
-                      point_cam.z * Rot[2] + particles[i].pose.x;
-        point_map.y = point_cam.x * Rot[3] + point_cam.y * Rot[4] +
-                      point_cam.z * Rot[5] + particles[i].pose.y;
-        point_map.z = point_cam.x * Rot[6] + point_cam.y * Rot[7] +
-                      point_cam.z * Rot[8] + particles[i].pose.z;
-        // -------------------------------------------------------
-
-        // Update minimum distance if possible
-        float dist_min = point_map.distance(p_features[j].pos);
-        if (dist_min < best_correspondence)
-          best_correspondence = dist_min;
-      }
-      // Increment Euclidean distance error of global fitting
-      error_sum_3D += pow(best_correspondence, 2);
-    }
 #endif
 
     // Save the particle i weight

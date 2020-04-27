@@ -114,7 +114,7 @@ private:
   // Map 2D of landmarks with
   // - the id of each landmark
   // - the position and semantic information of each landmark
-  std::map<int, Landmark<float>> map2D;
+  std::map<int, Landmark> map2D;
   // Map 3D of features
   std::vector<Feature> map3D;
 

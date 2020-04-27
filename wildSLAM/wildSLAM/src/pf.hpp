@@ -60,7 +60,7 @@ public:
   void process(const pose6D&                         odom,
                const std::vector<float>&             landmark_bearings,
                const std::vector<float>&             landmark_depths,
-               const std::map<int, Landmark<float>>& landmark_map,
+               const std::map<int, Landmark>& landmark_map,
                float*                                feature_depths,
                const std::vector<Feature>&           features);
 
@@ -77,7 +77,7 @@ private:
   // - normalize the weights
   void correct(const std::vector<float>&             landmark_bearings,
                const std::vector<float>&             landmark_depths,
-               const std::map<int, Landmark<float>>& landmark_map,
+               const std::map<int, Landmark>& landmark_map,
                float*                                feature_depths,
                const std::vector<Feature>&           features);
   // Resampling over all particles

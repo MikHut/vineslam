@@ -36,13 +36,13 @@ wildSLAM_ros::SLAMNode::SLAMNode(int argc, char** argv)
 
   // Load params
   std::string config_path;
-  if (nh.getParam("/wildSLAM_ros/SLAMNode/config_path", config_path) == false) {
+  if (!nh.getParam("/wildSLAM_ros/SLAMNode/config_path", config_path)) {
     ROS_ERROR("/config_path parameter not found. Shutting down...");
     return;
   }
 
   // Load config file
-  YAML::Node config = YAML::LoadFile(config_path);
+  auto config = YAML::LoadFile(config_path);
   // Load camera info parameters
   h_fov      = config["camera_info"]["h_fov"].as<double>() * PI / 180;
   img_width  = config["camera_info"]["img_width"].as<float>();
@@ -60,7 +60,7 @@ wildSLAM_ros::SLAMNode::SLAMNode(int argc, char** argv)
   thresh_max = config["mapper3D"]["thresh_max"].as<float>();
   max_range  = config["mapper3D"]["max_range"].as<float>();
 
-  // Declarate the Mappers and Localizer objects
+  // Declare the Mappers and Localizer objects
   localizer = new Localizer(config_path);
   mapper2D  = new Mapper2D(config_path);
   mapper3D  = new Mapper3D(config_path);

@@ -36,12 +36,12 @@ public:
             const std::vector<int>&   labels);
 
   // Exports the current map to the high level ROS node
-  std::map<int, Landmark<float>> getMap() const;
+  std::map<int, Landmark> getMap() const;
 
   // Map that contains
   // - the key id of each landmark
   // - a Landmark object that represents it
-  std::map<int, Landmark<float>> map;
+  std::map<int, Landmark> map;
   // Array of Kalman Filters, one for each landmark
   std::vector<KF> filters;
 

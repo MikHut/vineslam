@@ -5,7 +5,7 @@ using namespace octomap;
 Mapper3D::Mapper3D(const std::string& config_path)
 {
   // Load configuration file
-  YAML::Node config = YAML::LoadFile(config_path.c_str());
+  YAML::Node config = YAML::LoadFile(config_path);
 
   // Load camera info parameters
   img_width  = config["camera_info"]["img_width"].as<float>();
@@ -38,12 +38,11 @@ void Mapper3D::featureMap(OcTreeT*                    octree,
   std::vector<float> rot_matrix;
   sensor_origin.toRotMatrix(rot_matrix);
 
-  for (size_t i = 0; i < features.size(); i++) {
+  for (const auto& feature : features) {
     // Compute depth of image feature
-    int   x     = features[i].u;
-    int   y     = features[i].v;
-    int   idx   = x + image.cols * y;
-    float depth = depths[idx];
+    int x   = feature.u;
+    int y   = feature.v;
+    int idx = x + image.cols * y;
 
     // Check validity of depth information
     if (!std::isfinite(depths[idx]))
@@ -70,8 +69,8 @@ void Mapper3D::featureMap(OcTreeT*                    octree,
     m_pt.z = point_map.z;
     pts.push_back(m_pt);
     //----------------------------------------------------------------
-    cv::Point3_<uchar>*    p = image.ptr<cv::Point3_<uchar>>(y, x);
-    std::array<uint8_t, 3> m_rgb;
+    auto*                  p = image.ptr<cv::Point3_<uchar>>(y, x);
+    std::array<uint8_t, 3> m_rgb{};
     m_rgb[0] = (*p).z;
     m_rgb[1] = (*p).y;
     m_rgb[2] = (*p).x;
@@ -120,9 +119,7 @@ void Mapper3D::updateOctoMap(OcTreeT*                    octree,
   }
 
   // Mark all occupied cells
-  for (KeySet::iterator it = occupied_cells.begin(), end = occupied_cells.end();
-       it != end;
-       it++) {
-    (*octree).updateNode(*it, true);
+  for (const auto& occupied_cell : occupied_cells) {
+    (*octree).updateNode(occupied_cell, true);
   }
 }

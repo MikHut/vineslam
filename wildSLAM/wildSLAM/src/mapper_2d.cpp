@@ -47,9 +47,9 @@ void Mapper2D::init(pose6D&                   pose,
     point3D   pos(X.x, X.y, 0.);
     ellipse2D std = filters[filters.size() - 1].getStdev();
     if (map.empty() == 0)
-      map[map.rbegin()->first + 1] = Landmark<float>(pos, std, labels[i]);
+      map[map.rbegin()->first + 1] = Landmark(pos, std, labels[i]);
     else
-      map[1] = Landmark<float>(pos, std);
+      map[1] = Landmark(pos, std);
   }
 }
 
@@ -143,7 +143,7 @@ void Mapper2D::predict(pose6D&                   pose,
 
       // Insert the landmark on the map, with a single observation
       ellipse2D stdev              = filters[filters.size() - 1].getStdev();
-      map[map.rbegin()->first + 1] = Landmark<float>(X, stdev, labels[i]);
+      map[map.rbegin()->first + 1] = Landmark(X, stdev, labels[i]);
     }
     // If so, update the landmark position estimation using a Kalman
     // Filter call
@@ -156,7 +156,7 @@ void Mapper2D::predict(pose6D&                   pose,
       ellipse2D stdev = filters[landmark_id - 1].getStdev();
 
       // Update the estimation on the map
-      map[landmark_id] = Landmark<float>(X_out, stdev, labels[i]);
+      map[landmark_id] = Landmark(X_out, stdev, labels[i]);
     }
   }
 }
@@ -180,4 +180,4 @@ int Mapper2D::findCorr(const point3D& l_pos, const point3D& r_pos)
   return best_correspondence;
 }
 
-std::map<int, Landmark<float>> Mapper2D::getMap() const { return map; }
+std::map<int, Landmark> Mapper2D::getMap() const { return map; }

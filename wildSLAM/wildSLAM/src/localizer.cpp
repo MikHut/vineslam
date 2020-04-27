@@ -5,7 +5,7 @@ Localizer::Localizer(const std::string& config_path)
 {
   // Read input parameters
   YAML::Node config = YAML::LoadFile(config_path.c_str());
-  cam_pitch         = config["camera_info"]["cam_pitch"].as<double>() * PI / 180;
+  cam_pitch         = config["camera_info"]["cam_pitch"].as<float>() * PI / 180;
   img_width         = config["camera_info"]["img_width"].as<float>();
   img_height        = config["camera_info"]["img_height"].as<float>();
   cam_height        = config["camera_info"]["cam_height"].as<float>();
@@ -32,12 +32,12 @@ void Localizer::init(const pose6D& initial_pose)
   average_pose = pose6D(poses);
 }
 
-void Localizer::process(const pose6D&                         odom,
-                        const std::vector<float>&             bearings2D,
-                        const std::vector<float>&             landmark_depths,
-                        const std::map<int, Landmark<float>>& map,
-                        float*                                feature_depths,
-                        const std::vector<Feature>&           features)
+void Localizer::process(const pose6D&                  odom,
+                        const std::vector<float>&      bearings2D,
+                        const std::vector<float>&      landmark_depths,
+                        const std::map<int, Landmark>& map,
+                        float*                         feature_depths,
+                        const std::vector<Feature>&    features)
 {
   // Invocate the particle filter loop
   (*pf).process(odom, bearings2D, landmark_depths, map, feature_depths, features);
@@ -48,9 +48,9 @@ void Localizer::process(const pose6D&                         odom,
   // Compute the average pose and convert the particles pose to
   // ROS array
   std::vector<pose6D> m_poses;
-  for (size_t i = 0; i < particles.size(); i++) {
+  for (auto& particle : particles) {
     // Push back to the poses array
-    pose6D m_pose = particles[i].pose;
+    pose6D m_pose = particle.pose;
     m_poses.push_back(m_pose);
   }
   average_pose = pose6D(m_poses);

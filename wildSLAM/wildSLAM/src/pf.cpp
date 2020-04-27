@@ -70,7 +70,7 @@ PF::PF(const std::string& config_path,
 void PF::process(const pose6D&                         odom,
                  const std::vector<float>&             landmark_bearings,
                  const std::vector<float>&             landmark_depths,
-                 const std::map<int, Landmark<float>>& landmark_map,
+                 const std::map<int, Landmark>& landmark_map,
                  float*                                feature_depths,
                  const std::vector<Feature>&           features)
 {
@@ -143,7 +143,7 @@ void PF::predict(const pose6D& odom)
 
 void PF::correct(const std::vector<float>&             landmark_bearings,
                  const std::vector<float>&             landmark_depths,
-                 const std::map<int, Landmark<float>>& landmark_map,
+                 const std::map<int, Landmark>& landmark_map,
                  float*                                feature_depths,
                  const std::vector<Feature>&           features)
 {
@@ -151,10 +151,6 @@ void PF::correct(const std::vector<float>&             landmark_bearings,
 
   float weights_sum = 0.0;
 #if MAP3D == 1
-  // Compute camera-world axis align matrix
-  pose6D             align_pose(0., 0., cam_height, -PI / 2, 0., -PI / 2);
-  std::vector<float> c2w_rot;
-  align_pose.toRotMatrix(c2w_rot);
 #endif
 
   // Loop over all particles

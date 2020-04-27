@@ -38,7 +38,7 @@ public:
   void process(const pose6D&                         odom,
                const std::vector<float>&             bearings2D,
                const std::vector<float>&             landmark_depths,
-               const std::map<int, Landmark<float>>& map,
+               const std::map<int, Landmark>& map,
                float*                                feature_depths,
                const std::vector<Feature>&           features);
 

@@ -53,7 +53,7 @@ struct SemanticInfo {
   int         character;
 };
 
-template <class T> class Landmark
+class Landmark
 {
 public:
   Landmark() {}

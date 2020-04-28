@@ -78,7 +78,7 @@ void wildSLAM_ros::SLAMNode::callbackFct(
     pose6D robot_pose = (*localizer).getPose();
 
     // Initialize the mapper2D
-    (*mapper2D).init(robot_pose, bearings, depths, labels);
+    (*mapper2D).init(robot_pose, bearings, depths, labels, *grid_map);
 
     // Get first cam2map
     map2D = (*mapper2D).getMap();
@@ -137,11 +137,14 @@ void wildSLAM_ros::SLAMNode::callbackFct(
     publish3DMap((*depth_image).header);
 
     // Execute the 2D map estimation
-    (*mapper2D).process(robot_pose, bearings, depths, labels);
+    (*mapper2D).process(robot_pose, bearings, depths, labels, *grid_map);
     // Get the curretn 2D map
     map2D = (*mapper2D).getMap();
     // Publish the 2D map
     publish2DMap((*depth_image).header, robot_pose, bearings, depths);
+
+    // Publish the grid map
+    publishGridMap((*depth_image).header);
 
     // Convert robot pose to tf::Transform corresponding
     // to the camera to map transformation

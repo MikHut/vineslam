@@ -28,7 +28,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: Image
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -59,7 +59,8 @@ Visualization Manager:
       Marker Topic: /wildSLAM/map2D
       Name: MarkerArray
       Namespaces:
-        {}
+        /ellipses: true
+        /markers: true
       Queue Size: 10000
       Value: true
     - Class: rviz/TF
@@ -137,9 +138,19 @@ Visualization Manager:
       Transport Hint: raw
       Unreliable: false
       Value: true
+    - Alpha: 0.699999988079071
+      Class: rviz/Map
+      Color Scheme: map
+      Draw Behind: false
+      Enabled: true
+      Name: Map
+      Topic: /wildSLAM/occupancyMap
+      Unreliable: false
+      Use Timestamp: false
+      Value: true
     - Class: rviz/MarkerArray
       Enabled: false
-      Marker Topic: /wildSLAM/map3D/trunks
+      Marker Topic: /wildSLAM/map3D
       Name: MarkerArray
       Namespaces:
         {}
@@ -197,25 +208,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 39.161529541015625
+      Distance: 23.484989166259766
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -5.941155433654785
-        Y: -2.237215518951416
+        X: -2.0610013008117676
+        Y: -3.9375250339508057
         Z: 3.823962742899312e-6
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.4297964572906494
+      Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
       Value: XYOrbit (rviz)
-      Yaw: 3.1552531719207764
+      Yaw: 3.1402556896209717
     Saved: ~
 Window Geometry:
   Displays:

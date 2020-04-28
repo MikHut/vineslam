@@ -3,6 +3,7 @@
 // Classes
 #include <kf.hpp>
 #include <landmark.hpp>
+#include <occupancy_map.hpp>
 #include <math/ellipse2D.hpp>
 #include <math/point3D.hpp>
 #include <math/pose6D.hpp>
@@ -23,17 +24,19 @@ public:
   Mapper2D(const std::string& config_path);
 
   // Global function that handles all the mapping process
-  void process(pose6D&                   pose,
+  void process(pose6D                    pose,
                const std::vector<float>& bearings,
                const std::vector<float>& depths,
-               const std::vector<int>&   labels);
+               const std::vector<int>&   labels,
+               OccupancyMap&             grid_map);
 
   // Initializes the map
   // - Invocated only once to insert the first observations on the map
-  void init(pose6D&                   pose,
+  void init(pose6D                    pose,
             const std::vector<float>& bearings,
             const std::vector<float>& depths,
-            const std::vector<int>&   labels);
+            const std::vector<int>&   labels,
+            OccupancyMap&             grid_map);
 
   // Exports the current map to the high level ROS node
   std::map<int, Landmark> getMap() const;
@@ -52,20 +55,24 @@ private:
   float       fx;
   std::string config_path;
 
+  // Local occupancy map
+  OccupancyMap* m_grid_map;
+
   // Estimates landmark positions based on the current observations
-  void predict(pose6D&                   pose,
+  void predict(pose6D                    pose,
                const std::vector<float>& bearings,
                const std::vector<float>& depths,
-               const std::vector<int>&   labels);
+               const std::vector<int>&   labels,
+               OccupancyMap&             grid_map);
 
   // Computes a local map, on robot's frame
-  std::vector<point3D> local_map(pose6D&                   pose,
+  std::vector<point3D> local_map(pose6D                    pose,
                                  const std::vector<float>& bearings,
                                  const std::vector<float>& depths);
 
   // Searches from correspondences between observations and landmarks
   // already mapped
-  int findCorr(const point3D& l_pos, const point3D& r_pos);
+  int findCorr(const point3D& l_pos, OccupancyMap& grid_map);
 
   // Auxiliar function that normalizes an angle in the [-pi,pi] range
   float normalizeAngle(const float& angle)

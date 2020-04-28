@@ -23,6 +23,18 @@ mapper3D:
   thresh_max: 0.97
   max_range: 7 # meters
 
+# Grid map definitions
+# - origin of the grid map
+# - map width and height
+# - resolution of each cell (area = resolution x resolution)
+grid_map:
+  origin:
+    x: -10
+    y: -5
+  width: 50
+  height: 10
+  resolution: 0.2 # meters
+
 # Particle filter constants to perform inovation and number of particles
 # std_trans = trans * alpha_trans
 # std_rot   = rot * alpha_rot

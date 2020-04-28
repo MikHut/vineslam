@@ -3,6 +3,7 @@
 // wildSLAM members
 #include <feature.hpp>
 #include <localizer.hpp>
+#include <occupancy_map.hpp>
 #include <mapper_2d.hpp>
 #include <mapper_3d.hpp>
 #include <math/point3D.hpp>
@@ -27,6 +28,7 @@
 #include <vision_msgs/Detection2D.h>
 #include <vision_msgs/Detection2DArray.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <nav_msgs/OccupancyGrid.h>
 #include <yaml-cpp/yaml.h>
 
 // OpenCV
@@ -54,7 +56,7 @@
 #define AKAZE_ 0
 // --------------- WARNING --------------------
 // Setting this to 1 raises an OpenCV imshow and
-// blockes the system operation
+// blocks the system operation
 #define IMSHOW 0
 
 // 3D Map definitions
@@ -88,6 +90,9 @@ private:
                     const std::vector<float>& depths);
   // Publish the 3D trunk map using a pcl
   void publish3DMap(const std_msgs::Header& header);
+  // Publish the grid map that contains all the maps
+  void publishGridMap(const std_msgs::Header& header);
+
   // Computes the bearing depth of an object using the ZED disparity image
   // - Uses the point with minimum depth inside the bounding box
   void computeObsv(const sensor_msgs::Image& depth_img,
@@ -101,15 +106,17 @@ private:
   void featureExtract(cv::Mat in, std::vector<Feature>& out);
 
   // Definitions of the ROS publishers
+  ros::Publisher mapOcc_publisher;
   ros::Publisher map2D_publisher;
   ros::Publisher map3D_publisher;
   ros::Publisher pose_publisher;
   ros::Publisher poses_publisher;
 
   // Classes object members
-  Localizer* localizer;
-  Mapper2D*  mapper2D;
-  Mapper3D*  mapper3D;
+  Localizer*    localizer;
+  OccupancyMap* grid_map;
+  Mapper2D*     mapper2D;
+  Mapper3D*     mapper3D;
 
   // Map 2D of landmarks with
   // - the id of each landmark
@@ -144,6 +151,12 @@ private:
   float thresh_min;
   float thresh_max;
   float max_range;
+  // Grid map dimensions
+  // NOTE: corners are in reference to the given origin
+  point3D occ_origin;
+  float   occ_resolution;
+  float   occ_width;
+  float   occ_height;
 
   // Initialize flag
   bool init;

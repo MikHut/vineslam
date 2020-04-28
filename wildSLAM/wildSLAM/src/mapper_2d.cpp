@@ -9,10 +9,11 @@ Mapper2D::Mapper2D(const std::string& config_path)
   delta_d           = config["camera_info"]["delta_d"].as<float>();
 }
 
-void Mapper2D::init(pose6D&                   pose,
+void Mapper2D::init(pose6D                    pose,
                     const std::vector<float>& bearings,
                     const std::vector<float>& depths,
-                    const std::vector<int>&   labels)
+                    const std::vector<int>&   labels,
+                    OccupancyMap&             grid_map)
 {
   int       n_obsv    = bearings.size();
   ellipse2D robot_std = pose.getDist();
@@ -50,13 +51,16 @@ void Mapper2D::init(pose6D&                   pose,
       map[map.rbegin()->first + 1] = Landmark(pos, std, labels[i]);
     else
       map[1] = Landmark(pos, std);
+
+    grid_map.insert(Landmark(pos, std, labels[i]), pos.x, pos.y);
   }
 }
 
-void Mapper2D::process(pose6D&                   pose,
+void Mapper2D::process(pose6D                    pose,
                        const std::vector<float>& bearings,
                        const std::vector<float>& depths,
-                       const std::vector<int>&   labels)
+                       const std::vector<int>&   labels,
+                       OccupancyMap&             grid_map)
 {
   // Compute local map on robot's referential frame
   std::vector<point3D> l_map = local_map(pose, bearings, depths);
@@ -68,10 +72,10 @@ void Mapper2D::process(pose6D&                   pose,
     bearings_[i] = atan2(l_map[i].y, l_map[i].x) - pose.yaw;
   }
   // Estimate global map
-  predict(pose, bearings_, depths_, labels);
+  predict(pose, bearings_, depths_, labels, grid_map);
 }
 
-std::vector<point3D> Mapper2D::local_map(pose6D&                   pose,
+std::vector<point3D> Mapper2D::local_map(pose6D                    pose,
                                          const std::vector<float>& bearings,
                                          const std::vector<float>& depths)
 {
@@ -103,10 +107,11 @@ std::vector<point3D> Mapper2D::local_map(pose6D&                   pose,
   return landmarks;
 }
 
-void Mapper2D::predict(pose6D&                   pose,
+void Mapper2D::predict(pose6D                    pose,
                        const std::vector<float>& bearings,
                        const std::vector<float>& depths,
-                       const std::vector<int>&   labels)
+                       const std::vector<int>&   labels,
+                       OccupancyMap&             grid_map)
 {
   int       n_obsv    = bearings.size();
   ellipse2D robot_std = pose.getDist();
@@ -131,7 +136,7 @@ void Mapper2D::predict(pose6D&                   pose,
     z << depths[i], bearings[i];
 
     // Check if the landmark already exists in the map
-    int landmark_id = findCorr(X, pose.getXYZ());
+    int landmark_id = findCorr(X, grid_map);
     // If not, initialize the landmark on the map, as well as the
     // correspondent Kalman Filter
     if (landmark_id < 0) {
@@ -144,6 +149,8 @@ void Mapper2D::predict(pose6D&                   pose,
       // Insert the landmark on the map, with a single observation
       ellipse2D stdev              = filters[filters.size() - 1].getStdev();
       map[map.rbegin()->first + 1] = Landmark(X, stdev, labels[i]);
+
+      grid_map.insert(Landmark(X, stdev, labels[i]), X.x, X.y);
     }
     // If so, update the landmark position estimation using a Kalman
     // Filter call
@@ -155,20 +162,25 @@ void Mapper2D::predict(pose6D&                   pose,
       point3D   X_out = filters[landmark_id - 1].getState();
       ellipse2D stdev = filters[landmark_id - 1].getStdev();
 
+      grid_map.update(map[landmark_id],
+                      Landmark(X_out, stdev, labels[i]),
+                      map[landmark_id].pos.x,
+                      map[landmark_id].pos.y);
+
       // Update the estimation on the map
       map[landmark_id] = Landmark(X_out, stdev, labels[i]);
     }
   }
 }
 
-int Mapper2D::findCorr(const point3D& l_pos, const point3D& r_pos)
+int Mapper2D::findCorr(const point3D& pos, OccupancyMap& grid_map)
 {
   int   best_correspondence = -1;
   float best_aprox          = 0.5;
   for (auto m_map : map) {
     // Compute the euclidean distance between the observation
-    // and the corrent landmark on the map
-    float dist = l_pos.distanceXY(m_map.second.pos);
+    // and the current landmark on the map
+    float dist = pos.distanceXY(m_map.second.pos);
 
     // Return the id of the landmark, if a correspondence is found
     if (dist < best_aprox) {

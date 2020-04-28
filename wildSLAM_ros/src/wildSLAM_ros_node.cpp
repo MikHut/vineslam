@@ -27,10 +27,12 @@ wildSLAM_ros::SLAMNode::SLAMNode(int argc, char** argv)
       nh.subscribe("/odom", 1, &SLAMNode::odomListener, this);
 
   // Publish maps and particle filter
+  mapOcc_publisher =
+      nh.advertise<nav_msgs::OccupancyGrid>("/wildSLAM/occupancyMap", 1);
   map2D_publisher =
       nh.advertise<visualization_msgs::MarkerArray>("/wildSLAM/map2D", 1);
   map3D_publisher =
-      nh.advertise<visualization_msgs::MarkerArray>("/wildSLAM/map3D/trunks", 1);
+      nh.advertise<visualization_msgs::MarkerArray>("/wildSLAM/map3D", 1);
   pose_publisher  = nh.advertise<geometry_msgs::PoseStamped>("/wildSLAM/pose", 1);
   poses_publisher = nh.advertise<geometry_msgs::PoseArray>("/wildSLAM/poses", 1);
 
@@ -44,7 +46,7 @@ wildSLAM_ros::SLAMNode::SLAMNode(int argc, char** argv)
   // Load config file
   auto config = YAML::LoadFile(config_path);
   // Load camera info parameters
-  h_fov      = config["camera_info"]["h_fov"].as<double>() * PI / 180;
+  h_fov      = config["camera_info"]["h_fov"].as<float>() * PI / 180;
   img_width  = config["camera_info"]["img_width"].as<float>();
   img_height = config["camera_info"]["img_height"].as<float>();
   cam_height = config["camera_info"]["cam_height"].as<float>();
@@ -59,9 +61,16 @@ wildSLAM_ros::SLAMNode::SLAMNode(int argc, char** argv)
   thresh_min = config["mapper3D"]["thresh_min"].as<float>();
   thresh_max = config["mapper3D"]["thresh_max"].as<float>();
   max_range  = config["mapper3D"]["max_range"].as<float>();
+  // Load occupancy grid map parameters
+  occ_origin.x   = config["grid_map"]["origin"]["x"].as<float>();
+  occ_origin.y   = config["grid_map"]["origin"]["y"].as<float>();
+  occ_resolution = config["grid_map"]["resolution"].as<float>();
+  occ_width      = config["grid_map"]["width"].as<float>();
+  occ_height     = config["grid_map"]["height"].as<float>();
 
   // Declare the Mappers and Localizer objects
   localizer = new Localizer(config_path);
+  grid_map  = new OccupancyMap(config_path);
   mapper2D  = new Mapper2D(config_path);
   mapper3D  = new Mapper3D(config_path);
 

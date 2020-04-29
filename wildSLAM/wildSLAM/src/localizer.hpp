@@ -3,6 +3,7 @@
 // Class objects
 #include <feature.hpp>
 #include <landmark.hpp>
+#include <occupancy_map.hpp>
 #include <mapper_3d.hpp>
 #include <math/point3D.hpp>
 #include <math/pose6D.hpp>
@@ -32,15 +33,14 @@ public:
   // - odom:            wheel odometry pose6D
   // - bearings2D:      bearing observations to process 2D localization
   // - landmark_depths: depth observations to process 2D localization
-  // - map:             2D semantic feature map
   // - feature_depths:  raw sensor depths to process 3D localization
-  // - features:        2D features extracted from the current image frame
-  void process(const pose6D&                         odom,
-               const std::vector<float>&             bearings2D,
-               const std::vector<float>&             landmark_depths,
-               const std::map<int, Landmark>& map,
-               float*                                feature_depths,
-               const std::vector<Feature>&           features);
+  // - grid_map:        occupancy grid map that encodes the multi-layer map
+  // information
+  void process(const pose6D&                  odom,
+               const std::vector<float>&      bearings2D,
+               const std::vector<float>&      landmark_depths,
+               float*                         feature_depths,
+               OccupancyMap                   grid_map);
 
   // Export the final pose resultant from the localization procedure
   pose6D getPose() const;

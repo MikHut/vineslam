@@ -3,6 +3,7 @@
 // Include class objects
 #include <feature.hpp>
 #include <landmark.hpp>
+#include <occupancy_map.hpp>
 #include <mapper_3d.hpp>
 #include <math/pose6D.hpp>
 
@@ -16,6 +17,7 @@
 #include <yaml-cpp/yaml.h>
 
 #define PI 3.14159265359
+#define INF 1e6
 
 // Layers of multi-layer map to consider
 #define MAP2D 1
@@ -57,12 +59,11 @@ public:
      const pose6D&      initial_pose);
 
   // Global function that handles all the particle filter processes
-  void process(const pose6D&                         odom,
-               const std::vector<float>&             landmark_bearings,
-               const std::vector<float>&             landmark_depths,
-               const std::map<int, Landmark>& landmark_map,
-               float*                                feature_depths,
-               const std::vector<Feature>&           features);
+  void process(const pose6D&                  odom,
+               const std::vector<float>&      landmark_bearings,
+               const std::vector<float>&      landmark_depths,
+               float*                         feature_depths,
+               OccupancyMap                   grid_map);
 
   // Export the array of particles
   void getParticles(std::vector<Particle>& in);
@@ -75,11 +76,10 @@ private:
   // - update particle weight using the difference between the local and
   //   the global map
   // - normalize the weights
-  void correct(const std::vector<float>&             landmark_bearings,
-               const std::vector<float>&             landmark_depths,
-               const std::map<int, Landmark>& landmark_map,
-               float*                                feature_depths,
-               const std::vector<Feature>&           features);
+  void correct(const std::vector<float>&      landmark_bearings,
+               const std::vector<float>&      landmark_depths,
+               float*                         feature_depths,
+               OccupancyMap                   grid_map);
   // Resampling over all particles
   void resample();
 

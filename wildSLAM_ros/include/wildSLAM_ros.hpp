@@ -19,6 +19,7 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 #include <nav_msgs/Odometry.h>
+#include <nav_msgs/Path.h>
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/PointCloud.h>
@@ -110,6 +111,7 @@ private:
   ros::Publisher map2D_publisher;
   ros::Publisher map3D_publisher;
   ros::Publisher pose_publisher;
+  ros::Publisher path_publisher;
   ros::Publisher poses_publisher;
 
   // Classes object members
@@ -118,15 +120,12 @@ private:
   Mapper2D*     mapper2D;
   Mapper3D*     mapper3D;
 
-  // Map 2D of landmarks with
-  // - the id of each landmark
-  // - the position and semantic information of each landmark
-  std::map<int, Landmark> map2D;
-  // Map 3D of features
-  std::vector<Feature> map3D;
-
   // 3D maps variables
-  OcTreeT* feature_octree;
+  std::vector<Feature> map3D;
+  OcTreeT*             feature_octree;
+
+  // Array of poses to store and publish the robot path
+  std::vector<geometry_msgs::PoseStamped> path;
 
   // Odometry pose variables
   pose6D odom;

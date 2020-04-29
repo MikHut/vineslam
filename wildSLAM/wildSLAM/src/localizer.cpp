@@ -35,12 +35,12 @@ void Localizer::init(const pose6D& initial_pose)
 void Localizer::process(const pose6D&                  odom,
                         const std::vector<float>&      bearings2D,
                         const std::vector<float>&      landmark_depths,
-                        const std::map<int, Landmark>& map,
                         float*                         feature_depths,
-                        const std::vector<Feature>&    features)
+                        OccupancyMap                   grid_map)
 {
   // Invocate the particle filter loop
-  (*pf).process(odom, bearings2D, landmark_depths, map, feature_depths, features);
+  (*pf).process(
+      odom, bearings2D, landmark_depths, feature_depths, grid_map);
   // Import the resultant set of particles
   std::vector<Particle> particles;
   (*pf).getParticles(particles);

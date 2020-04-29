@@ -80,9 +80,6 @@ void wildSLAM_ros::SLAMNode::callbackFct(
     // Initialize the mapper2D
     (*mapper2D).init(robot_pose, bearings, depths, labels, *grid_map);
 
-    // Get first cam2map
-    map2D = (*mapper2D).getMap();
-
     init = false;
   } else if (init == false) {
     // Convert ROS image to OpenCV image
@@ -123,28 +120,18 @@ void wildSLAM_ros::SLAMNode::callbackFct(
     featureExtract(m_img, features);
 #endif
 
-    // Add new features to the global 3D map
-    map3D.insert(map3D.begin(), features.begin(), features.end());
-
-    // Execute the localization procedure
-    (*localizer).process(odom, bearings, depths, map2D, raw_depths, features);
+    // ------- LOCALIZATION PROCEDURE ---------- //
+    (*localizer).process(odom, bearings, depths, raw_depths, *grid_map);
     pose6D robot_pose = (*localizer).getPose();
 
+    // ------- MULTI-LAYER MAPPING ------------ //
+    // ---------------------------------------- //
     // User chose 3D to map features extracted from the image
     (*mapper3D).featureMap(feature_octree, raw_depths, m_img, robot_pose, features);
-
-    // Publish 3D point map
-    publish3DMap((*depth_image).header);
-
+    // ---------------------------------------- //
     // Execute the 2D map estimation
     (*mapper2D).process(robot_pose, bearings, depths, labels, *grid_map);
-    // Get the curretn 2D map
-    map2D = (*mapper2D).getMap();
-    // Publish the 2D map
-    publish2DMap((*depth_image).header, robot_pose, bearings, depths);
-
-    // Publish the grid map
-    publishGridMap((*depth_image).header);
+    // ---------------------------------------- //
 
     // Convert robot pose to tf::Transform corresponding
     // to the camera to map transformation
@@ -168,9 +155,27 @@ void wildSLAM_ros::SLAMNode::callbackFct(
     pose.pose.orientation.w = q.w();
     pose_publisher.publish(pose);
 
+    // Push back the current pose to the path container and publish it
+    path.push_back(pose);
+    nav_msgs::Path ros_path;
+    ros_path.header          = (*depth_image).header;
+    ros_path.header.frame_id = "map";
+    ros_path.poses           = path;
+    path_publisher.publish(ros_path);
+
     // Publish cam-to-map tf::Transform
     static tf::TransformBroadcaster br;
     br.sendTransform(tf::StampedTransform(cam2map, pose.header.stamp, "map", "cam"));
+
+    // ---------- Publish Multi-layer map ------------- //
+    // Publish the grid map
+    publishGridMap((*depth_image).header);
+    // Publish the 2D map
+    publish2DMap((*depth_image).header, robot_pose, bearings, depths);
+    // Publish 3D point map
+    publish3DMap((*depth_image).header);
+    // ------------------------------------------------ //
+
 
 #ifdef DEBUG
     // Publish all poses for DEBUG

@@ -67,18 +67,20 @@ PF::PF(const std::string& config_path,
   p_odom = initial_pose;
 }
 
-void PF::process(const pose6D&                         odom,
-                 const std::vector<float>&             landmark_bearings,
-                 const std::vector<float>&             landmark_depths,
-                 const std::map<int, Landmark>& landmark_map,
-                 float*                                feature_depths,
-                 const std::vector<Feature>&           features)
+void PF::process(const pose6D&                  odom,
+                 const std::vector<float>&      landmark_bearings,
+                 const std::vector<float>&      landmark_depths,
+                 float*                         feature_depths,
+                 OccupancyMap                   grid_map)
 {
   // Invocate prediction step to inovate the particles
   predict(odom);
   // Invocate the correction step to compute the weights
-  correct(
-      landmark_bearings, landmark_depths, landmark_map, feature_depths, features);
+  correct(landmark_bearings,
+          landmark_depths,
+          feature_depths,
+          grid_map);
+
   // Resample all particles only if the filter receives new information
   if (landmark_bearings.size() > 0)
     resample();
@@ -141,11 +143,10 @@ void PF::predict(const pose6D& odom)
   p_odom = odom;
 }
 
-void PF::correct(const std::vector<float>&             landmark_bearings,
-                 const std::vector<float>&             landmark_depths,
-                 const std::map<int, Landmark>& landmark_map,
-                 float*                                feature_depths,
-                 const std::vector<Feature>&           features)
+void PF::correct(const std::vector<float>&      landmark_bearings,
+                 const std::vector<float>&      landmark_depths,
+                 float*                         feature_depths,
+                 OccupancyMap                   grid_map)
 {
   auto before = std::chrono::high_resolution_clock::now();
 
@@ -165,6 +166,7 @@ void PF::correct(const std::vector<float>&             landmark_bearings,
 #if MAP2D == 1
     // ----- 2D Semantic feature map fitting -----
     // Calculation of a local semantic 2D map for each particle
+    int number_correspondences = 0;
     for (size_t j = 0; j < landmark_bearings.size(); j++) {
       // Calculate the estimation of the landmark on particles
       // referential frame
@@ -180,26 +182,47 @@ void PF::correct(const std::vector<float>&             landmark_bearings,
             particles[i].pose.y;
       X.z = 0.;
 
-      // Loop over landmarks on global map in local map
-      // to get the best correspondence
-      float best_correspondence = 1e6;
-      for (auto m_map : landmark_map) {
-        float dist_min = X.distanceXY(m_map.second.pos);
+      // Search for a correspondence on current cell first
+      float best_correspondence = INF;
+      for (auto m_landmark : grid_map(X.x, X.y).landmarks) {
+        float dist_min = X.distanceXY(m_landmark.second.pos);
 
-        if (dist_min < best_correspondence)
+        if (dist_min < best_correspondence) {
           best_correspondence = dist_min;
+        }
       }
-      error_sum_2D += pow(best_correspondence, 2);
+
+      // Search for a correspondence on adjacent cells then
+      std::vector<Cell> adjacents;
+      grid_map.getAdjacent(X.x, X.y, 2, adjacents);
+      for (auto m_cell : adjacents) {
+        for (auto m_landmark : m_cell.landmarks) {
+          float dist_min = X.distanceXY(m_landmark.second.pos);
+          if (dist_min < best_correspondence)
+            best_correspondence = dist_min;
+        }
+      }
+
+      // Increment number of correspondences if any was found
+      number_correspondences = (best_correspondence == INF)
+                                   ? number_correspondences
+                                   : (number_correspondences + 1);
+      // Update error_sum if any correspondence was found
+      error_sum_2D = (best_correspondence == INF)
+                         ? error_sum_2D
+                         : (error_sum_2D + pow(best_correspondence, 2));
     }
+    // Set error sum to infinity if non correspondence was found
+    error_sum_2D = (error_sum_2D == 0) ? INF : error_sum_2D;
 #endif
 
 #if MAP3D == 1
 #endif
 
     // Save the particle i weight
-    particles[i].w = 1;
+    particles[i].w = 1.;
 #if MAP2D == 1
-    particles[i].w *= (1 / sqrt(2 * PI)) * exp(-pow(error_sum_2D, 2) / 2);
+    particles[i].w *= 1. / (pow(error_sum_2D, 2) / pow(2, number_correspondences));
 #endif
 #if MAP3D == 1
     particles[i].w *= (1 / sqrt(2 * PI)) * exp(-pow(error_sum_3D, 2) / 2);

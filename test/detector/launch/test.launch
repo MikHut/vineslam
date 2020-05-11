@@ -23,8 +23,8 @@
     <param name="image_left"  value="/zed/zed_node/left/image_rect_color"/>
     <param name="image_depth" value="/zed/zed_node/depth/depth_registered"/>
 
-    <param name="model_path"  value="$(find edgetpu_cpp)/model/output_tflite_graph_edgetpu.tflite"/>
-    <param name="labels_path" value="$(find edgetpu_cpp)/model/labels.txt"/>
+    <param name="model_path"  value="$(find edgetpu_cpp)/model/output_tflite_graph_edgetpu_.tflite"/>
+    <param name="labels_path" value="$(find edgetpu_cpp)/model/labels_.txt"/>
   </node>
 
   <!-- transforms -->

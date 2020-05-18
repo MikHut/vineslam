@@ -11,8 +11,24 @@ OccupancyMap::OccupancyMap(const std::string& config_path)
   height            = config["grid_map"]["height"].as<float>();
 
   // Set the grid map size
-  int map_size = (width / resolution) * (height / resolution);
+  int map_size =
+      static_cast<int>(std::round((width / resolution) * (height / resolution)));
   m_gmap.resize(map_size);
+
+  // Initialize number of features and landmarks
+  n_features  = 0;
+  n_landmarks = 0;
+}
+
+OccupancyMap::OccupancyMap(const OccupancyMap& grid_map)
+{
+  this->m_gmap      = grid_map.m_gmap;
+  this->n_features  = grid_map.n_features;
+  this->n_landmarks = grid_map.n_landmarks;
+  this->resolution  = grid_map.resolution;
+  this->origin      = grid_map.origin;
+  this->height      = grid_map.height;
+  this->width       = grid_map.width;
 }
 
 bool OccupancyMap::insert(const Landmark& m_landmark,
@@ -20,13 +36,16 @@ bool OccupancyMap::insert(const Landmark& m_landmark,
                           const int&      i,
                           const int&      j)
 {
-  if (i * width + j >= m_gmap.size()) {
-    std::cout << "ERROR: Insert on grid map out of bounds." << std::endl;
+  try {
+    check(i, j);
+  } catch (char const* msg) {
+    std::cout << msg;
     return false;
-  } else {
-    (*this)(i, j).insert(id, m_landmark);
-    return true;
   }
+
+  (*this)(i, j).insert(id, m_landmark);
+  n_landmarks++;
+  return true;
 }
 
 bool OccupancyMap::insert(const Landmark& m_landmark,
@@ -35,28 +54,33 @@ bool OccupancyMap::insert(const Landmark& m_landmark,
                           const float&    j)
 {
   // Compute grid coordinates for the floating point Landmark location
-  int m_i = std::round(i / resolution);
-  int m_j = std::round(j / resolution);
+  // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+  int m_i = static_cast<int>(std::round(i / resolution + .49));
+  int m_j = static_cast<int>(std::round(j / resolution + .49));
 
   return insert(m_landmark, id, m_i, m_j);
 }
 
 bool OccupancyMap::insert(const Feature& m_feature, const int& i, const int& j)
 {
-  if (i * width + j >= m_gmap.size()) {
-    std::cout << "ERROR: Insert on grid map out of bounds." << std::endl;
+  try {
+    check(i, j);
+  } catch (char const* msg) {
+    std::cout << msg;
     return false;
-  } else {
-    (*this)(i, j).features.push_back(m_feature);
-    return true;
   }
+
+  (*this)(i, j).features.push_back(m_feature);
+  n_features++;
+  return true;
 }
 
 bool OccupancyMap::insert(const Feature& m_feature, const float& i, const float& j)
 {
   // Compute grid coordinates for the floating point Feature location
-  int m_i = std::round(i / resolution);
-  int m_j = std::round(j / resolution);
+  // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+  int m_i = static_cast<int>(std::round(i / resolution + .49));
+  int m_j = static_cast<int>(std::round(j / resolution + .49));
 
   return insert(m_feature, m_i, m_j);
 }
@@ -67,8 +91,9 @@ bool OccupancyMap::update(const Landmark& new_landmark,
                           const float&    j)
 {
   // Compute grid coordinates for the floating point old Landmark location
-  int m_i = std::round(i / resolution);
-  int m_j = std::round(j / resolution);
+  // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+  int m_i = static_cast<int>(std::round(i / resolution + .49));
+  int m_j = static_cast<int>(std::round(j / resolution + .49));
 
   // Get array of landmarks present in the cell of the input landmark
   Cell                    m_cell      = (*this)(m_i, m_j);
@@ -82,8 +107,11 @@ bool OccupancyMap::update(const Landmark& new_landmark,
       // with previous position
       // - if so, remove the landmark from the previous cell and insert it in the
       // new correct one
-      int new_m_i = std::round(new_landmark.pos.x / resolution);
-      int new_m_j = std::round(new_landmark.pos.y / resolution);
+      // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+      int new_m_i =
+          static_cast<int>(std::round(new_landmark.pos.x / resolution + .49));
+      int new_m_j =
+          static_cast<int>(std::round(new_landmark.pos.y / resolution + .49));
       if (new_m_i != m_i || new_m_j != m_j) {
         (*this)(m_i, m_j).landmarks.erase(id);
         insert(new_landmark, id, new_landmark.pos.x, new_landmark.pos.y);
@@ -103,10 +131,10 @@ bool OccupancyMap::getAdjacent(const int&         i,
                                const int&         layers,
                                std::vector<Cell>& adjacent)
 {
-  int m_i = i - (origin.x / resolution);
-  int m_j = j - (origin.y / resolution);
-  if ((m_i + m_j * (width / resolution)) >= m_gmap.size()) {
-    std::cout << "ERROR: Access on grid map out of bounds." << std::endl;
+  try {
+    check(i, j);
+  } catch (char const* msg) {
+    std::cout << msg;
     return false;
   }
 
@@ -150,8 +178,210 @@ bool OccupancyMap::getAdjacent(const float&       i,
                                std::vector<Cell>& adjacent)
 {
   // Compute grid coordinates for the floating point Feature/Landmark location
-  int m_i = std::round(i / resolution);
-  int m_j = std::round(j / resolution);
+  // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+  int m_i = static_cast<int>(std::round(i / resolution + .49));
+  int m_j = static_cast<int>(std::round(j / resolution + .49));
 
   return getAdjacent(m_i, m_j, layers, adjacent);
 }
+
+bool OccupancyMap::findNearest(const Feature& input, Feature& nearest)
+{
+  if (n_features == 0) {
+    std::cout
+        << "WARNING (findNearest): Trying to find nearest feature on empty map..."
+        << std::endl;
+    return false;
+  }
+
+  // Compute grid coordinates for the floating point Feature location
+  // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+  int   i     = static_cast<int>(std::round(input.pos.x / resolution + .49));
+  int   j     = static_cast<int>(std::round(input.pos.y / resolution + .49));
+
+  // Enumerator used to go through the nearest neighbor search
+  enum moves { ORIGIN, RIGHT, DOWN, LEFT, UP, DONE };
+  moves move = ORIGIN;
+
+  // Target cell current index
+  int m_i, m_j;
+  // level of search (level = 1 means searching on adjacent cells)
+  int level = 0;
+  // iterator to move into the desired next cell
+  int it = 0;
+  // distance checker
+  float min_dist = 1e6;
+  // booleans for stop criteria
+  bool found_solution;
+  bool valid_iteration;
+
+  do {
+    valid_iteration = false;
+    found_solution  = false;
+    do {
+      switch (move) {
+        case ORIGIN:
+          try {
+            check(i, j);
+          } catch (char const* msg) {
+            std::cout << msg;
+            return false;
+          }
+
+          // Set cell indexes where to find correspondences
+          m_i = i;
+          m_j = j;
+          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          valid_iteration = true;
+          // Found solution if there is any feature in the target cell
+          found_solution = found_solution | !(*this)(m_i, m_j).features.empty();
+          // End search if we found a solution in the source cell
+          move = DONE;
+          break;
+        case RIGHT:
+          // Compute cell indexes
+          m_i = i - level + it;
+          m_j = j + level;
+          try {
+            check(m_i, m_j);
+          } catch (char const* msg) {
+            move = DOWN;
+            it   = 1;
+            continue;
+          }
+
+          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          valid_iteration = true;
+          // Found solution if there is any feature in the target cell
+          found_solution = found_solution | !(*this)(m_i, m_j).features.empty();
+          // Update the next movement and the iterator
+          if (m_i == i + level) {
+            move = DOWN;
+            it   = 1;
+          } else {
+            it++;
+          }
+          break;
+        case DOWN:
+          // Compute cell indexes
+          m_i = i + level;
+          m_j = j + level - it;
+          try {
+            check(m_i, m_j);
+          } catch (char const* msg) {
+            move = LEFT;
+            it   = 1;
+            continue;
+          }
+
+          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          valid_iteration = true;
+          // Found solution if there is any feature in the target cell
+          found_solution = found_solution | !(*this)(m_i, m_j).features.empty();
+          // Update the next movement and the iterator
+          if (m_j == j - level) {
+            move = LEFT;
+            it   = 1;
+          } else {
+            it++;
+          }
+          break;
+        case LEFT:
+          // Compute cell indexes
+          m_i = i + level - it;
+          m_j = j - level;
+          try {
+            check(m_i, m_j);
+          } catch (char const* msg) {
+            move = UP;
+            it   = 1;
+            continue;
+          }
+
+          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          valid_iteration = true;
+          // Found solution if there is any feature in the target cell
+          found_solution = found_solution | !(*this)(m_i, m_j).features.empty();
+          // Update the next movement and the iterator
+          if (m_i == i - level) {
+            move = UP;
+            it   = 1;
+          } else {
+            it++;
+          }
+          break;
+        case UP:
+          // Compute cell indexes
+          m_i = i - level;
+          m_j = j - level + it;
+          try {
+            check(m_i, m_j);
+          } catch (char const* msg) {
+            it   = 0;
+            move = DONE;
+            continue;
+          }
+
+          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          valid_iteration = true;
+          // Found solution if there is any feature in the target cell
+          found_solution = found_solution | !(*this)(m_i, m_j).features.empty();
+          // Update the next movement and the iterator
+          // The '-1' is to not repeat the first iterator (started on RIGHT)
+          if (m_j == j + level - 1) {
+            move = DONE;
+            it   = 0;
+          } else {
+            it++;
+          }
+          break;
+        case DONE:
+          move = RIGHT;
+          it   = 0;
+          continue;
+      }
+
+      for (const auto& feature : (*this)(m_i, m_j).features) {
+        float dist = input.pos.distance(feature.pos);
+        if (dist < min_dist) {
+          min_dist = dist;
+          nearest  = feature;
+        }
+      }
+    } while (move != DONE);
+
+    level++;
+  } while (valid_iteration && !found_solution);
+
+  return found_solution;
+}
+
+bool OccupancyMap::findNearestOnCell(const Feature& input, Feature& nearest)
+{
+  if (n_features == 0) {
+    std::cout
+        << "WARNING (findNearest): Trying to find nearest feature on empty map..."
+        << std::endl;
+    return false;
+  }
+
+  // Compute grid coordinates for the floating point Feature location
+  // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+  int i = static_cast<int>(std::round(input.pos.x / resolution + .49));
+  int j = static_cast<int>(std::round(input.pos.y / resolution + .49));
+
+  // distance checker and calculator
+  float min_dist = 1e6;
+  float dist;
+
+  for (const auto& feature : (*this)(i, j).features) {
+    dist = input.pos.distance(feature.pos);
+    if (dist < min_dist) {
+      min_dist = dist;
+      nearest  = feature;
+    }
+  }
+
+  return true;
+}
+

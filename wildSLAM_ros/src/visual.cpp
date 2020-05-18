@@ -17,26 +17,26 @@ void wildSLAM_ros::SLAMNode::publishGridMap(const std_msgs::Header& header)
   metadata.origin.orientation.z = 0.;
   metadata.origin.orientation.w = 1.;
   metadata.resolution           = occ_resolution;
-  metadata.width                = (float)occ_width / occ_resolution;
-  metadata.height               = (float)occ_height / occ_resolution;
+  metadata.width                = occ_width / occ_resolution;
+  metadata.height               = occ_height / occ_resolution;
   occ_map.info                  = metadata;
 
   // Fill the occupancy grid map
   occ_map.data.resize(metadata.width * metadata.height);
   // - compute x and y bounds
-  int xmin = occ_origin.x / occ_resolution;
-  int xmax = xmin + (float)occ_width / occ_resolution;
-  int ymin = occ_origin.y / occ_resolution;
-  int ymax = ymin + (float)occ_height / occ_resolution;
+  int xmin = static_cast<int>(occ_origin.x / occ_resolution);
+  int xmax = static_cast<int>((float)xmin + occ_width / occ_resolution - 1);
+  int ymin = static_cast<int>(occ_origin.y / occ_resolution);
+  int ymax = static_cast<int>((float)ymin + occ_height / occ_resolution - 1);
   for (int i = xmin; i < xmax; i++) {
     for (int j = ymin; j < ymax; j++) {
       int8_t number_landmarks = (*grid_map)(i, j).landmarks.size();
 
-      int m_i = i - (occ_origin.x / occ_resolution);
-      int m_j = j - (occ_origin.y / occ_resolution);
-      int idx = m_i + m_j * ((float)occ_width / occ_resolution);
+      int m_i = i - static_cast<int>(occ_origin.x / occ_resolution);
+      int m_j = j - static_cast<int>(occ_origin.y / occ_resolution);
+      int idx = m_i + m_j * static_cast<int>((occ_width / occ_resolution));
 
-       occ_map.data[idx] = number_landmarks * 10;
+      occ_map.data[idx] = number_landmarks * 10;
     }
   }
 
@@ -86,30 +86,30 @@ void wildSLAM_ros::SLAMNode::publish2DMap(const std_msgs::Header&   header,
 
   // Publish markers
   int id = 1;
-  for (auto it = (*grid_map).begin(); it != (*grid_map).end(); it++) {
-    for (size_t i = 0; i < it->landmarks.size(); i++) {
+  for (auto& it : (*grid_map)) {
+    for (const auto& m_landmark : it.landmarks) {
       // Draw landmark mean
       marker.id              = id;
       marker.header          = header;
       marker.header.frame_id = "map";
-      marker.pose.position.x = it->landmarks[i].pos.x;
-      marker.pose.position.y = it->landmarks[i].pos.y;
+      marker.pose.position.x = m_landmark.second.pos.x;
+      marker.pose.position.y = m_landmark.second.pos.y;
       marker.pose.position.z = 0;
 
       marker_array.markers.push_back(marker);
 
       // Draw landmark standard deviation
       tf2::Quaternion q;
-      q.setRPY(0, 0, it->landmarks[i].stdev.TH);
+      q.setRPY(0, 0, m_landmark.second.stdev.TH);
 
       ellipse.id                 = id;
       ellipse.header             = header;
       ellipse.header.frame_id    = "map";
-      ellipse.pose.position.x    = it->landmarks[i].pos.x;
-      ellipse.pose.position.y    = it->landmarks[i].pos.y;
+      ellipse.pose.position.x    = m_landmark.second.pos.x;
+      ellipse.pose.position.y    = m_landmark.second.pos.y;
       ellipse.pose.position.z    = 0;
-      ellipse.scale.x            = 3 * it->landmarks[i].stdev.stdX;
-      ellipse.scale.y            = 3 * it->landmarks[i].stdev.stdY;
+      ellipse.scale.x            = 3 * m_landmark.second.stdev.stdX;
+      ellipse.scale.y            = 3 * m_landmark.second.stdev.stdY;
       ellipse.pose.orientation.x = q.x();
       ellipse.pose.orientation.y = q.y();
       ellipse.pose.orientation.z = q.z();
@@ -125,7 +125,7 @@ void wildSLAM_ros::SLAMNode::publish2DMap(const std_msgs::Header&   header,
   tf2::Quaternion q;
   q.setRPY(0, 0, pose.dist.TH);
 
-  ellipse.id                 = map2D.size() + 1;
+  ellipse.id                 = id;
   ellipse.header             = header;
   ellipse.header.frame_id    = "map";
   ellipse.pose.position.x    = pose.x;
@@ -163,10 +163,9 @@ void wildSLAM_ros::SLAMNode::publish3DMap(const std_msgs::Header& header)
 
     if ((*it).isColorSet()) {
       // if ((*octree).isNodeOccupied(*it)) {
-      float size = it.getSize();
-      float x    = it.getX();
-      float y    = it.getY();
-      float z    = it.getZ();
+      auto x = static_cast<float>(it.getX());
+      auto y = static_cast<float>(it.getY());
+      auto z = static_cast<float>(it.getZ());
 
       std_msgs::ColorRGBA _color;
       _color.r = (*it).getColor().r / 255.;
@@ -188,7 +187,7 @@ void wildSLAM_ros::SLAMNode::publish3DMap(const std_msgs::Header& header)
   }
 
   for (unsigned i = 0; i < octomapviz.markers.size(); ++i) {
-    float size = (*octree).getNodeSize(i);
+    auto size = static_cast<float>((*octree).getNodeSize(i));
 
     octomapviz.markers[i].header.frame_id = "map";
     octomapviz.markers[i].header.stamp    = header.stamp;
@@ -199,7 +198,7 @@ void wildSLAM_ros::SLAMNode::publish3DMap(const std_msgs::Header& header)
     octomapviz.markers[i].scale.y         = size;
     octomapviz.markers[i].scale.z         = size;
 
-    if (octomapviz.markers[i].points.size() > 0)
+    if (!octomapviz.markers[i].points.empty())
       octomapviz.markers[i].action = visualization_msgs::Marker::ADD;
     else
       octomapviz.markers[i].action = visualization_msgs::Marker::DELETE;

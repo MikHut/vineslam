@@ -30,16 +30,16 @@ mapper3D:
 grid_map:
   origin:
     x: -10
-    y: -5
+    y: -10
   width: 50
-  height: 10
-  resolution: 0.2 # meters
+  height: 20
+  resolution: 0.25 # meters
 
 # Particle filter constants to perform inovation and number of particles
 # std_trans = trans * alpha_trans
 # std_rot   = rot * alpha_rot
 pf:
   n_particles: 2000 # number of particles
-  alpha_trans: 0.1
-  alpha_rot:   0.1
+  alpha_trans: 0.5
+  alpha_rot:   0.5
 ...

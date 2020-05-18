@@ -38,16 +38,6 @@ public:
             const std::vector<int>&   labels,
             OccupancyMap&             grid_map);
 
-  // Exports the current map to the high level ROS node
-  std::map<int, Landmark> getMap() const;
-
-  // Map that contains
-  // - the key id of each landmark
-  // - a Landmark object that represents it
-  std::map<int, Landmark> map;
-  // Array of Kalman Filters, one for each landmark
-  std::vector<KF> filters;
-
 private:
   // Input parameters
   float       baseline;
@@ -55,8 +45,11 @@ private:
   float       fx;
   std::string config_path;
 
-  // Local occupancy map
-  OccupancyMap* m_grid_map;
+  // Landmark identifier
+  int id;
+
+  // Array of Kalman Filters, one for each landmark
+  std::vector<KF> filters;
 
   // Estimates landmark positions based on the current observations
   void predict(pose6D                    pose,
@@ -72,7 +65,7 @@ private:
 
   // Searches from correspondences between observations and landmarks
   // already mapped
-  int findCorr(const point3D& l_pos, OccupancyMap& grid_map);
+  std::pair<int, point3D> findCorr(const point3D& l_pos, OccupancyMap& grid_map);
 
   // Auxiliar function that normalizes an angle in the [-pi,pi] range
   float normalizeAngle(const float& angle)

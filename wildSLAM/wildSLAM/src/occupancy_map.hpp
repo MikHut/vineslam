@@ -5,6 +5,7 @@
 #include <feature.hpp>
 
 #include <iostream>
+#include <iomanip>
 #include <vector>
 #include <yaml-cpp/yaml.h>
 
@@ -14,50 +15,18 @@ public:
   // Default constructor
   Cell() {}
 
-  // Class constructor
-  // - initializes the cell containers
-  Cell(const std::vector<Landmark>& landmarks, const std::vector<Feature>& features)
+  // Inserts a landmark with a given id
+  void insert(const int& id, const Landmark& m_landmark)
   {
-    (*this).landmarks = landmarks;
-    (*this).features  = features;
+    landmarks[id] = m_landmark;
   }
-
-  // Access function - returns the ith/jth element of both landmark and features
-  // arrays. If i or j negative, returns a default constructor
-  std::pair<Landmark, Feature> operator()(int i, int j)
-  {
-    if (i >= landmarks.size() || j >= features.size()) {
-      std::cout << "ERROR: Access to cell members out of bounds." << std::endl;
-      return std::pair<Landmark, Feature>();
-    } else {
-      Landmark m_landmark;
-      Feature  m_feature;
-      if (i < 0 && j < 0) {
-        m_landmark = Landmark();
-        m_feature  = Feature();
-      } else if (i >= 0 && j < 0) {
-        m_landmark = landmarks[i];
-        m_feature  = Feature();
-      } else if (i < 0 && j >= 0) {
-        m_landmark = Landmark();
-        m_feature  = features[j];
-      } else {
-        m_landmark = landmarks[i];
-        m_feature  = features[j];
-      }
-      return std::pair<Landmark, Feature>(m_landmark, m_feature);
-    }
-  }
-
-  // Inserts a landmark in the landmarks array
-  void insert(const Landmark& m_landmark) { landmarks.push_back(m_landmark); }
 
   // Inserts a feature in the features array
   void insert(const Feature& m_feature) { features.push_back(m_feature); }
 
   // List of landmarks and features at each cell
-  std::vector<Landmark> landmarks;
-  std::vector<Feature>  features;
+  std::map<int, Landmark> landmarks;
+  std::vector<Feature>    features;
 
 private:
 };
@@ -69,39 +38,65 @@ public:
   // - initializes the grid map given the input parameters
   OccupancyMap(const std::string& config_path);
 
+  // Copy contructor
+  OccupancyMap(const OccupancyMap& grid_map);
+
   // 2D grid map direct access to cell coordinates
   Cell& operator()(int i, int j)
   {
-    // Compute indexes having into account that grid map considers negative values
-    int m_i = i - (origin.x / resolution);
-    int m_j = j - (origin.y / resolution);
     // Verify validity of indexing
-    if (m_i + (m_j * (width / resolution)) >= m_gmap.size()) {
-      std::cout << "ERROR: Access to grid map member (" << i << "," << j
-                << ") out of bounds." << std::endl;
+    try {
+      check(i, j);
+    } catch (char const* msg) {
+      std::cout << msg;
+      std::cout << "Returning last grid element ..." << std::endl;
+
+      return m_gmap[m_gmap.size() - 1];
     }
-    return m_gmap[m_i + m_j * (width / resolution)];
+
+    // Compute indexes having into account that grid map considers negative values
+    // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+    int m_i = i - static_cast<int>(std::round(origin.x / resolution + .49));
+    int m_j = j - static_cast<int>(std::round(origin.y / resolution + .49));
+    return m_gmap[m_i +
+                  m_j * static_cast<int>(std::round(width / resolution + .49))];
   }
 
   // 2D grid map access given a Feature/Landmark location
   Cell& operator()(float i, float j)
   {
-    int m_i = std::round(i / resolution);
-    int m_j = std::round(j / resolution);
+    // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+    int m_i = static_cast<int>(std::round(i / resolution + .49));
+    int m_j = static_cast<int>(std::round(j / resolution + .49));
 
     return (*this)(m_i, m_j);
   }
 
+  // Check out of bounds indexing
+  void check(const int& i, const int& j)
+  {
+    // Compute indexes having into account that grid map considers negative values
+    // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+    int m_i   = i - static_cast<int>(std::round(origin.x / resolution + .49));
+    int m_j   = j - static_cast<int>(std::round(origin.y / resolution + .49));
+    int index = m_i + (m_j * static_cast<int>(std::round(width / resolution + .49)));
+
+    // Trough exception if out of bounds indexing
+    if (index >= m_gmap.size() - 1 || index < 0)
+      throw "Exception: Access to grid map out of bounds\n";
+  }
+
   // Define iterator to provide access to the cells array
   typedef std::vector<Cell>::iterator iterator;
-  // Return members to provide access tothe cells array
+  // Return members to provide access to the cells array
   iterator begin() { return m_gmap.begin(); }
   iterator end() { return m_gmap.end(); }
 
   // Insert a Landmark using the direct grid coordinates
-  bool insert(const Landmark& m_landmark, const int& i, const int& j);
+  bool insert(const Landmark& m_landmark, const int& id, const int& i, const int& j);
   // Insert a Landmark given a Feature/Landmark location
-  bool insert(const Landmark& m_landmark, const float& i, const float& j);
+  bool
+  insert(const Landmark& m_landmark, const int& id, const float& i, const float& j);
 
   // Insert a Feature using the direct grid coordinates
   bool insert(const Feature& m_feature, const int& i, const int& j);
@@ -110,27 +105,38 @@ public:
 
   // Since Landmark map is built with a KF, Landmarks position change in each
   // iteration. This routine updates the position of a given Landmark
-  bool update(const Landmark& old_landmark,
-              const Landmark& new_landmark,
+  bool update(const Landmark& new_landmark,
+              const int&      id,
               const float&    i,
               const float&    j);
 
   // Method to get all the adjacent cells to a given cell
-  bool getAdjacent(const Cell&          m_cell,
-                   const int&           i,
-                   const int&           j,
-                   std::array<Cell, 8>& adjacent);
-
+  bool getAdjacent(const int&         i,
+                   const int&         j,
+                   const int&         layers,
+                   std::vector<Cell>& adjacent);
   // Method to get all the adjacent cells to a given cell given a Feature/Landmark
   // location
-  bool getAdjacent(const Cell&          m_cell,
-                   const float&         i,
-                   const float&         j,
-                   std::array<Cell, 8>& adjacent);
+  bool getAdjacent(const float&       i,
+                   const float&       j,
+                   const int&         layers,
+                   std::vector<Cell>& adjacent);
+
+  // Find nearest neighbor of a feature considering adjacent cells
+  bool findNearest(const Feature& input, Feature& nearest);
+  // Find nearest neighbor of a feature on its cell
+  bool findNearestOnCell(const Feature& input, Feature& nearest);
+
+  // Returns true if the map has no features or landmarks
+  bool empty() { return (n_features == 0 && n_landmarks == 0); }
 
 private:
   // Private grid map to store all the cells
   std::vector<Cell> m_gmap;
+
+  // Number of features and landmarks in the map
+  int n_features;
+  int n_landmarks;
 
   // Grid map dimensions
   // NOTE: corners are in reference to the given origin
@@ -139,3 +145,4 @@ private:
   float   height;
   float   resolution;
 };
+

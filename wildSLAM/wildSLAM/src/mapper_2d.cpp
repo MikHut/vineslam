@@ -23,6 +23,9 @@ void Mapper2D::init(pose6D                    pose,
   point3D            trans = pose.getXYZ();
   pose.toRotMatrix(Rot);
 
+  // Initialize landmark identifier
+  id = 0;
+
   // Compute initial covariance matrix
   // - proportional to the pose signal and the distance to the robot
   for (int i = 0; i < n_obsv; i++) {
@@ -45,14 +48,10 @@ void Mapper2D::init(pose6D                    pose,
 
     // Insert the landmark on the map, with a single observation
     // and get the correspondent standard deviation
+    id++;
     point3D   pos(X.x, X.y, 0.);
     ellipse2D std = filters[filters.size() - 1].getStdev();
-    if (map.empty() == 0)
-      map[map.rbegin()->first + 1] = Landmark(pos, std, labels[i]);
-    else
-      map[1] = Landmark(pos, std);
-
-    grid_map.insert(Landmark(pos, std, labels[i]), pos.x, pos.y);
+    grid_map.insert(Landmark(pos, std, labels[i]), id, pos.x, pos.y);
   }
 }
 
@@ -136,10 +135,10 @@ void Mapper2D::predict(pose6D                    pose,
     z << depths[i], bearings[i];
 
     // Check if the landmark already exists in the map
-    int landmark_id = findCorr(X, grid_map);
+    std::pair<int, point3D> correspondence = findCorr(X, grid_map);
     // If not, initialize the landmark on the map, as well as the
     // correspondent Kalman Filter
-    if (landmark_id < 0) {
+    if (correspondence.first < 0) {
       Eigen::MatrixXd R(2, 2);
 
       // Initialize the Kalman Filter
@@ -147,49 +146,63 @@ void Mapper2D::predict(pose6D                    pose,
       filters.push_back(kf);
 
       // Insert the landmark on the map, with a single observation
-      ellipse2D stdev              = filters[filters.size() - 1].getStdev();
-      map[map.rbegin()->first + 1] = Landmark(X, stdev, labels[i]);
-
-      grid_map.insert(Landmark(X, stdev, labels[i]), X.x, X.y);
+      id++;
+      ellipse2D stdev = filters[filters.size() - 1].getStdev();
+      grid_map.insert(Landmark(X, stdev, labels[i]), id, X.x, X.y);
     }
     // If so, update the landmark position estimation using a Kalman
     // Filter call
     else {
       // Invocate the Kalman Filter
-      filters[landmark_id - 1].process(pose.toEig2D(), robot_std.toEig(), z);
+      filters[correspondence.first - 1].process(
+          pose.toEig2D(), robot_std.toEig(), z);
       // Get the state vector and the standard deviation associated
       // with the estimation
-      point3D   X_out = filters[landmark_id - 1].getState();
-      ellipse2D stdev = filters[landmark_id - 1].getStdev();
-
-      grid_map.update(map[landmark_id],
-                      Landmark(X_out, stdev, labels[i]),
-                      map[landmark_id].pos.x,
-                      map[landmark_id].pos.y);
+      point3D   X_out = filters[correspondence.first - 1].getState();
+      ellipse2D stdev = filters[correspondence.first - 1].getStdev();
 
       // Update the estimation on the map
-      map[landmark_id] = Landmark(X_out, stdev, labels[i]);
+      grid_map.update(Landmark(X_out, stdev, labels[i]),
+                      correspondence.first,
+                      correspondence.second.x,
+                      correspondence.second.y);
     }
   }
 }
 
-int Mapper2D::findCorr(const point3D& pos, OccupancyMap& grid_map)
+std::pair<int, point3D> Mapper2D::findCorr(const point3D& pos,
+                                           OccupancyMap&  grid_map)
 {
   int   best_correspondence = -1;
   float best_aprox          = 0.5;
-  for (auto m_map : map) {
-    // Compute the euclidean distance between the observation
-    // and the current landmark on the map
-    float dist = pos.distanceXY(m_map.second.pos);
 
-    // Return the id of the landmark, if a correspondence is found
+  point3D correspondence;
+
+  // Search on current cell first
+  for (auto m_landmark : grid_map(pos.x, pos.y).landmarks) {
+    float dist = pos.distanceXY(m_landmark.second.pos);
+
     if (dist < best_aprox) {
-      best_correspondence = m_map.first;
+      correspondence      = m_landmark.second.pos;
+      best_correspondence = m_landmark.first;
       best_aprox          = dist;
     }
   }
 
-  return best_correspondence;
-}
+  // Search on adjacent cells then
+  int               number_layers = (best_correspondence == -1) ? 2 : 1;
+  std::vector<Cell> adjacents;
+  grid_map.getAdjacent(pos.x, pos.y, number_layers, adjacents);
+  for (auto m_cell : adjacents) {
+    for (auto m_landmark : m_cell.landmarks) {
+      float dist = pos.distanceXY(m_landmark.second.pos);
+      if (dist < best_aprox) {
+        correspondence      = m_landmark.second.pos;
+        best_correspondence = m_landmark.first;
+        best_aprox          = dist;
+      }
+    }
+  }
 
-std::map<int, Landmark> Mapper2D::getMap() const { return map; }
+  return std::pair<int, point3D>(best_correspondence, correspondence);
+}

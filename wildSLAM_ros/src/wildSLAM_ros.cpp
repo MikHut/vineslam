@@ -8,13 +8,13 @@ void wildSLAM_ros::SLAMNode::odomListener(const nav_msgs::OdometryConstPtr& msg)
   tf::poseMsgToTF(odom_pose, pose);
 
   // Check if yaw is NaN
-  float yaw = tf::getYaw(pose.getRotation());
+  float yaw = static_cast<float>(tf::getYaw(pose.getRotation()));
   if (yaw != yaw)
     yaw = 0;
 
   // If it is the first iteration - initialize the Pose
   // relative to the previous frame
-  if (init == true) {
+  if (init) {
     p_odom.x   = (*msg).pose.pose.position.x;
     p_odom.y   = (*msg).pose.pose.position.y;
     p_odom.yaw = yaw;
@@ -23,16 +23,16 @@ void wildSLAM_ros::SLAMNode::odomListener(const nav_msgs::OdometryConstPtr& msg)
   }
 
   // Integrate odometry pose to convert to the map frame
-  odom.x += (*msg).pose.pose.position.x - p_odom.x;
-  odom.y += (*msg).pose.pose.position.y - p_odom.y;
+  odom.x += static_cast<float>(msg->pose.pose.position.x) - p_odom.x;
+  odom.y += static_cast<float>(msg->pose.pose.position.y) - p_odom.y;
   odom.z     = 0;
   odom.roll  = 0;
   odom.pitch = 0;
   odom.yaw   = yaw;
 
   // Save current odometry pose to use in the next iteration
-  p_odom.x   = (*msg).pose.pose.position.x;
-  p_odom.y   = (*msg).pose.pose.position.y;
+  p_odom.x   = msg->pose.pose.position.x;
+  p_odom.y   = msg->pose.pose.position.y;
   p_odom.yaw = yaw;
 }
 
@@ -47,18 +47,18 @@ void wildSLAM_ros::SLAMNode::callbackFct(
   std::vector<float> depths;
 
   // Loop over all the bounding box detections
-  for (size_t i = 0; i < (*dets).detections.size(); i++) {
+  for (const auto& detection : (*dets).detections) {
     // Load a single bounding box detection
-    vision_msgs::BoundingBox2D m_bbox = (*dets).detections[i].bbox;
+    vision_msgs::BoundingBox2D m_bbox = detection.bbox;
 
     // Calculate the bearing and depth of the detected object
     float depth;
     float bearing;
     computeObsv(*depth_image,
-                m_bbox.center.x - m_bbox.size_x / 2,
-                m_bbox.center.y - m_bbox.size_y / 2,
-                m_bbox.center.x + m_bbox.size_x / 2,
-                m_bbox.center.y + m_bbox.size_y / 2,
+                static_cast<int>(m_bbox.center.x - m_bbox.size_x / 2),
+                static_cast<int>(m_bbox.center.y - m_bbox.size_y / 2),
+                static_cast<int>(m_bbox.center.x + m_bbox.size_x / 2),
+                static_cast<int>(m_bbox.center.y + m_bbox.size_y / 2),
                 depth,
                 bearing);
 
@@ -67,26 +67,26 @@ void wildSLAM_ros::SLAMNode::callbackFct(
       continue;
 
     // Insert the measures in the observations arrays
-    labels.push_back((*dets).detections[i].results[0].id);
+    labels.push_back(detection.results[0].id);
     depths.push_back(depth);
     bearings.push_back(bearing);
   }
 
-  if (init == true && bearings.size() > 1) {
+  if (init && bearings.size() > 1) {
     // Initialize the localizer and get first particles distribution
-    (*localizer).init(pose6D(0, 0, 0, 0, 0, odom.yaw));
-    pose6D robot_pose = (*localizer).getPose();
+    localizer->init(pose6D(0, 0, 0, 0, 0, odom.yaw));
+    pose6D robot_pose = localizer->getPose();
 
     // Initialize the mapper2D
-    (*mapper2D).init(robot_pose, bearings, depths, labels, *grid_map);
+    mapper2D->init(robot_pose, bearings, depths, labels, *grid_map);
 
     init = false;
-  } else if (init == false) {
+  } else if (!init) {
     // Convert ROS image to OpenCV image
     cv::Mat m_img =
         cv_bridge::toCvCopy(left_image, sensor_msgs::image_encodings::BGR8)->image;
 
-    float* raw_depths = (float*)(&(*depth_image).data[0]);
+    auto* raw_depths = (float*)(&(*depth_image).data[0]);
 
     // Execute the 3D map estimation
 #if WHICH3DMAP == 1
@@ -121,16 +121,16 @@ void wildSLAM_ros::SLAMNode::callbackFct(
 #endif
 
     // ------- LOCALIZATION PROCEDURE ---------- //
-    (*localizer).process(odom, bearings, depths, raw_depths, *grid_map);
-    pose6D robot_pose = (*localizer).getPose();
+    localizer->process(odom, bearings, depths, raw_depths, *grid_map);
+    pose6D robot_pose = localizer->getPose();
 
     // ------- MULTI-LAYER MAPPING ------------ //
     // ---------------------------------------- //
     // User chose 3D to map features extracted from the image
-    (*mapper3D).featureMap(feature_octree, raw_depths, m_img, robot_pose, features);
+    // ----------- MISSING --------------- //
     // ---------------------------------------- //
     // Execute the 2D map estimation
-    (*mapper2D).process(robot_pose, bearings, depths, labels, *grid_map);
+    mapper2D->process(robot_pose, bearings, depths, labels, *grid_map);
     // ---------------------------------------- //
 
     // Convert robot pose to tf::Transform corresponding
@@ -144,7 +144,7 @@ void wildSLAM_ros::SLAMNode::callbackFct(
 
     // Convert wildSLAM pose to ROS pose and publish it
     geometry_msgs::PoseStamped pose;
-    pose.header             = (*depth_image).header;
+    pose.header             = depth_image->header;
     pose.header.frame_id    = "map";
     pose.pose.position.x    = robot_pose.x;
     pose.pose.position.y    = robot_pose.y;
@@ -158,7 +158,7 @@ void wildSLAM_ros::SLAMNode::callbackFct(
     // Push back the current pose to the path container and publish it
     path.push_back(pose);
     nav_msgs::Path ros_path;
-    ros_path.header          = (*depth_image).header;
+    ros_path.header          = depth_image->header;
     ros_path.header.frame_id = "map";
     ros_path.poses           = path;
     path_publisher.publish(ros_path);
@@ -169,20 +169,19 @@ void wildSLAM_ros::SLAMNode::callbackFct(
 
     // ---------- Publish Multi-layer map ------------- //
     // Publish the grid map
-    publishGridMap((*depth_image).header);
+    publishGridMap(depth_image->header);
     // Publish the 2D map
-    publish2DMap((*depth_image).header, robot_pose, bearings, depths);
+    publish2DMap(depth_image->header, robot_pose, bearings, depths);
     // Publish 3D point map
-    publish3DMap((*depth_image).header);
+    publish3DMap(depth_image->header);
     // ------------------------------------------------ //
-
 
 #ifdef DEBUG
     // Publish all poses for DEBUG
     std::vector<pose6D> poses;
     (*localizer).getParticles(poses);
     geometry_msgs::PoseArray ros_poses;
-    ros_poses.header          = (*depth_image).header;
+    ros_poses.header          = depth_image->header;
     ros_poses.header.frame_id = "map";
     for (size_t i = 0; i < poses.size(); i++) {
       tf::Quaternion q;
@@ -211,10 +210,10 @@ void wildSLAM_ros::SLAMNode::computeObsv(const sensor_msgs::Image& depth_img,
                                          const int&                xmax,
                                          const int&                ymax,
                                          float&                    depth,
-                                         float&                    bearing)
+                                         float&                    bearing) const
 {
   // Declare array with all the disparities computed
-  float* depths = (float*)(&(depth_img).data[0]);
+  auto* depths = (float*)(&(depth_img).data[0]);
 
   // Set minimum and maximum depth values to consider
   float range_min = 0.01;
@@ -229,8 +228,8 @@ void wildSLAM_ros::SLAMNode::computeObsv(const sensor_msgs::Image& depth_img,
       if (std::isfinite(depths[idx]) && depths[idx] > range_min &&
           depths[idx] < range_max) {
         float x         = depths[idx];
-        float y         = -(float)(i - cx) * (x / fx);
-        float m_depth   = sqrt(pow(x, 2) + pow(y, 2));
+        float y         = -(static_cast<float>(i) - cx) * (x / fx);
+        float m_depth   = static_cast<float>(sqrt(pow(x, 2) + pow(y, 2)));
         dtheta[m_depth] = atan2(y, x);
       }
     }
@@ -247,7 +246,8 @@ void wildSLAM_ros::SLAMNode::computeObsv(const sensor_msgs::Image& depth_img,
   }
 }
 
-void wildSLAM_ros::SLAMNode::featureExtract(cv::Mat in, std::vector<Feature>& out)
+void wildSLAM_ros::SLAMNode::featureExtract(const cv::Mat&        in,
+                                            std::vector<Feature>& out)
 {
   // Array to store the features
   std::vector<cv::KeyPoint> kpts;
@@ -311,8 +311,8 @@ void wildSLAM_ros::SLAMNode::featureExtract(cv::Mat in, std::vector<Feature>& ou
   }
 
   // Save features in the output array
-  for (size_t i = 0; i < kpts.size(); i++) {
-    Feature m_ft(kpts[i].pt.x, kpts[i].pt.y, type);
+  for (auto & kpt : kpts) {
+    Feature m_ft(kpt.pt.x, kpt.pt.y, type);
     out.push_back(m_ft);
   }
 }

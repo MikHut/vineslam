@@ -41,7 +41,7 @@ void wildSLAM_ros::SLAMNode::publishGridMap(const std_msgs::Header& header)
   }
 
   // Publish the map
-  mapOcc_publisher.publish(occ_map);
+  mapOCC_publisher.publish(occ_map);
 }
 
 void wildSLAM_ros::SLAMNode::publish2DMap(const std_msgs::Header&   header,
@@ -147,62 +147,4 @@ void wildSLAM_ros::SLAMNode::publish2DMap(const std_msgs::Header&   header,
   map2D_publisher.publish(ellipse_array);
 }
 
-void wildSLAM_ros::SLAMNode::publish3DMap(const std_msgs::Header& header)
-{
-  // Declare the octree to map (trunk map or feature map)
-  OcTreeT* octree = feature_octree;
-
-  visualization_msgs::MarkerArray octomapviz;
-  // each array stores all cubes of a different size, one for each depth level:
-  octomapviz.markers.resize((*octree).getTreeDepth() + 1);
-
-  for (OcTreeT::iterator it  = (*octree).begin((*octree).getTreeDepth()),
-                         end = (*octree).end();
-       it != end;
-       ++it) {
-
-    if ((*it).isColorSet()) {
-      // if ((*octree).isNodeOccupied(*it)) {
-      auto x = static_cast<float>(it.getX());
-      auto y = static_cast<float>(it.getY());
-      auto z = static_cast<float>(it.getZ());
-
-      std_msgs::ColorRGBA _color;
-      _color.r = (*it).getColor().r / 255.;
-      _color.g = (*it).getColor().g / 255.;
-      _color.b = (*it).getColor().b / 255.;
-      _color.a = 1.0;
-
-      unsigned idx = it.getDepth();
-      assert(idx < octomapviz.markers.size());
-
-      geometry_msgs::Point cubeCenter;
-      cubeCenter.x = x;
-      cubeCenter.y = y;
-      cubeCenter.z = z;
-
-      octomapviz.markers[idx].points.push_back(cubeCenter);
-      octomapviz.markers[idx].colors.push_back(_color);
-    }
-  }
-
-  for (unsigned i = 0; i < octomapviz.markers.size(); ++i) {
-    auto size = static_cast<float>((*octree).getNodeSize(i));
-
-    octomapviz.markers[i].header.frame_id = "map";
-    octomapviz.markers[i].header.stamp    = header.stamp;
-    octomapviz.markers[i].ns              = "map";
-    octomapviz.markers[i].id              = i;
-    octomapviz.markers[i].type            = visualization_msgs::Marker::CUBE_LIST;
-    octomapviz.markers[i].scale.x         = size;
-    octomapviz.markers[i].scale.y         = size;
-    octomapviz.markers[i].scale.z         = size;
-
-    if (!octomapviz.markers[i].points.empty())
-      octomapviz.markers[i].action = visualization_msgs::Marker::ADD;
-    else
-      octomapviz.markers[i].action = visualization_msgs::Marker::DELETE;
-  }
-
-  map3D_publisher.publish(octomapviz);
-}
+void wildSLAM_ros::SLAMNode::publish3DMap(const std_msgs::Header& header) {}

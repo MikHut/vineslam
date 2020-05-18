@@ -27,7 +27,7 @@ wildSLAM_ros::SLAMNode::SLAMNode(int argc, char** argv)
       nh.subscribe("/odom", 1, &SLAMNode::odomListener, this);
 
   // Publish maps and particle filter
-  mapOcc_publisher =
+  mapOCC_publisher =
       nh.advertise<nav_msgs::OccupancyGrid>("/wildSLAM/occupancyMap", 1);
   map2D_publisher =
       nh.advertise<visualization_msgs::MarkerArray>("/wildSLAM/map2D", 1);
@@ -55,13 +55,6 @@ wildSLAM_ros::SLAMNode::SLAMNode(int argc, char** argv)
   fy         = config["camera_info"]["fy"].as<float>();
   cx         = config["camera_info"]["cx"].as<float>();
   cy         = config["camera_info"]["cy"].as<float>();
-  // Load 3D octomap parameters
-  res        = config["mapper3D"]["resolution"].as<float>();
-  prob_hit   = config["mapper3D"]["hit"].as<float>();
-  prob_miss  = config["mapper3D"]["miss"].as<float>();
-  thresh_min = config["mapper3D"]["thresh_min"].as<float>();
-  thresh_max = config["mapper3D"]["thresh_max"].as<float>();
-  max_range  = config["mapper3D"]["max_range"].as<float>();
   // Load occupancy grid map parameters
   occ_origin.x   = config["grid_map"]["origin"]["x"].as<float>();
   occ_origin.y   = config["grid_map"]["origin"]["y"].as<float>();
@@ -74,13 +67,6 @@ wildSLAM_ros::SLAMNode::SLAMNode(int argc, char** argv)
   grid_map  = new OccupancyMap(config_path);
   mapper2D  = new Mapper2D(config_path);
   mapper3D  = new Mapper3D(config_path);
-
-  // Initialize 3D octomap(s)
-  feature_octree = new OcTreeT(res);
-  (*feature_octree).setProbHit(prob_hit);
-  (*feature_octree).setProbMiss(prob_miss);
-  (*feature_octree).setClampingThresMin(thresh_min);
-  (*feature_octree).setClampingThresMax(thresh_max);
 
   ros::spin();
   ROS_INFO("ROS shutting down...");

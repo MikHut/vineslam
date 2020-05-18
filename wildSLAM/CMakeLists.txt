@@ -4,8 +4,7 @@ project(wildSLAM)
 add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED
-        vision_msgs
-        octomap_msgs)
+        vision_msgs)
 
 find_package(Eigen3 REQUIRED)
 find_package(yaml-cpp REQUIRED)

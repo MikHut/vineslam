@@ -10,8 +10,6 @@
 
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>vision_msgs</build_depend>
-  <build_depend>octomap_msgs</build_depend>
   <exec_depend>vision_msgs</exec_depend>
-  <exec_depend>octomap_msgs</exec_depend>
 
 </package>

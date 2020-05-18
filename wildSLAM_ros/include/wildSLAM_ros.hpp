@@ -39,15 +39,6 @@
 #include <opencv2/xfeatures2d.hpp>
 #include <opencv2/xfeatures2d/nonfree.hpp>
 
-// OCTOMAP
-#include <octomap/OcTreeKey.h>
-#include <octomap/octomap.h>
-#include <octomap_msgs/BoundingBoxQuery.h>
-#include <octomap_msgs/GetOctomap.h>
-#include <octomap_msgs/Octomap.h>
-#include <octomap_msgs/conversions.h>
-#include <octomap_ros/conversions.h>
-
 // Feature extractors supported
 #define STAR_ 0
 #define BRISK_ 0
@@ -59,11 +50,6 @@
 // Setting this to 1 raises an OpenCV imshow and
 // blocks the system operation
 #define IMSHOW 0
-
-// 3D Map definitions
-// (1)     : map regions inside bounding boxes
-// (other) : map features extracted from image
-#define WHICH3DMAP 2
 
 namespace wildSLAM_ros
 {
@@ -102,12 +88,12 @@ private:
                    const int&                xmax,
                    const int&                ymax,
                    float&                    depth,
-                   float&                    bearing);
+                   float&                    bearing) const;
   // Computes feature extraction
-  void featureExtract(cv::Mat in, std::vector<Feature>& out);
+  void featureExtract(const cv::Mat& in, std::vector<Feature>& out);
 
   // Definitions of the ROS publishers
-  ros::Publisher mapOcc_publisher;
+  ros::Publisher mapOCC_publisher;
   ros::Publisher map2D_publisher;
   ros::Publisher map3D_publisher;
   ros::Publisher pose_publisher;
@@ -122,7 +108,6 @@ private:
 
   // 3D maps variables
   std::vector<Feature> map3D;
-  OcTreeT*             feature_octree;
 
   // Array of poses to store and publish the robot path
   std::vector<geometry_msgs::PoseStamped> path;
@@ -143,13 +128,6 @@ private:
   float cx;
   float cy;
   // ------------------------
-  // Octree parameters
-  float res;
-  float prob_hit;
-  float prob_miss;
-  float thresh_min;
-  float thresh_max;
-  float max_range;
   // Grid map dimensions
   // NOTE: corners are in reference to the given origin
   point3D occ_origin;

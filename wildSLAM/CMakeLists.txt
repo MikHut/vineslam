@@ -26,7 +26,8 @@ add_library(wildSLAM
         ${PROJECT_NAME}/src/kf.cpp
         ${PROJECT_NAME}/src/localizer.cpp
         ${PROJECT_NAME}/src/pf.cpp
-        ${PROJECT_NAME}/src/occupancy_map.cpp)
+        ${PROJECT_NAME}/src/occupancy_map.cpp
+        ${PROJECT_NAME}/src/icp.cpp)
 
 target_link_libraries(${PROJECT_NAME}
         ${catkin_LIBRARIES}

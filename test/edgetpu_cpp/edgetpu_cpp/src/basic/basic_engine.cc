@@ -73,6 +73,7 @@ std::vector<std::vector<float>> BasicEngine::RunInference(
 
   // Parse 1d result vector into output tensors.
   std::vector<int> output_tensor_shape = get_all_output_tensors_sizes();
+
   std::vector<std::vector<float>> results(output_tensor_shape.size());
   int offset = 0;
   for (int i = 0; i < output_tensor_shape.size(); ++i) {

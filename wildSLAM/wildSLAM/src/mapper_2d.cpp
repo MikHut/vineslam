@@ -1,5 +1,8 @@
 #include "mapper_2d.hpp"
 
+namespace wildSLAM
+{
+
 Mapper2D::Mapper2D(const std::string& config_path)
     : config_path(config_path)
 {
@@ -206,3 +209,5 @@ std::pair<int, point3D> Mapper2D::findCorr(const point3D& pos,
 
   return std::pair<int, point3D>(best_correspondence, correspondence);
 }
+
+}; // namespace wildSLAM

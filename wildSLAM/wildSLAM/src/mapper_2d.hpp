@@ -16,6 +16,9 @@
 #include <numeric>
 #include <yaml-cpp/yaml.h>
 
+namespace wildSLAM
+{
+
 class Mapper2D
 {
 public:
@@ -70,13 +73,15 @@ private:
   // Auxiliar function that normalizes an angle in the [-pi,pi] range
   float normalizeAngle(const float& angle)
   {
-    return (std::fmod(angle + PI, 2 * PI) - PI);
+    return static_cast<float>(std::fmod(angle + PI, 2 * PI) - PI);
   }
 
   // Auxiliar function that the disparity error using the disparity
   // noise model
   float dispError(const float& depth)
   {
-    return pow(depth, 2) / (baseline * fx) * delta_d;
+    return static_cast<float>(pow(depth, 2) / (baseline * fx) * delta_d);
   }
 };
+
+}; // namespace wildSLAM

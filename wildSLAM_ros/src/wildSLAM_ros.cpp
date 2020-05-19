@@ -1,6 +1,9 @@
 #include "../include/wildSLAM_ros.hpp"
 
-void wildSLAM_ros::SLAMNode::odomListener(const nav_msgs::OdometryConstPtr& msg)
+namespace wildSLAM
+{
+
+void wildSLAM_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)
 {
   // Convert odometry msg to pose msg
   tf::Pose            pose;
@@ -36,10 +39,9 @@ void wildSLAM_ros::SLAMNode::odomListener(const nav_msgs::OdometryConstPtr& msg)
   p_odom.yaw = yaw;
 }
 
-void wildSLAM_ros::SLAMNode::callbackFct(
-    const sensor_msgs::ImageConstPtr&            left_image,
-    const sensor_msgs::ImageConstPtr&            depth_image,
-    const vision_msgs::Detection2DArrayConstPtr& dets)
+void wildSLAM_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
+                               const sensor_msgs::ImageConstPtr& depth_image,
+                               const vision_msgs::Detection2DArrayConstPtr& dets)
 {
   // Declaration of the arrays that will constitute the SLAM observations
   std::vector<int>   labels;
@@ -82,46 +84,10 @@ void wildSLAM_ros::SLAMNode::callbackFct(
 
     init = false;
   } else if (!init) {
-    // Convert ROS image to OpenCV image
-    cv::Mat m_img =
-        cv_bridge::toCvCopy(left_image, sensor_msgs::image_encodings::BGR8)->image;
-
     auto* raw_depths = (float*)(&(*depth_image).data[0]);
 
-    // Execute the 3D map estimation
-#if WHICH3DMAP == 1
-    // Compute image features as the pixels inside the
-    // bounding boxes
-    std::vector<Feature> features;
-    // Loop over all the bounding boxes
-    for (size_t i = 0; i < (*dets).detections.size(); i++) {
-      // Load a single bounding box detection
-      vision_msgs::BoundingBox2D m_bbox = (*dets).detections[i].bbox;
-      // Compute the limites of the bounding boxes
-      float xmin = m_bbox.center.x - m_bbox.size_x / 2;
-      float xmax = m_bbox.center.x + m_bbox.size_x / 2;
-      float ymin = m_bbox.center.y - m_bbox.size_y / 2;
-      float ymax = m_bbox.center.y + m_bbox.size_y / 2;
-      // Save each pixel as a feature
-      for (int x = xmin; x < xmax; x++) {
-        for (int y = ymin; y < ymax; y++) {
-          int idx = x + img_width * y;
-          // Check if the current disparity value is valid
-          if (std::isfinite(raw_depths[idx])) {
-            Feature m_feature(x, y, "Bounding Box Region");
-            features.push_back(m_feature);
-          }
-        }
-      }
-    }
-#else
-    // Perform image feature extraction
-    std::vector<Feature> features;
-    featureExtract(m_img, features);
-#endif
-
     // ------- LOCALIZATION PROCEDURE ---------- //
-    localizer->process(odom, bearings, depths, raw_depths, *grid_map);
+    localizer->process(odom, bearings, depths, *grid_map, raw_depths);
     pose6D robot_pose = localizer->getPose();
 
     // ------- MULTI-LAYER MAPPING ------------ //
@@ -204,13 +170,13 @@ void wildSLAM_ros::SLAMNode::callbackFct(
   }
 }
 
-void wildSLAM_ros::SLAMNode::computeObsv(const sensor_msgs::Image& depth_img,
-                                         const int&                xmin,
-                                         const int&                ymin,
-                                         const int&                xmax,
-                                         const int&                ymax,
-                                         float&                    depth,
-                                         float&                    bearing) const
+void wildSLAM_ros::computeObsv(const sensor_msgs::Image& depth_img,
+                               const int&                xmin,
+                               const int&                ymin,
+                               const int&                xmax,
+                               const int&                ymax,
+                               float&                    depth,
+                               float&                    bearing) const
 {
   // Declare array with all the disparities computed
   auto* depths = (float*)(&(depth_img).data[0]);
@@ -246,73 +212,4 @@ void wildSLAM_ros::SLAMNode::computeObsv(const sensor_msgs::Image& depth_img,
   }
 }
 
-void wildSLAM_ros::SLAMNode::featureExtract(const cv::Mat&        in,
-                                            std::vector<Feature>& out)
-{
-  // Array to store the features
-  std::vector<cv::KeyPoint> kpts;
-  // String to store the type of feature
-  std::string type;
-
-  // Perform feature extraction using one of the following
-  // feature detectors
-  if (STAR_ == 1) {
-#ifdef DEBUG
-    std::cout << "Using STAR feature extractor..." << std::endl;
-#endif
-    type      = "star";
-    auto star = cv::xfeatures2d::StarDetector::create(32);
-    star->detect(in, kpts);
-  } else if (BRISK_ == 1) {
-#ifdef DEBUG
-    std::cout << "Using BRISK feature extractor..." << std::endl;
-#endif
-    type       = "brisk";
-    auto brisk = cv::BRISK::create();
-    brisk->detect(in, kpts);
-  } else if (FAST_ == 1) {
-#ifdef DEBUG
-    std::cout << "Using FAST feature extractor..." << std::endl;
-#endif
-    type      = "fast";
-    auto fast = cv::FastFeatureDetector::create();
-    fast->detect(in, kpts);
-  } else if (ORB_ == 1) {
-#ifdef DEBUG
-    std::cout << "Using ORB feature extractor..." << std::endl;
-#endif
-    type     = "orb";
-    auto orb = cv::ORB::create(200);
-    orb->detect(in, kpts);
-  } else if (KAZE_ == 1) {
-#ifdef DEBUG
-    std::cout << "Using KAZE feature extractor..." << std::endl;
-#endif
-    type      = "kaze";
-    auto kaze = cv::KAZE::create();
-    kaze->detect(in, kpts);
-  } else if (AKAZE_ == 1) {
-#ifdef DEBUG
-    std::cout << "Using AKAZE feature extractor..." << std::endl;
-#endif
-    type       = "akaze";
-    auto akaze = cv::AKAZE::create();
-    akaze->detect(in, kpts);
-  }
-
-  // Draw features into the output image
-  cv::Mat out_img;
-  cv::drawKeypoints(in, kpts, out_img);
-
-  // Show (or not) the feature extraction result
-  if (IMSHOW == 1) {
-    cv::imshow("Feature extraction", out_img);
-    cv::waitKey(0);
-  }
-
-  // Save features in the output array
-  for (auto & kpt : kpts) {
-    Feature m_ft(kpt.pt.x, kpt.pt.y, type);
-    out.push_back(m_ft);
-  }
-}
+}; // namespace wildSLAM

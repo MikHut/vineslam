@@ -6,8 +6,9 @@ add_compile_options(-std=c++11)
 find_package(catkin REQUIRED
         vision_msgs)
 
+set("OpenCV_DIR" /usr/local/include/opencv2)
+find_package(OpenCV 3.2.0 REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(yaml-cpp REQUIRED)
 
 catkin_package(
         INCLUDE_DIRS ${PROJECT_NAME}/src ${PROJECT_NAME}/src/math
@@ -31,7 +32,7 @@ add_library(wildSLAM
 target_link_libraries(${PROJECT_NAME}
         ${catkin_LIBRARIES}
         ${Eigen3_LIBRARIES}
-        ${yaml-cpp_LIBRARIES})
+        ${OpenCV_LIBRARIES})
 
 install(TARGETS wildSLAM
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

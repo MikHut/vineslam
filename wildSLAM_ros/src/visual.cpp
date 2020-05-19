@@ -1,6 +1,9 @@
 #include "../include/wildSLAM_ros.hpp"
 
-void wildSLAM_ros::SLAMNode::publishGridMap(const std_msgs::Header& header)
+namespace wildSLAM
+{
+
+void wildSLAM_ros::publishGridMap(const std_msgs::Header& header)
 {
   // Define ROS occupancy grid map
   nav_msgs::OccupancyGrid occ_map;
@@ -44,10 +47,10 @@ void wildSLAM_ros::SLAMNode::publishGridMap(const std_msgs::Header& header)
   mapOCC_publisher.publish(occ_map);
 }
 
-void wildSLAM_ros::SLAMNode::publish2DMap(const std_msgs::Header&   header,
-                                          const pose6D&             pose,
-                                          const std::vector<float>& bearings,
-                                          const std::vector<float>& depths)
+void wildSLAM_ros::publish2DMap(const std_msgs::Header&   header,
+                                const pose6D&             pose,
+                                const std::vector<float>& bearings,
+                                const std::vector<float>& depths)
 {
   visualization_msgs::MarkerArray marker_array;
   visualization_msgs::Marker      marker;
@@ -147,4 +150,6 @@ void wildSLAM_ros::SLAMNode::publish2DMap(const std_msgs::Header&   header,
   map2D_publisher.publish(ellipse_array);
 }
 
-void wildSLAM_ros::SLAMNode::publish3DMap(const std_msgs::Header& header) {}
+void wildSLAM_ros::publish3DMap(const std_msgs::Header& header) {}
+
+}; // namespace wildSLAM

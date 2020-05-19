@@ -1,5 +1,7 @@
 #include "kf.hpp"
 
+namespace wildSLAM
+{
 KF::KF(const VectorXd&    X0,
        const VectorXd&    s,
        const VectorXd&    g,
@@ -107,3 +109,4 @@ ellipse2D KF::getStdev() const
 
   return ellipse2D(std_x, std_y, 0.);
 }
+}; // namespace wildSLAM

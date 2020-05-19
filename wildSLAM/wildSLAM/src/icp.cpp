@@ -1,5 +1,7 @@
 #include "icp.hpp"
 
+namespace wildSLAM
+{
 ICP::ICP()
 {
   // Set the default stop criteria parameters
@@ -253,3 +255,4 @@ void ICP::eigToStd(const Eigen::Vector3f& trans, std::array<float, 3>& m_t)
   m_t[1] = trans(1, 0);
   m_t[2] = trans(2, 0);
 }
+}; // namespace wildSLAM

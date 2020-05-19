@@ -4,6 +4,9 @@
 #include <math/ellipse2D.hpp>
 #include <math/point3D.hpp>
 
+namespace wildSLAM
+{
+
 // Structure to represent the semantic information about
 // each feature:
 // - type of feature
@@ -94,3 +97,5 @@ public:
 
 private:
 };
+
+} // namespace wildSLAM

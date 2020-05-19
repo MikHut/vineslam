@@ -19,8 +19,6 @@ find_package(catkin REQUIRED
         image_geometry
         image_transport)
 
-set("OpenCV_DIR" /usr/local/include/opencv2)
-find_package(OpenCV 3.2.0 REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
 catkin_package()
@@ -28,16 +26,18 @@ catkin_package()
 include_directories(
         include
         ${catkin_INCLUDE_DIRS}
-        ${wildSLAM_INCLUDE_DIRS}
-)
+        ${wildSLAM_INCLUDE_DIRS})
 
-SET(${PROJECT_NAME}_SOURCES src/main.cpp
+SET(${PROJECT_NAME}_SOURCES
+        src/main.cpp
         src/visual.cpp
         src/${PROJECT_NAME}.cpp
         src/${PROJECT_NAME}_node.cpp)
 
-add_executable(${PROJECT_NAME} ${${PROJECT_NAME}_SOURCES})
-add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES}
-        ${OpenCV_LIBRARIES}
+add_executable(${PROJECT_NAME}
+        ${${PROJECT_NAME}_SOURCES})
+add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS}
+        ${catkin_EXPORTED_TARGETS})
+target_link_libraries(${PROJECT_NAME}
+        ${catkin_LIBRARIES}
         yaml-cpp)

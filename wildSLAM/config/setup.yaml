@@ -26,6 +26,11 @@ grid_map:
   height: 20
   resolution: 0.25 # meters
 
+# 3D map definitions
+map_3D:
+  max_range: 3.0 # meters
+  max_height: 1.0 # meters
+
 # Particle filter constants to perform inovation and number of particles
 # std_trans = trans * alpha_trans
 # std_rot   = rot * alpha_rot

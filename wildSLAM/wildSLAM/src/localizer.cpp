@@ -1,5 +1,8 @@
 #include "localizer.hpp"
 
+namespace wildSLAM
+{
+
 Localizer::Localizer(const std::string& config_path)
     : config_path(config_path)
 {
@@ -23,27 +26,26 @@ void Localizer::init(const pose6D& initial_pose)
 
   // Get the first distribution of particles
   std::vector<Particle> particles;
-  (*pf).getParticles(particles);
+  pf->getParticles(particles);
 
   // Compute average pose and standard deviation of the
   // first distribution
   std::vector<pose6D> poses;
-  for (size_t i = 0; i < particles.size(); i++) poses.push_back(particles[i].pose);
+  for (auto& particle : particles) poses.push_back(particle.pose);
   average_pose = pose6D(poses);
 }
 
-void Localizer::process(const pose6D&                  odom,
-                        const std::vector<float>&      bearings2D,
-                        const std::vector<float>&      landmark_depths,
-                        float*                         feature_depths,
-                        OccupancyMap                   grid_map)
+void Localizer::process(const pose6D&             odom,
+                        const std::vector<float>& bearings2D,
+                        const std::vector<float>& landmark_depths,
+                        const OccupancyMap&       grid_map,
+                        float*                    feature_depths)
 {
   // Invocate the particle filter loop
-  (*pf).process(
-      odom, bearings2D, landmark_depths, feature_depths, grid_map);
+  pf->process(odom, bearings2D, landmark_depths, grid_map, feature_depths);
   // Import the resultant set of particles
   std::vector<Particle> particles;
-  (*pf).getParticles(particles);
+  pf->getParticles(particles);
 
   // Compute the average pose and convert the particles pose to
   // ROS array
@@ -67,8 +69,10 @@ void Localizer::getParticles(std::vector<pose6D>& in) const
 {
   // Get particles and resize input vector
   std::vector<Particle> particles;
-  (*pf).getParticles(particles);
+  pf->getParticles(particles);
   in.resize(particles.size());
 
   for (size_t i = 0; i < in.size(); i++) in[i] = particles[i].pose;
 }
+
+}; // namespace wildSLAM

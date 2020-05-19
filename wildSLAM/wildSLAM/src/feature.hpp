@@ -3,6 +3,9 @@
 #include <iostream>
 #include "math/point3D.hpp"
 
+namespace wildSLAM
+{
+
 class Feature
 {
 public:
@@ -91,3 +94,5 @@ public:
 
 private:
 };
+
+}; // namespace wildSLAM

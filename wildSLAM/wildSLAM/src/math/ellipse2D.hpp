@@ -4,6 +4,8 @@
 #include <iostream>
 #include <eigen3/Eigen/Dense>
 
+namespace wildSLAM
+{
 class ellipse2D
 {
 public:
@@ -56,3 +58,4 @@ public:
 
 private:
 };
+}; // namespace wildSLAM

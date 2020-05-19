@@ -9,6 +9,8 @@
 #include "occupancy_map.hpp"
 #include "feature.hpp"
 
+namespace wildSLAM
+{
 class ICP
 {
 public:
@@ -68,3 +70,4 @@ public:
   std::array<float, 9> R;
   std::array<float, 3> t;
 };
+}; // namespace wildSLAM

@@ -2,6 +2,6 @@
 
 int main(int argc, char** argv)
 {
-  wildSLAM_ros::SLAMNode wildSLAM_node(argc, argv);
+  wildSLAM::wildSLAM_ros wildSLAM_node(argc, argv);
   return 0;
 }

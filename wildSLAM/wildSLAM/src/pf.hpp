@@ -24,6 +24,9 @@
 #define MAP3D 0
 #define TOPOLOGICAL_MAP 0
 
+namespace wildSLAM
+{
+
 // Struct that represents a single particle with
 // - identification number
 // - 6-DOF pose
@@ -59,11 +62,11 @@ public:
      const pose6D&      initial_pose);
 
   // Global function that handles all the particle filter processes
-  void process(const pose6D&                  odom,
-               const std::vector<float>&      landmark_bearings,
-               const std::vector<float>&      landmark_depths,
-               float*                         feature_depths,
-               OccupancyMap                   grid_map);
+  void process(const pose6D&             odom,
+               const std::vector<float>& landmark_bearings,
+               const std::vector<float>& landmark_depths,
+               const OccupancyMap&       grid_map,
+               float*                    feature_depths);
 
   // Export the array of particles
   void getParticles(std::vector<Particle>& in);
@@ -76,10 +79,10 @@ private:
   // - update particle weight using the difference between the local and
   //   the global map
   // - normalize the weights
-  void correct(const std::vector<float>&      landmark_bearings,
-               const std::vector<float>&      landmark_depths,
-               float*                         feature_depths,
-               OccupancyMap                   grid_map);
+  void correct(const std::vector<float>& landmark_bearings,
+               const std::vector<float>& landmark_depths,
+               float*                    feature_depths,
+               OccupancyMap              grid_map);
   // Resampling over all particles
   void resample();
 
@@ -108,3 +111,5 @@ private:
   float cx;
   float cy;
 };
+
+}; // namespace wildSLAM

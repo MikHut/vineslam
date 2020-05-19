@@ -1,5 +1,8 @@
 #include "occupancy_map.hpp"
 
+namespace wildSLAM
+{
+
 OccupancyMap::OccupancyMap(const std::string& config_path)
 {
   // Read input parameters
@@ -196,8 +199,8 @@ bool OccupancyMap::findNearest(const Feature& input, Feature& nearest)
 
   // Compute grid coordinates for the floating point Feature location
   // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
-  int   i     = static_cast<int>(std::round(input.pos.x / resolution + .49));
-  int   j     = static_cast<int>(std::round(input.pos.y / resolution + .49));
+  int i = static_cast<int>(std::round(input.pos.x / resolution + .49));
+  int j = static_cast<int>(std::round(input.pos.y / resolution + .49));
 
   // Enumerator used to go through the nearest neighbor search
   enum moves { ORIGIN, RIGHT, DOWN, LEFT, UP, DONE };
@@ -385,3 +388,4 @@ bool OccupancyMap::findNearestOnCell(const Feature& input, Feature& nearest)
   return true;
 }
 
+}; // namespace wildSLAM

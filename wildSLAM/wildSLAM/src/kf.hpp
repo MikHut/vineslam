@@ -15,6 +15,8 @@
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
 
+namespace wildSLAM
+{
 class KF
 {
 public:
@@ -68,3 +70,4 @@ private:
     return pow(depth, 2) / (baseline * fx) * delta_d;
   }
 };
+}; // namespace wildSLAM

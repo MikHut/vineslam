@@ -7,6 +7,8 @@
 
 #define PI 3.14159265359
 
+namespace wildSLAM
+{
 class point3D
 {
 public:
@@ -155,3 +157,4 @@ static std::ostream& operator<<(std::ostream& out, point3D const& p)
 {
   return out << '(' << p.x << ' ' << p.y << ' ' << p.z << ")\n";
 }
+}; // namespace wildSLAM

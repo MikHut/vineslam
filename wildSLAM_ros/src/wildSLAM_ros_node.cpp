@@ -1,6 +1,9 @@
 #include "../include/wildSLAM_ros.hpp"
 
-wildSLAM_ros::SLAMNode::SLAMNode(int argc, char** argv)
+namespace wildSLAM
+{
+
+wildSLAM_ros::wildSLAM_ros(int argc, char** argv)
 {
   // Initialize ROS node
   ros::init(argc, argv, "SLAMNode");
@@ -20,11 +23,11 @@ wildSLAM_ros::SLAMNode::SLAMNode(int argc, char** argv)
                                     sensor_msgs::Image,
                                     vision_msgs::Detection2DArray>
       sync(left_image_sub, depth_image_sub, detections_sub, 10);
-  sync.registerCallback(boost::bind(&SLAMNode::callbackFct, this, _1, _2, _3));
+  sync.registerCallback(boost::bind(&wildSLAM_ros::callbackFct, this, _1, _2, _3));
 
   // Odometry subscription
   ros::Subscriber odom_subscriber =
-      nh.subscribe("/odom", 1, &SLAMNode::odomListener, this);
+      nh.subscribe("/odom", 1, &wildSLAM_ros::odomListener, this);
 
   // Publish maps and particle filter
   mapOCC_publisher =
@@ -71,3 +74,5 @@ wildSLAM_ros::SLAMNode::SLAMNode(int argc, char** argv)
   ros::spin();
   ROS_INFO("ROS shutting down...");
 }
+
+}; // namespace wildSLAM

@@ -32,34 +32,15 @@
 #include <nav_msgs/OccupancyGrid.h>
 #include <yaml-cpp/yaml.h>
 
-// OpenCV
-#include <opencv2/core.hpp>
-#include <opencv2/features2d.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/xfeatures2d.hpp>
-#include <opencv2/xfeatures2d/nonfree.hpp>
-
-// Feature extractors supported
-#define STAR_ 0
-#define BRISK_ 0
-#define FAST_ 0
-#define ORB_ 1
-#define KAZE_ 0
-#define AKAZE_ 0
-// --------------- WARNING --------------------
-// Setting this to 1 raises an OpenCV imshow and
-// blocks the system operation
-#define IMSHOW 0
-
-namespace wildSLAM_ros
+namespace wildSLAM
 {
-class SLAMNode
+class wildSLAM_ros
 {
 public:
   // Class constructor that
   // - Initializes the ROS node
   // - Defines the publish and subscribe topics
-  SLAMNode(int argc, char** argv);
+  wildSLAM_ros(int argc, char** argv);
 
   // Callback function that subscribes a rgb image, a  disparity image,
   // and the bounding boxes that locate the objects on the image
@@ -89,8 +70,6 @@ private:
                    const int&                ymax,
                    float&                    depth,
                    float&                    bearing) const;
-  // Computes feature extraction
-  void featureExtract(const cv::Mat& in, std::vector<Feature>& out);
 
   // Definitions of the ROS publishers
   ros::Publisher mapOCC_publisher;
@@ -138,4 +117,4 @@ private:
   // Initialize flag
   bool init;
 };
-}; // namespace wildSLAM_ros
+}; // namespace wildSLAM

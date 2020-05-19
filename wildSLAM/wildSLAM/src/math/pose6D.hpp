@@ -8,6 +8,8 @@
 #include "ellipse2D.hpp"
 #include "point3D.hpp"
 
+namespace wildSLAM
+{
 class pose6D
 {
 public:
@@ -225,3 +227,4 @@ static std::ostream& operator<<(std::ostream& out, pose6D const& p)
              << "Distribution: (" << p.dist.stdX << ' ' << p.dist.stdY << ' '
              << p.dist.TH << ")\n";
 }
+}; // namespace wildSLAM

@@ -9,6 +9,9 @@
 #include <vector>
 #include <yaml-cpp/yaml.h>
 
+namespace wildSLAM
+{
+
 class Cell
 {
 public:
@@ -146,3 +149,4 @@ private:
   float   resolution;
 };
 
+}; // namespace wildSLAM

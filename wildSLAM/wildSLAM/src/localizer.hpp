@@ -18,6 +18,8 @@
 
 #define PI 3.14159265359
 
+namespace wildSLAM
+{
 class Localizer
 {
 public:
@@ -36,11 +38,11 @@ public:
   // - feature_depths:  raw sensor depths to process 3D localization
   // - grid_map:        occupancy grid map that encodes the multi-layer map
   // information
-  void process(const pose6D&                  odom,
-               const std::vector<float>&      bearings2D,
-               const std::vector<float>&      landmark_depths,
-               float*                         feature_depths,
-               OccupancyMap                   grid_map);
+  void process(const pose6D&             odom,
+               const std::vector<float>& bearings2D,
+               const std::vector<float>& landmark_depths,
+               const OccupancyMap&       grid_map,
+               float*                    feature_depths);
 
   // Export the final pose resultant from the localization procedure
   pose6D getPose() const;
@@ -67,8 +69,9 @@ private:
   std::string config_path;
 
   // Auxiliar function that normalizes an angle in the [-pi,pi] range
-  float normalizeAngle(const float& angle)
+  static float normalizeAngle(const float& angle)
   {
-    return (std::fmod(angle + PI, 2 * PI) - PI);
+    return static_cast<float>(std::fmod(angle + PI, 2 * PI) - PI);
   }
 };
+}; // namespace wildSLAM

@@ -6,24 +6,24 @@ namespace wildSLAM
 Mapper2D::Mapper2D(const std::string& config_path)
     : config_path(config_path)
 {
-  YAML::Node config = YAML::LoadFile(config_path.c_str());
+  YAML::Node config = YAML::LoadFile(config_path);
   fx                = config["camera_info"]["fx"].as<float>();
   baseline          = config["camera_info"]["baseline"].as<float>();
   delta_d           = config["camera_info"]["delta_d"].as<float>();
 }
 
-void Mapper2D::init(pose6D                    pose,
+void Mapper2D::init(pose                      pose,
                     const std::vector<float>& bearings,
                     const std::vector<float>& depths,
                     const std::vector<int>&   labels,
                     OccupancyMap&             grid_map)
 {
-  int       n_obsv    = bearings.size();
-  ellipse2D robot_std = pose.getDist();
+  int     n_obsv    = bearings.size();
+  ellipse robot_std = pose.getDist();
 
   // Convert 6-DOF pose to homogenous transformation
-  std::vector<float> Rot;
-  point3D            trans = pose.getXYZ();
+  std::array<float, 9> Rot   = {0., 0., 0., 0., 0., 0., 0., 0., 0.};
+  point                trans = pose.getXYZ();
   pose.toRotMatrix(Rot);
 
   // Initialize landmark identifier
@@ -33,14 +33,14 @@ void Mapper2D::init(pose6D                    pose,
   // - proportional to the pose signal and the distance to the robot
   for (int i = 0; i < n_obsv; i++) {
     // Construct the observations vector
-    VectorXd z(2, 1);
+    Eigen::VectorXd z(2, 1);
     z << depths[i], bearings[i];
 
     // Calculate
     // - the initial estimation of the landmark on map's referential frame
-    float   th = normalizeAngle(bearings[i]);
-    point3D X_cam(depths[i] * cos(th), depths[i] * sin(th), 0.);
-    point3D X;
+    float th = normalizeAngle(bearings[i]);
+    point X_cam(depths[i] * cos(th), depths[i] * sin(th), 0.);
+    point X;
     X.x = X_cam.x * Rot[0] + X_cam.y * Rot[1] + X_cam.z * Rot[2] + trans.x;
     X.y = X_cam.x * Rot[3] + X_cam.y * Rot[4] + X_cam.z * Rot[5] + trans.y;
     X.z = 0.;
@@ -52,20 +52,20 @@ void Mapper2D::init(pose6D                    pose,
     // Insert the landmark on the map, with a single observation
     // and get the correspondent standard deviation
     id++;
-    point3D   pos(X.x, X.y, 0.);
-    ellipse2D std = filters[filters.size() - 1].getStdev();
+    point   pos(X.x, X.y, 0.);
+    ellipse std = filters[filters.size() - 1].getStdev();
     grid_map.insert(Landmark(pos, std, labels[i]), id, pos.x, pos.y);
   }
 }
 
-void Mapper2D::process(pose6D                    pose,
+void Mapper2D::process(pose                      pose,
                        const std::vector<float>& bearings,
                        const std::vector<float>& depths,
                        const std::vector<int>&   labels,
                        OccupancyMap&             grid_map)
 {
   // Compute local map on robot's referential frame
-  std::vector<point3D> l_map = local_map(pose, bearings, depths);
+  std::vector<point> l_map = cam2base(pose, bearings, depths);
   // Convert local map to bearings and depths
   std::vector<float> bearings_(bearings.size());
   std::vector<float> depths_(depths.size());
@@ -77,58 +77,58 @@ void Mapper2D::process(pose6D                    pose,
   predict(pose, bearings_, depths_, labels, grid_map);
 }
 
-std::vector<point3D> Mapper2D::local_map(pose6D                    pose,
-                                         const std::vector<float>& bearings,
-                                         const std::vector<float>& depths)
+std::vector<point> Mapper2D::cam2base(pose                      pose,
+                                      const std::vector<float>& bearings,
+                                      const std::vector<float>& depths)
 {
-  std::vector<point3D> landmarks;
+  std::vector<point> landmarks;
 
   // Convert 6-DOF pose to homogenous transformation
-  std::vector<float> Rot;
-  point3D            trans = pose.getXYZ();
+  std::array<float, 9> Rot   = {0., 0., 0., 0., 0., 0., 0., 0., 0.};
+  point                trans = pose.getXYZ();
   pose.toRotMatrix(Rot);
 
   for (size_t i = 0; i < bearings.size(); i++) {
     // Calculate the estimation of the landmark position on
     // camera's referential frame
-    float   th = normalizeAngle(bearings[i]);
-    point3D X_cam(depths[i] * cos(th), depths[i] * sin(th), 0.);
+    float th = normalizeAngle(bearings[i]);
+    point X_cam(depths[i] * cos(th), depths[i] * sin(th), 0.);
 
     // Convert landmark to map's referential frame
-    point3D X_map;
+    point X_map;
     X_map.x = X_cam.x * Rot[0] + X_cam.y * Rot[1] + X_cam.z * Rot[2] + trans.x;
     X_map.y = X_cam.x * Rot[3] + X_cam.y * Rot[4] + X_cam.z * Rot[5] + trans.y;
-    X_map.z = X_cam.x * Rot[6] + X_cam.y * Rot[7] + X_cam.z * Rot[8] + trans.z;
+    X_map.z = 0.;
 
     // Convert landmark to robot's referential frame and insert
     // on array of landmarks
-    point3D X_robot = X_map - pose.getXYZ();
+    point X_robot = X_map - pose.getXYZ();
     landmarks.push_back(X_robot);
   }
 
   return landmarks;
 }
 
-void Mapper2D::predict(pose6D                    pose,
+void Mapper2D::predict(pose                      pose,
                        const std::vector<float>& bearings,
                        const std::vector<float>& depths,
                        const std::vector<int>&   labels,
                        OccupancyMap&             grid_map)
 {
-  int       n_obsv    = bearings.size();
-  ellipse2D robot_std = pose.getDist();
+  int     n_obsv    = bearings.size();
+  ellipse robot_std = pose.getDist();
 
   // Convert 6DOF pose to homogenous transformation
-  std::vector<float> Rot;
+  std::array<float, 9> Rot = {0., 0., 0., 0., 0., 0., 0., 0., 0.};
   pose.toRotMatrix(Rot);
-  point3D trans = pose.getXYZ();
+  point trans = pose.getXYZ();
 
   for (int i = 0; i < n_obsv; i++) {
     // Calculate the landmark position on map's referential frame
     // based on the ith observation
-    float   th = normalizeAngle(bearings[i]);
-    point3D X_cam(depths[i] * cos(th), depths[i] * sin(th), 0.);
-    point3D X;
+    float th = normalizeAngle(bearings[i]);
+    point X_cam(depths[i] * cos(th), depths[i] * sin(th), 0.);
+    point X;
     X.x = X_cam.x * Rot[0] + X_cam.y * Rot[1] + X_cam.z * Rot[2] + trans.x;
     X.y = X_cam.x * Rot[3] + X_cam.y * Rot[4] + X_cam.z * Rot[5] + trans.y;
     X.z = 0.;
@@ -138,7 +138,7 @@ void Mapper2D::predict(pose6D                    pose,
     z << depths[i], bearings[i];
 
     // Check if the landmark already exists in the map
-    std::pair<int, point3D> correspondence = findCorr(X, grid_map);
+    std::pair<int, point> correspondence = findCorr(X, grid_map);
     // If not, initialize the landmark on the map, as well as the
     // correspondent Kalman Filter
     if (correspondence.first < 0) {
@@ -150,7 +150,7 @@ void Mapper2D::predict(pose6D                    pose,
 
       // Insert the landmark on the map, with a single observation
       id++;
-      ellipse2D stdev = filters[filters.size() - 1].getStdev();
+      ellipse stdev = filters[filters.size() - 1].getStdev();
       grid_map.insert(Landmark(X, stdev, labels[i]), id, X.x, X.y);
     }
     // If so, update the landmark position estimation using a Kalman
@@ -161,8 +161,8 @@ void Mapper2D::predict(pose6D                    pose,
           pose.toEig2D(), robot_std.toEig(), z);
       // Get the state vector and the standard deviation associated
       // with the estimation
-      point3D   X_out = filters[correspondence.first - 1].getState();
-      ellipse2D stdev = filters[correspondence.first - 1].getStdev();
+      point   X_out = filters[correspondence.first - 1].getState();
+      ellipse stdev = filters[correspondence.first - 1].getStdev();
 
       // Update the estimation on the map
       grid_map.update(Landmark(X_out, stdev, labels[i]),
@@ -173,13 +173,12 @@ void Mapper2D::predict(pose6D                    pose,
   }
 }
 
-std::pair<int, point3D> Mapper2D::findCorr(const point3D& pos,
-                                           OccupancyMap&  grid_map)
+std::pair<int, point> Mapper2D::findCorr(const point& pos, OccupancyMap& grid_map)
 {
   int   best_correspondence = -1;
   float best_aprox          = 0.5;
 
-  point3D correspondence;
+  point correspondence;
 
   // Search on current cell first
   for (auto m_landmark : grid_map(pos.x, pos.y).landmarks) {
@@ -207,7 +206,23 @@ std::pair<int, point3D> Mapper2D::findCorr(const point3D& pos,
     }
   }
 
-  return std::pair<int, point3D>(best_correspondence, correspondence);
+  return std::pair<int, point>(best_correspondence, correspondence);
+}
+
+void Mapper2D::localMap(const std::vector<float>& bearings,
+                        const std::vector<float>& depths,
+                        std::vector<Landmark>&    landmarks)
+{
+  landmarks.resize(bearings.size());
+  for (size_t i = 0; i < bearings.size(); i++) {
+    // Calculate the estimation of the landmark position on
+    // camera's referential frame
+    float th = normalizeAngle(bearings[i]);
+    point X_cam(depths[i] * cos(th), depths[i] * sin(th), 0.);
+
+    // Insert on output struct
+    landmarks[i].pos = X_cam;
+  }
 }
 
 }; // namespace wildSLAM

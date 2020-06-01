@@ -2,8 +2,8 @@
 
 // Object members
 #include <landmark.hpp>
-#include <math/point3D.hpp>
-#include <math/ellipse2D.hpp>
+#include <math/point.hpp>
+#include <math/ellipse.hpp>
 
 // ROS, std, Eigen
 #include <eigen3/Eigen/Dense>
@@ -32,10 +32,10 @@ public:
   // Function that processes all the Kalman Filter routines
   void process(const VectorXd& s, const VectorXd& g, const VectorXd& z);
   // Function that outputs the current state of the Kalman Filter
-  point3D getState() const;
+  point getState() const;
   // Function that outputs the current standard deviation of the
   // Kalman Filter
-  ellipse2D getStdev() const;
+  ellipse getStdev() const;
 
   MatrixXd P;
 

@@ -1,4 +1,4 @@
-# File where major input definitions and values are provided
+# File where major input definitions and values are set
 ---
 # Camera calibration info
 camera_info:
@@ -14,6 +14,11 @@ camera_info:
   cx: 692.95849609375  # pixels
   cy: 382.80633544921  # pixels
 
+# Feature extractor and descriptor settings
+# - supported types: SURF, SIFT
+image_feature:
+  type: "SURF"
+
 # Grid map definitions
 # - origin of the grid map
 # - map width and height
@@ -21,21 +26,40 @@ camera_info:
 grid_map:
   origin:
     x: -10
-    y: -10
+    y: -20
   width: 50
-  height: 20
-  resolution: 0.25 # meters
+  height: 50
+  resolution: 0.10 # meters
+  metric: "descriptor"
 
 # 3D map definitions
 map_3D:
-  max_range: 3.0 # meters
-  max_height: 1.0 # meters
+  max_range: 5.0 # meters
+  max_height: 1.2 # meters
 
-# Particle filter constants to perform inovation and number of particles
-# std_trans = trans * alpha_trans
-# std_rot   = rot * alpha_rot
+# ICP scan matching parameters
+# - maximum number of iterations
+# - error derivative threshold
+# - minimum distance (euclidean or L2-norm for descriptor) to consider
+#   a correspondence an inlier
+ICP:
+  max_iters: 10
+  tolerance: 0.0001
+  distance_threshold: 0.08
+
+# Particle filter:
+# - s constants - sample_motion_model_odometry from Probabilistic Robotics
+# - standard deviation of zero mean gaussians for non observable states (z, roll, pitch)
+# - particles2D - number of particles for landmark-based particle filter
+# - particles3D - number of particles for feature-based particle filter
 pf:
-  n_particles: 2000 # number of particles
-  alpha_trans: 0.5
-  alpha_rot:   0.5
+  srr: 0.2 # rotation - rotation
+  srt: 0.5 # rotation - translation
+  str: 0.2 # translation - rotation
+  stt: 0.5 # translation - translation
+  sigma_z: 0.2 # meters
+  sigma_roll: 5.0 # degrees
+  sigma_pitch: 5.0 # degrees
+  n_particles2D: 0
+  n_particles3D: 30
 ...

@@ -12,6 +12,7 @@ OccupancyMap::OccupancyMap(const std::string& config_path)
   resolution        = config["grid_map"]["resolution"].as<float>();
   width             = config["grid_map"]["width"].as<float>();
   height            = config["grid_map"]["height"].as<float>();
+  metric            = config["grid_map"]["metric"].as<std::string>();
 
   // Set the grid map size
   int map_size =
@@ -32,6 +33,7 @@ OccupancyMap::OccupancyMap(const OccupancyMap& grid_map)
   this->origin      = grid_map.origin;
   this->height      = grid_map.height;
   this->width       = grid_map.width;
+  this->metric      = grid_map.metric;
 }
 
 bool OccupancyMap::insert(const Landmark& m_landmark,
@@ -103,7 +105,7 @@ bool OccupancyMap::update(const Landmark& new_landmark,
   std::map<int, Landmark> m_landmarks = m_cell.landmarks;
 
   // Search for a correspondence
-  for (auto m_landmark : m_landmarks) {
+  for (const auto& m_landmark : m_landmarks) {
     if (m_landmark.first == id) {
       // Update the correspondence to the new landmark and leave the routine
       // - check if the new landmark position matches a different cell in relation
@@ -236,9 +238,7 @@ bool OccupancyMap::findNearest(const Feature& input, Feature& nearest)
           m_j = j;
           // The iteration is valid since (m_i, m_j) passed in the try - catch
           valid_iteration = true;
-          // Found solution if there is any feature in the target cell
-          found_solution = found_solution | !(*this)(m_i, m_j).features.empty();
-          // End search if we found a solution in the source cell
+          // End search if we found a correspondence in the source cell
           move = DONE;
           break;
         case RIGHT:
@@ -256,8 +256,6 @@ bool OccupancyMap::findNearest(const Feature& input, Feature& nearest)
           // The iteration is valid since (m_i, m_j) passed in the try - catch
           valid_iteration = true;
           // Found solution if there is any feature in the target cell
-          found_solution = found_solution | !(*this)(m_i, m_j).features.empty();
-          // Update the next movement and the iterator
           if (m_i == i + level) {
             move = DOWN;
             it   = 1;
@@ -279,8 +277,6 @@ bool OccupancyMap::findNearest(const Feature& input, Feature& nearest)
 
           // The iteration is valid since (m_i, m_j) passed in the try - catch
           valid_iteration = true;
-          // Found solution if there is any feature in the target cell
-          found_solution = found_solution | !(*this)(m_i, m_j).features.empty();
           // Update the next movement and the iterator
           if (m_j == j - level) {
             move = LEFT;
@@ -303,8 +299,6 @@ bool OccupancyMap::findNearest(const Feature& input, Feature& nearest)
 
           // The iteration is valid since (m_i, m_j) passed in the try - catch
           valid_iteration = true;
-          // Found solution if there is any feature in the target cell
-          found_solution = found_solution | !(*this)(m_i, m_j).features.empty();
           // Update the next movement and the iterator
           if (m_i == i - level) {
             move = UP;
@@ -327,8 +321,6 @@ bool OccupancyMap::findNearest(const Feature& input, Feature& nearest)
 
           // The iteration is valid since (m_i, m_j) passed in the try - catch
           valid_iteration = true;
-          // Found solution if there is any feature in the target cell
-          found_solution = found_solution | !(*this)(m_i, m_j).features.empty();
           // Update the next movement and the iterator
           // The '-1' is to not repeat the first iterator (started on RIGHT)
           if (m_j == j + level - 1) {
@@ -344,17 +336,60 @@ bool OccupancyMap::findNearest(const Feature& input, Feature& nearest)
           continue;
       }
 
-      for (const auto& feature : (*this)(m_i, m_j).features) {
-        float dist = input.pos.distance(feature.pos);
-        if (dist < min_dist) {
-          min_dist = dist;
-          nearest  = feature;
+      // ---------------------------------------------------------------------------
+      if (metric == "euclidean") {
+        // Found solution if there is any feature in the target cell
+        found_solution = found_solution | !(*this)(m_i, m_j).features.empty();
+
+        // ------- Use euclidean distance to find correspondences
+        // ------- Grid map is used to limit the search space
+        for (const auto& feature : (*this)(m_i, m_j).features) {
+          float dist = input.pos.distance(feature.pos);
+          if (dist < min_dist) {
+            min_dist = dist;
+            nearest  = feature;
+          }
+        }
+      } else {
+        // ------- Use feature descriptor to find correspondences
+        // ------- Grid map is used to limit the search space
+        for (const auto& feature : (*this)(m_i, m_j).features) {
+          std::vector<float> desc   = input.desc;
+          std::vector<float> m_desc = feature.desc;
+
+          // Check validity of descriptors data
+          if (desc.size() != m_desc.size()) {
+            std::cout << "WARNING (findNearest): source and target descriptor have "
+                         "different size ... "
+                      << std::endl;
+            break;
+          }
+
+          // Check if source and target features are of the same type
+          if (feature.laplacian != input.laplacian)
+            continue;
+
+          // Found solution if there is any correspondence between features of the
+          // same type
+          found_solution = true;
+
+          float ssd = 0.; // sum of square errors
+          for (size_t k = 0; k < desc.size(); k++)
+            ssd += (desc[k] - m_desc[k]) * (desc[k] - m_desc[k]);
+
+          // Update correspondence if we found a local minimum
+          if (ssd < min_dist) {
+            min_dist = ssd;
+            nearest  = feature;
+          }
         }
       }
+      // ---------------------------------------------------------------------------
+
     } while (move != DONE);
 
     level++;
-  } while (valid_iteration && !found_solution);
+  } while (level < 2 && valid_iteration && !found_solution);
 
   return found_solution;
 }

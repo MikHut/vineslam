@@ -1,11 +1,13 @@
 #pragma once
 
 #include <iostream>
-#include "math/point3D.hpp"
+#include <math/point.hpp>
 
 namespace wildSLAM
 {
 
+// TODO (André Aguiar): Add descriptor to constructors
+// TODO (André Aguiar): Make class general to several types of features/descriptors
 class Feature
 {
 public:
@@ -19,6 +21,7 @@ public:
     (*this).r    = 255;
     (*this).g    = 255;
     (*this).b    = 255;
+    (*this).desc = std::vector<float>();
     (*this).type = type;
   }
 
@@ -36,18 +39,20 @@ public:
     (*this).r    = r;
     (*this).g    = g;
     (*this).b    = b;
+    (*this).desc = std::vector<float>();
     (*this).type = type;
   }
 
   // Class constructor
   // - initializes its image/world position and feature type
-  Feature(const int& u, const int& v, const point3D& pos, const std::string& type)
+  Feature(const int& u, const int& v, const point& pos, const std::string& type)
   {
     (*this).u    = u;
     (*this).v    = v;
     (*this).r    = 255;
     (*this).g    = 255;
     (*this).b    = 255;
+    (*this).desc = std::vector<float>();
     (*this).pos  = pos;
     (*this).type = type;
   }
@@ -59,7 +64,7 @@ public:
           const uint8_t&     r,
           const uint8_t&     g,
           const uint8_t&     b,
-          const point3D&     pos,
+          const point&       pos,
           const std::string& type)
   {
     (*this).u    = u;
@@ -67,6 +72,7 @@ public:
     (*this).r    = r;
     (*this).g    = g;
     (*this).b    = b;
+    (*this).desc = std::vector<float>();
     (*this).pos  = pos;
     (*this).type = type;
   }
@@ -88,7 +94,11 @@ public:
   uint8_t g;
   uint8_t b;
   // World 3D position
-  point3D pos;
+  point pos;
+  // Feature descriptor
+  std::vector<float> desc;
+  // Feature laplacian - hessian matrix trace
+  int laplacian;
   // Feature type
   std::string type;
 

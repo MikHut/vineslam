@@ -5,16 +5,14 @@
 #include <iostream>
 #include <vector>
 
-#include "ellipse2D.hpp"
-#include "point3D.hpp"
+#include "ellipse.hpp"
+#include "point.hpp"
 
 namespace wildSLAM
 {
-class pose6D
-{
-public:
+struct pose {
   // Default constructor
-  pose6D()
+  pose()
   {
     x     = 0.;
     y     = 0.;
@@ -24,13 +22,13 @@ public:
     yaw   = 0.;
   }
 
-  // Construct with values
-  pose6D(const float& x_,
-         const float& y_,
-         const float& z_,
-         const float& roll_,
-         const float& pitch_,
-         const float& yaw_)
+  // Construct with 3D values
+  pose(const float& x_,
+       const float& y_,
+       const float& z_,
+       const float& roll_,
+       const float& pitch_,
+       const float& yaw_)
   {
     x     = x_;
     y     = y_;
@@ -40,8 +38,19 @@ public:
     yaw   = yaw_;
   }
 
-  // Construct with another pose6D
-  pose6D(const pose6D& other)
+  // Construct with 2D values
+  pose(const float& x_, const float& y_, const float& yaw_)
+  {
+    x     = x_;
+    y     = y_;
+    z     = 0.;
+    roll  = 0.;
+    pitch = 0.;
+    yaw   = yaw_;
+  }
+
+  // Construct with another pose
+  pose(const pose& other)
   {
     x     = other.x;
     y     = other.y;
@@ -53,20 +62,20 @@ public:
   }
 
   // Construct from set of poses
-  pose6D(const std::vector<pose6D>& poses)
+  pose(const std::vector<pose>& poses)
   {
-    pose6D    mean(0., 0., 0., 0., 0., 0.);
-    ellipse2D gauss(0., 0., 0.);
-    double    th = 0;
+    pose    mean(0., 0., 0., 0., 0., 0.);
+    ellipse gauss(0., 0., 0.);
+    double  th = 0;
 
     // Calculate mean of all the robot poses
-    for (size_t i = 0; i < poses.size(); i++) mean = mean + poses[i];
+    for (const auto& pose : poses) mean = mean + pose;
     mean = mean / (float)poses.size();
 
     // Calculate standard deviation of all the robot positions
-    for (size_t i = 0; i < poses.size(); i++) {
-      gauss.stdX += pow(poses[i].x - mean.x, 2);
-      gauss.stdY += pow(poses[i].y - mean.y, 2);
+    for (const auto& pose : poses) {
+      gauss.stdX += pow(pose.x - mean.x, 2);
+      gauss.stdY += pow(pose.y - mean.y, 2);
     }
     gauss.stdX = sqrt(gauss.stdX / (float)poses.size());
     gauss.stdY = sqrt(gauss.stdY / (float)poses.size());
@@ -77,8 +86,38 @@ public:
     (*this).setDist(gauss);
   }
 
+  // Pose from homogeneous transformation [R|t]
+  pose(std::array<float, 9> Rot, std::array<float, 3> trans)
+  {
+    // -------------------------------------------
+    // ------------ Rotation matrix to Euler angles
+    // -------------------------------------------
+    // - Check that pitch is not a singularity
+    if (std::fabs(Rot[6]) >= 1.) {
+      yaw = 0.;
+
+      if (Rot[6] < 0.) {
+        roll  = atan2(Rot[1], Rot[2]);
+        pitch = PI / 2.;
+      } else {
+        roll  = atan2(-Rot[1], -Rot[2]);
+        pitch = -PI / 2.;
+      }
+    } else {
+      pitch = -asin(Rot[6]);
+      roll  = atan2(Rot[7] / cos(pitch), Rot[8] / cos(pitch));
+      yaw   = atan2(Rot[3] / cos(pitch), Rot[0] / cos(pitch));
+    }
+    // -------------------------------------------
+    // ------------ Translation vector to x, y, z
+    // -------------------------------------------
+    x = trans[0];
+    y = trans[1];
+    z = trans[2];
+  }
+
   // Assignment operator
-  pose6D operator=(const pose6D& other)
+  pose& operator=(const pose& other)
   {
     x     = other.x;
     y     = other.y;
@@ -93,9 +132,9 @@ public:
   }
 
   // Addition operator
-  pose6D operator+(const pose6D& other) const
+  pose operator+(const pose& other) const
   {
-    pose6D result(*this);
+    pose result(*this);
     result.x += other.x;
     result.y += other.y;
     result.z += other.z;
@@ -107,9 +146,9 @@ public:
   }
 
   // Subtraction operator
-  pose6D operator-(const pose6D& other) const
+  pose operator-(const pose& other) const
   {
-    pose6D result(*this);
+    pose result(*this);
     result.x -= other.x;
     result.y -= other.y;
     result.z -= other.z;
@@ -121,9 +160,9 @@ public:
   }
 
   // Division by scalar operator
-  pose6D operator/(const float& val) const
+  pose operator/(const float& val) const
   {
-    pose6D result(*this);
+    pose result(*this);
     result.x /= val;
     result.y /= val;
     result.z /= val;
@@ -134,17 +173,33 @@ public:
     return result;
   }
 
+  // Normalize pose angles
+  void normalize()
+  {
+    roll = fmod(roll, 2 * PI);
+    if (roll > PI)
+      roll -= 2 * PI;
+
+    pitch = fmod(pitch, 2 * PI);
+    if (pitch > PI)
+      pitch -= 2 * PI;
+
+    yaw = fmod(yaw, 2 * PI);
+    if (yaw > PI)
+      yaw -= 2 * PI;
+  }
+
   // Set gaussian noise characterizing the robot pose
-  void setDist(const ellipse2D& other) { dist = other; }
+  void setDist(const ellipse& other) { dist = other; }
 
   // Function to get the 3D point of the corresponding pose
-  point3D getXYZ() { return point3D(x, y, z); }
+  point getXYZ() const { return point(x, y, z); }
 
   // Function to get the gaussian distribution
-  ellipse2D getDist() { return dist; }
+  ellipse getDist() const { return dist; }
 
   // 3D euclidean distance
-  float distance(const pose6D& other) const
+  float distance(const pose& other) const
   {
     float dist_x = x - other.x;
     float dist_y = y - other.y;
@@ -153,7 +208,7 @@ public:
   }
 
   // 2D euclidean distance
-  float distanceXY(const pose6D& other) const
+  float distanceXY(const pose& other) const
   {
     float dist_x = x - other.x;
     float dist_y = y - other.y;
@@ -161,7 +216,7 @@ public:
   }
 
   // Convert pose Euler angles to a Rotation matrix
-  void toRotMatrix(std::vector<float>& m_rot)
+  void toRotMatrix(std::array<float, 9>& m_rot) const
   {
     float ci = cos(roll);
     float cj = cos(pitch);
@@ -173,9 +228,6 @@ public:
     float cs = ci * sh;
     float sc = si * ch;
     float ss = si * sh;
-
-    // Resize vector to store rotation matrix
-    m_rot.resize(9);
 
     // Store the values
     m_rot[0] = cj * ch;
@@ -190,7 +242,7 @@ public:
   }
 
   // Convert pose to Eigen 6D pose
-  Eigen::VectorXd toEig3D()
+  Eigen::VectorXd toEig3D() const
   {
     Eigen::VectorXd vec(6, 1);
     vec << x, y, z, roll, pitch, yaw;
@@ -198,7 +250,7 @@ public:
   }
 
   // Convert pose to Eigen 6D pose
-  Eigen::VectorXd toEig2D()
+  Eigen::VectorXd toEig2D() const
   {
     Eigen::VectorXd vec(3, 1);
     vec << x, y, yaw;
@@ -214,13 +266,11 @@ public:
   float yaw;
 
   // Gaussian uncertainty
-  ellipse2D dist;
-
-private:
+  ellipse dist;
 };
 
 // stdout operator
-static std::ostream& operator<<(std::ostream& out, pose6D const& p)
+static std::ostream& operator<<(std::ostream& out, pose const& p)
 {
   return out << "Pose (" << p.x << ' ' << p.y << ' ' << p.z << ' ' << p.roll << ' '
              << p.pitch << ' ' << p.yaw << ")\n"

@@ -3,249 +3,199 @@
 namespace wildSLAM
 {
 
-PF::PF(const std::string& config_path,
-       const int&         n_particles,
-       const pose6D&      initial_pose)
+PF::PF(const std::string& config_path, const pose& initial_pose)
     : config_path(config_path)
 {
   // Read input parameters
-  YAML::Node config = YAML::LoadFile(config_path);
-  cam_pitch         = config["camera_info"]["cam_pitch"].as<double>() * PI / 180;
-  img_width         = config["camera_info"]["img_width"].as<float>();
-  img_height        = config["camera_info"]["img_height"].as<float>();
-  cam_height        = config["camera_info"]["cam_height"].as<float>();
-  fx                = config["camera_info"]["fx"].as<float>();
-  fy                = config["camera_info"]["fy"].as<float>();
-  cx                = config["camera_info"]["cx"].as<float>();
-  cy                = config["camera_info"]["cy"].as<float>();
-  alpha_trans       = config["pf"]["alpha_trans"].as<float>();
-  alpha_rot         = config["pf"]["alpha_rot"].as<float>();
+  YAML::Node config  = YAML::LoadFile(config_path);
+  srr                = config["pf"]["srr"].as<float>();
+  str                = config["pf"]["str"].as<float>();
+  stt                = config["pf"]["stt"].as<float>();
+  srt                = config["pf"]["srt"].as<float>();
+  sigma_z            = config["pf"]["sigma_z"].as<float>();
+  sigma_roll         = config["pf"]["sigma_roll"].as<float>() * PI / 180.;
+  sigma_pitch        = config["pf"]["sigma_pitch"].as<float>() * PI / 180.;
+  n_particles2D      = config["pf"]["n_particles2D"].as<float>();
+  n_particles3D      = config["pf"]["n_particles3D"].as<float>();
+  auto icp_max_iters = config["ICP"]["max_iters"].as<float>();
+  auto icp_tolerance = config["ICP"]["tolerance"].as<float>();
+  auto dthreshold    = config["ICP"]["distance_threshold"].as<float>();
 
-  // Declare mean and std of each gaussian
-  float std_xy  = 0.5;             // alpha a meter of initial uncertainty
-  float std_rpy = 10.0 * PI / 180; // ten degrees of initial uncertainty
+  // Initialize and set ICP parameters
+  // ------------ Feature-based 3D ICP
+  icp = new ICP(config_path);
+  icp->setMaxIterations(static_cast<int>(icp_max_iters));
+  icp->setTolerance(icp_tolerance);
+  icp->setThreshold(dthreshold);
+  // ---------------------------------
 
-  // Initialize normal distributions
-  std::default_random_engine      generator;
-  std::normal_distribution<float> gauss_x(initial_pose.x, std_xy);
-  std::normal_distribution<float> gauss_y(initial_pose.y, std_xy);
-#if MAP3D == 1
-  std::normal_distribution<float> gauss_roll(0.0, std_rpy);
-#else
-  std::normal_distribution<float> gauss_roll(0.0, 0.0);
-#endif
-  std::normal_distribution<float> gauss_pitch(cam_pitch, std_rpy);
-  std::normal_distribution<float> gauss_yaw(initial_pose.yaw, std_rpy);
+  // Set rms error arrays size
+  rms_error2D.resize(n_particles2D);
+  rms_error3D.resize(n_particles3D);
 
-  // Resize particles array
-  particles.resize(n_particles);
-
-  // Initialize all particles
-  for (int i = 0; i < n_particles; i++) {
-    // Calculate the initial pose for each particle considering
-    // - the input initial pose
-    // - a sample distribution to spread the particles
-#if MAP3D == 1
-    pose6D pose(gauss_x(generator),
-                gauss_y(generator),
-                0.,
-                gauss_roll(generator),
-                gauss_pitch(generator),
-                gauss_yaw(generator));
-#else
-    pose6D pose(gauss_x(generator),
-                gauss_y(generator),
-                0.,
-                0.,
-                cam_pitch,
-                gauss_yaw(generator));
-#endif
-    // Compute initial weight of each particle
-    float weight = 1 / (float)n_particles;
-    // Insert the particle into the particles array
-    particles[i] = Particle(i, pose, weight);
+  // Set particles to zero
+  particles2D.resize(n_particles2D);
+  particles3D.resize(n_particles3D);
+  for (size_t i = 0; i < particles2D.size(); i++) {
+    particles2D[i].id = i;
+    particles2D[i].p  = pose(0., 0., 0., 0., 0., 0.);
+    particles2D[i].w  = static_cast<float>(1. / n_particles2D);
   }
+  for (size_t i = 0; i < particles3D.size(); i++) {
+    particles3D[i].id = i;
+    particles3D[i].p  = pose(0., 0., 0., 0., 0., 0.);
+    particles3D[i].w  = static_cast<float>(1. / n_particles3D);
+  }
+
+  // Initialize particles
+  p_odom = pose(0., 0., 0.);
+  motionModel(initial_pose);
 
   // Initialize the previous pose
   p_odom = initial_pose;
 }
-
-void PF::process(const pose6D&             odom,
-                 const std::vector<float>& landmark_bearings,
-                 const std::vector<float>& landmark_depths,
-                 const OccupancyMap&       grid_map,
-                 float*                    feature_depths)
+void PF::process(const pose&                  odom,
+                 const std::vector<Landmark>& landmarks,
+                 const std::vector<Feature>&  features,
+                 OccupancyMap&                grid_map)
 {
-  // Invocate prediction step to inovate the particles
-  predict(odom);
-  // Invocate the correction step to compute the weights
-  correct(landmark_bearings, landmark_depths, feature_depths, grid_map);
-
-  // Resample all particles only if the filter receives new information
-  if (!landmark_bearings.empty())
-    resample();
-}
-
-void PF::predict(const pose6D& odom)
-{
-  // Compute the relative pose given by the odometry motion model
-  float dt_trans = static_cast<float>(
-      sqrt(pow(odom.x - p_odom.x, 2) + pow(odom.y - p_odom.y, 2)));
-  float dt_rot_a =
-      normalizeAngle(atan2(odom.y - p_odom.y, odom.x - p_odom.x) - p_odom.yaw);
-  float dt_rot_b = normalizeAngle(odom.yaw - p_odom.yaw - dt_rot_a);
-
-  // Standard deviations of the odometry motion model
-  float std_trans = dt_trans * alpha_trans;
-  float std_rot   = (dt_rot_a + dt_rot_b) * alpha_rot;
-
-  // Standard deviation of the non-observable states (roll, pitch)
-  float std_rp = 1.5 * PI / 180;
-
-  // Declare normal Gaussian distributions to innovate the particles
-  std::default_random_engine      generator;
-  std::normal_distribution<float> gauss_trans(0.0, std_trans);
-  std::normal_distribution<float> gauss_rot(0.0, std_rot);
-  std::normal_distribution<float> gauss_rp(0.0, std_rp);
-
-  // Apply the motion model to all particles
-  for (auto& particle : particles) {
-    // Sample the normal distribution functions
-    float s_rot_a = dt_rot_a + gauss_rot(generator);
-    float s_rot_b = dt_rot_b + gauss_rot(generator);
-    float s_trans = dt_trans + gauss_trans(generator);
-    float s_r     = gauss_rp(generator);
-    float s_p     = gauss_rp(generator);
-
-    // Compute the relative pose considering the samples
-    float  p_yaw = particle.pose.yaw;
-    pose6D dt_pose;
-    dt_pose.x = s_trans * cos(normalizeAngle(p_yaw + s_rot_a));
-    dt_pose.y = s_trans * sin(normalizeAngle(p_yaw + s_rot_a));
-    dt_pose.z = 0.0;
-#if MAP3D == 0
-    dt_pose.roll  = 0.0;
-    dt_pose.pitch = 0.0;
-#else
-    dt_pose.roll  = normalizeAngle(s_r);
-    dt_pose.pitch = normalizeAngle(s_p);
-#endif
-    dt_pose.yaw = normalizeAngle(s_rot_a + s_rot_b);
-
-    // Innovate particles using the odometry motion model
-    particle.pose.x += dt_pose.x;
-    particle.pose.y += dt_pose.y;
-    particle.pose.z += dt_pose.z;
-    particle.pose.roll += dt_pose.roll;
-    particle.pose.pitch += dt_pose.pitch;
-    particle.pose.yaw += dt_pose.yaw;
-  }
-
-  p_odom = odom;
-}
-
-void PF::correct(const std::vector<float>& landmark_bearings,
-                 const std::vector<float>& landmark_depths,
-                 float*                    feature_depths,
-                 OccupancyMap              grid_map)
-{
+  // ------------------------------------------------------------------------------
+  // ---------------- Draw particles using odometry motion model
+  // ------------------------------------------------------------------------------
+  motionModel(odom);
+  // ------------------------------------------------------------------------------
+  // ---------------- Perform scan matching using the odometry motion model as first
+  // ---------------- guess for each particle
+  // ------------------------------------------------------------------------------
   auto before = std::chrono::high_resolution_clock::now();
-
-  float weights_sum = 0.0;
-#if MAP3D == 1
-#endif
-
-  // Loop over all particles
-  for (auto& particle : particles) {
-    // Euclidean distance accumulators for the maps
-    float error_sum_2D = 0.0;
-    float error_sum_3D = 0.0;
-    // Convert particle i pose to Rotation matrix
-    std::vector<float> Rot;
-    particle.pose.toRotMatrix(Rot);
-
-#if MAP2D == 1
-    // ----- 2D Semantic feature map fitting -----
-    // Calculation of a local semantic 2D map for each particle
-    int number_correspondences = 0;
-    for (size_t j = 0; j < landmark_bearings.size(); j++) {
-      // Calculate the estimation of the landmark on particles
-      // referential frame
-      float   th = landmark_bearings[j];
-      point3D X_local(
-          landmark_depths[j] * cos(th), landmark_depths[j] * sin(th), 0.);
-      // Convert landmark to map's referential frame considering the
-      // particle pose
-      point3D X;
-      X.x = X_local.x * Rot[0] + X_local.y * Rot[1] + X_local.z * Rot[2] +
-            particle.pose.x;
-      X.y = X_local.x * Rot[3] + X_local.y * Rot[4] + X_local.z * Rot[5] +
-            particle.pose.y;
-      X.z = 0.;
-
-      // Search for a correspondence on current cell first
-      float best_correspondence = INF;
-      for (const auto& m_landmark : grid_map(X.x, X.y).landmarks) {
-        float dist_min = X.distanceXY(m_landmark.second.pos);
-
-        if (dist_min < best_correspondence) {
-          best_correspondence = dist_min;
-        }
-      }
-
-      // Search for a correspondence on adjacent cells then
-      std::vector<Cell> adjacents;
-      grid_map.getAdjacent(X.x, X.y, 2, adjacents);
-      for (const auto& m_cell : adjacents) {
-        for (const auto& m_landmark : m_cell.landmarks) {
-          float dist_min = X.distanceXY(m_landmark.second.pos);
-          if (dist_min < best_correspondence)
-            best_correspondence = dist_min;
-        }
-      }
-
-      // Increment number of correspondences if any was found
-      number_correspondences = (best_correspondence == INF)
-                                   ? number_correspondences
-                                   : (number_correspondences + 1);
-      // Update error_sum if any correspondence was found
-      error_sum_2D =
-          (best_correspondence == INF)
-              ? static_cast<float>(error_sum_2D)
-              : static_cast<float>(error_sum_2D + pow(best_correspondence, 2));
-    }
-    // Set error sum to infinity if non correspondence was found
-    error_sum_2D = (error_sum_2D == 0) ? INF : static_cast<float>(error_sum_2D);
-#endif
-
-#if MAP3D == 1
-#endif
-
-    // Save the particle i weight
-    particle.w = 1.;
-#if MAP2D == 1
-    particle.w *= static_cast<float>(1.) /
-                  (pow(error_sum_2D, 2) / pow(2, number_correspondences));
-#endif
-#if MAP3D == 1
-    particles[i].w *= (1 / sqrt(2 * PI)) * exp(-pow(error_sum_3D, 2) / 2);
-#endif
-    // Sum current weight to perform posterior normalization
-    weights_sum += particle.w;
-  }
-  // Normalize the particles weights to [0,1]
-  if (weights_sum > 0) {
-    for (auto& particle : particles) particle.w /= weights_sum;
-  } else {
-    for (auto& particle : particles) particle.w = 1. / (float)particles.size();
-  }
-
+  scanMatch(features, grid_map);
   auto after = std::chrono::high_resolution_clock::now();
   std::chrono::duration<float, std::milli> duration = after - before;
   std::cout << "Time elapsed (msecs): " << duration.count() << std::endl;
+  // ------------------------------------------------------------------------------
+  // ---------------- Update particle weights using scan matching alignment errors
+  // ------------------------------------------------------------------------------
+  updateWeights();
+  // ------------------------------------------------------------------------------
+  // ---------------- Resample particles
+  // ------------------------------------------------------------------------------
+  //  resample(particles2D); // - 2D particles
+  resample(particles3D); // - 3D particles
+
+  // - Save current control to use in the next iteration
+  p_odom = odom;
 }
 
-void PF::resample()
+void PF::motionModel(const pose& odom)
+{
+  // 2D particle filter
+  for (auto& particle : particles2D) {
+    drawFromMotion(odom, particle.p);
+  }
+
+  // 3D particle filter
+  for (auto& particle : particles3D) {
+    drawFromMotion(odom, particle.p);
+
+    // Set unobservable components - draw from zero-mean gaussian distribution
+    particle.p.z += sampleGaussian(sigma_z);
+    particle.p.roll += sampleGaussian(sigma_roll);
+    particle.p.pitch += sampleGaussian(sigma_pitch);
+  }
+}
+
+void PF::drawFromMotion(const pose& odom, pose& p)
+{
+  float sxy = static_cast<float>(.3) * srr;
+
+  // Compute delta pose between last and current control
+  pose dt_pose = odom - p_odom;
+  dt_pose.yaw  = atan2(sin(dt_pose.yaw), cos(dt_pose.yaw));
+  float s1 = sin(p_odom.yaw), c1 = cos(p_odom.yaw);
+  // ------------------------------------------------------
+  pose delta;
+  delta.x   = c1 * dt_pose.x + s1 * dt_pose.y;
+  delta.y   = -s1 * dt_pose.x + c1 * dt_pose.y;
+  delta.yaw = dt_pose.yaw;
+  // ------------------------------------------------------
+  // Sample zero mean gaussian to compute noisy pose
+  pose noisypoint(delta);
+  noisypoint.x += sampleGaussian(srr * fabs(delta.x) + str * fabs(delta.yaw) +
+                                 sxy * fabs(delta.y));
+  noisypoint.y += sampleGaussian(srr * fabs(delta.y) + str * fabs(delta.yaw) +
+                                 sxy * fabs(delta.x));
+  noisypoint.yaw += sampleGaussian(
+      stt * fabs(delta.yaw) + srt * sqrt(delta.x * delta.x + delta.y * delta.y));
+  // -------------------------------------------------------------------------------
+  noisypoint.normalize();
+  // -------------------------------------------------------------------------------
+
+  // Apply motion model
+  // ------------------------------------------------------
+  float s2 = sin(p.yaw), c2 = cos(p.yaw);
+  p.x += c2 * noisypoint.x - s2 * noisypoint.y;
+  p.y += s2 * noisypoint.x + c2 * noisypoint.y;
+  p.yaw += noisypoint.yaw;
+  // ------------------------------------------------------
+}
+
+// void align2D(const std::vector<Landmark>& landmarks);
+
+void PF::scanMatch(const std::vector<Feature>& features, OccupancyMap& grid_map)
+{
+  // -------------------------------------------------------------------------------
+  // ------- 3D scan matching using low level features
+  // -------------------------------------------------------------------------------
+  // - Set target point cloud (common to all particles)
+  icp->setInputTarget(grid_map);
+  // - Perform scan matching for each particle
+  for (size_t i = 0; i < particles3D.size(); i++) {
+    // Convert particle i pose to [R|t]
+    std::array<float, 3> trans = {
+        particles3D[i].p.x, particles3D[i].p.y, particles3D[i].p.z};
+    std::array<float, 9> Rot = {0., 0., 0., 0., 0., 0., 0., 0., 0.};
+    particles3D[i].p.toRotMatrix(Rot);
+
+    // --------------- Perform scan matching ---------------------
+    // - First guess: each particle drawn by odometry motion model
+    icp->setInputSource(features);
+    std::vector<Feature> aligned;
+    float                rms_error;
+    // - Only use scan match if it does no fail
+    if (icp->align(Rot, trans, rms_error, aligned)) {
+      // - Get homogeneous transformation result
+      std::array<float, 9> final_Rot   = {0., 0., 0., 0., 0., 0., 0., 0., 0.};
+      std::array<float, 3> final_trans = {0., 0., 0.};
+      icp->getTransform(final_Rot, final_trans);
+      // - Convert homogeneous transformation to translation and Euler angles
+      // and set the particle pose
+      particles3D[i].p = pose(final_Rot, final_trans);
+      // Save scan matcher alignment error
+      rms_error3D[i] = rms_error;
+    } else {
+      rms_error3D[i] = 0.;
+    }
+  }
+}
+
+void PF::updateWeights()
+{
+  float w_sum = 0.;
+  for (size_t i = 0; i < particles3D.size(); i++) {
+    float w = rms_error3D[i] > 0. ? static_cast<float>(1. / rms_error3D[i]) : 0.;
+    w_sum += w;
+    particles3D[i].w = w;
+  }
+
+  if (w_sum > 0.) {
+    for (auto& particle : particles3D) particle.w /= w_sum;
+  } else {
+    for (auto& particle : particles3D)
+      particle.w = static_cast<float>(1.) / static_cast<float>(particles3D.size());
+  }
+}
+
+void PF::resample(std::vector<Particle>& particles)
 {
   const int M = particles.size();
 
@@ -274,15 +224,21 @@ void PF::resample()
   // Update set of particles with indexes resultant from the
   // resampling procedure
   for (i = 0; i < M; i++) {
-    particles[i].pose = particles[index[i]].pose;
-    particles[i].w    = particles[index[i]].w;
+    particles[i].p = particles[index[i]].p;
+    particles[i].w = particles[index[i]].w;
   }
 }
 
-void PF::getParticles(std::vector<Particle>& in)
+void PF::getParticles2D(std::vector<Particle>& in)
 {
-  in.resize(particles.size());
-  for (size_t i = 0; i < particles.size(); i++) in[i] = particles[i];
+  in.resize(particles2D.size());
+  for (size_t i = 0; i < particles2D.size(); i++) in[i] = particles2D[i];
+}
+
+void PF::getParticles3D(std::vector<Particle>& in)
+{
+  in.resize(particles3D.size());
+  for (size_t i = 0; i < particles3D.size(); i++) in[i] = particles3D[i];
 }
 
 }; // namespace wildSLAM

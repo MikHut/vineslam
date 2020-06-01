@@ -33,13 +33,14 @@ void wildSLAM_ros::publishGridMap(const std_msgs::Header& header)
   int ymax = static_cast<int>((float)ymin + occ_height / occ_resolution - 1);
   for (int i = xmin; i < xmax; i++) {
     for (int j = ymin; j < ymax; j++) {
-      int8_t number_landmarks = (*grid_map)(i, j).landmarks.size();
+      int8_t number_objs =
+          (*grid_map)(i, j).landmarks.size() + (*grid_map)(i, j).features.size();
 
       int m_i = i - static_cast<int>(occ_origin.x / occ_resolution);
       int m_j = j - static_cast<int>(occ_origin.y / occ_resolution);
       int idx = m_i + m_j * static_cast<int>((occ_width / occ_resolution));
 
-      occ_map.data[idx] = number_landmarks * 10;
+      occ_map.data[idx] = number_objs * 10;
     }
   }
 
@@ -48,7 +49,7 @@ void wildSLAM_ros::publishGridMap(const std_msgs::Header& header)
 }
 
 void wildSLAM_ros::publish2DMap(const std_msgs::Header&   header,
-                                const pose6D&             pose,
+                                const pose&               pose,
                                 const std::vector<float>& bearings,
                                 const std::vector<float>& depths)
 {
@@ -97,7 +98,7 @@ void wildSLAM_ros::publish2DMap(const std_msgs::Header&   header,
       marker.header.frame_id = "map";
       marker.pose.position.x = m_landmark.second.pos.x;
       marker.pose.position.y = m_landmark.second.pos.y;
-      marker.pose.position.z = 0;
+      marker.pose.position.z = m_landmark.second.pos.z;
 
       marker_array.markers.push_back(marker);
 
@@ -110,7 +111,7 @@ void wildSLAM_ros::publish2DMap(const std_msgs::Header&   header,
       ellipse.header.frame_id    = "map";
       ellipse.pose.position.x    = m_landmark.second.pos.x;
       ellipse.pose.position.y    = m_landmark.second.pos.y;
-      ellipse.pose.position.z    = 0;
+      ellipse.pose.position.z    = m_landmark.second.pos.z;
       ellipse.scale.x            = 3 * m_landmark.second.stdev.stdX;
       ellipse.scale.y            = 3 * m_landmark.second.stdev.stdY;
       ellipse.pose.orientation.x = q.x();
@@ -133,7 +134,7 @@ void wildSLAM_ros::publish2DMap(const std_msgs::Header&   header,
   ellipse.header.frame_id    = "map";
   ellipse.pose.position.x    = pose.x;
   ellipse.pose.position.y    = pose.y;
-  ellipse.pose.position.z    = 0;
+  ellipse.pose.position.z    = pose.z;
   ellipse.scale.x            = 3 * pose.dist.stdX;
   ellipse.scale.y            = 3 * pose.dist.stdY;
   ellipse.pose.orientation.x = q.x();
@@ -150,6 +151,43 @@ void wildSLAM_ros::publish2DMap(const std_msgs::Header&   header,
   map2D_publisher.publish(ellipse_array);
 }
 
-void wildSLAM_ros::publish3DMap(const std_msgs::Header& header) {}
+void wildSLAM_ros::publish3DMap()
+{
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out(
+      new pcl::PointCloud<pcl::PointXYZRGB>);
+
+  for (const auto& it : *grid_map) {
+    for (const auto& feature : it.features) {
+      pcl::PointXYZRGB m_pt(feature.r, feature.g, feature.b);
+      m_pt.x = feature.pos.x;
+      m_pt.y = feature.pos.y;
+      m_pt.z = feature.pos.z;
+
+      cloud_out->points.push_back(m_pt);
+    }
+  }
+
+  cloud_out->header.frame_id = "map";
+  map3D_publisher.publish(cloud_out);
+}
+
+void wildSLAM_ros::publish3DMap(const std::vector<Feature>& features,
+                                const ros::Publisher&       pub)
+{
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out(
+      new pcl::PointCloud<pcl::PointXYZRGB>);
+
+  for (const auto& feature : features) {
+    pcl::PointXYZRGB m_pt(feature.r, feature.g, feature.b);
+    m_pt.x = feature.pos.x;
+    m_pt.y = feature.pos.y;
+    m_pt.z = feature.pos.z;
+
+    cloud_out->points.push_back(m_pt);
+  }
+
+  cloud_out->header.frame_id = "map";
+  pub.publish(cloud_out);
+}
 
 }; // namespace wildSLAM

@@ -12,8 +12,8 @@
 
 // Objects
 #include <occupancy_map.hpp>
-#include <math/point3D.hpp>
-#include <math/pose6D.hpp>
+#include <math/point.hpp>
+#include <math/pose.hpp>
 
 // OpenCV
 #include <opencv2/core.hpp>
@@ -26,8 +26,8 @@
 // Feature extractors supported
 #define STAR_ 0
 #define BRISK_ 0
-#define FAST_ 0
-#define ORB_ 1
+#define FAST_ 1
+#define ORB_ 0
 #define KAZE_ 0
 #define AKAZE_ 0
 
@@ -42,27 +42,34 @@ public:
   // parameters
   Mapper3D(const std::string& config_path);
 
-  // Perform feature extraction
-  void extractFeatures(const cv::Mat& in, std::vector<Feature>& out);
-
   // Built local map given the current observations
-  void localMap(const std::vector<Feature>& in_features,
-                std::vector<Feature>&       out_features);
+  void
+  localMap(const cv::Mat& img, float* depths, std::vector<Feature>& out_features);
 
   // Adds the features to the global map
-  void globalMap(const std::vector<Feature>& features, OccupancyMap& grid_map);
+  void globalMap(const std::vector<Feature>& features,
+                 const pose&                 robot_pose,
+                 OccupancyMap&               grid_map);
 
 private:
+  // Perform feature extraction
+  void featureHandler(const cv::Mat& in, std::vector<Feature>& out);
+
+  // Converts a pixel into world's coordinate reference
+  void pixel2world(const point& in_pt, const float& depth, point& out_pt) const;
+
   // Camera info parameters
   float img_width;
   float img_height;
   float cam_height;
+  float cam_pitch;
   float fx;
   float fy;
   float cx;
   float cy;
   // 3D map parameters
-  float max_range;
-  float max_height;
+  float       max_range;
+  float       max_height;
+  std::string fdetector;
 };
 }; // namespace wildSLAM

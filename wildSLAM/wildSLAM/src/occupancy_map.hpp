@@ -1,6 +1,6 @@
 #pragma once
 
-#include "math/point3D.hpp"
+#include <math/point.hpp>
 #include <landmark.hpp>
 #include <feature.hpp>
 
@@ -143,10 +143,12 @@ private:
 
   // Grid map dimensions
   // NOTE: corners are in reference to the given origin
-  point3D origin;
-  float   width;
-  float   height;
-  float   resolution;
+  point origin;
+  float width;
+  float height;
+  float resolution;
+  // Search metric to use: euclidean / descriptor
+  std::string metric;
 };
 
 }; // namespace wildSLAM

@@ -3,30 +3,33 @@
 #include <iostream>
 #include <eigen3/Eigen/Dense>
 
-#include "math/point3D.hpp"
-#include "math/pose6D.hpp"
-#include "math/ellipse2D.hpp"
-#include "occupancy_map.hpp"
-#include "feature.hpp"
+#include <math/point.hpp>
+#include <math/pose.hpp>
+#include <math/stat.hpp>
+#include <occupancy_map.hpp>
+#include <feature.hpp>
 
 namespace wildSLAM
 {
+
 class ICP
 {
 public:
   // Class contructor:
   // - sets the default stop criteria parameters
-  ICP();
+  ICP(const std::string& config_path);
 
   // ICP main routine - aligns two point clouds
   bool align(const std::array<float, 9>& m_R,
              const std::array<float, 3>& m_t,
+             float&                      rms_error,
              std::vector<Feature>&       aligned);
-  bool align(std::vector<Feature>& aligned);
+  bool align(float& rms_error, std::vector<Feature>& aligned);
 
-  // Methods to set the stop criteria parameters
+  // Methods to set the stop criteria parameters and inliers consideration
   void setMaxIterations(const int& m_max_iters) { max_iters = m_max_iters; }
   void setTolerance(const float& m_tolerance) { tolerance = m_tolerance; }
+  void setThreshold(const float& m_threshold) { dist_threshold = m_threshold; }
 
   // Methods to receive the source and target point clouds
   void setInputTarget(const OccupancyMap& m_target)
@@ -42,25 +45,36 @@ public:
     m_t = t;
   }
 
-  // private:
+  // Methods to export the Gaussian distributions
+  void getProb(Gaussian<float>& m_sprob, Gaussian<float>& m_dprob) const
+  {
+    m_sprob = sprob;
+    m_dprob = dprob;
+  }
+  void getProb(Gaussian<float>& m_sprob) const
+  {
+    m_sprob = sprob;
+  }
+
+private:
   // Method that performs a single ICP step
   bool step(Eigen::Matrix3f& m_R, Eigen::Vector3f& m_t, float& rms_error);
 
   // Auxiliar functions to convert from std arrays to eigen and vice versa
-  void stdToEig(const std::array<float, 9>& m_R, Eigen::Matrix3f& Rot);
-  void stdToEig(const std::array<float, 3>& m_t, Eigen::Vector3f& trans);
-  void eigToStd(const Eigen::Matrix3f& Rot, std::array<float, 9>& m_R);
-  void eigToStd(const Eigen::Vector3f& trans, std::array<float, 3>& m_t);
-  //  inline void stdToEig(const std::array<float, 9>& m_R, Eigen::Matrix3f& Rot);
-  //  inline void stdToEig(const std::array<float, 3>& m_t, Eigen::Vector3f& trans);
-  //  inline void eigToStd(const Eigen::Matrix3f& Rot, std::array<float, 9>& m_R);
-  //  inline void eigToStd(const Eigen::Vector3f& trans, std::array<float, 3>& m_t);
+  inline void stdToEig(const std::array<float, 9>& m_R, Eigen::Matrix3f& Rot);
+  inline void stdToEig(const std::array<float, 3>& m_t, Eigen::Vector3f& trans);
+  inline void eigToStd(const Eigen::Matrix3f& Rot, std::array<float, 9>& m_R);
+  inline void eigToStd(const Eigen::Vector3f& trans, std::array<float, 3>& m_t);
 
   // Stop criteria parameters:
   // - maximum number of iterations
   int max_iters;
   // - minimum distance between iterations
   float tolerance;
+  // - Maximum distance value between features to consider as correspondence inlier
+  float dist_threshold;
+  // Search metric to use: euclidean / descriptor
+  std::string metric;
 
   // Source and target point clouds
   OccupancyMap*        target;
@@ -69,5 +83,13 @@ public:
   // Last homogeneous transformation computed
   std::array<float, 9> R;
   std::array<float, 3> t;
+
+  // Probabilistic setup of the last calculations
+  // - Gaussian representing the spatial alignment
+  // - Gaussian representing the feature descriptor matching (if using image
+  // descriptors)
+  Gaussian<float> sprob; // spatial Gaussian
+  Gaussian<float> dprob; // descriptor Gaussian
 };
+
 }; // namespace wildSLAM

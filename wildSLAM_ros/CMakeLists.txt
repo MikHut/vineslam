@@ -17,7 +17,8 @@ find_package(catkin REQUIRED
         message_filters
         cv_bridge
         image_geometry
-        image_transport)
+        image_transport
+        pcl_ros)
 
 find_package(yaml-cpp REQUIRED)
 

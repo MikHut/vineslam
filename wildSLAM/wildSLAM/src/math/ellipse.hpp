@@ -6,11 +6,9 @@
 
 namespace wildSLAM
 {
-class ellipse2D
-{
-public:
+struct ellipse {
   // Default constructor
-  ellipse2D()
+  ellipse()
   {
     stdX = 0.;
     stdY = 0.;
@@ -18,15 +16,15 @@ public:
   }
 
   // Construct with values
-  ellipse2D(const float& stdX_, const float& stdY_, const float& TH_)
+  ellipse(const float& stdX_, const float& stdY_, const float& TH_)
   {
     stdX = stdX_;
     stdY = stdY_;
     TH   = TH_;
   }
 
-  // Construct with another ellipse2D
-  ellipse2D(const ellipse2D& other)
+  // Construct with another ellipse
+  ellipse(const ellipse& other)
   {
     stdX = other.stdX;
     stdY = other.stdY;
@@ -34,7 +32,7 @@ public:
   }
 
   // Assignment operator
-  ellipse2D operator=(const ellipse2D& other)
+  ellipse operator=(const ellipse& other)
   {
     stdX = other.stdX;
     stdY = other.stdY;
@@ -55,7 +53,5 @@ public:
   float stdX;
   float stdY;
   float TH;
-
-private:
 };
 }; // namespace wildSLAM

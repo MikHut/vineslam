@@ -35,10 +35,16 @@ wildSLAM_ros::wildSLAM_ros(int argc, char** argv)
   map2D_publisher =
       nh.advertise<visualization_msgs::MarkerArray>("/wildSLAM/map2D", 1);
   map3D_publisher =
-      nh.advertise<visualization_msgs::MarkerArray>("/wildSLAM/map3D", 1);
+      nh.advertise<pcl::PointCloud<pcl::PointXYZRGB>>("/wildSLAM/map3D", 1);
   pose_publisher  = nh.advertise<geometry_msgs::PoseStamped>("/wildSLAM/pose", 1);
   path_publisher  = nh.advertise<nav_msgs::Path>("/wildSLAM/path", 1);
   poses_publisher = nh.advertise<geometry_msgs::PoseArray>("/wildSLAM/poses", 1);
+#ifdef DEBUG
+  source_map_publisher =
+      nh.advertise<pcl::PointCloud<pcl::PointXYZRGB>>("/wildSLAM/sourceMap3D", 1);
+  aligned_map_publisher =
+      nh.advertise<pcl::PointCloud<pcl::PointXYZRGB>>("/wildSLAM/alignedMap3D", 1);
+#endif
 
   // Load params
   std::string config_path;

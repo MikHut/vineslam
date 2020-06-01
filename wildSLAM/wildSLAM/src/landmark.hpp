@@ -1,8 +1,8 @@
 #pragma once
 
 #include <iostream>
-#include <math/ellipse2D.hpp>
-#include <math/point3D.hpp>
+#include <math/ellipse.hpp>
+#include <math/point.hpp>
 
 namespace wildSLAM
 {
@@ -63,7 +63,7 @@ public:
   // Class constructor
   // - initializes its pose, standard deviation and
   // - its sematic information
-  Landmark(const point3D& pos, const ellipse2D& stdev, const int& label)
+  Landmark(const point& pos, const ellipse& stdev, const int& label)
   {
     (*this).pos   = pos;
     (*this).stdev = stdev;
@@ -71,7 +71,7 @@ public:
   }
   // Class constructor
   // - initializes its pose, standard deviation
-  Landmark(const point3D& pos, const ellipse2D& stdev)
+  Landmark(const point& pos, const ellipse& stdev)
   {
     (*this).pos   = pos;
     (*this).stdev = stdev;
@@ -91,8 +91,8 @@ public:
               << std::endl;
   }
 
-  point3D      pos;
-  ellipse2D    stdev;
+  point      pos;
+  ellipse    stdev;
   SemanticInfo info;
 
 private:

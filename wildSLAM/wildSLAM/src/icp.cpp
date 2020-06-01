@@ -2,11 +2,17 @@
 
 namespace wildSLAM
 {
-ICP::ICP()
+
+ICP::ICP(const std::string& config_path)
 {
+  // Read input parameters
+  YAML::Node config = YAML::LoadFile(config_path);
+  metric            = config["grid_map"]["metric"].as<std::string>();
+
   // Set the default stop criteria parameters
-  max_iters = 100;
-  tolerance = 1e-3;
+  max_iters      = 100;
+  tolerance      = 1e-3;
+  dist_threshold = 0.05;
 
   // Initialize homogeneous transformation
   R = {1., 0., 0., 0., 1., 0., 0., 0., 1.};
@@ -15,6 +21,7 @@ ICP::ICP()
 
 bool ICP::align(const std::array<float, 9>& m_R,
                 const std::array<float, 3>& m_t,
+                float&                      rms_error,
                 std::vector<Feature>&       aligned)
 {
   if (source.empty()) {
@@ -33,17 +40,17 @@ bool ICP::align(const std::array<float, 9>& m_R,
   stdToEig(m_t, trans);
 
   // Perform first iteration and save the error
-  float p_dist;
-  step(Rot, trans, p_dist);
+  float p_rms_error;
+  step(Rot, trans, p_rms_error);
   n_iters++;
 
-  float dist = 0.;
+  rms_error = 0.;
   while (n_iters < max_iters && delta_dist > tolerance) {
-    step(Rot, trans, dist);
+    step(Rot, trans, rms_error);
     n_iters++;
 
-    delta_dist = std::fabs(dist - p_dist);
-    p_dist     = dist;
+    delta_dist = std::fabs(rms_error - p_rms_error);
+    p_rms_error     = rms_error;
   }
 
   // Save homogeneous transformation solution
@@ -55,28 +62,27 @@ bool ICP::align(const std::array<float, 9>& m_R,
   for (size_t i = 0; i < aligned.size(); i++) {
     aligned[i] = source[i];
 
-    point3D spt = source[i].pos;
-    point3D apt;
+    point spt = source[i].pos;
+    point apt;
     apt.x = spt.x * R[0] + spt.y * R[1] + spt.z * R[2] + t[0];
     apt.y = spt.x * R[3] + spt.y * R[4] + spt.z * R[5] + t[1];
     apt.z = spt.x * R[6] + spt.y * R[7] + spt.z * R[8] + t[2];
 
     aligned[i].pos = apt;
   }
-
-  std::cout << "Obtained rms error of " << dist << " in " << n_iters
+  std::cout << "Obtained rms error of " << rms_error << " in " << n_iters
             << " iterations\n\n";
 
   return true;
 }
 
-bool ICP::align(std::vector<Feature>& aligned)
+bool ICP::align(float& rms_error, std::vector<Feature>& aligned)
 {
   // Set rotation to identity and translation to 0
   std::array<float, 9> m_R = {1., 0., 0., 0., 1., 0., 0., 0., 1.};
   std::array<float, 3> m_t = {0., 0., 0.};
 
-  return align(m_R, m_t, aligned);
+  return align(m_R, m_t, rms_error, aligned);
 }
 
 bool ICP::step(Eigen::Matrix3f& m_R, Eigen::Vector3f& m_t, float& rms_error)
@@ -112,7 +118,7 @@ bool ICP::step(Eigen::Matrix3f& m_R, Eigen::Vector3f& m_t, float& rms_error)
     Feature _ftarget;
     Feature _ftransformed = m_feature;
     _ftransformed.pos =
-        point3D(ftransformed(0, 0), ftransformed(1, 0), ftransformed(2, 0));
+        point(ftransformed(0, 0), ftransformed(1, 0), ftransformed(2, 0));
     if (!target->findNearest(_ftransformed, _ftarget)) {
       continue;
     }
@@ -123,9 +129,29 @@ bool ICP::step(Eigen::Matrix3f& m_R, Eigen::Vector3f& m_t, float& rms_error)
     source_pts.block<3, 1>(0, j) = ftransformed;
 
     // Accumulate to compute distance mean
-    float cdist = _ftransformed.pos.distance(_ftarget.pos);
-    dmean += cdist;
-    dvec.push_back(cdist);
+    if (metric == "euclidean") { // euclidean distance
+      float cdist = _ftransformed.pos.distance(_ftarget.pos);
+      dmean += cdist;
+      dvec.push_back(cdist);
+    } else { // descriptor distance
+      std::vector<float> sdesc = _ftransformed.desc;
+      std::vector<float> tdesc = _ftarget.desc;
+
+      // Check validity of descriptors data
+      if (sdesc.size() != tdesc.size()) {
+        std::cout << "WARNING (ICP::step): source and target descriptor have "
+                     "different size ... "
+                  << std::endl;
+        continue;
+      }
+
+      float ssd = 0.; // sum of square errors
+      for (size_t k = 0; k < tdesc.size(); k++)
+        ssd += (tdesc[k] - sdesc[k]) * (tdesc[k] - sdesc[k]);
+
+      dmean += ssd;
+      dvec.push_back(ssd);
+    }
 
     // Valid iteration
     j++;
@@ -145,12 +171,18 @@ bool ICP::step(Eigen::Matrix3f& m_R, Eigen::Vector3f& m_t, float& rms_error)
     dstd += std::sqrt((dvec[i] - dmean) * (dvec[i] - dmean));
   }
   dstd /= static_cast<float>(j);
+
   // Remove outliers using the gaussian approximation
   Eigen::Matrix3Xf inliers_tpoints;
   Eigen::Matrix3Xf inliers_spoints;
   int              nsamples = 0;
   for (size_t i = 0; i < j; i++) {
-    if ((dvec[i] - dmean) < (3 * dstd)) {
+    // Criteria:
+    // - metric = euclidean: distance to mean (3 * standard deviation)
+    // - metric = descriptor: use a threshold to filter outliers
+    bool criteria = (metric == "euclidean") ? ((dvec[i] - dmean) < (3 * dstd))
+                                            : (dvec[i] < dist_threshold);
+    if (criteria) {
       // Resize the matrices
       nsamples = inliers_tpoints.cols() + 1;
       inliers_tpoints.conservativeResize(3, nsamples);
@@ -163,6 +195,13 @@ bool ICP::step(Eigen::Matrix3f& m_R, Eigen::Vector3f& m_t, float& rms_error)
       tmean += inliers_tpoints.block<3, 1>(0, nsamples - 1);
       smean += inliers_spoints.block<3, 1>(0, nsamples - 1);
     }
+  }
+
+  if (nsamples == 0) // Invalid iteration
+  {
+    std::cout << "WARNING (ICP::step): Invalid iteration - none inlier found..."
+              << std::endl;
+    return false;
   }
 
   // Compute center of mass of source and target point clouds
@@ -212,8 +251,7 @@ bool ICP::step(Eigen::Matrix3f& m_R, Eigen::Vector3f& m_t, float& rms_error)
   return true;
 }
 
-// inline void ICP::stdToEig(const std::array<float, 9>& m_R, Eigen::Matrix3f& Rot)
-void ICP::stdToEig(const std::array<float, 9>& m_R, Eigen::Matrix3f& Rot)
+inline void ICP::stdToEig(const std::array<float, 9>& m_R, Eigen::Matrix3f& Rot)
 {
   Rot(0, 0) = m_R[0];
   Rot(0, 1) = m_R[1];
@@ -226,16 +264,14 @@ void ICP::stdToEig(const std::array<float, 9>& m_R, Eigen::Matrix3f& Rot)
   Rot(2, 2) = m_R[8];
 }
 
-// inline void ICP::stdToEig(const std::array<float, 3>& m_t, Eigen::Vector3f& trans)
-void ICP::stdToEig(const std::array<float, 3>& m_t, Eigen::Vector3f& trans)
+inline void ICP::stdToEig(const std::array<float, 3>& m_t, Eigen::Vector3f& trans)
 {
   trans(0, 0) = m_t[0];
   trans(1, 0) = m_t[1];
   trans(2, 0) = m_t[2];
 }
 
-// inline void ICP::eigToStd(const Eigen::Matrix3f& Rot, std::array<float, 9>& m_R)
-void ICP::eigToStd(const Eigen::Matrix3f& Rot, std::array<float, 9>& m_R)
+inline void ICP::eigToStd(const Eigen::Matrix3f& Rot, std::array<float, 9>& m_R)
 {
   m_R[0] = Rot(0, 0);
   m_R[1] = Rot(0, 1);
@@ -248,11 +284,11 @@ void ICP::eigToStd(const Eigen::Matrix3f& Rot, std::array<float, 9>& m_R)
   m_R[8] = Rot(2, 2);
 }
 
-// inline void ICP::eigToStd(const Eigen::Vector3f& trans, std::array<float, 3>& m_t)
-void ICP::eigToStd(const Eigen::Vector3f& trans, std::array<float, 3>& m_t)
+inline void ICP::eigToStd(const Eigen::Vector3f& trans, std::array<float, 3>& m_t)
 {
   m_t[0] = trans(0, 0);
   m_t[1] = trans(1, 0);
   m_t[2] = trans(2, 0);
 }
+
 }; // namespace wildSLAM

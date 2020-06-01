@@ -21,7 +21,7 @@ void wildSLAM_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)
     p_odom.x   = (*msg).pose.pose.position.x;
     p_odom.y   = (*msg).pose.pose.position.y;
     p_odom.yaw = yaw;
-    odom.yaw   = yaw;
+    odom = wildSLAM::pose(0., 0., 0., 0., 0., 0.);
     return;
   }
 
@@ -31,7 +31,7 @@ void wildSLAM_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)
   odom.z     = 0;
   odom.roll  = 0;
   odom.pitch = 0;
-  odom.yaw   = yaw;
+  odom.yaw   += (yaw - p_odom.yaw);
 
   // Save current odometry pose to use in the next iteration
   p_odom.x   = msg->pose.pose.position.x;
@@ -74,26 +74,44 @@ void wildSLAM_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
     bearings.push_back(bearing);
   }
 
+  // - Data needed to compute the maps
+  cv::Mat img =
+      cv_bridge::toCvShare(left_image, sensor_msgs::image_encodings::BGR8)->image;
+  auto* raw_depths = (float*)(&(*depth_image).data[0]);
+
+  std::vector<Feature> m_features;
+  pose robot_pose;
+
   if (init && bearings.size() > 1) {
     // Initialize the localizer and get first particles distribution
-    localizer->init(pose6D(0, 0, 0, 0, 0, odom.yaw));
-    pose6D robot_pose = localizer->getPose();
+    localizer->init(pose(0, 0, 0, 0, 0, 0.));
+    robot_pose = localizer->getPose();
 
     // Initialize the mapper2D
     mapper2D->init(robot_pose, bearings, depths, labels, *grid_map);
 
+    // Initialize the mapper3D
+    mapper3D->localMap(img, raw_depths, m_features);
+    mapper3D->globalMap(m_features, robot_pose, *grid_map);
+
     init = false;
   } else if (!init) {
-    auto* raw_depths = (float*)(&(*depth_image).data[0]);
+
+    // --------- Build local maps to use on localization
+    // - Compute 2D local map of landmarks on camera's referential frame
+    std::vector<Landmark> m_landmarks;
+    mapper2D->localMap(bearings, depths, m_landmarks);
+    // - Compute 3D local map of features on camera's referential frame
+    mapper3D->localMap(img, raw_depths, m_features);
 
     // ------- LOCALIZATION PROCEDURE ---------- //
-    localizer->process(odom, bearings, depths, *grid_map, raw_depths);
-    pose6D robot_pose = localizer->getPose();
+    localizer->process(odom, m_landmarks, m_features, *grid_map);
+    robot_pose = localizer->getPose();
 
     // ------- MULTI-LAYER MAPPING ------------ //
     // ---------------------------------------- //
-    // User chose 3D to map features extracted from the image
-    // ----------- MISSING --------------- //
+    // Compute 3D map using estimated robot pose
+    mapper3D->globalMap(m_features, robot_pose, *grid_map);
     // ---------------------------------------- //
     // Execute the 2D map estimation
     mapper2D->process(robot_pose, bearings, depths, labels, *grid_map);
@@ -109,20 +127,20 @@ void wildSLAM_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
     cam2map.setOrigin(tf::Vector3(robot_pose.x, robot_pose.y, robot_pose.z));
 
     // Convert wildSLAM pose to ROS pose and publish it
-    geometry_msgs::PoseStamped pose;
-    pose.header             = depth_image->header;
-    pose.header.frame_id    = "map";
-    pose.pose.position.x    = robot_pose.x;
-    pose.pose.position.y    = robot_pose.y;
-    pose.pose.position.z    = robot_pose.z;
-    pose.pose.orientation.x = q.x();
-    pose.pose.orientation.y = q.y();
-    pose.pose.orientation.z = q.z();
-    pose.pose.orientation.w = q.w();
-    pose_publisher.publish(pose);
+    geometry_msgs::PoseStamped pose_stamped;
+    pose_stamped.header             = depth_image->header;
+    pose_stamped.header.frame_id    = "map";
+    pose_stamped.pose.position.x    = robot_pose.x;
+    pose_stamped.pose.position.y    = robot_pose.y;
+    pose_stamped.pose.position.z    = robot_pose.z;
+    pose_stamped.pose.orientation.x = q.x();
+    pose_stamped.pose.orientation.y = q.y();
+    pose_stamped.pose.orientation.z = q.z();
+    pose_stamped.pose.orientation.w = q.w();
+    pose_publisher.publish(pose_stamped);
 
     // Push back the current pose to the path container and publish it
-    path.push_back(pose);
+    path.push_back(pose_stamped);
     nav_msgs::Path ros_path;
     ros_path.header          = depth_image->header;
     ros_path.header.frame_id = "map";
@@ -131,7 +149,8 @@ void wildSLAM_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
 
     // Publish cam-to-map tf::Transform
     static tf::TransformBroadcaster br;
-    br.sendTransform(tf::StampedTransform(cam2map, pose.header.stamp, "map", "cam"));
+    br.sendTransform(
+        tf::StampedTransform(cam2map, pose_stamped.header.stamp, "map", "cam"));
 
     // ---------- Publish Multi-layer map ------------- //
     // Publish the grid map
@@ -139,25 +158,26 @@ void wildSLAM_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
     // Publish the 2D map
     publish2DMap(depth_image->header, robot_pose, bearings, depths);
     // Publish 3D point map
-    publish3DMap(depth_image->header);
+    publish3DMap();
     // ------------------------------------------------ //
 
 #ifdef DEBUG
     // Publish all poses for DEBUG
-    std::vector<pose6D> poses;
+    // ----------------------------------------------------------------------------
+    std::vector<pose> poses;
     (*localizer).getParticles(poses);
     geometry_msgs::PoseArray ros_poses;
     ros_poses.header          = depth_image->header;
     ros_poses.header.frame_id = "map";
-    for (size_t i = 0; i < poses.size(); i++) {
+    for (const auto& pose : poses) {
       tf::Quaternion q;
-      q.setRPY(poses[i].roll, poses[i].pitch, poses[i].yaw);
+      q.setRPY(pose.roll, pose.pitch, pose.yaw);
       q.normalize();
 
       geometry_msgs::Pose m_pose;
-      m_pose.position.x    = poses[i].x;
-      m_pose.position.y    = poses[i].y;
-      m_pose.position.z    = poses[i].z;
+      m_pose.position.x    = pose.x;
+      m_pose.position.y    = pose.y;
+      m_pose.position.z    = pose.z;
       m_pose.orientation.x = q.x();
       m_pose.orientation.y = q.y();
       m_pose.orientation.z = q.z();
@@ -166,6 +186,34 @@ void wildSLAM_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
       ros_poses.poses.push_back(m_pose);
     }
     poses_publisher.publish(ros_poses);
+    // ----------------------------------------------------------------------------
+    // Publish debug 3D maps - source and aligned ICP maps
+    // ----------------------------------------------------------------------------
+    // - Publish source map
+    publish3DMap(m_features, source_map_publisher);
+    // - Compute and publish aligned map
+    std::array<float, 9> Rot = {0., 0., 0., 0., 0., 0., 0., 0., 0.};
+    robot_pose.toRotMatrix(Rot);
+    std::array<float, 3> trans = {robot_pose.x, robot_pose.y, robot_pose.z};
+    std::vector<Feature> aligned;
+    for (const auto& feature : m_features) {
+      // - Convert them to map's referential using the robot pose
+      Feature m_feature = feature;
+
+      point m_pt;
+      m_pt.x = feature.pos.x * Rot[0] + feature.pos.y * Rot[1] +
+               feature.pos.z * Rot[2] + trans[0];
+      m_pt.y = feature.pos.x * Rot[3] + feature.pos.y * Rot[4] +
+               feature.pos.z * Rot[5] + trans[1];
+      m_pt.z = feature.pos.x * Rot[6] + feature.pos.y * Rot[7] +
+               feature.pos.z * Rot[8] + trans[2];
+
+      m_feature.pos = m_pt;
+      aligned.push_back(m_feature);
+    }
+    // - Publish the aligned map
+    publish3DMap(aligned, aligned_map_publisher);
+    // ----------------------------------------------------------------------------
 #endif
   }
 }

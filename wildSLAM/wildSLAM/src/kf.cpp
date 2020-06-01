@@ -83,9 +83,9 @@ void KF::correct(const VectorXd& s, const VectorXd& z)
   P = (MatrixXd::Identity(2, 2) - K * G) * P;
 }
 
-point3D KF::getState() const { return point3D(X[0], X[1], 0.); }
+point KF::getState() const { return point(X[0], X[1], 0.); }
 
-ellipse2D KF::getStdev() const
+ellipse KF::getStdev() const
 {
   float a = P(0, 0);
   float b = P(0, 1);
@@ -107,6 +107,6 @@ ellipse2D KF::getStdev() const
   float std_x = sqrt(a);
   float std_y = sqrt(c);
 
-  return ellipse2D(std_x, std_y, 0.);
+  return ellipse(std_x, std_y, 0.);
 }
 }; // namespace wildSLAM

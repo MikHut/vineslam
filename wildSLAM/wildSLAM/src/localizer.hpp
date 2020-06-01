@@ -5,8 +5,8 @@
 #include <landmark.hpp>
 #include <occupancy_map.hpp>
 #include <mapper_3d.hpp>
-#include <math/point3D.hpp>
-#include <math/pose6D.hpp>
+#include <math/point.hpp>
+#include <math/pose.hpp>
 #include <pf.hpp>
 
 // std, eigen
@@ -28,35 +28,34 @@ public:
 
   // Initializes the particle filter with the number of particles
   // and the first odometry pose
-  void init(const pose6D& initial_pose);
+  void init(const pose& initial_pose);
 
   // Global function that handles all the localization process
   // Arguments:
-  // - odom:            wheel odometry pose6D
+  // - odom:            wheel odometry pose
   // - bearings2D:      bearing observations to process 2D localization
   // - landmark_depths: depth observations to process 2D localization
   // - feature_depths:  raw sensor depths to process 3D localization
   // - grid_map:        occupancy grid map that encodes the multi-layer map
   // information
-  void process(const pose6D&             odom,
-               const std::vector<float>& bearings2D,
-               const std::vector<float>& landmark_depths,
-               const OccupancyMap&       grid_map,
-               float*                    feature_depths);
+  void process(const pose&                  odom,
+               const std::vector<Landmark>& landmarks,
+               const std::vector<Feature>&  features,
+               OccupancyMap&          grid_map);
 
   // Export the final pose resultant from the localization procedure
-  pose6D getPose() const;
+  pose getPose() const;
   // Export the all the poses referent to all the particles
-  void getParticles(std::vector<pose6D>& in) const;
+  void getParticles(std::vector<pose>& in) const;
 
 private:
   // Average particles pose
-  pose6D average_pose;
+  pose average_pose;
   // Particle filter object
   PF* pf;
   // Input parameters
-  int   n_particles;
-  float cam_pitch;
+  float n_particles2D;
+  float n_particles3D;
   float img_width;
   float img_height;
   float cam_height;

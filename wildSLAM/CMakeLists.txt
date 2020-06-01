@@ -4,7 +4,7 @@ project(wildSLAM)
 add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED
-        vision_msgs)
+        vision_msgs pcl_ros)
 
 set("OpenCV_DIR" /usr/local/include/opencv2)
 find_package(OpenCV 3.2.0 REQUIRED)
@@ -29,7 +29,7 @@ add_library(wildSLAM
         ${PROJECT_NAME}/src/occupancy_map.cpp
         ${PROJECT_NAME}/src/icp.cpp)
 
-target_link_libraries(${PROJECT_NAME}
+target_link_libraries(wildSLAM
         ${catkin_LIBRARIES}
         ${Eigen3_LIBRARIES}
         ${OpenCV_LIBRARIES})

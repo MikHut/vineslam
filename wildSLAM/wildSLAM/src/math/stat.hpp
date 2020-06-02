@@ -49,12 +49,12 @@ struct Covariance {
 // Gaussian uses a template for the covariance so that it can be
 // - the Covariance structure
 // - a simple float representing the standard deviation
-template <typename T> struct Gaussian {
+template <typename T1, typename T2> struct Gaussian {
   // Default constructor
   Gaussian() = default;
 
   // Mean & Covariance constructor
-  Gaussian(pose m_mean, Covariance m_cov)
+  Gaussian(T1 m_mean, T2 m_cov)
   {
     mean = m_mean;
     cov  = m_cov;
@@ -69,8 +69,8 @@ template <typename T> struct Gaussian {
     return *this;
   }
 
-  pose mean;
-  T    cov;
+  T1 mean;
+  T2 cov;
 };
 
 // Samples a zero mean Gaussian

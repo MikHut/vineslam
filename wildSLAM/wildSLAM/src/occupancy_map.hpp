@@ -126,7 +126,7 @@ public:
                    std::vector<Cell>& adjacent);
 
   // Find nearest neighbor of a feature considering adjacent cells
-  bool findNearest(const Feature& input, Feature& nearest);
+  bool findNearest(const Feature& input, Feature& nearest, float& min_dist);
   // Find nearest neighbor of a feature on its cell
   bool findNearestOnCell(const Feature& input, Feature& nearest);
 

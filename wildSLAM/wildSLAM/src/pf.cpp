@@ -30,8 +30,9 @@ PF::PF(const std::string& config_path, const pose& initial_pose)
   // ---------------------------------
 
   // Set rms error arrays size
-  rms_error2D.resize(n_particles2D);
   rms_error3D.resize(n_particles3D);
+  dprobvec.resize(n_particles3D);
+  sprobvec.resize(n_particles3D);
 
   // Set particles to zero
   particles2D.resize(n_particles2D);
@@ -139,8 +140,6 @@ void PF::drawFromMotion(const pose& odom, pose& p)
   // ------------------------------------------------------
 }
 
-// void align2D(const std::vector<Landmark>& landmarks);
-
 void PF::scanMatch(const std::vector<Feature>& features, OccupancyMap& grid_map)
 {
   // -------------------------------------------------------------------------------
@@ -172,8 +171,17 @@ void PF::scanMatch(const std::vector<Feature>& features, OccupancyMap& grid_map)
       particles3D[i].p = pose(final_Rot, final_trans);
       // Save scan matcher alignment error
       rms_error3D[i] = rms_error;
+      // Save scan matcher spatial and descriptor gaussian distribution
+      Gaussian<float, float> sprob{}, dprob{};
+      icp->getProb(sprob, dprob);
+      dprobvec[i] = dprob;
+      sprobvec[i] = sprob;
     } else {
-      rms_error3D[i] = 0.;
+      rms_error3D[i]   = 0.;
+      dprobvec[i].mean = 1e6;
+      dprobvec[i].cov  = 1.;
+      sprobvec[i].mean = 1e7;
+      sprobvec[i].cov  = 1.;
     }
   }
 }
@@ -182,17 +190,37 @@ void PF::updateWeights()
 {
   float w_sum = 0.;
   for (size_t i = 0; i < particles3D.size(); i++) {
-    float w = rms_error3D[i] > 0. ? static_cast<float>(1. / rms_error3D[i]) : 0.;
+    auto pdesc = static_cast<float>(
+        (1. / (sqrt(2. * PI) * dprobvec[i].cov)) *
+        exp(-dprobvec[i].mean / (2. * PI * dprobvec[i].cov * dprobvec[i].cov)));
+    auto pspat = static_cast<float>(
+        (1. / (sqrt(2. * PI) * sprobvec[i].cov)) *
+        exp(-sprobvec[i].mean / (2. * PI * sprobvec[i].cov * sprobvec[i].cov)));
+
+    float w = pdesc * pspat;
+
+    std::cout << "Particle " << i << " - " << dprobvec[i].mean << ","
+              << dprobvec[i].cov << " | " << sprobvec[i].mean << ","
+              << sprobvec[i].cov << " -- > " << w << std::endl;
+
     w_sum += w;
     particles3D[i].w = w;
   }
+  std::cout << std::endl;
 
+  std::cout << "SUM: " << w_sum << std::endl;
   if (w_sum > 0.) {
     for (auto& particle : particles3D) particle.w /= w_sum;
   } else {
     for (auto& particle : particles3D)
       particle.w = static_cast<float>(1.) / static_cast<float>(particles3D.size());
   }
+
+  for (size_t i = 0; i < particles3D.size(); i++)
+    std::cout << "Particle " << i << " - " << dprobvec[i].mean << ","
+              << dprobvec[i].cov << " | " << sprobvec[i].mean << ","
+              << sprobvec[i].cov << " -- > " << particles3D[i].w << std::endl;
+  std::cout << std::endl;
 }
 
 void PF::resample(std::vector<Particle>& particles)

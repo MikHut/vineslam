@@ -55,7 +55,7 @@ public:
   void process(const pose&                  odom,
                const std::vector<Landmark>& landmarks,
                const std::vector<Feature>&  features,
-               OccupancyMap&          grid_map);
+               OccupancyMap&                grid_map);
 
   // Export the array of particles
   void getParticles2D(std::vector<Particle>& in);
@@ -82,9 +82,10 @@ private:
   std::vector<Particle> particles2D;
   std::vector<Particle> particles3D;
 
-  // Arrays to store the scan matchers rms errors
-  std::vector<float> rms_error2D;
-  std::vector<float> rms_error3D;
+  // Arrays to store the scan matcher rms error and gaussians
+  std::vector<float>                  rms_error3D;
+  std::vector<Gaussian<float, float>> dprobvec;
+  std::vector<Gaussian<float, float>> sprobvec;
 
   // Scan Matcher objects
   ICP* icp;

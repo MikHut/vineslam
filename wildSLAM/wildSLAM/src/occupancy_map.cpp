@@ -190,7 +190,9 @@ bool OccupancyMap::getAdjacent(const float&       i,
   return getAdjacent(m_i, m_j, layers, adjacent);
 }
 
-bool OccupancyMap::findNearest(const Feature& input, Feature& nearest)
+bool OccupancyMap::findNearest(const Feature& input,
+                               Feature&       nearest,
+                               float&         min_dist)
 {
   if (n_features == 0) {
     std::cout
@@ -215,7 +217,7 @@ bool OccupancyMap::findNearest(const Feature& input, Feature& nearest)
   // iterator to move into the desired next cell
   int it = 0;
   // distance checker
-  float min_dist = 1e6;
+  min_dist = 1e6;
   // booleans for stop criteria
   bool found_solution;
   bool valid_iteration;

@@ -42,10 +42,12 @@ map_3D:
 # - error derivative threshold
 # - minimum distance (euclidean or L2-norm for descriptor) to consider
 #   a correspondence an inlier
+# - boolean to choose whether or not we want to reject outliers
 ICP:
-  max_iters: 10
+  max_iters: 20
   tolerance: 0.0001
   distance_threshold: 0.08
+  reject_outliers: "True"
 
 # Particle filter:
 # - s constants - sample_motion_model_odometry from Probabilistic Robotics

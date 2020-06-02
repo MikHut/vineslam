@@ -26,6 +26,11 @@ public:
              std::vector<Feature>&       aligned);
   bool align(float& rms_error, std::vector<Feature>& aligned);
 
+  // Compute the rms error of the alignment between a source and the current target
+  // cloud considering a specific pose
+  bool
+  score(const pose& spose, const std::vector<Feature>& scloud, float& rms_error);
+
   // Methods to set the stop criteria parameters and inliers consideration
   void setMaxIterations(const int& m_max_iters) { max_iters = m_max_iters; }
   void setTolerance(const float& m_tolerance) { tolerance = m_tolerance; }
@@ -46,15 +51,13 @@ public:
   }
 
   // Methods to export the Gaussian distributions
-  void getProb(Gaussian<float>& m_sprob, Gaussian<float>& m_dprob) const
+  void getProb(Gaussian<float, float>& m_sprob,
+               Gaussian<float, float>& m_dprob) const
   {
     m_sprob = sprob;
     m_dprob = dprob;
   }
-  void getProb(Gaussian<float>& m_sprob) const
-  {
-    m_sprob = sprob;
-  }
+  void getProb(Gaussian<float, float>& m_sprob) const { m_sprob = sprob; }
 
 private:
   // Method that performs a single ICP step
@@ -66,15 +69,15 @@ private:
   inline void eigToStd(const Eigen::Matrix3f& Rot, std::array<float, 9>& m_R);
   inline void eigToStd(const Eigen::Vector3f& trans, std::array<float, 3>& m_t);
 
-  // Stop criteria parameters:
+  // Parameters:
   // - maximum number of iterations
   int max_iters;
   // - minimum distance between iterations
   float tolerance;
   // - Maximum distance value between features to consider as correspondence inlier
   float dist_threshold;
-  // Search metric to use: euclidean / descriptor
-  std::string metric;
+  // - Boolean to choose if we reject or not outliers
+  bool reject_outliers;
 
   // Source and target point clouds
   OccupancyMap*        target;
@@ -84,12 +87,15 @@ private:
   std::array<float, 9> R;
   std::array<float, 3> t;
 
+  // Structure to store the correspondences found in each iteration
+  std::vector<std::pair<point, point>> corrs;
+
   // Probabilistic setup of the last calculations
   // - Gaussian representing the spatial alignment
   // - Gaussian representing the feature descriptor matching (if using image
   // descriptors)
-  Gaussian<float> sprob; // spatial Gaussian
-  Gaussian<float> dprob; // descriptor Gaussian
+  Gaussian<float, float> sprob; // spatial Gaussian
+  Gaussian<float, float> dprob; // descriptor Gaussian
 };
 
 }; // namespace wildSLAM

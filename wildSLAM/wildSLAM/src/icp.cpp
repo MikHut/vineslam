@@ -133,8 +133,8 @@ bool ICP::step(Eigen::Matrix3f& m_R, Eigen::Vector3f& m_t, float& rms_error)
   float smean = 0., sstd = 0.; // spatial mean & stdev
   float dmean = 0., dstd = 0.; // descriptor mean & stdev
   // Arrays to all the correspondences errors
-  std::vector<float> svec; // spatial error
-  std::vector<float> dvec; // descriptor error
+  serrorvec.clear(); // spatial error
+  derrorvec.clear(); // descriptor error
 
   for (const auto& m_feature : source) {
     // Convert feature into the target reference frame using current [R|t] solution
@@ -178,10 +178,10 @@ bool ICP::step(Eigen::Matrix3f& m_R, Eigen::Vector3f& m_t, float& rms_error)
       // - Euclidean distance
       float cdist = _ftransformed.pos.distance(_ftarget.pos);
       smean += cdist;
-      svec.push_back(cdist);
+      serrorvec.push_back(cdist);
       // - Descriptor distance
       dmean += min_dist;
-      dvec.push_back(min_dist);
+      derrorvec.push_back(min_dist);
       // ----------------------------------------------
     }
     // -----------------------------------------------------------------------------
@@ -212,8 +212,8 @@ bool ICP::step(Eigen::Matrix3f& m_R, Eigen::Vector3f& m_t, float& rms_error)
   dmean /= static_cast<float>(nsamples);
   smean /= static_cast<float>(nsamples);
   for (size_t i = 0; i < nsamples; i++) {
-    dstd += (dvec[i] - dmean) * (dvec[i] - dmean);
-    sstd += (svec[i] - smean) * (svec[i] - smean);
+    dstd += (derrorvec[i] - dmean) * (derrorvec[i] - dmean);
+    sstd += (serrorvec[i] - smean) * (serrorvec[i] - smean);
   }
   dstd = static_cast<float>(std::sqrt(dstd / nsamples));
   sstd = static_cast<float>(std::sqrt(sstd / nsamples));

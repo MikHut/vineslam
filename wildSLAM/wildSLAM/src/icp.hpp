@@ -50,14 +50,20 @@ public:
     m_t = t;
   }
 
-  // Methods to export the Gaussian distributions
+  // Method to export the Gaussian distributions
   void getProb(Gaussian<float, float>& m_sprob,
                Gaussian<float, float>& m_dprob) const
   {
     m_sprob = sprob;
     m_dprob = dprob;
   }
-  void getProb(Gaussian<float, float>& m_sprob) const { m_sprob = sprob; }
+
+  // Methods to export the errors arrays
+  void getErrors(std::vector<float>& serror, std::vector<float>& derror) const
+  {
+    serror = serrorvec;
+    derror = derrorvec;
+  }
 
 private:
   // Method that performs a single ICP step
@@ -87,8 +93,9 @@ private:
   std::array<float, 9> R;
   std::array<float, 3> t;
 
-  // Structure to store the correspondences found in each iteration
-  std::vector<std::pair<point, point>> corrs;
+  // Structure to store the correspondence errors resulting from the scan match
+  std::vector<float> serrorvec;
+  std::vector<float> derrorvec;
 
   // Probabilistic setup of the last calculations
   // - Gaussian representing the spatial alignment

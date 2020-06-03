@@ -10,6 +10,7 @@
 #include <math/stat.hpp>
 
 // Include std members and yaml-cpp
+#include <stdlib.h>
 #include <chrono>
 #include <iostream>
 #include <map>
@@ -29,9 +30,9 @@ struct Particle {
   Particle() {}
   Particle(const int& id, const pose& p, const float& w)
   {
-    (*this).id = id;
-    (*this).p  = p;
-    (*this).w  = w;
+    (*this).id    = id;
+    (*this).p     = p;
+    (*this).w     = w;
   }
   int   id;
   pose  p;
@@ -68,15 +69,18 @@ private:
   void motionModel(const pose& odom);
   // Apply 2D high-level landmark alignment to estimate 2D robot pose
   void align2D(const std::vector<Landmark>& landmarks);
-  // Apply 3D ICP to all particles
+  // Apply 3D ICP to all particles and update their weights
   void scanMatch(const std::vector<Feature>& features, OccupancyMap& grid_map);
-  // Update and normalize particles weights
-  void updateWeights();
+  // Normalize particles weights
+  void normalizeWeights();
   // Resample particles
   void resample(std::vector<Particle>& particles);
 
   // Previous odometry control
   pose p_odom;
+
+  // Particle weight sum
+  float w_sum;
 
   // Particles
   std::vector<Particle> particles2D;

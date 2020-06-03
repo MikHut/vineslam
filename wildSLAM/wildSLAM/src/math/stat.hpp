@@ -54,23 +54,23 @@ template <typename T1, typename T2> struct Gaussian {
   Gaussian() = default;
 
   // Mean & Covariance constructor
-  Gaussian(T1 m_mean, T2 m_cov)
+  Gaussian(T1 m_mean, T2 m_stdev)
   {
-    mean = m_mean;
-    cov  = m_cov;
+    mean  = m_mean;
+    stdev = m_stdev;
   }
 
   // Assignment operator
   Gaussian& operator=(const Gaussian& other)
   {
-    mean = other.mean;
-    cov  = other.cov;
+    mean  = other.mean;
+    stdev = other.stdev;
 
     return *this;
   }
 
   T1 mean;
-  T2 cov;
+  T2 stdev;
 };
 
 // Samples a zero mean Gaussian

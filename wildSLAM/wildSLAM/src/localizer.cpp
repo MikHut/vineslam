@@ -59,6 +59,7 @@ void Localizer::process(const pose&                  odom,
   average_pose.roll  = normalizeAngle(average_pose.roll);
   average_pose.pitch = normalizeAngle(average_pose.pitch);
   average_pose.yaw   = normalizeAngle(average_pose.yaw);
+  std::cout << "AVERAGE POSE ! " << average_pose << std::endl;
 }
 
 pose Localizer::getPose() const { return average_pose; }

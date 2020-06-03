@@ -60,13 +60,16 @@ void PF::process(const pose&                  odom,
                  const std::vector<Feature>&  features,
                  OccupancyMap&                grid_map)
 {
+  // Reset weights sum
+  w_sum = 0.;
+
   // ------------------------------------------------------------------------------
   // ---------------- Draw particles using odometry motion model
   // ------------------------------------------------------------------------------
   motionModel(odom);
   // ------------------------------------------------------------------------------
   // ---------------- Perform scan matching using the odometry motion model as first
-  // ---------------- guess for each particle
+  // ---------------- guess for each particle & Update particle weights
   // ------------------------------------------------------------------------------
   auto before = std::chrono::high_resolution_clock::now();
   scanMatch(features, grid_map);
@@ -74,9 +77,9 @@ void PF::process(const pose&                  odom,
   std::chrono::duration<float, std::milli> duration = after - before;
   std::cout << "Time elapsed (msecs): " << duration.count() << std::endl;
   // ------------------------------------------------------------------------------
-  // ---------------- Update particle weights using scan matching alignment errors
+  // ---------------- Normalize particle weights using scan matching alignment errors
   // ------------------------------------------------------------------------------
-  updateWeights();
+  normalizeWeights();
   // ------------------------------------------------------------------------------
   // ---------------- Resample particles
   // ------------------------------------------------------------------------------
@@ -166,49 +169,49 @@ void PF::scanMatch(const std::vector<Feature>& features, OccupancyMap& grid_map)
       std::array<float, 9> final_Rot   = {0., 0., 0., 0., 0., 0., 0., 0., 0.};
       std::array<float, 3> final_trans = {0., 0., 0.};
       icp->getTransform(final_Rot, final_trans);
+
       // - Convert homogeneous transformation to translation and Euler angles
       // and set the particle pose
       particles3D[i].p = pose(final_Rot, final_trans);
-      // Save scan matcher alignment error
-      rms_error3D[i] = rms_error;
-      // Save scan matcher spatial and descriptor gaussian distribution
+
+      // - Save scan matcher spatial and descriptor gaussian distribution
       Gaussian<float, float> sprob{}, dprob{};
       icp->getProb(sprob, dprob);
-      dprobvec[i] = dprob;
-      sprobvec[i] = sprob;
+
+      // - Get the correspondences errors both spatial and for the descriptors
+      std::vector<float> serror;
+      std::vector<float> derror;
+      icp->getErrors(serror, derror);
+
+      // - Prevent single correspondence - standard deviation = 0
+      if (serror.size() <= 1) {
+        particles3D[i].w = 0.;
+        continue;
+      }
+
+      // ---------- Update particle weight ----------- //
+      float w = 0.;
+      for (size_t j = 0; j < serror.size(); j++) {
+        auto m_sprob = static_cast<float>(
+            (1. / (std::sqrt(2. * PI) * sprob.stdev)) *
+            exp(-serror[j] / (2. * PI * sprob.stdev * sprob.stdev)));
+        auto m_dprob = static_cast<float>(
+            (1. / (std::sqrt(2. * PI) * dprob.stdev)) *
+            exp(-derror[j] / (2. * PI * dprob.stdev * dprob.stdev)));
+
+        w += m_sprob * m_dprob;
+      }
+      particles3D[i].w = w;
+      w_sum += w;
     } else {
-      rms_error3D[i]   = 0.;
-      dprobvec[i].mean = 1e6;
-      dprobvec[i].cov  = 1.;
-      sprobvec[i].mean = 1e7;
-      sprobvec[i].cov  = 1.;
+      // - If scan match fails, we set the particle weight to zero
+      particles3D[i].w = 0.;
     }
   }
 }
 
-void PF::updateWeights()
+void PF::normalizeWeights()
 {
-  float w_sum = 0.;
-  for (size_t i = 0; i < particles3D.size(); i++) {
-    auto pdesc = static_cast<float>(
-        (1. / (sqrt(2. * PI) * dprobvec[i].cov)) *
-        exp(-dprobvec[i].mean / (2. * PI * dprobvec[i].cov * dprobvec[i].cov)));
-    auto pspat = static_cast<float>(
-        (1. / (sqrt(2. * PI) * sprobvec[i].cov)) *
-        exp(-sprobvec[i].mean / (2. * PI * sprobvec[i].cov * sprobvec[i].cov)));
-
-    float w = pdesc * pspat;
-
-    std::cout << "Particle " << i << " - " << dprobvec[i].mean << ","
-              << dprobvec[i].cov << " | " << sprobvec[i].mean << ","
-              << sprobvec[i].cov << " -- > " << w << std::endl;
-
-    w_sum += w;
-    particles3D[i].w = w;
-  }
-  std::cout << std::endl;
-
-  std::cout << "SUM: " << w_sum << std::endl;
   if (w_sum > 0.) {
     for (auto& particle : particles3D) particle.w /= w_sum;
   } else {
@@ -216,45 +219,48 @@ void PF::updateWeights()
       particle.w = static_cast<float>(1.) / static_cast<float>(particles3D.size());
   }
 
-  for (size_t i = 0; i < particles3D.size(); i++)
-    std::cout << "Particle " << i << " - " << dprobvec[i].mean << ","
-              << dprobvec[i].cov << " | " << sprobvec[i].mean << ","
-              << sprobvec[i].cov << " -- > " << particles3D[i].w << std::endl;
+  std::cout << "BEFORE RESAMPLING " << std::endl;
+  for (const auto& p : particles3D)
+    std::cout << "Particle i: " << p.w << " -> " << p.p;
   std::cout << std::endl;
 }
 
 void PF::resample(std::vector<Particle>& particles)
 {
-  const int M = particles.size();
+  float    cweight = 0.;
+  uint32_t n       = particles.size();
 
-  // Construct array with all particles weights
-  std::vector<float> w;
-  for (int i = 0; i < M; i++) w.push_back(particles[i].w);
+  // - Compute the cumulative weights
+  for (const auto& p : particles) cweight += p.w;
+  // - Compute the interval
+  float interval = cweight / n;
+  // - Compute the initial target weight
+  auto target = static_cast<float>(interval * ::drand48());
 
-  // Cumulative sum of weights
-  std::vector<float> Q(M);
-  Q[0] = w[0];
-  for (int i = 1; i < M; i++) Q[i] = Q[i - 1] + w[i];
+  // - Compute the resampled indexes
+  cweight = 0.;
+  std::vector<uint32_t> indexes(n);
+  n          = 0.;
+  uint32_t i = 0;
 
-  // Perform multinomial resampling
-  int              i = 0;
-  std::vector<int> index(M);
-  while (i < M) {
-    float sample = static_cast<float>(std::rand() / (RAND_MAX));
-    int   j      = 1;
+  for (const auto& p : particles) {
+    cweight += p.w;
+    while (cweight > target) {
+      indexes[n++] = i;
+      target += interval;
+    }
 
-    while (Q[j] < sample) j++;
-
-    index[i] = j;
     i++;
   }
 
-  // Update set of particles with indexes resultant from the
-  // resampling procedure
-  for (i = 0; i < M; i++) {
-    particles[i].p = particles[index[i]].p;
-    particles[i].w = particles[index[i]].w;
+  // - Update particle set
+  for (size_t j = 0; j < indexes.size(); j++) {
+    std::cout << j << " - " << particles[j].w << std::endl;
+    particles[j].p = particles[indexes[j]].p;
+    particles[j].w = particles[indexes[j]].w;
+    std::cout << indexes[j] << " - " << particles[indexes[j]].w << std::endl;
   }
+  std::cout << std::endl;
 }
 
 void PF::getParticles2D(std::vector<Particle>& in)

@@ -113,7 +113,7 @@ void Mapper3D::featureHandler(const cv::Mat& in, std::vector<Feature>& out)
     sift->detectAndCompute(in, cv::Mat(), kpts, desc);
   } else {
     type      = "SURF";
-    auto surf = SURF::create(1100);
+    auto surf = SURF::create(1800);
     surf->detectAndCompute(in, cv::Mat(), kpts, desc);
   }
 

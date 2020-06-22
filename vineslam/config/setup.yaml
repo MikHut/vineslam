@@ -7,6 +7,8 @@ camera_info:
   h_fov: 85            # ZED's horizontal field of view in degrees
   cam_pitch: 11.3      # camera inclination in degrees
   cam_height: 1.0      # camera height in meters
+  depth_hfov: 90       # degrees - depth image horizontal field of view
+  depth_vfov: 60       # degrees - depth image vertical field of view
   img_width: 1280      # pixels
   img_height: 720      # pixels
   fx: 692.95849609375  # pixels
@@ -18,6 +20,19 @@ camera_info:
 # - supported types: SURF, SIFT
 image_feature:
   type: "SURF"
+
+
+# 3D cloud feature extraction settings
+cloud_feature:
+  downsample_factor: 5  # constant to downscale dense disparity image
+  ground_theta: 2.0  # (degrees) vertical angle threshold to consider ground points
+  # from "Fast Range Image-Based Segmentation of Sparse 3D Laser Scans for Online Operation"
+  planes_theta: 5.0 # (degrees) angle threshold to cluster planes
+  RANSAC:
+    max_iters: 20  # maximum number of RANSAC iterations
+    dist_threshold: 0.08  # inliers distance threshold
+  edge_threshold: 0.005 # curvature maximum threshold to consider a feature as an adge
+
 
 # Grid map definitions
 # - origin of the grid map
@@ -32,10 +47,12 @@ grid_map:
   resolution: 0.10 # meters
   metric: "descriptor"
 
+
 # 3D map definitions
 map_3D:
   max_range: 5.0 # meters
   max_height: 1.2 # meters
+
 
 # ICP scan matching parameters
 # - maximum number of iterations
@@ -48,6 +65,7 @@ ICP:
   tolerance: 0.0001
   distance_threshold: 0.08
   reject_outliers: "True"
+
 
 # Particle filter:
 # - s constants - sample_motion_model_odometry from Probabilistic Robotics

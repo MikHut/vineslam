@@ -116,7 +116,7 @@ struct ImageFeature : public Feature {
   ImageFeature() = default;
 
   // Class constructor
-  // - initializes its image/world position, color, and feature type
+  // - initializes its image/world position, color
   ImageFeature(const int&     u,
                const int&     v,
                const uint8_t& r,
@@ -133,17 +133,26 @@ struct ImageFeature : public Feature {
     (*this).pos       = pos;
   }
 
+  // Class constructor
+  // - initializes its image
+  ImageFeature(const int& u, const int& v)
+  {
+    (*this).u         = u;
+    (*this).v         = v;
+    (*this).signature = std::vector<float>();
+  }
+
   // Image pixel position
-  int u;
-  int v;
+  int u{};
+  int v{};
   // RGB info
-  uint8_t r;
-  uint8_t g;
-  uint8_t b;
+  uint8_t r{};
+  uint8_t g{};
+  uint8_t b{};
   // Feature descriptor
   std::vector<float> signature;
   // Feature laplacian - hessian matrix trace
-  int laplacian;
+  int laplacian{};
 };
 
 // ---------------------------------------------------------------------------------
@@ -151,6 +160,32 @@ struct ImageFeature : public Feature {
 // ---------------------------------------------------------------------------------
 
 struct Corner : public Feature {
+  Corner() = default;
+
+  Corner(const point& m_pt, const int& m_which_plane)
+  {
+    pos         = m_pt;
+    which_plane = m_which_plane;
+  }
+
+  int which_plane{}; // sets the plane where the corner belongs
+};
+
+// Dummy struct to represent a plane point, before corner extraction
+struct PlanePoint : public Corner {
+  PlanePoint() = default;
+
+  PlanePoint(const point& m_pt, const int& m_which_plane)
+  {
+    pos         = m_pt;
+    which_plane = m_which_plane;
+  }
+
+  PlanePoint(const Corner& m_corner)
+  {
+    pos         = m_corner.pos;
+    which_plane = m_corner.which_plane;
+  }
 };
 
 // ---------------------------------------------------------------------------------
@@ -159,9 +194,17 @@ struct Corner : public Feature {
 
 struct Plane {
   Plane() = default;
+
   explicit Plane(const vector3D& m_normal) { normal = m_normal; }
 
-  vector3D normal;
+  Plane(const vector3D& m_normal, const std::vector<point>& m_points)
+  {
+    normal = m_normal;
+    points = m_points;
+  }
+
+  vector3D           normal;
+  std::vector<point> points;
 };
 
 }; // namespace vineslam

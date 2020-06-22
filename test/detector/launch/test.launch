@@ -3,20 +3,20 @@
   <param name ="/use_sim_time" value="true"/>
 
   <!-- rviz -->
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find wildSLAM)/config/config.rviz" required="false"/>
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find vineslam)/config/config.rviz" required="false"/>
 
   <!-- image republish -->
   <node name="republish" type="republish" pkg="image_transport" output="screen"
     args="compressed in:=/camera/image out:=/camera/image_raw" />
 
   <!-- slam node -->
-  <node pkg="wildSLAM_ros" type="wildSLAM_ros" name="wildSLAM_ros" output="screen">
+  <node pkg="vineslam_ros" type="vineslam_ros" name="vineslam_ros" output="screen">
     <remap from="/left_image"  to="/zed/zed_node/left/image_rect_color"/>
     <remap from="/depth_image" to="/zed/zed_node/depth/depth_registered" />
     <remap from="/detections" to="detections" />
     <remap from="/odom" to="/husky_velocity_controller/odom" />
     
-    <param name="/SLAMNode/config_path" value="$(find wildSLAM)/config/setup.yaml" />
+    <param name="/SLAMNode/config_path" value="$(find vineslam)/config/setup.yaml" />
   </node>
 
   <node pkg="detector" type="detector_node" name="detector" output="screen">

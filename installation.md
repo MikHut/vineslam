@@ -1,8 +1,8 @@
-# Install wildSLAM and test package
+# Install vineslam and test package
 
 ## Dependencies
 
-### Standalone wildSLAM package
+### Standalone vineslam package
 
 * **ROS** - [melodic](http://wiki.ros.org/melodic/Installation/Ubuntu) is the recomended version
 * **octomap** - `sudo apt install ros-melodic-octomap*`

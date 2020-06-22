@@ -5,7 +5,7 @@ add_definitions(-DDEBUG)
 add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED
-		    wildSLAM
+		    vineslam
 		    edgetpu_cpp 
 		    agrob_map_transform
 		    roscpp
@@ -33,7 +33,7 @@ include_directories(benchmark /usr/local/include/benchmark)
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
-  ${wildSLAM_INCLUDE_DIRS}
+  ${vineslam_INCLUDE_DIRS}
   ${edgetpu_cpp_INCLUDE_DIRS}
   ${agrob_map_transform_cpp_INCLUDE_DIRS}
 )

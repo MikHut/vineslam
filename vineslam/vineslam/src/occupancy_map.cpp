@@ -87,12 +87,15 @@ bool OccupancyMap::insert(const ImageFeature& m_feature)
   return insert(m_feature, m_i, m_j);
 }
 
-bool OccupancyMap::update(const SemanticFeature& new_landmark, const int& id)
+bool OccupancyMap::update(const SemanticFeature& new_landmark,
+                          const int&             id,
+                          const float&           i,
+                          const float&           j)
 {
   // Compute grid coordinates for the floating point old Landmark location
   // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
-  int m_i = static_cast<int>(std::round(new_landmark.pos.x / resolution + .49));
-  int m_j = static_cast<int>(std::round(new_landmark.pos.y / resolution + .49));
+  int m_i = static_cast<int>(std::round(i / resolution + .49));
+  int m_j = static_cast<int>(std::round(j / resolution + .49));
 
   // Get array of landmarks present in the cell of the input landmark
   Cell                           m_cell      = (*this)(m_i, m_j);
@@ -113,7 +116,7 @@ bool OccupancyMap::update(const SemanticFeature& new_landmark, const int& id)
           static_cast<int>(std::round(new_landmark.pos.y / resolution + .49));
       if (new_m_i != m_i || new_m_j != m_j) {
         (*this)(m_i, m_j).landmarks.erase(id);
-        insert(new_landmark, id, new_landmark.pos.x, new_landmark.pos.y);
+        insert(new_landmark, id);
       } else {
         (*this)(m_i, m_j).landmarks[id] = new_landmark;
       }

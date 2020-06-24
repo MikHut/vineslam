@@ -7,8 +7,8 @@ camera_info:
   h_fov: 85            # ZED's horizontal field of view in degrees
   cam_pitch: 11.3      # camera inclination in degrees
   cam_height: 1.0      # camera height in meters
-  depth_hfov: 90       # degrees - depth image horizontal field of view
-  depth_vfov: 60       # degrees - depth image vertical field of view
+  depth_hfov: 90.0     # degrees - depth image horizontal field of view
+  depth_vfov: 60.0     # degrees - depth image vertical field of view
   img_width: 1280      # pixels
   img_height: 720      # pixels
   fx: 692.95849609375  # pixels
@@ -17,10 +17,9 @@ camera_info:
   cy: 382.80633544921  # pixels
 
 # Feature extractor and descriptor settings
-# - supported types: SURF, SIFT
+# - supported types: SURF
 image_feature:
   type: "SURF"
-
 
 # 3D cloud feature extraction settings
 cloud_feature:
@@ -44,7 +43,7 @@ grid_map:
     y: -20
   width: 50
   height: 50
-  resolution: 0.10 # meters
+  resolution: 0.25 # meters
   metric: "descriptor"
 
 
@@ -73,13 +72,12 @@ ICP:
 # - particles2D - number of particles for landmark-based particle filter
 # - particles3D - number of particles for feature-based particle filter
 pf:
-  srr: 0.2 # rotation - rotation
-  srt: 0.5 # rotation - translation
-  str: 0.2 # translation - rotation
-  stt: 0.5 # translation - translation
+  srr: 0.1 # rotation - rotation
+  srt: 0.2 # rotation - translation
+  str: 0.1 # translation - rotation
+  stt: 0.2 # translation - translation
   sigma_z: 0.2 # meters
-  sigma_roll: 5.0 # degrees
-  sigma_pitch: 5.0 # degrees
-  n_particles2D: 0
-  n_particles3D: 30
+  sigma_roll: 1.5 # degrees
+  sigma_pitch: 1.5 # degrees
+  n_particles: 100 # number of particles
 ...

@@ -11,7 +11,7 @@ KF::KF(const VectorXf&    X0,
     , X(X0)
 {
   // Load input parameters
-  YAML::Node config = YAML::LoadFile(config_path.c_str());
+  YAML::Node config = YAML::LoadFile(config_path);
   fx                = config["camera_info"]["fx"].as<float>();
   baseline          = config["camera_info"]["baseline"].as<float>();
   delta_d           = config["camera_info"]["delta_d"].as<float>();
@@ -44,7 +44,7 @@ void KF::computeR(const VectorXf& s, const VectorXf& g, const VectorXf& z)
   // Rotate covariance matrix using the bearing angle
   // codified in a rotation matrix
   Eigen::MatrixXf Rot(2, 2);
-  Rot << cos(z[1]), -sin(z[1]), sin(z[1]), cos(z[1]);
+  Rot << std::cos(z[1]), -std::sin(z[1]), std::sin(z[1]), std::cos(z[1]);
 
   R = Rot * R * Rot.transpose();
 }
@@ -52,15 +52,15 @@ void KF::computeR(const VectorXf& s, const VectorXf& g, const VectorXf& z)
 void KF::predict()
 {
   // Compute the state model - static
-  X = X;
-  P = P;
+  // X_t = X_{t-1}
+  // P_t = P_{t-1}
 }
 
 void KF::correct(const VectorXf& s, const VectorXf& z)
 {
   // Apply the observation model using the current state vector
-  float d   = sqrt(pow(X[0] - s[0], 2) + pow(X[1] - s[1], 2));
-  float phi = atan2(X[1] - s[1], X[0] - s[0]) - s[2];
+  float d   = std::sqrt(pow(X[0] - s[0], 2) + pow(X[1] - s[1], 2));
+  float phi = std::atan2(X[1] - s[1], X[0] - s[0]) - s[2];
 
   VectorXf z_(2, 1);
   z_ << d, normalizeAngle(phi);
@@ -87,15 +87,15 @@ point KF::getState() const { return point(X[0], X[1], 0.); }
 
 Gaussian<point, point> KF::getStdev() const
 {
-  Eigen::EigenSolver<Eigen::Matrix3f> s(P);
-  Eigen::Vector3cf eigvec = s.eigenvectors().col(2);
-  Eigen::Vector3cf eigval = s.eigenvalues();
-  std::cout << "CHECK THE EIGENVECTOR!!! \n" << eigvec << std::endl;
-  float angle = atan2(eigvec.real()[1], eigvec.real()[0]);
+  Eigen::EigenSolver<Eigen::Matrix2f> s(P);
+  Eigen::Vector2cf                    eigvec = s.eigenvectors().col(1);
+  Eigen::Vector2cf                    eigval = s.eigenvalues();
+  //  std::cout << "CHECK THE EIGENVECTOR!!! \n" << eigvec << std::endl;
+  float angle = std::atan2(eigvec.real()[1], eigvec.real()[0]);
 
   point m_mean(X[0], X[1], X[2]);
   point m_stdev(eigval.real()[0], eigval.real()[1], 0.);
   return Gaussian<point, point>(m_mean, m_stdev, angle);
 }
 
-}; // namespace vineslam
+} // namespace vineslam

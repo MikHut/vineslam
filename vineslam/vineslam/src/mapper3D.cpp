@@ -9,25 +9,30 @@ Mapper3D::Mapper3D(const std::string& config_path)
   YAML::Node config = YAML::LoadFile(config_path);
 
   // Load camera info parameters
-  img_width       = config["camera_info"]["img_width"].as<int>();
-  img_height      = config["camera_info"]["img_height"].as<int>();
-  cam_height      = config["camera_info"]["cam_height"].as<float>();
-  cam_pitch       = config["camera_info"]["cam_pitch"].as<float>() * PI / 180.;
+  img_width  = config["camera_info"]["img_width"].as<int>();
+  img_height = config["camera_info"]["img_height"].as<int>();
+  cam_height = config["camera_info"]["cam_height"].as<float>();
+  cam_pitch =
+      config["camera_info"]["cam_pitch"].as<float>() * static_cast<float>(PI / 180.);
   fx              = config["camera_info"]["fx"].as<float>();
   fy              = config["camera_info"]["fy"].as<float>();
   cx              = config["camera_info"]["cx"].as<float>();
   cy              = config["camera_info"]["cy"].as<float>();
-  auto depth_hfov = config["camera_info"]["depth_hfov"].as<float>() * PI / 180.;
-  auto depth_vfov = config["camera_info"]["depth_vfov"].as<float>() * PI / 180.;
+  auto depth_hfov = config["camera_info"]["depth_hfov"].as<float>() *
+                    static_cast<float>(PI / 180.);
+  auto depth_vfov = config["camera_info"]["depth_vfov"].as<float>() *
+                    static_cast<float>(PI / 180.);
   // Load 3D map parameters
   max_range  = config["map_3D"]["max_range"].as<float>();
   max_height = config["map_3D"]["max_height"].as<float>();
   // Feature detector
   fdetector = config["image_feature"]["type"].as<std::string>();
   // Load pointcloud feature parameters
-  downsample_f   = config["cloud_feature"]["downsample_factor"].as<int>();
-  planes_th      = config["cloud_feature"]["planes_theta"].as<float>() * PI / 180.;
-  ground_th      = config["cloud_feature"]["ground_theta"].as<float>() * PI / 180.;
+  downsample_f = config["cloud_feature"]["downsample_factor"].as<int>();
+  planes_th    = config["cloud_feature"]["planes_theta"].as<float>() *
+              static_cast<float>(PI / 180.);
+  ground_th = config["cloud_feature"]["ground_theta"].as<float>() *
+              static_cast<float>(PI / 180.);
   max_iters      = config["cloud_feature"]["RANSAC"]["max_iters"].as<int>();
   dist_threshold = config["cloud_feature"]["RANSAC"]["dist_threshold"].as<float>();
   edge_threshold = config["cloud_feature"]["edge_threshold"].as<float>();
@@ -150,6 +155,45 @@ void Mapper3D::localPCLMap(const float*         depths,
                            std::vector<Corner>& out_corners,
                            Plane&               out_groundplane)
 {
+  // Reset global variables and members
+  reset();
+
+  std::vector<point> pts3D(img_width * img_height);
+  for (auto i = 0; i < img_width; i++) {
+    for (auto j = 0; j < img_height; j++) {
+      int idx = i + img_width * j;
+
+      float m_depth = depths[idx];
+
+      // Check validity of depth information
+      if (!std::isfinite(m_depth) || m_depth > max_range) {
+        range_mat(i, j)          = -1;
+        pts3D[i + j * img_width] = point(-1, -1, -1);
+        continue;
+      }
+
+      // Pixel to 3D point conversion
+      point out_pt;
+      pixel2world(point(i, j), m_depth, out_pt);
+      // Save point and range
+      pts3D[i + j * img_width] = out_pt;
+      range_mat(i, j)          = static_cast<float>(
+          sqrt(out_pt.x * out_pt.x + out_pt.y * out_pt.y + out_pt.z * out_pt.z));
+    }
+  }
+
+  // - GROUND PLANE
+  Plane gplane_unfilt;
+  groundRemoval(pts3D, gplane_unfilt);
+  // Filter outliers using RANSAC
+  ransac(gplane_unfilt, out_groundplane);
+
+  // - OTHER PLANES
+  std::vector<PlanePoint> cloud_seg;
+  cloudSegmentation(pts3D, cloud_seg);
+
+  //- Feature extraction and publication
+  extractCorners(cloud_seg, out_corners);
 }
 
 void Mapper3D::globalCornerMap(const std::vector<Corner>& corners,
@@ -204,7 +248,8 @@ void Mapper3D::groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl)
       float dY = upper_pt.y - lower_pt.y;
       float dZ = upper_pt.z - lower_pt.z;
 
-      float vertical_angle = std::atan2(dZ, sqrt(dX * dX + dY * dY + dZ * dZ));
+      float vertical_angle =
+          std::atan2(dZ, static_cast<float>(sqrt(dX * dX + dY * dY + dZ * dZ)));
 
       if ((vertical_angle /* - cam_pitch*/) <= ground_th) {
         ground_mat(i, j)     = 1;
@@ -287,7 +332,7 @@ bool Mapper3D::ransac(const Plane& in_plane, Plane& out_plane) const
     for (const auto& m_pt : in_plane.points) {
       // Compute the distance each point to the plane - from
       // https://www.geeksforgeeks.org/distance-between-a-point-and-a-plane-in-3-d/
-      float norm = sqrt(a * a + b * b + c * c);
+      auto norm = static_cast<float>(sqrt(a * a + b * b + c * c));
       if (std::fabs(a * m_pt.x + b * m_pt.y + c * m_pt.z + d) / norm <
           dist_threshold) {
         num_inliers++;
@@ -359,7 +404,7 @@ void Mapper3D::labelComponents(const int&                row,
                                const std::vector<point>& in_pts,
                                int&                      label)
 {
-  auto theta_threshold = tan(planes_th);
+  auto theta_threshold = static_cast<float>(tan(planes_th));
 
   using Coord2D = Eigen::Vector2i;
   std::deque<Coord2D> queue;
@@ -386,7 +431,7 @@ void Mapper3D::labelComponents(const int&                row,
       continue;
 
     // Compute point one range
-    float d1 = sqrt(p1.x * p1.x + p1.y * p1.y + p1.z * p1.z);
+    auto d1 = static_cast<float>(sqrt(p1.x * p1.x + p1.y * p1.y + p1.z * p1.z));
 
     // Loop through all the neighboring grids of popped grid
     for (const auto& iter : neighbor_it) {
@@ -408,7 +453,7 @@ void Mapper3D::labelComponents(const int&                row,
       if (p2.z == -1)
         continue;
 
-      float d2   = sqrt(p2.x * p2.x + p2.y * p2.y + p2.z * p2.z);
+      auto  d2   = static_cast<float>(sqrt(p2.x * p2.x + p2.y * p2.y + p2.z * p2.z));
       float dmax = std::max(d1, d2);
       float dmin = std::min(d1, d2);
 
@@ -418,7 +463,8 @@ void Mapper3D::labelComponents(const int&                row,
       float alpha = (iter.y() == 0) ? angle_hres : angle_vres;
 
       // Compute beta and check if points belong to the same segment
-      float beta = (dmin * sin(alpha)) / (dmax - dmin * cos(alpha));
+      auto beta =
+          static_cast<float>((dmin * sin(alpha)) / (dmax - dmin * cos(alpha)));
       if (beta > theta_threshold) {
         queue.emplace_back(c_idx_x, c_idx_y);
         global_queue.emplace_back(c_idx_x, c_idx_y);

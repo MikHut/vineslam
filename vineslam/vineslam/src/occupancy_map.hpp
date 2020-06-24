@@ -15,7 +15,7 @@ class Cell
 {
 public:
   // Default constructor
-  Cell() {}
+  Cell() = default;
 
   // Inserts a landmark with a given id
   void insert(const int& id, const SemanticFeature& m_landmark)
@@ -42,7 +42,7 @@ class OccupancyMap
 public:
   // Class constructor
   // - initializes the grid map given the input parameters
-  OccupancyMap(const std::string& config_path);
+  explicit OccupancyMap(const std::string& config_path);
 
   // Copy contructor
   OccupancyMap(const OccupancyMap& grid_map);
@@ -119,7 +119,10 @@ public:
 
   // Since Landmark map is built with a KF, Landmarks position change in each
   // iteration. This routine updates the position of a given Landmark
-  bool update(const SemanticFeature& new_landmark, const int& id);
+  bool update(const SemanticFeature& new_landmark,
+              const int&             id,
+              const float&           i,
+              const float&           j);
 
   // Method to get all the adjacent cells to a given cell
   bool getAdjacent(const int&         i,
@@ -140,7 +143,10 @@ public:
   bool findNearestOnCell(const ImageFeature& input, ImageFeature& nearest);
 
   // Returns true if the map has no features or landmarks
-  bool empty() { return (n_surf_features == 0 && n_landmarks == 0); }
+  bool empty()
+  {
+    return (n_surf_features == 0 && n_landmarks == 0 && n_corner_features == 0);
+  }
 
 private:
   // Private grid map to store all the cells

@@ -12,7 +12,7 @@ Mapper2D::Mapper2D(const std::string& config_path)
   delta_d           = config["camera_info"]["delta_d"].as<float>();
 }
 
-void Mapper2D::init(pose                      pose,
+void Mapper2D::init(const pose&               pose,
                     const std::vector<float>& bearings,
                     const std::vector<float>& depths,
                     const std::vector<int>&   labels,
@@ -39,7 +39,7 @@ void Mapper2D::init(pose                      pose,
     // Calculate
     // - the initial estimation of the landmark on map's referential frame
     float th = normalizeAngle(bearings[i]);
-    point X_cam(depths[i] * cos(th), depths[i] * sin(th), 0.);
+    point X_cam(depths[i] * std::cos(th), depths[i] * std::sin(th), 0.);
     point X;
     X.x = X_cam.x * Rot[0] + X_cam.y * Rot[1] + X_cam.z * Rot[2] + trans.x;
     X.y = X_cam.x * Rot[3] + X_cam.y * Rot[4] + X_cam.z * Rot[5] + trans.y;
@@ -54,11 +54,11 @@ void Mapper2D::init(pose                      pose,
     id++;
     point                  pos(X.x, X.y, 0.);
     Gaussian<point, point> std = filters[filters.size() - 1].getStdev();
-    grid_map.insert(SemanticFeature(pos, std, labels[i]), id, pos.x, pos.y);
+    grid_map.insert(SemanticFeature(pos, std, labels[i]), id);
   }
 }
 
-void Mapper2D::process(pose                      pose,
+void Mapper2D::process(const pose&               pose,
                        const std::vector<float>& bearings,
                        const std::vector<float>& depths,
                        const std::vector<int>&   labels,
@@ -70,14 +70,14 @@ void Mapper2D::process(pose                      pose,
   std::vector<float> bearings_(bearings.size());
   std::vector<float> depths_(depths.size());
   for (size_t i = 0; i < l_map.size(); i++) {
-    depths_[i]   = sqrt(pow(l_map[i].x, 2) + pow(l_map[i].y, 2));
-    bearings_[i] = atan2(l_map[i].y, l_map[i].x) - pose.yaw;
+    depths_[i]   = std::sqrt(pow(l_map[i].x, 2) + pow(l_map[i].y, 2));
+    bearings_[i] = std::atan2(l_map[i].y, l_map[i].x) - pose.yaw;
   }
   // Estimate global map
   predict(pose, bearings_, depths_, labels, grid_map);
 }
 
-std::vector<point> Mapper2D::cam2base(pose                      pose,
+std::vector<point> Mapper2D::cam2base(const pose&               pose,
                                       const std::vector<float>& bearings,
                                       const std::vector<float>& depths)
 {
@@ -92,7 +92,7 @@ std::vector<point> Mapper2D::cam2base(pose                      pose,
     // Calculate the estimation of the landmark position on
     // camera's referential frame
     float th = normalizeAngle(bearings[i]);
-    point X_cam(depths[i] * cos(th), depths[i] * sin(th), 0.);
+    point X_cam(depths[i] * std::cos(th), depths[i] * std::sin(th), 0.);
 
     // Convert landmark to map's referential frame
     point X_map;
@@ -109,7 +109,7 @@ std::vector<point> Mapper2D::cam2base(pose                      pose,
   return landmarks;
 }
 
-void Mapper2D::predict(pose                      pose,
+void Mapper2D::predict(const pose&               pose,
                        const std::vector<float>& bearings,
                        const std::vector<float>& depths,
                        const std::vector<int>&   labels,
@@ -127,7 +127,7 @@ void Mapper2D::predict(pose                      pose,
     // Calculate the landmark position on map's referential frame
     // based on the ith observation
     float th = normalizeAngle(bearings[i]);
-    point X_cam(depths[i] * cos(th), depths[i] * sin(th), 0.);
+    point X_cam(depths[i] * std::cos(th), depths[i] * std::sin(th), 0.);
     point X;
     X.x = X_cam.x * Rot[0] + X_cam.y * Rot[1] + X_cam.z * Rot[2] + trans.x;
     X.y = X_cam.x * Rot[3] + X_cam.y * Rot[4] + X_cam.z * Rot[5] + trans.y;
@@ -152,7 +152,7 @@ void Mapper2D::predict(pose                      pose,
       // Insert the landmark on the map, with a single observation
       id++;
       Gaussian<point, point> gauss = filters[filters.size() - 1].getStdev();
-      grid_map.insert(SemanticFeature(X, gauss, labels[i]), id, X.x, X.y);
+      grid_map.insert(SemanticFeature(X, gauss, labels[i]), id);
     }
     // If so, update the landmark position estimation using a Kalman
     // Filter call
@@ -167,7 +167,9 @@ void Mapper2D::predict(pose                      pose,
 
       // Update the estimation on the map
       grid_map.update(SemanticFeature(X_out, gauss, labels[i]),
-                      correspondence.first);
+                      correspondence.first,
+                      correspondence.second.x,
+                      correspondence.second.y);
     }
   }
 }
@@ -180,7 +182,7 @@ std::pair<int, point> Mapper2D::findCorr(const point& pos, OccupancyMap& grid_ma
   point correspondence;
 
   // Search on current cell first
-  for (auto m_landmark : grid_map(pos.x, pos.y).landmarks) {
+  for (const auto& m_landmark : grid_map(pos.x, pos.y).landmarks) {
     float dist = pos.distanceXY(m_landmark.second.pos);
 
     if (dist < best_aprox) {
@@ -194,8 +196,8 @@ std::pair<int, point> Mapper2D::findCorr(const point& pos, OccupancyMap& grid_ma
   int               number_layers = (best_correspondence == -1) ? 2 : 1;
   std::vector<Cell> adjacents;
   grid_map.getAdjacent(pos.x, pos.y, number_layers, adjacents);
-  for (auto m_cell : adjacents) {
-    for (auto m_landmark : m_cell.landmarks) {
+  for (const auto& m_cell : adjacents) {
+    for (const auto& m_landmark : m_cell.landmarks) {
       float dist = pos.distanceXY(m_landmark.second.pos);
       if (dist < best_aprox) {
         correspondence      = m_landmark.second.pos;
@@ -217,11 +219,11 @@ void Mapper2D::localMap(const std::vector<float>&     bearings,
     // Calculate the estimation of the landmark position on
     // camera's referential frame
     float th = normalizeAngle(bearings[i]);
-    point X_cam(depths[i] * cos(th), depths[i] * sin(th), 0.);
+    point X_cam(depths[i] * std::cos(th), depths[i] * std::sin(th), 0.);
 
     // Insert on output struct
     landmarks[i].pos = X_cam;
   }
 }
 
-}; // namespace vineslam
+} // namespace vineslam

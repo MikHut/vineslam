@@ -43,7 +43,7 @@ public:
   // - odom:      wheel odometry pose
   // - obsv:      current multi-layer mapping observation
   // - grid_map:  occupancy grid map that encodes the multi-layer map information
-  void process(const pose& odom, const Observation& obsv, OccupancyMap& grid_map);
+  void process(const pose& odom, const Observation& obsv, const OccupancyMap& grid_map);
 
   // Export the final pose resultant from the localization procedure
   pose getPose() const;
@@ -54,10 +54,9 @@ private:
   // Average particles pose
   pose average_pose;
   // Particle filter object
-  PF* pf;
+  PF* pf{};
   // Input parameters
-  float n_particles2D;
-  float n_particles3D;
+  float n_particles;
   float img_width;
   float img_height;
   float cam_height;

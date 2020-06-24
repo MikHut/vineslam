@@ -27,7 +27,7 @@ public:
   Mapper2D(const std::string& config_path);
 
   // Global function that handles all the mapping process
-  void process(pose                      pose,
+  void process(const pose&               pose,
                const std::vector<float>& bearings,
                const std::vector<float>& depths,
                const std::vector<int>&   labels,
@@ -35,7 +35,7 @@ public:
 
   // Initializes the map
   // - Invocated only once to insert the first observations on the map
-  void init(pose                      pose,
+  void init(const pose&               pose,
             const std::vector<float>& bearings,
             const std::vector<float>& depths,
             const std::vector<int>&   labels,
@@ -43,9 +43,9 @@ public:
 
   // Computes a local map on camera's referential given a set of range-bearing
   // observations
-  void localMap(const std::vector<float>&     bearings,
-                const std::vector<float>&     depths,
-                std::vector<SemanticFeature>& landmarks);
+  static void localMap(const std::vector<float>&     bearings,
+                       const std::vector<float>&     depths,
+                       std::vector<SemanticFeature>& landmarks);
 
 private:
   // Input parameters
@@ -55,38 +55,38 @@ private:
   std::string config_path;
 
   // Semantic Feature identifier
-  int id;
+  int id{};
 
   // Array of Kalman Filters, one for each landmark
   std::vector<KF> filters;
 
   // Estimates landmark positions based on the current observations
-  void predict(pose                      pose,
+  void predict(const pose&               pose,
                const std::vector<float>& bearings,
                const std::vector<float>& depths,
                const std::vector<int>&   labels,
                OccupancyMap&             grid_map);
 
   // Computes a local map, on robot's frame
-  std::vector<point> cam2base(pose                      pose,
-                              const std::vector<float>& bearings,
-                              const std::vector<float>& depths);
+  static std::vector<point> cam2base(const pose&               pose,
+                                     const std::vector<float>& bearings,
+                                     const std::vector<float>& depths);
 
   // Searches from correspondences between observations and landmarks
   // already mapped
-  std::pair<int, point> findCorr(const point& l_pos, OccupancyMap& grid_map);
+  static std::pair<int, point> findCorr(const point& l_pos, OccupancyMap& grid_map);
 
   // Auxiliar function that normalizes an angle in the [-pi,pi] range
-  float normalizeAngle(const float& angle)
+  static float normalizeAngle(const float& angle)
   {
     return static_cast<float>(std::fmod(angle + PI, 2 * PI) - PI);
   }
 
   // Auxiliar function that the disparity error using the disparity
   // noise model
-  float dispError(const float& depth)
+  float dispError(const float& depth) const
   {
-    return static_cast<float>(pow(depth, 2) / (baseline * fx) * delta_d);
+    return static_cast<float>(std::pow(depth, 2) / (baseline * fx) * delta_d);
   }
 };
 

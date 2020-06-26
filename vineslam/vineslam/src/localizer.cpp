@@ -58,6 +58,10 @@ void Localizer::process(const pose&         odom,
   std::vector<pose> poses;
   for (const auto& particle : pf->particles) poses.push_back(particle.p);
   average_pose = pose(poses);
+  //  float             max = 0.;
+  //  for (const auto& particle : pf->particles) {
+  //    average_pose = (particle.w > max) ? particle.p : average_pose;
+  //  }
 
   // - Save current control to use in the next iteration
   pf->p_odom = odom;

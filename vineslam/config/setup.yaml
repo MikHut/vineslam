@@ -72,12 +72,14 @@ ICP:
 # - particles2D - number of particles for landmark-based particle filter
 # - particles3D - number of particles for feature-based particle filter
 pf:
-  srr: 0.5 # rotation - rotation
-  srt: 0.5 # rotation - translation
+  srr: 0.05 # rotation - rotation
+  srt: 0.01 # rotation - translation
   str: 0.5 # translation - rotation
-  stt: 0.5 # translation - translation
+  stt: 0.2 # translation - translation
+  sigma_xy: 0.15 # meters (just for initialization)
   sigma_z: 0.2 # meters
-  sigma_roll: 1.5 # degrees
-  sigma_pitch: 1.5 # degrees
-  n_particles: 2000 # number of particles
+  sigma_roll: 0.0 # degrees
+  sigma_pitch: 0.5 # degrees
+  sigma_yaw: 1.0 # degrees (just for initialization)
+  n_particles: 500 # number of particles
 ...

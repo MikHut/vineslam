@@ -63,11 +63,10 @@ struct pose {
   }
 
   // Construct from set of poses
-  pose(const std::vector<pose>& poses)
+  explicit pose(const std::vector<pose>& poses)
   {
     pose   mean(0., 0., 0., 0., 0., 0.);
     point  stdev(0., 0., 0.);
-    double th = 0;
 
     // Calculate mean of all the robot poses
     for (const auto& pose : poses) mean = mean + pose;
@@ -75,11 +74,11 @@ struct pose {
 
     // Calculate standard deviation of all the robot positions
     for (const auto& pose : poses) {
-      stdev.x += pow(pose.x - mean.x, 2);
-      stdev.y += pow(pose.y - mean.y, 2);
+      stdev.x += std::pow(pose.x - mean.x, 2);
+      stdev.y += std::pow(pose.y - mean.y, 2);
     }
-    stdev.x = sqrt(stdev.x / (float)poses.size());
-    stdev.y = sqrt(stdev.y / (float)poses.size());
+    stdev.x = std::sqrt(stdev.x / static_cast<float>(poses.size()));
+    stdev.y = std::sqrt(stdev.y / static_cast<float>(poses.size()));
 
     // Save pose and gaussian distribution
     (*this) = mean;
@@ -189,6 +188,10 @@ struct pose {
       yaw -= 2. * PI;
   }
 
+  // 2D and 3D norms of the pose
+  float norm2D() { return std::sqrt(x * x + y * y); }
+  float norm3D() { return std::sqrt(x * x + y * y + z * z); }
+
   // Set gaussian noise characterizing the robot pose
   void setDist(const Gaussian<point, point>& other) { dist = other; }
 
@@ -258,12 +261,12 @@ struct pose {
   }
 
   // Cartesian coordinates
-  float x;
-  float y;
-  float z;
-  float roll;
-  float pitch;
-  float yaw;
+  float x{};
+  float y{};
+  float z{};
+  float roll{};
+  float pitch{};
+  float yaw{};
 
   // Gaussian uncertainty
   Gaussian<point, point> dist;

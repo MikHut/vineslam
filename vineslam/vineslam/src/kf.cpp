@@ -37,9 +37,9 @@ void KF::computeR(const VectorXf& s, const VectorXf& g, const VectorXf& z)
   //   estimation in both x and y components
   R       = MatrixXf(2, 2);
   R(0, 0) = dispError(z[0]) + g[0];
-  R(1, 1) = 0.1 / (z[0] * z[0]) + g[1];
-  R(0, 1) = 0;
-  R(1, 0) = 0;
+  R(1, 1) = 1. / (z[0] * z[0]) + g[1];
+  R(0, 1) = 0.;
+  R(1, 0) = 0.;
 
   // Rotate covariance matrix using the bearing angle
   // codified in a rotation matrix
@@ -59,7 +59,7 @@ void KF::predict()
 void KF::correct(const VectorXf& s, const VectorXf& z)
 {
   // Apply the observation model using the current state vector
-  float d   = std::sqrt(pow(X[0] - s[0], 2) + pow(X[1] - s[1], 2));
+  float d   = std::sqrt(std::pow(X[0] - s[0], 2) + std::pow(X[1] - s[1], 2));
   float phi = std::atan2(X[1] - s[1], X[0] - s[0]) - s[2];
 
   VectorXf z_(2, 1);
@@ -90,7 +90,6 @@ Gaussian<point, point> KF::getStdev() const
   Eigen::EigenSolver<Eigen::Matrix2f> s(P);
   Eigen::Vector2cf                    eigvec = s.eigenvectors().col(1);
   Eigen::Vector2cf                    eigval = s.eigenvalues();
-  //  std::cout << "CHECK THE EIGENVECTOR!!! \n" << eigvec << std::endl;
   float angle = std::atan2(eigvec.real()[1], eigvec.real()[0]);
 
   point m_mean(X[0], X[1], X[2]);

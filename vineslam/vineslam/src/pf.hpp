@@ -7,7 +7,7 @@
 #include <math/stat.hpp>
 
 // Include std members and yaml-cpp
-#include <stdlib.h>
+#include <cstdlib>
 #include <limits>
 #include <chrono>
 #include <iostream>
@@ -24,16 +24,16 @@ namespace vineslam
 // - 6-DOF pose
 // - weight
 struct Particle {
-  Particle() {}
+  Particle() = default;
   Particle(const int& id, const pose& p, const float& w)
   {
     (*this).id = id;
     (*this).p  = p;
     (*this).w  = w;
   }
-  int   id;
+  int   id{};
   pose  p;
-  float w;
+  float w{};
 };
 
 static std::ostream& operator<<(std::ostream& o, const Particle& p)
@@ -49,8 +49,6 @@ public:
   // - initializes the total set of particles
   PF(const std::string& config_path, const pose& initial_pose);
 
-  // Apply odometry motion model to a single pose
-  void drawFromMotion(const pose& odom, pose& p) const;
   // Apply odometry motion model to all particles
   void motionModel(const pose& odom);
   // Update particles weights using the multi-layer map
@@ -72,6 +70,12 @@ public:
   // Particles
   std::vector<Particle> particles;
 
+  // Normalize an angle between -PI and PI
+  static float normalizeAngle(const float& angle)
+  {
+    return std::atan2(std::sin(angle), std::cos(angle));
+  }
+
 private:
   // Input parameters file name
   std::string config_path;
@@ -81,9 +85,11 @@ private:
   float str;
   float stt;
   float srt;
+  float sigma_xy;
   float sigma_z;
   float sigma_roll;
   float sigma_pitch;
+  float sigma_yaw;
   float n_particles;
 };
 

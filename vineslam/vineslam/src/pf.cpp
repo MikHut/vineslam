@@ -12,28 +12,38 @@ PF::PF(const std::string& config_path, const pose& initial_pose)
   YAML::Node config = YAML::LoadFile(config_path);
   cam_pitch =
       config["camera_info"]["cam_pitch"].as<float>() * static_cast<float>(PI / 180.);
-  srr     = config["pf"]["srr"].as<float>();
-  str     = config["pf"]["str"].as<float>();
-  stt     = config["pf"]["stt"].as<float>();
-  srt     = config["pf"]["srt"].as<float>();
-  sigma_z = config["pf"]["sigma_z"].as<float>();
+  srr      = config["pf"]["srr"].as<float>();
+  str      = config["pf"]["str"].as<float>();
+  stt      = config["pf"]["stt"].as<float>();
+  srt      = config["pf"]["srt"].as<float>();
+  sigma_xy = config["pf"]["sigma_xy"].as<float>();
+  sigma_z  = config["pf"]["sigma_z"].as<float>();
   sigma_roll =
       config["pf"]["sigma_roll"].as<float>() * static_cast<float>(PI / 180.);
   sigma_pitch =
       config["pf"]["sigma_pitch"].as<float>() * static_cast<float>(PI / 180.);
+  sigma_yaw = config["pf"]["sigma_yaw"].as<float>() * static_cast<float>(PI / 180.);
   n_particles = config["pf"]["n_particles"].as<float>();
 
-  // Set particles to zero
+  // Initialize normal distributions
   particles.resize(n_particles);
-  for (size_t i = 0; i < particles.size(); i++) {
-    particles[i].id = i;
-    particles[i].p  = pose(0., 0., 0., 0., 0., initial_pose.yaw);
-    particles[i].w  = static_cast<float>(1. / n_particles);
-  }
 
-  // Initialize particles
-  p_odom = pose(0., 0., 0.);
-  motionModel(initial_pose);
+  // Initialize all particles
+  for (size_t i = 0; i < particles.size(); i++) {
+    // Calculate the initial pose for each particle considering
+    // - the input initial pose
+    // - a sample distribution to spread the particles
+    pose m_pose(sampleGaussian(sigma_xy),
+                sampleGaussian(sigma_xy),
+                0.,
+                sampleGaussian(sigma_roll),
+                cam_pitch + sampleGaussian(sigma_pitch),
+                sampleGaussian(sigma_yaw));
+    // Compute initial weight of each particle
+    float weight = 1.;
+    // Insert the particle into the particles array
+    particles[i] = Particle(i, m_pose, weight);
+  }
 
   // Initialize the previous pose
   p_odom = initial_pose;
@@ -41,54 +51,54 @@ PF::PF(const std::string& config_path, const pose& initial_pose)
 
 void PF::motionModel(const pose& odom)
 {
-  // 3D particle filter
+  // Compute odometry increment
+  pose odom_inc = odom - p_odom;
+
+  // Compute the relative pose given by the odometry motion model
+  float dt_trans = odom_inc.norm2D();
+  float dt_rot_a =
+      ((odom_inc.x != 0) || (odom_inc.y != 0))
+          ? normalizeAngle(std::atan2(odom_inc.y, odom_inc.x) - p_odom.yaw)
+          : static_cast<float>(0.);
+  float dt_rot_b = normalizeAngle(odom_inc.yaw - dt_rot_a);
+
+  // Motion sample standard deviations
+  float comp = (odom_inc.x < 0)
+                   ? static_cast<float>(PI)
+                   : 0.; // PREVENT ERROR WHEN ROBOT IS MOVING BACKWARDS :-)
+  float s_rot_a_draw = srr * (std::fabs(dt_rot_a) - comp) + srt * dt_trans;
+  float s_rot_b_draw = srr * (std::fabs(dt_rot_b) - comp) + srt * dt_trans;
+  float s_trans_draw =
+      stt * dt_trans + str * (std::fabs(dt_rot_a) + std::fabs(dt_rot_b) - 2 * comp);
+
+  // Apply the motion model to all particles
   for (auto& particle : particles) {
-    drawFromMotion(odom, particle.p);
+    // Sample the normal distribution functions
+    float s_rot_a = dt_rot_a + sampleGaussian(s_rot_a_draw);
+    float s_rot_b = dt_rot_b + sampleGaussian(s_rot_b_draw);
+    float s_trans = dt_trans + sampleGaussian(s_trans_draw);
 
-    // Set unobservable components - draw from zero-mean gaussian distribution
-    particle.p.z += 0.;
-    particle.p.roll += 0.;
-    particle.p.pitch += 0.;
-    particle.p.pitch = cam_pitch;
+    // Compute the relative pose considering the samples
+    pose dt_pose;
+    dt_pose.x = s_trans * std::cos(normalizeAngle(particle.p.yaw + s_rot_a)) +
+                sampleGaussian(0.001);
+    dt_pose.y = s_trans * std::sin(normalizeAngle(particle.p.yaw + s_rot_a)) +
+                sampleGaussian(0.001);
+    dt_pose.z     = 0.0;
+    dt_pose.roll  = sampleGaussian(sigma_roll);
+    dt_pose.pitch = sampleGaussian(sigma_pitch);
+    dt_pose.yaw   = s_rot_a + s_rot_b + sampleGaussian(0.0005);
+
+    // Innovate particles using the odometry motion model
+    particle.p.x += dt_pose.x;
+    particle.p.y += dt_pose.y;
+    particle.p.z += dt_pose.z;
+    particle.p.roll += dt_pose.roll;
+    particle.p.pitch += dt_pose.pitch;
+    particle.p.yaw += dt_pose.yaw;
   }
-}
 
-void PF::drawFromMotion(const pose& odom, pose& p) const
-{
-  float sxy = static_cast<float>(.3) * srr;
-
-  // Compute delta pose between last and current control
-  pose dt_pose = odom - p_odom;
-  dt_pose.yaw  = std::atan2(std::sin(dt_pose.yaw), std::cos(dt_pose.yaw));
-  float s1 = std::sin(p_odom.yaw), c1 = std::cos(p_odom.yaw);
-  // ------------------------------------------------------
-  pose delta;
-  delta.x   = c1 * dt_pose.x + s1 * dt_pose.y;
-  delta.y   = -s1 * dt_pose.x + c1 * dt_pose.y;
-  delta.yaw = dt_pose.yaw;
-  // ------------------------------------------------------
-  // Sample zero mean gaussian to compute noisy pose
-  pose noisypoint(delta);
-  noisypoint.x +=
-      sampleGaussian(srr * std::fabs(delta.x) + str * std::fabs(delta.yaw) +
-                     sxy * std::fabs(delta.y));
-  noisypoint.y +=
-      sampleGaussian(srr * std::fabs(delta.y) + str * std::fabs(delta.yaw) +
-                     sxy * std::fabs(delta.x));
-  noisypoint.yaw +=
-      sampleGaussian(stt * std::fabs(delta.yaw) +
-                     srt * std::sqrt(delta.x * delta.x + delta.y * delta.y));
-  // -------------------------------------------------------------------------------
-  noisypoint.normalize();
-  // -------------------------------------------------------------------------------
-
-  // Apply motion model
-  // ------------------------------------------------------
-  float s2 = std::sin(p.yaw), c2 = std::cos(p.yaw);
-  p.x += c2 * noisypoint.x - s2 * noisypoint.y;
-  p.y += s2 * noisypoint.x + c2 * noisypoint.y;
-  p.yaw += noisypoint.yaw;
-  // ------------------------------------------------------
+  p_odom = odom;
 }
 
 void PF::update(const std::vector<SemanticFeature>& landmarks,
@@ -166,14 +176,10 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
     for (const auto& dist : dvec) dstdev += std::pow(dist - dmean, 2);
     dstdev /= static_cast<float>(dvec.size());
     // Update particle weight
-    float error_sum = 0.;
     for (const auto& dist : dvec) {
-      w += static_cast<float>((1. / (std::sqrt(2. * PI) * dstdev)) * (1 / dist));
-      error_sum += dist;
-      //                              std::exp(-dist / (2. * PI * dstdev * dstdev)));
+      w += static_cast<float>(std::exp(-1. / dstdev * dist));
     }
-    particle.w = 1. / (pow(error_sum, 2) / pow(2, dvec.size()));
-    //    particle.w = w;
+    particle.w *= w;
     w_sum += particle.w;
   }
 }
@@ -192,67 +198,36 @@ void PF::normalizeWeights()
 
 void PF::resample()
 {
-  //  float    cweight = 0.;
-  //  uint32_t n       = particles.size();
-  //
-  //  // - Compute the cumulative weights
-  //  for (const auto& p : particles) cweight += p.w;
-  //  // - Compute the interval
-  //  float interval = cweight / n;
-  //  // - Compute the initial target weight
-  //  auto target = static_cast<float>(interval * ::drand48());
-  //
-  //  // - Compute the resampled indexes
-  //  cweight = 0.;
-  //  std::vector<uint32_t> indexes(n);
-  //  n          = 0.;
-  //  uint32_t i = 0;
-  //
-  //  for (const auto& p : particles) {
-  //    cweight += p.w;
-  //    while (cweight > target) {
-  //      indexes[n++] = i;
-  //      target += interval;
-  //    }
-  //
-  //    i++;
-  //  }
-  //
-  //  // - Update particle set
-  //  for (size_t j = 0; j < indexes.size(); j++) {
-  //    particles[j].p = particles[indexes[j]].p;
-  //    particles[j].w = particles[indexes[j]].w;
-  //  }
+  float    cweight = 0.;
+  uint32_t n       = particles.size();
 
-  const int M = particles.size();
+  // - Compute the cumulative weights
+  for (const auto& p : particles) cweight += p.w;
+  // - Compute the interval
+  float interval = cweight / n;
+  // - Compute the initial target weight
+  auto target = static_cast<float>(interval * ::drand48());
 
-  // Construct array with all particles weights
-  std::vector<float> w;
-  for (int i = 0; i < M; i++) w.push_back(particles[i].w);
+  // - Compute the resampled indexes
+  cweight = 0.;
+  std::vector<uint32_t> indexes(n);
+  n          = 0.;
+  uint32_t i = 0;
 
-  // Cumulative sum of weights
-  std::vector<float> Q(M);
-  Q[0] = w[0];
-  for (int i = 1; i < M; i++) Q[i] = Q[i - 1] + w[i];
+  for (const auto& p : particles) {
+    cweight += p.w;
+    while (cweight > target) {
+      indexes[n++] = i;
+      target += interval;
+    }
 
-  // Perform multinomial resampling
-  int              i = 0;
-  std::vector<int> index(M);
-  while (i < M) {
-    float sample = ((float)std::rand() / (RAND_MAX));
-    int   j      = 1;
-
-    while (Q[j] < sample) j++;
-
-    index[i] = j;
     i++;
   }
 
-  // Update set of particles with indexes resultant from the
-  // resampling procedure
-  for (i = 0; i < M; i++) {
-    particles[i].p = particles[index[i]].p;
-    particles[i].w = particles[index[i]].w;
+  // - Update particle set
+  for (size_t j = 0; j < indexes.size(); j++) {
+    particles[j].p = particles[indexes[j]].p;
+    particles[j].w = particles[indexes[j]].w;
   }
 }
 

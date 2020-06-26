@@ -106,8 +106,8 @@ private:
   // ------------------------
   // Camera info parameters
   float h_fov;
-  float img_width;
-  float img_height;
+  int   img_width;
+  int   img_height;
   float cam_height;
   float fx;
   float fy;

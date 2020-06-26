@@ -27,7 +27,7 @@ PF::PF(const std::string& config_path, const pose& initial_pose)
   particles.resize(n_particles);
   for (size_t i = 0; i < particles.size(); i++) {
     particles[i].id = i;
-    particles[i].p  = pose(0., 0., 0., 0., 0., 0.);
+    particles[i].p  = pose(0., 0., 0., 0., 0., initial_pose.yaw);
     particles[i].w  = static_cast<float>(1. / n_particles);
   }
 
@@ -166,11 +166,15 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
     for (const auto& dist : dvec) dstdev += std::pow(dist - dmean, 2);
     dstdev /= static_cast<float>(dvec.size());
     // Update particle weight
-    for (const auto& dist : dvec)
-      w += static_cast<float>((1. / (std::sqrt(2. * PI) * dstdev)) *
-                              std::exp(-dist / (2. * PI * dstdev * dstdev)));
-    particle.w = w;
-    w_sum += w;
+    float error_sum = 0.;
+    for (const auto& dist : dvec) {
+      w += static_cast<float>((1. / (std::sqrt(2. * PI) * dstdev)) * (1 / dist));
+      error_sum += dist;
+      //                              std::exp(-dist / (2. * PI * dstdev * dstdev)));
+    }
+    particle.w = 1. / (pow(error_sum, 2) / pow(2, dvec.size()));
+    //    particle.w = w;
+    w_sum += particle.w;
   }
 }
 
@@ -188,37 +192,67 @@ void PF::normalizeWeights()
 
 void PF::resample()
 {
-  float    cweight = 0.;
-  uint32_t n       = particles.size();
+  //  float    cweight = 0.;
+  //  uint32_t n       = particles.size();
+  //
+  //  // - Compute the cumulative weights
+  //  for (const auto& p : particles) cweight += p.w;
+  //  // - Compute the interval
+  //  float interval = cweight / n;
+  //  // - Compute the initial target weight
+  //  auto target = static_cast<float>(interval * ::drand48());
+  //
+  //  // - Compute the resampled indexes
+  //  cweight = 0.;
+  //  std::vector<uint32_t> indexes(n);
+  //  n          = 0.;
+  //  uint32_t i = 0;
+  //
+  //  for (const auto& p : particles) {
+  //    cweight += p.w;
+  //    while (cweight > target) {
+  //      indexes[n++] = i;
+  //      target += interval;
+  //    }
+  //
+  //    i++;
+  //  }
+  //
+  //  // - Update particle set
+  //  for (size_t j = 0; j < indexes.size(); j++) {
+  //    particles[j].p = particles[indexes[j]].p;
+  //    particles[j].w = particles[indexes[j]].w;
+  //  }
 
-  // - Compute the cumulative weights
-  for (const auto& p : particles) cweight += p.w;
-  // - Compute the interval
-  float interval = cweight / n;
-  // - Compute the initial target weight
-  auto target = static_cast<float>(interval * ::drand48());
+  const int M = particles.size();
 
-  // - Compute the resampled indexes
-  cweight = 0.;
-  std::vector<uint32_t> indexes(n);
-  n          = 0.;
-  uint32_t i = 0;
+  // Construct array with all particles weights
+  std::vector<float> w;
+  for (int i = 0; i < M; i++) w.push_back(particles[i].w);
 
-  for (const auto& p : particles) {
-    cweight += p.w;
-    while (cweight > target) {
-      indexes[n++] = i;
-      target += interval;
-    }
+  // Cumulative sum of weights
+  std::vector<float> Q(M);
+  Q[0] = w[0];
+  for (int i = 1; i < M; i++) Q[i] = Q[i - 1] + w[i];
 
+  // Perform multinomial resampling
+  int              i = 0;
+  std::vector<int> index(M);
+  while (i < M) {
+    float sample = ((float)std::rand() / (RAND_MAX));
+    int   j      = 1;
+
+    while (Q[j] < sample) j++;
+
+    index[i] = j;
     i++;
   }
 
-  // - Update particle set
-  for (size_t j = 0; j < indexes.size(); j++) {
-    particles[j].p = particles[indexes[j]].p;
-    particles[j].w = particles[indexes[j]].w;
-    std::cout << j << " - > " << particles[j].w << std::endl;
+  // Update set of particles with indexes resultant from the
+  // resampling procedure
+  for (i = 0; i < M; i++) {
+    particles[i].p = particles[index[i]].p;
+    particles[i].w = particles[index[i]].w;
   }
 }
 

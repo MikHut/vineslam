@@ -39,12 +39,6 @@ vineslam_ros::vineslam_ros(int argc, char** argv)
   pose_publisher  = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/pose", 1);
   path_publisher  = nh.advertise<nav_msgs::Path>("/vineslam/path", 1);
   poses_publisher = nh.advertise<geometry_msgs::PoseArray>("/vineslam/poses", 1);
-#ifdef DEBUG
-  source_map_publisher =
-      nh.advertise<pcl::PointCloud<pcl::PointXYZRGB>>("/vineslam/sourceMap3D", 1);
-  aligned_map_publisher =
-      nh.advertise<pcl::PointCloud<pcl::PointXYZRGB>>("/vineslam/alignedMap3D", 1);
-#endif
 
   // Load params
   std::string config_path;
@@ -56,9 +50,9 @@ vineslam_ros::vineslam_ros(int argc, char** argv)
   // Load config file
   auto config = YAML::LoadFile(config_path);
   // Load camera info parameters
-  h_fov      = config["camera_info"]["h_fov"].as<float>() * PI / 180;
-  img_width  = config["camera_info"]["img_width"].as<float>();
-  img_height = config["camera_info"]["img_height"].as<float>();
+  h_fov      = config["camera_info"]["h_fov"].as<float>() * PI / 180.;
+  img_width  = config["camera_info"]["img_width"].as<int>();
+  img_height = config["camera_info"]["img_height"].as<int>();
   cam_height = config["camera_info"]["cam_height"].as<float>();
   fx         = config["camera_info"]["fx"].as<float>();
   fy         = config["camera_info"]["fy"].as<float>();
@@ -81,4 +75,4 @@ vineslam_ros::vineslam_ros(int argc, char** argv)
   ROS_INFO("ROS shutting down...");
 }
 
-}; // namespace vineslam
+} // namespace vineslam

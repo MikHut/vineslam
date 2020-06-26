@@ -15,7 +15,7 @@
     <remap from="/depth_image" to="/zed/zed_node/depth/depth_registered" />
     <remap from="/detections" to="detections" />
     <remap from="/odom" to="/husky_velocity_controller/odom" />
-    
+
     <param name="/SLAMNode/config_path" value="$(find vineslam)/config/setup.yaml" />
   </node>
 
@@ -29,7 +29,7 @@
 
   <!-- transforms -->
   <node pkg="tf" type="static_transform_publisher" name="odom_to_map" args="+44.24 -5.78 0 0 0
-    0 1  /odom /map 10" /> 
+    0 1  /map /odom 10" />
   <!-- <node pkg="tf" type="static_transform_publisher" name="map_to_odom" args="+67.34 -10.26 0 0 0
     0 1  /map /odom 10" /> -->
   <node pkg="tf" type="static_transform_publisher" name="odom_to_base" args="0 0 0 0 0

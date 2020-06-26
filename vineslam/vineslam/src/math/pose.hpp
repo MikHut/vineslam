@@ -176,17 +176,17 @@ struct pose {
   // Normalize pose angles
   void normalize()
   {
-    roll = fmod(roll, 2 * PI);
+    roll = std::fmod(roll, 2. * PI);
     if (roll > PI)
-      roll -= 2 * PI;
+      roll -= 2. * PI;
 
-    pitch = fmod(pitch, 2 * PI);
+    pitch = std::fmod(pitch, 2. * PI);
     if (pitch > PI)
-      pitch -= 2 * PI;
+      pitch -= 2. * PI;
 
-    yaw = fmod(yaw, 2 * PI);
+    yaw = std::fmod(yaw, 2. * PI);
     if (yaw > PI)
-      yaw -= 2 * PI;
+      yaw -= 2. * PI;
   }
 
   // Set gaussian noise characterizing the robot pose

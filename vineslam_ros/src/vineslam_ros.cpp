@@ -12,7 +12,7 @@ void vineslam_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)
 
   // Check if yaw is NaN
   float yaw = static_cast<float>(tf::getYaw(pose.getRotation()));
-  if (yaw != yaw)
+  if (!std::isfinite(yaw))
     yaw = 0;
 
   // If it is the first iteration - initialize the Pose
@@ -21,7 +21,7 @@ void vineslam_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)
     p_odom.x   = (*msg).pose.pose.position.x;
     p_odom.y   = (*msg).pose.pose.position.y;
     p_odom.yaw = yaw;
-    odom       = vineslam::pose(0., 0., 0., 0., 0., 0.);
+    odom       = vineslam::pose(0., 0., 0., 0., 0., yaw);
     return;
   }
 
@@ -91,15 +91,12 @@ void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
 
   if (init && bearings.size() > 1) {
     // Initialize the localizer and get first particles distribution
-    localizer->init(pose(0, 0, 0, 0, 0, 0.));
+    localizer->init(pose(0, 0, 0, 0, 0, odom.yaw));
     robot_pose = localizer->getPose();
 
-    // Initialize the mapper2D
+    // Initialize the multi-layer map
     mapper2D->init(robot_pose, bearings, depths, labels, *grid_map);
-
-    // Initialize the mapper3D
-    //    mapper3D->localMap(img, raw_depths, m_imgfeatures);
-    //    mapper3D->globalMap(m_imgfeatures, robot_pose, *grid_map);
+    // MISSING 3D MAPS ...
 
     init = false;
   } else if (!init) {
@@ -107,23 +104,19 @@ void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
     // --------- Build local maps to use in the localization
     // - Compute 2D local map of semantic features on camera's referential frame
     std::vector<SemanticFeature> m_landmarks;
-    mapper2D->localMap(bearings, depths, m_landmarks);
-    // - Compute 3D local map of features on camera's referential frame
-    //    mapper3D->localMap(img, raw_depths, m_imgfeatures);
+    vineslam::Mapper2D::localMap(bearings, depths, m_landmarks);
+    // MISSING 3D MAPS ...
 
     // ------- Build observation sutrcture to use in the localization
     Observation obsv;
-    obsv.landmarks     = m_landmarks;
-    obsv.surf_features = m_imgfeatures;
+    obsv.landmarks = m_landmarks;
+    // MISSING 3D image features and 3D cloud features ...
 
     // ------- LOCALIZATION PROCEDURE ---------- //
     localizer->process(odom, obsv, *grid_map);
     robot_pose = localizer->getPose();
 
     // ------- MULTI-LAYER MAPPING ------------ //
-    // ---------------------------------------- //
-    // Compute 3D map using estimated robot pose
-    //    mapper3D->globalMap(m_imgfeatures, robot_pose, *grid_map);
     // ---------------------------------------- //
     // Execute the 2D map estimation
     mapper2D->process(robot_pose, bearings, depths, labels, *grid_map);
@@ -244,4 +237,4 @@ void vineslam_ros::computeObsv(const sensor_msgs::Image& depth_img,
   }
 }
 
-}; // namespace vineslam
+} // namespace vineslam

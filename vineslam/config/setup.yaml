@@ -40,7 +40,7 @@ cloud_feature:
 grid_map:
   origin:
     x: -10
-    y: -20
+    y: -25
   width: 50
   height: 50
   resolution: 0.25 # meters
@@ -72,12 +72,12 @@ ICP:
 # - particles2D - number of particles for landmark-based particle filter
 # - particles3D - number of particles for feature-based particle filter
 pf:
-  srr: 0.1 # rotation - rotation
-  srt: 0.2 # rotation - translation
-  str: 0.1 # translation - rotation
-  stt: 0.2 # translation - translation
+  srr: 0.5 # rotation - rotation
+  srt: 0.5 # rotation - translation
+  str: 0.5 # translation - rotation
+  stt: 0.5 # translation - translation
   sigma_z: 0.2 # meters
   sigma_roll: 1.5 # degrees
   sigma_pitch: 1.5 # degrees
-  n_particles: 100 # number of particles
+  n_particles: 2000 # number of particles
 ...

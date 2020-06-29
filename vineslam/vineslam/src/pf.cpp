@@ -23,7 +23,10 @@ PF::PF(const std::string& config_path, const pose& initial_pose)
   sigma_pitch =
       config["pf"]["sigma_pitch"].as<float>() * static_cast<float>(PI / 180.);
   sigma_yaw = config["pf"]["sigma_yaw"].as<float>() * static_cast<float>(PI / 180.);
-  n_particles = config["pf"]["n_particles"].as<float>();
+  sigma_landmark_matching = config["pf"]["sigma_landmark_matching"].as<float>();
+  sigma_feature_matching  = config["pf"]["sigma_feature_matching"].as<float>();
+  sigma_corner_matching   = config["pf"]["sigma_corner_matching"].as<float>();
+  n_particles             = config["pf"]["n_particles"].as<float>();
 
   // Initialize normal distributions
   particles.resize(n_particles);
@@ -35,7 +38,7 @@ PF::PF(const std::string& config_path, const pose& initial_pose)
     // - a sample distribution to spread the particles
     pose m_pose(sampleGaussian(sigma_xy),
                 sampleGaussian(sigma_xy),
-                0.,
+                sampleGaussian(sigma_z),
                 sampleGaussian(sigma_roll),
                 cam_pitch + sampleGaussian(sigma_pitch),
                 sampleGaussian(sigma_yaw));
@@ -84,7 +87,7 @@ void PF::motionModel(const pose& odom)
                 sampleGaussian(0.001);
     dt_pose.y = s_trans * std::sin(normalizeAngle(particle.p.yaw + s_rot_a)) +
                 sampleGaussian(0.001);
-    dt_pose.z     = 0.0;
+    dt_pose.z     = sampleGaussian(sigma_z);
     dt_pose.roll  = sampleGaussian(sigma_roll);
     dt_pose.pitch = sampleGaussian(sigma_pitch);
     dt_pose.yaw   = s_rot_a + s_rot_b + sampleGaussian(0.0005);
@@ -109,21 +112,28 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
   // Loop over all particles
   for (auto& particle : particles) {
     // Convert particle orientation to rotation matrix
+    pose m_pose = particle.p;
+    // Use only 2D pose estimation - set roll, pitch, z to 0
+    // TODO (André Aguiar): Here we should use roll and pitch, but we're not getting
+    // good results with them ...
+    m_pose.roll  = 0.;
+    m_pose.pitch = 0.;
+    m_pose.z     = 0.;
     std::array<float, 9> Rot{};
-    particle.p.toRotMatrix(Rot);
+    m_pose.toRotMatrix(Rot);
 
     // ------------------------------------------------------
     // --- 2D semantic feature map fitting
     // ------------------------------------------------------
-    float              dmean = 0.;
-    std::vector<float> dvec;
+    std::vector<float> dlandmarkvec;
     for (const auto& landmark : landmarks) {
       // Convert landmark to the particle's referential frame
       point X;
       X.x = landmark.pos.x * Rot[0] + landmark.pos.y * Rot[1] +
-            landmark.pos.z * Rot[2] + particle.p.x;
+            landmark.pos.z * Rot[2] + m_pose.x;
       X.y = landmark.pos.x * Rot[3] + landmark.pos.y * Rot[4] +
-            landmark.pos.z * Rot[5] + particle.p.y;
+            landmark.pos.z * Rot[5] + m_pose.y;
+      ;
       X.z = 0.;
 
       // Search for a correspondence in the current cell first
@@ -156,30 +166,82 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
       // Save distance if a correspondence was found
       if (!found)
         continue;
-      else {
-        dmean += best_correspondence;
-        dvec.push_back(best_correspondence);
+      else
+        dlandmarkvec.push_back(best_correspondence);
+    }
+
+    // ------------------------------------------------------
+    // --- 3D corner map fitting
+    // ------------------------------------------------------
+    std::vector<float> dcornervec;
+    for (const auto& corner : corners) {
+      // Convert landmark to the particle's referential frame
+      point X;
+      X.x = corner.pos.x * Rot[0] + corner.pos.y * Rot[1] + corner.pos.z * Rot[2] +
+            particle.p.x;
+      X.y = corner.pos.x * Rot[3] + corner.pos.y * Rot[4] + corner.pos.z * Rot[5] +
+            particle.p.y;
+      X.z = corner.pos.x * Rot[6] + corner.pos.y * Rot[7] + corner.pos.z * Rot[8] +
+            particle.p.z;
+
+      // Search for a correspondence in the current cell first
+      float best_correspondence = std::numeric_limits<float>::max();
+      bool  found               = false;
+      for (const auto& m_corner : grid_map(X.x, X.y).corner_features) {
+        float dist_min = X.distance(m_corner.pos);
+
+        if (dist_min < best_correspondence) {
+          best_correspondence = dist_min;
+          found               = true;
+        }
       }
+
+      // Only search in the adjacent cells if we do not find in the source cell
+      if (!found) {
+        std::vector<Cell> adjacents;
+        grid_map.getAdjacent(X.x, X.y, 2, adjacents);
+        for (const auto& m_cell : adjacents) {
+          for (const auto& m_corner : m_cell.corner_features) {
+            float dist_min = X.distance(m_corner.pos);
+            if (dist_min < best_correspondence) {
+              best_correspondence = dist_min;
+              found               = true;
+            }
+          }
+        }
+      }
+
+      // Save distance if a correspondence was found
+      if (!found)
+        continue;
+      else
+        dcornervec.push_back(best_correspondence);
     }
 
     // ------------------------------------------------------
     // --- Particle weight update
     // ------------------------------------------------------
-    if (dvec.size() <= 1) {
+    // - Semantic landmark matching weight
+    if (dlandmarkvec.size() <= 1) {
       particle.w = 0.;
-      continue;
+    } else {
+      float w = 0.;
+      for (const auto& dist : dlandmarkvec)
+        w += static_cast<float>(std::exp(-1. / sigma_landmark_matching * dist));
+      particle.w *= w;
     }
-    // Compute mean and standard deviation of the correspondences
-    dmean /= static_cast<float>(dvec.size());
-    float w      = 0.;
-    float dstdev = 0.;
-    for (const auto& dist : dvec) dstdev += std::pow(dist - dmean, 2);
-    dstdev /= static_cast<float>(dvec.size());
-    // Update particle weight
-    for (const auto& dist : dvec) {
-      w += static_cast<float>(std::exp(-1. / dstdev * dist));
+    // - Corner feature mathing weight
+    if (dcornervec.size() <= 1) {
+      particle.w = 0.;
+    } else {
+      float w = 0.;
+      for (const auto& dist : dcornervec)
+        w += static_cast<float>(std::exp(-1. / sigma_corner_matching * dist));
+      particle.w *= w;
     }
-    particle.w *= w;
+    // - Add random noise to the particle weigth
+    particle.w += sampleGaussian(0.01);
+
     w_sum += particle.w;
   }
 }

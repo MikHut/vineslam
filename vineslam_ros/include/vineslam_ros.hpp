@@ -53,16 +53,15 @@ public:
   void odomListener(const nav_msgs::OdometryConstPtr& msg);
 
 private:
-  // Publish map on rviz
+  // Publish 2D semantic features map
   void publish2DMap(const std_msgs::Header&   header,
                     const pose&               pose,
                     const std::vector<float>& bearings,
                     const std::vector<float>& depths);
-  // Publish the 3D trunk map using a the grid map
+  // Publish the 3D maps
   void publish3DMap();
-  // Publish the 3D trunk map using an array of features
-  void publish3DMap(const std::vector<ImageFeature>& features,
-                    const ros::Publisher&            pub);
+  // Publish the 3D PCL planes map
+  void publish3DMap(const Plane& plane, const ros::Publisher& pub);
   // Publish the grid map that contains all the maps
   void publishGridMap(const std_msgs::Header& header);
 
@@ -79,14 +78,12 @@ private:
   // Definitions of the ROS publishers
   ros::Publisher mapOCC_publisher;
   ros::Publisher map2D_publisher;
-  ros::Publisher map3D_publisher;
+  ros::Publisher map3D_features_publisher;
+  ros::Publisher map3D_corners_publisher;
+  ros::Publisher map3D_planes_publisher;
   ros::Publisher pose_publisher;
   ros::Publisher path_publisher;
   ros::Publisher poses_publisher;
-#ifdef DEBUG
-  ros::Publisher source_map_publisher;
-  ros::Publisher aligned_map_publisher;
-#endif
 
   // Classes object members
   Localizer*    localizer;

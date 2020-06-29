@@ -5,6 +5,7 @@
 #include <occupancy_map.hpp>
 #include <math/pose.hpp>
 #include <math/stat.hpp>
+#include <math/const.hpp>
 
 // Include std members and yaml-cpp
 #include <cstdlib>
@@ -13,8 +14,6 @@
 #include <iostream>
 #include <map>
 #include <yaml-cpp/yaml.h>
-
-#define PI 3.14159265359
 
 namespace vineslam
 {
@@ -90,6 +89,9 @@ private:
   float sigma_roll;
   float sigma_pitch;
   float sigma_yaw;
+  float sigma_landmark_matching;
+  float sigma_feature_matching;
+  float sigma_corner_matching;
   float n_particles;
 };
 

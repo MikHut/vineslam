@@ -3,9 +3,10 @@
 // Class objects
 #include <feature.hpp>
 #include <occupancy_map.hpp>
+#include <pf.hpp>
 #include <math/point.hpp>
 #include <math/pose.hpp>
-#include <pf.hpp>
+#include <math/const.hpp>
 
 // std, eigen
 #include <iostream>
@@ -13,8 +14,6 @@
 #include <vision_msgs/Detection2D.h>
 #include <vision_msgs/Detection2DArray.h>
 #include <yaml-cpp/yaml.h>
-
-#define PI 3.14159265359
 
 namespace vineslam
 {

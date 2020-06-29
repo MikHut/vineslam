@@ -30,7 +30,7 @@ cloud_feature:
   RANSAC:
     max_iters: 20  # maximum number of RANSAC iterations
     dist_threshold: 0.08  # inliers distance threshold
-  edge_threshold: 0.005 # curvature maximum threshold to consider a feature as an adge
+  edge_threshold: 0.001 # curvature maximum threshold to consider a feature as an adge
 
 
 # Grid map definitions
@@ -77,9 +77,12 @@ pf:
   str: 0.5 # translation - rotation
   stt: 0.2 # translation - translation
   sigma_xy: 0.15 # meters (just for initialization)
-  sigma_z: 0.2 # meters
-  sigma_roll: 0.0 # degrees
+  sigma_z: 0.02 # meters
+  sigma_roll: 0.5 # degrees
   sigma_pitch: 0.5 # degrees
   sigma_yaw: 1.0 # degrees (just for initialization)
+  sigma_landmark_matching: 0.4 # meters
+  sigma_feature_matching: 0.2 # meters
+  sigma_corner_matching: 0.2 # meters
   n_particles: 500 # number of particles
 ...

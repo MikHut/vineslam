@@ -10,6 +10,7 @@
 #include <occupancy_map.hpp>
 #include <math/point.hpp>
 #include <math/pose.hpp>
+#include <math/const.hpp>
 
 // OpenCV
 #include <opencv2/core.hpp>
@@ -18,8 +19,6 @@
 #include <opencv2/xfeatures2d.hpp>
 #include <opencv2/xfeatures2d/nonfree.hpp>
 #include <feature.hpp>
-
-#define PI 3.14159265359
 
 namespace vineslam
 {

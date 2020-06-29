@@ -1,12 +1,12 @@
 #pragma once
 
 #include "point.hpp"
+#include "const.hpp"
+
 #include <cmath>
 #include <eigen3/Eigen/Dense>
 #include <iostream>
 #include <vector>
-
-#define PI 3.14159265359
 
 namespace vineslam
 {

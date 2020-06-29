@@ -34,8 +34,12 @@ vineslam_ros::vineslam_ros(int argc, char** argv)
       nh.advertise<nav_msgs::OccupancyGrid>("/vineslam/occupancyMap", 1);
   map2D_publisher =
       nh.advertise<visualization_msgs::MarkerArray>("/vineslam/map2D", 1);
-  map3D_publisher =
-      nh.advertise<pcl::PointCloud<pcl::PointXYZRGB>>("/vineslam/map3D", 1);
+  map3D_features_publisher =
+      nh.advertise<pcl::PointCloud<pcl::PointXYZRGB>>("/vineslam/map3D/SURF", 1);
+  map3D_corners_publisher =
+      nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners", 1);
+  map3D_planes_publisher =
+      nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/ground", 1);
   pose_publisher  = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/pose", 1);
   path_publisher  = nh.advertise<nav_msgs::Path>("/vineslam/path", 1);
   poses_publisher = nh.advertise<geometry_msgs::PoseArray>("/vineslam/poses", 1);

@@ -33,8 +33,9 @@ void vineslam_ros::publishGridMap(const std_msgs::Header& header)
   int ymax = static_cast<int>((float)ymin + occ_height / occ_resolution - 1);
   for (int i = xmin; i < xmax; i++) {
     for (int j = ymin; j < ymax; j++) {
-      int8_t number_objs =
-          (*grid_map)(i, j).landmarks.size() + (*grid_map)(i, j).landmarks.size();
+      int8_t number_objs = (*grid_map)(i, j).landmarks.size() +
+                           (*grid_map)(i, j).surf_features.size() +
+                           (*grid_map)(i, j).corner_features.size();
 
       int m_i = i - static_cast<int>(occ_origin.x / occ_resolution);
       int m_j = j - static_cast<int>(occ_origin.y / occ_resolution);
@@ -153,8 +154,10 @@ void vineslam_ros::publish2DMap(const std_msgs::Header&   header,
 
 void vineslam_ros::publish3DMap()
 {
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out(
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr feature_cloud(
       new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr corner_cloud(
+      new pcl::PointCloud<pcl::PointXYZI>);
 
   for (const auto& it : *grid_map) {
     for (const auto& feature : it.surf_features) {
@@ -163,25 +166,36 @@ void vineslam_ros::publish3DMap()
       m_pt.y = feature.pos.y;
       m_pt.z = feature.pos.z;
 
-      cloud_out->points.push_back(m_pt);
+      feature_cloud->points.push_back(m_pt);
+    }
+
+    for (const auto& corner : it.corner_features) {
+      pcl::PointXYZI m_pt(corner.which_plane);
+      m_pt.x = corner.pos.x;
+      m_pt.y = corner.pos.y;
+      m_pt.z = corner.pos.z;
+
+      corner_cloud->points.push_back(m_pt);
     }
   }
 
-  cloud_out->header.frame_id = "map";
-  map3D_publisher.publish(cloud_out);
+  feature_cloud->header.frame_id = "map";
+  corner_cloud->header.frame_id  = "map";
+  map3D_features_publisher.publish(feature_cloud);
+  map3D_corners_publisher.publish(corner_cloud);
 }
 
-void vineslam_ros::publish3DMap(const std::vector<ImageFeature>& features,
-                                const ros::Publisher&            pub)
+void vineslam_ros::publish3DMap(const Plane& plane, const ros::Publisher& pub)
 {
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out(
-      new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(
+      new pcl::PointCloud<pcl::PointXYZI>);
 
-  for (const auto& feature : features) {
-    pcl::PointXYZRGB m_pt(feature.r, feature.g, feature.b);
-    m_pt.x = feature.pos.x;
-    m_pt.y = feature.pos.y;
-    m_pt.z = feature.pos.z;
+  pcl::PointXYZI m_pt(0);
+
+  for (const auto& pt : plane.points) {
+    m_pt.x = pt.x;
+    m_pt.y = pt.y;
+    m_pt.z = pt.z;
 
     cloud_out->points.push_back(m_pt);
   }

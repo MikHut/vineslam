@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "stat.hpp"
-
 #include "point.hpp"
 
 namespace vineslam

@@ -3,13 +3,12 @@
 // Object members
 #include <math/point.hpp>
 #include <math/stat.hpp>
+#include <math/const.hpp>
 
 // ROS, std, Eigen
 #include <eigen3/Eigen/Dense>
 #include <iostream>
 #include <yaml-cpp/yaml.h>
-
-#define PI 3.14159265359
 
 using Eigen::MatrixXf;
 using Eigen::VectorXf;

@@ -34,6 +34,7 @@ void Localizer::process(const pose&         odom,
                         const Observation&  obsv,
                         const OccupancyMap& grid_map)
 {
+  auto before = std::chrono::high_resolution_clock::now();
   // Reset weights sum
   pf->w_sum = 0.;
 
@@ -65,6 +66,9 @@ void Localizer::process(const pose&         odom,
 
   // - Save current control to use in the next iteration
   pf->p_odom = odom;
+  auto after = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<float, std::milli> duration = after - before;
+  std::cout << "Time elapsed on PF (msecs): " << duration.count() << std::endl;
 }
 
 pose Localizer::getPose() const { return average_pose; }

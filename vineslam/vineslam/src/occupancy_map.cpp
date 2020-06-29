@@ -87,6 +87,30 @@ bool OccupancyMap::insert(const ImageFeature& m_feature)
   return insert(m_feature, m_i, m_j);
 }
 
+bool OccupancyMap::insert(const Corner& m_feature, const int& i, const int& j)
+{
+  try {
+    check(i, j);
+  } catch (char const* msg) {
+    std::cout << msg;
+    return false;
+  }
+
+  (*this)(i, j).corner_features.push_back(m_feature);
+  n_corner_features++;
+  return true;
+}
+
+bool OccupancyMap::insert(const Corner& m_feature)
+{
+  // Compute grid coordinates for the floating point Feature location
+  // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+  int m_i = static_cast<int>(std::round(m_feature.pos.x / resolution + .49));
+  int m_j = static_cast<int>(std::round(m_feature.pos.y / resolution + .49));
+
+  return insert(m_feature, m_i, m_j);
+}
+
 bool OccupancyMap::update(const SemanticFeature& new_landmark,
                           const int&             id,
                           const float&           i,

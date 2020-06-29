@@ -102,15 +102,21 @@ void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
   } else if (!init) {
 
     // --------- Build local maps to use in the localization
-    // - Compute 2D local map of semantic features on camera's referential frame
+    // - Compute 2D local map of semantic features on robot's referential frame
     std::vector<SemanticFeature> m_landmarks;
     vineslam::Mapper2D::localMap(bearings, depths, m_landmarks);
-    // MISSING 3D MAPS ...
+    // - Compute 3D PCL corners and ground plane on robot's referential frame
+    std::vector<Corner> m_corners;
+    Plane               m_ground_plane;
+    mapper3D->localPCLMap(raw_depths, m_corners, m_ground_plane);
+    // MISSING feature 3D map
 
-    // ------- Build observation sutrcture to use in the localization
+    // ------- Build observation structure to use in the localization
     Observation obsv;
-    obsv.landmarks = m_landmarks;
-    // MISSING 3D image features and 3D cloud features ...
+    obsv.landmarks    = m_landmarks;
+    obsv.corners      = m_corners;
+    obsv.ground_plane = m_ground_plane;
+    // MISSING 3D image features
 
     // ------- LOCALIZATION PROCEDURE ---------- //
     localizer->process(odom, obsv, *grid_map);
@@ -118,8 +124,11 @@ void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
 
     // ------- MULTI-LAYER MAPPING ------------ //
     // ---------------------------------------- //
-    // Execute the 2D map estimation
+    // - 2D high-level semantic map estimation
     mapper2D->process(robot_pose, bearings, depths, labels, *grid_map);
+    // - 3D PCL corner map estimation
+    mapper3D->globalCornerMap(m_corners, robot_pose, *grid_map);
+    // - MISSING 3D feature map ...
     // ---------------------------------------- //
 
     // Convert robot pose to tf::Transform corresponding
@@ -162,8 +171,9 @@ void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
     publishGridMap(depth_image->header);
     // Publish the 2D map
     publish2DMap(depth_image->header, robot_pose, bearings, depths);
-    // Publish 3D point map
+    // Publish 3D maps
     publish3DMap();
+    publish3DMap(obsv.ground_plane, map3D_planes_publisher);
     // ------------------------------------------------ //
 
 #ifdef DEBUG

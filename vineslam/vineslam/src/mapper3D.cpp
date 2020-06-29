@@ -74,8 +74,8 @@ void Mapper3D::localSurfMap(const cv::Mat&             img,
     std::array<uint8_t, 3> c_int = {(*p).z, (*p).y, (*p).x};
     //------------------------------------------------------------------------------
     // Compute feature and insert on grid map
-    float dist =
-        sqrt((out_pt.x * out_pt.x) + (out_pt.y * out_pt.y) + (out_pt.z * out_pt.z));
+    float dist = std::sqrt((out_pt.x * out_pt.x) + (out_pt.y * out_pt.y) +
+                           (out_pt.z * out_pt.z));
     if (out_pt.z < max_height && dist < max_range) {
       ImageFeature m_feature = feature;
       m_feature.r            = c_int[0];
@@ -93,7 +93,7 @@ void Mapper3D::globalSurfMap(const std::vector<ImageFeature>& features,
                              OccupancyMap&                    grid_map)
 {
   // ------ Convert robot pose into homogeneous transformation
-  std::array<float, 9> Rot = {0., 0., 0., 0., 0., 0., 0., 0., 0.};
+  std::array<float, 9> Rot{};
   robot_pose.toRotMatrix(Rot);
   std::array<float, 3> trans = {robot_pose.x, robot_pose.y, robot_pose.z};
 
@@ -177,8 +177,8 @@ void Mapper3D::localPCLMap(const float*         depths,
       pixel2world(point(i, j), m_depth, out_pt);
       // Save point and range
       pts3D[i + j * img_width] = out_pt;
-      range_mat(i, j)          = static_cast<float>(
-          sqrt(out_pt.x * out_pt.x + out_pt.y * out_pt.y + out_pt.z * out_pt.z));
+      range_mat(i, j) =
+          std::sqrt(out_pt.x * out_pt.x + out_pt.y * out_pt.y + out_pt.z * out_pt.z);
     }
   }
 
@@ -200,6 +200,29 @@ void Mapper3D::globalCornerMap(const std::vector<Corner>& corners,
                                const pose&                robot_pose,
                                OccupancyMap&              grid_map)
 {
+  // ------ Convert robot pose into homogeneous transformation
+  std::array<float, 9> Rot{};
+  robot_pose.toRotMatrix(Rot);
+  std::array<float, 3> trans = {robot_pose.x, robot_pose.y, robot_pose.z};
+
+  // ------ Insert corner into the grid map
+  for (const auto& corner : corners) {
+    // - First convert them to map's referential using the robot pose
+    Corner m_corner = corner;
+
+    point m_pt;
+    m_pt.x = corner.pos.x * Rot[0] + corner.pos.y * Rot[1] + corner.pos.z * Rot[2] +
+             trans[0];
+    m_pt.y = corner.pos.x * Rot[3] + corner.pos.y * Rot[4] + corner.pos.z * Rot[5] +
+             trans[1];
+    m_pt.z = corner.pos.x * Rot[6] + corner.pos.y * Rot[7] + corner.pos.z * Rot[8] +
+             trans[2];
+
+    m_corner.pos = m_pt;
+
+    // - Then, insert the corner into the grid map
+    grid_map.insert(m_corner);
+  }
 }
 
 void Mapper3D::reset()
@@ -248,8 +271,7 @@ void Mapper3D::groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl)
       float dY = upper_pt.y - lower_pt.y;
       float dZ = upper_pt.z - lower_pt.z;
 
-      float vertical_angle =
-          std::atan2(dZ, static_cast<float>(sqrt(dX * dX + dY * dY + dZ * dZ)));
+      float vertical_angle = std::atan2(dZ, std::sqrt(dX * dX + dY * dY + dZ * dZ));
 
       if ((vertical_angle /* - cam_pitch*/) <= ground_th) {
         ground_mat(i, j)     = 1;
@@ -294,9 +316,9 @@ bool Mapper3D::ransac(const Plane& in_plane, Plane& out_plane) const
     int  n               = 0;
     int  idx1, idx2, idx3;
     while (!found_valid_pts) {
-      idx1 = rand() % (max_idx - min_idx + 1) + min_idx;
-      idx2 = rand() % (max_idx - min_idx + 1) + min_idx;
-      idx3 = rand() % (max_idx - min_idx + 1) + min_idx;
+      idx1 = std::rand() % (max_idx - min_idx + 1) + min_idx;
+      idx2 = std::rand() % (max_idx - min_idx + 1) + min_idx;
+      idx3 = std::rand() % (max_idx - min_idx + 1) + min_idx;
 
       if (idx1 != idx2 && idx1 != idx3 && idx2 != idx3)
         found_valid_pts = true;
@@ -332,7 +354,7 @@ bool Mapper3D::ransac(const Plane& in_plane, Plane& out_plane) const
     for (const auto& m_pt : in_plane.points) {
       // Compute the distance each point to the plane - from
       // https://www.geeksforgeeks.org/distance-between-a-point-and-a-plane-in-3-d/
-      auto norm = static_cast<float>(sqrt(a * a + b * b + c * c));
+      auto norm = std::sqrt(a * a + b * b + c * c);
       if (std::fabs(a * m_pt.x + b * m_pt.y + c * m_pt.z + d) / norm <
           dist_threshold) {
         num_inliers++;
@@ -404,7 +426,7 @@ void Mapper3D::labelComponents(const int&                row,
                                const std::vector<point>& in_pts,
                                int&                      label)
 {
-  auto theta_threshold = static_cast<float>(tan(planes_th));
+  float theta_threshold = std::tan(planes_th);
 
   using Coord2D = Eigen::Vector2i;
   std::deque<Coord2D> queue;
@@ -431,7 +453,7 @@ void Mapper3D::labelComponents(const int&                row,
       continue;
 
     // Compute point one range
-    auto d1 = static_cast<float>(sqrt(p1.x * p1.x + p1.y * p1.y + p1.z * p1.z));
+    float d1 = std::sqrt(p1.x * p1.x + p1.y * p1.y + p1.z * p1.z);
 
     // Loop through all the neighboring grids of popped grid
     for (const auto& iter : neighbor_it) {
@@ -453,7 +475,7 @@ void Mapper3D::labelComponents(const int&                row,
       if (p2.z == -1)
         continue;
 
-      auto  d2   = static_cast<float>(sqrt(p2.x * p2.x + p2.y * p2.y + p2.z * p2.z));
+      auto  d2   = std::sqrt(p2.x * p2.x + p2.y * p2.y + p2.z * p2.z);
       float dmax = std::max(d1, d2);
       float dmin = std::min(d1, d2);
 
@@ -463,8 +485,7 @@ void Mapper3D::labelComponents(const int&                row,
       float alpha = (iter.y() == 0) ? angle_hres : angle_vres;
 
       // Compute beta and check if points belong to the same segment
-      auto beta =
-          static_cast<float>((dmin * sin(alpha)) / (dmax - dmin * cos(alpha)));
+      auto beta = (dmin * std::sin(alpha)) / (dmax - dmin * std::cos(alpha));
       if (beta > theta_threshold) {
         queue.emplace_back(c_idx_x, c_idx_y);
         global_queue.emplace_back(c_idx_x, c_idx_y);
@@ -578,13 +599,13 @@ void Mapper3D::pixel2world(const point& in_pt,
                            point&       out_pt) const
 {
   // Project 2D pixel into a 3D Point using the stereo depth information
-  float x_cam = static_cast<float>((in_pt.x - cx) * (depth / fx));
-  float y_cam = static_cast<float>((in_pt.y - cy) * (depth / fy));
+  float x_cam = (in_pt.x - cx) * (depth / fx);
+  float y_cam = (in_pt.y - cy) * (depth / fy);
   float z_cam = depth;
 
   // Compute camera-world axis transformation matrix
   // - NOTE: We compensate here the camera height and pitch (!)
-  pose transform(0., 0., cam_height, -PI / 2. - cam_pitch, 0., -PI / 2.);
+  pose transform(0., 0., cam_height, -PI / 2., 0., -PI / 2.);
   std::array<float, 9> c2w_rot = {0., 0., 0., 0., 0., 0., 0., 0., 0.};
   transform.toRotMatrix(c2w_rot);
 
@@ -597,4 +618,4 @@ void Mapper3D::pixel2world(const point& in_pt,
       c2w_rot[6] * x_cam + c2w_rot[7] * y_cam + c2w_rot[8] * z_cam + transform.z;
 }
 
-}; // namespace vineslam
+} // namespace vineslam

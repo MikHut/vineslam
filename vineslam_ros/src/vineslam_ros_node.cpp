@@ -40,6 +40,7 @@ vineslam_ros::vineslam_ros(int argc, char** argv)
       nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners", 1);
   map3D_planes_publisher =
       nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/ground", 1);
+  normal_pub = nh.advertise<visualization_msgs::Marker>("/map3D/ground_normal", 1);
   pose_publisher  = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/pose", 1);
   path_publisher  = nh.advertise<nav_msgs::Path>("/vineslam/path", 1);
   poses_publisher = nh.advertise<geometry_msgs::PoseArray>("/vineslam/poses", 1);

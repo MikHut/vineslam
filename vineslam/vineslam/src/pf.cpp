@@ -67,8 +67,9 @@ void PF::motionModel(const pose& odom)
 
   // Motion sample standard deviations
   float comp = (odom_inc.x < 0)
-                   ? static_cast<float>(PI)
-                   : 0.; // PREVENT ERROR WHEN ROBOT IS MOVING BACKWARDS :-)
+                   ? PI
+                   : static_cast<float>(
+                         0.); // PREVENT ERROR WHEN ROBOT IS MOVING BACKWARDS :-)
   float s_rot_a_draw = srr * (std::fabs(dt_rot_a) - comp) + srt * dt_trans;
   float s_rot_b_draw = srr * (std::fabs(dt_rot_b) - comp) + srt * dt_trans;
   float s_trans_draw =
@@ -133,7 +134,6 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
             landmark.pos.z * Rot[2] + m_pose.x;
       X.y = landmark.pos.x * Rot[3] + landmark.pos.y * Rot[4] +
             landmark.pos.z * Rot[5] + m_pose.y;
-      ;
       X.z = 0.;
 
       // Search for a correspondence in the current cell first

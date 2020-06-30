@@ -201,6 +201,43 @@ void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
       ros_poses.poses.push_back(m_pose);
     }
     poses_publisher.publish(ros_poses);
+
+    // - Publish ground plane normal for DEBUG
+    float x = 0., y = 0., z = 0.;
+    for (const auto& m_pt : obsv.ground_plane.points) {
+      x += m_pt.x;
+      y += m_pt.y;
+      z += m_pt.z;
+    }
+    x /= obsv.ground_plane.points.size();
+    y /= obsv.ground_plane.points.size();
+    z /= obsv.ground_plane.points.size();
+    geometry_msgs::Point p1, p2;
+    p1.x = x;
+    p1.y = y;
+    p1.z = z;
+    p2.x = p1.x + obsv.ground_plane.normal.x;
+    p2.y = p1.y + obsv.ground_plane.normal.y;
+    p2.z = p1.z + obsv.ground_plane.normal.z;
+
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = "map";
+    marker.header.stamp    = ros::Time();
+    marker.ns              = "normal";
+    marker.id              = 0;
+    marker.type            = visualization_msgs::Marker::LINE_STRIP;
+    marker.action          = visualization_msgs::Marker::ADD;
+    marker.points.push_back(p1);
+    marker.points.push_back(p2);
+    marker.color.a = 1;
+    marker.color.r = 1;
+    marker.color.b = 0;
+    marker.color.g = 0;
+    marker.scale.x = 0.1;
+    marker.scale.y = 0.1;
+    marker.scale.z = 0.1;
+
+    normal_pub.publish(marker);
 #endif
   }
 }

@@ -84,7 +84,7 @@ std::vector<point> Mapper2D::cam2base(const pose&               pose,
   std::vector<point> landmarks;
 
   // Convert 6-DOF pose to homogenous transformation
-  std::array<float, 9> Rot   = {0., 0., 0., 0., 0., 0., 0., 0., 0.};
+  std::array<float, 9> Rot{};
   point                trans = pose.getXYZ();
   pose.toRotMatrix(Rot);
 
@@ -119,7 +119,7 @@ void Mapper2D::predict(const pose&               pose,
   Gaussian<point, point> robot_gauss = pose.getDist();
 
   // Convert 6DOF pose to homogenous transformation
-  std::array<float, 9> Rot = {0., 0., 0., 0., 0., 0., 0., 0., 0.};
+  std::array<float, 9> Rot{};
   pose.toRotMatrix(Rot);
   point trans = pose.getXYZ();
 

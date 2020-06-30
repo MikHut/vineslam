@@ -59,7 +59,7 @@ public:
   }
 
   // Norm of a vector
-  float norm() { return (x * x + y * y + z * z); }
+  float norm() { return sqrt(x * x + y * y + z * z); }
 
 private:
 };

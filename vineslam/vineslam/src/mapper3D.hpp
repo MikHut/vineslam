@@ -120,7 +120,10 @@ private:
   // ------------------------------------------------------------------------------
 
   // Converts a pixel into world's coordinate reference
-  void pixel2world(const point& in_pt, const float& depth, point& out_pt) const;
+  void pixel2world(const point& in_pt,
+                   const float& pitch,
+                   const float& depth,
+                   point&       out_pt) const;
 
   // Camera info parameters
   int   img_width;

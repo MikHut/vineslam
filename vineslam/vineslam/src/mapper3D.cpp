@@ -67,7 +67,7 @@ void Mapper3D::localSurfMap(const cv::Mat&             img,
 
     point out_pt;
     point in_pt(static_cast<float>(feature.u), static_cast<float>(feature.v), 0.);
-    pixel2world(in_pt, m_depth, out_pt);
+    pixel2world(in_pt, 0., m_depth, out_pt);
     // Get the RGB pixel values
     auto* p = img.ptr<cv::Point3_<uchar>>(feature.v, feature.u);
     //------------------------------------------------------------------------------
@@ -174,7 +174,7 @@ void Mapper3D::localPCLMap(const float*         depths,
 
       // Pixel to 3D point conversion
       point out_pt;
-      pixel2world(point(i, j), m_depth, out_pt);
+      pixel2world(point(i, j), 0., m_depth, out_pt);
       // Save point and range
       pts3D[i + j * img_width] = out_pt;
       range_mat(i, j) =
@@ -273,7 +273,7 @@ void Mapper3D::groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl)
 
       float vertical_angle = std::atan2(dZ, std::sqrt(dX * dX + dY * dY + dZ * dZ));
 
-      if ((vertical_angle /* - cam_pitch*/) <= ground_th) {
+      if ((vertical_angle - cam_pitch) <= ground_th) {
         ground_mat(i, j)     = 1;
         ground_mat(i, j + 1) = 1;
         label_mat(i, j)      = -1;
@@ -375,9 +375,22 @@ bool Mapper3D::ransac(const Plane& in_plane, Plane& out_plane) const
     }
   }
 
-  //  best_c = (best_c > 0) ? best_c : -best_c;
   vector3D normal(best_a, best_b, best_c);
-  //  normal.normalize();
+  //  if (best_c < 0) {
+  //    vector3D             m_vec = normal;
+  //    std::array<float, 9> Rot{};
+  //    pose                 transf(0., 0., 0., PI, 0., 0.);
+  //    transf.toRotMatrix(Rot);
+  //
+  //    m_vec.x = normal.x * Rot[0] + normal.y * Rot[1] + normal.z * Rot[2];
+  //    m_vec.y = normal.x * Rot[3] + normal.y * Rot[4] + normal.z * Rot[5];
+  //    m_vec.z = normal.x * Rot[6] + normal.y * Rot[7] + normal.z * Rot[8];
+  //
+  //    normal = m_vec;
+  //  }
+
+  normal.normalize();
+  out_plane.normal = normal;
 
   return c_max_inliers > 0;
 }
@@ -595,6 +608,7 @@ void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,
 // -------------------------------------------------------------------------------
 
 void Mapper3D::pixel2world(const point& in_pt,
+                           const float& pitch,
                            const float& depth,
                            point&       out_pt) const
 {
@@ -605,7 +619,7 @@ void Mapper3D::pixel2world(const point& in_pt,
 
   // Compute camera-world axis transformation matrix
   // - NOTE: We compensate here the camera height and pitch (!)
-  pose transform(0., 0., cam_height, -PI / 2., 0., -PI / 2.);
+  pose                 transform(0., 0., cam_height, -PI / 2. - pitch, 0., -PI / 2.);
   std::array<float, 9> c2w_rot = {0., 0., 0., 0., 0., 0., 0., 0., 0.};
   transform.toRotMatrix(c2w_rot);
 

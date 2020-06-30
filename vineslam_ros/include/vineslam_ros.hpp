@@ -84,6 +84,7 @@ private:
   ros::Publisher pose_publisher;
   ros::Publisher path_publisher;
   ros::Publisher poses_publisher;
+  ros::Publisher normal_pub;
 
   // Classes object members
   Localizer*    localizer;

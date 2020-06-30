@@ -375,8 +375,29 @@ bool Mapper3D::ransac(const Plane& in_plane, Plane& out_plane) const
     }
   }
 
-  vector3D normal(best_a, best_b, best_c);
-  if (best_c < 0) {
+  // -------------------------------------------------------------------------------
+  // ----- Use PCA to refine th normal vector using all the inliers
+  // -------------------------------------------------------------------------------
+  // - 1st: assemble data matrix
+  Eigen::MatrixXf data_mat;
+  data_mat.conservativeResize(out_plane.points.size(), 3);
+  for (size_t i = 0; i < out_plane.points.size(); i++) {
+    point                      pt = out_plane.points[i];
+    Eigen::Matrix<float, 1, 3> pt_mat(pt.x, pt.y, pt.z);
+    data_mat.block<1, 3>(i, 0) = pt_mat;
+  }
+  // - 2nd: calculate mean and subtract it to the data matrix
+  Eigen::MatrixXf centered_mat = data_mat.rowwise() - data_mat.colwise().mean();
+  // - 3rd: calculate covariance matrix
+  Eigen::MatrixXf covariance_mat = (centered_mat.adjoint() * centered_mat);
+  // - 4rd: calculate eigenvectors and eigenvalues of the covariance matrix
+  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXf> eigen_solver(covariance_mat);
+  Eigen::VectorXf eigen_values  = eigen_solver.eigenvalues();
+  Eigen::MatrixXf eigen_vectors = eigen_solver.eigenvectors();
+
+  vector3D normal(
+      eigen_vectors.col(0)[0], eigen_vectors.col(0)[1], eigen_vectors.col(0)[2]);
+  if (normal.z < 0) {
     vector3D             m_vec = normal;
     std::array<float, 9> Rot{};
     pose                 transf(0., 0., 0., 0., PI, 0.);

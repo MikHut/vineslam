@@ -173,7 +173,7 @@ void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
     publish2DMap(depth_image->header, robot_pose, bearings, depths);
     // Publish 3D maps
     publish3DMap();
-    publish3DMap(obsv.ground_plane, map3D_planes_publisher);
+    //    publish3DMap(obsv.ground_plane, map3D_planes_publisher);
     // ------------------------------------------------ //
 
 #ifdef DEBUG
@@ -202,23 +202,57 @@ void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
     }
     poses_publisher.publish(ros_poses);
 
+    // - Compute rotation matrix from ground plane normal vector and aplly it to the
+    // plane
+    std::array<float, 9> R{};
+    vector3D             m_normal = obsv.ground_plane.normal;
+    float norm = std::sqrt(m_normal.x * m_normal.x + m_normal.y * m_normal.y);
+    R[0]       = +m_normal.y / norm;
+    R[1]       = -m_normal.x / norm;
+    R[2]       = 0.;
+    R[3]       = (m_normal.x * m_normal.z) / norm;
+    R[4]       = (m_normal.y * m_normal.z) / norm;
+    R[5]       = -norm;
+    R[6]       = m_normal.x;
+    R[7]       = m_normal.y;
+    R[8]       = m_normal.z;
+
+    Plane m_plane;
+    for (const auto& pt : obsv.ground_plane.points) {
+      point m_pt;
+      m_pt.x = pt.x * R[0] + pt.y * R[1] + pt.z * R[2];
+      m_pt.y = pt.x * R[3] + pt.y * R[4] + pt.z * R[5];
+      m_pt.z = pt.x * R[6] + pt.y * R[7] + pt.z * R[8];
+
+      m_plane.points.push_back(m_pt);
+    }
+    vector3D new_normal;
+    new_normal.x   = m_normal.x * R[0] + m_normal.y * R[1] + m_normal.z * R[2];
+    new_normal.y   = m_normal.x * R[3] + m_normal.y * R[4] + m_normal.z * R[5];
+    new_normal.z   = m_normal.x * R[6] + m_normal.y * R[7] + m_normal.z * R[8];
+    m_plane.normal = new_normal;
+    publish3DMap(m_plane, map3D_planes_publisher);
+
     // - Publish ground plane normal for DEBUG
     float x = 0., y = 0., z = 0.;
-    for (const auto& m_pt : obsv.ground_plane.points) {
-      x += m_pt.x;
-      y += m_pt.y;
-      z += m_pt.z;
+    float min_x = 1000., min_y = 1000.;
+    for (const auto& m_pt : m_plane.points) {
+      if (x < min_x && y < min_y) {
+        x = m_pt.x;
+        y = m_pt.y;
+        z = m_pt.z;
+
+        min_x = x;
+        min_y = y;
+      }
     }
-    x /= obsv.ground_plane.points.size();
-    y /= obsv.ground_plane.points.size();
-    z /= obsv.ground_plane.points.size();
     geometry_msgs::Point p1, p2;
     p1.x = x;
     p1.y = y;
     p1.z = z;
-    p2.x = p1.x + obsv.ground_plane.normal.x;
-    p2.y = p1.y + obsv.ground_plane.normal.y;
-    p2.z = p1.z + obsv.ground_plane.normal.z;
+    p2.x = p1.x + m_plane.normal.x;
+    p2.y = p1.y + m_plane.normal.y;
+    p2.z = p1.z + m_plane.normal.z;
 
     visualization_msgs::Marker marker;
     marker.header.frame_id = "map";
@@ -238,6 +272,7 @@ void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
     marker.scale.z = 0.1;
 
     normal_pub.publish(marker);
+
 #endif
   }
 }

@@ -376,18 +376,18 @@ bool Mapper3D::ransac(const Plane& in_plane, Plane& out_plane) const
   }
 
   vector3D normal(best_a, best_b, best_c);
-  //  if (best_c < 0) {
-  //    vector3D             m_vec = normal;
-  //    std::array<float, 9> Rot{};
-  //    pose                 transf(0., 0., 0., PI, 0., 0.);
-  //    transf.toRotMatrix(Rot);
-  //
-  //    m_vec.x = normal.x * Rot[0] + normal.y * Rot[1] + normal.z * Rot[2];
-  //    m_vec.y = normal.x * Rot[3] + normal.y * Rot[4] + normal.z * Rot[5];
-  //    m_vec.z = normal.x * Rot[6] + normal.y * Rot[7] + normal.z * Rot[8];
-  //
-  //    normal = m_vec;
-  //  }
+  if (best_c < 0) {
+    vector3D             m_vec = normal;
+    std::array<float, 9> Rot{};
+    pose                 transf(0., 0., 0., 0., PI, 0.);
+    transf.toRotMatrix(Rot);
+
+    m_vec.x = normal.x * Rot[0] + normal.y * Rot[1] + normal.z * Rot[2];
+    m_vec.y = normal.x * Rot[3] + normal.y * Rot[4] + normal.z * Rot[5];
+    m_vec.z = normal.x * Rot[6] + normal.y * Rot[7] + normal.z * Rot[8];
+
+    normal = m_vec;
+  }
 
   normal.normalize();
   out_plane.normal = normal;

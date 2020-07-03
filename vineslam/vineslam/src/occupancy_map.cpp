@@ -147,9 +147,58 @@ bool OccupancyMap::update(const SemanticFeature& new_landmark,
       return true;
     }
   }
-  std::cout << "WARNING: Trying to update Landmark that is not on the map... "
+  std::cout << "WARNING (OccupancyMap::update): Trying to update Landmark that is "
+               "not on the map... "
             << std::endl;
   return false;
+}
+
+bool OccupancyMap::update(const Corner& old_corner, const Corner& new_corner)
+{
+  // Compute grid coordinates for the floating point old Landmark location
+  // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+  int m_i = static_cast<int>(std::round(old_corner.pos.x / resolution + .49));
+  int m_j = static_cast<int>(std::round(old_corner.pos.y / resolution + .49));
+
+  // Access cell of old corner
+  Cell m_cell = (*this)(m_i, m_j);
+  // Get all the corner in the given cell
+  std::vector<Corner> m_corners = m_cell.corner_features;
+
+  // Find the corner and update it
+  for (size_t i = 0; i < m_corners.size(); i++) {
+    Corner m_corner = m_corners[i];
+
+    if (m_corner.pos.x == old_corner.pos.x && m_corner.pos.y == old_corner.pos.y &&
+        m_corner.pos.z == old_corner.pos.z) {
+
+      // Check if new corner lies on the same cell of the source one
+      int new_m_i =
+          static_cast<int>(std::round(new_corner.pos.x / resolution + .49));
+      int new_m_j =
+          static_cast<int>(std::round(new_corner.pos.y / resolution + .49));
+
+      if (new_m_i != m_i || new_m_j != m_j) {
+        (*this)(m_i, m_j).corner_features.erase(
+            (*this)(m_i, m_j).corner_features.begin() + i);
+        insert(new_corner);
+      } else {
+        (*this)(m_i, m_j).corner_features[i] = new_corner;
+      }
+
+      return true;
+    }
+  }
+
+  std::cout << "WARNING (OcuppancyMap::update): Trying to update a corner that is "
+               "not on the map... "
+            << std::endl;
+  return false;
+}
+
+bool OccupancyMap::update(const ImageFeature& old_image_feature,
+                          const ImageFeature& new_image_feature)
+{
 }
 
 bool OccupancyMap::getAdjacent(const int&         i,

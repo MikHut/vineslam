@@ -141,6 +141,7 @@ private:
   float       max_height;
   std::string fdetector;
   // 3D cloud feature parameters
+  float correspondence_threshold;
   int   downsample_f;
   int   max_iters;
   float dist_threshold;

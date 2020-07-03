@@ -10,6 +10,11 @@ Mapper2D::Mapper2D(const std::string& config_path)
   fx                = config["camera_info"]["fx"].as<float>();
   baseline          = config["camera_info"]["baseline"].as<float>();
   delta_d           = config["camera_info"]["delta_d"].as<float>();
+  filter_frequency  = config["map_semantic"]["filter_frequency"].as<int>();
+  stdev_threshold   = config["map_semantic"]["stdev_threshold"].as<float>();
+
+  // Initialize iterator
+  it = 0;
 }
 
 void Mapper2D::init(const pose&               pose,
@@ -56,6 +61,9 @@ void Mapper2D::init(const pose&               pose,
     Gaussian<point, point> std = filters[filters.size() - 1].getStdev();
     grid_map.insert(SemanticFeature(pos, std, labels[i]), id);
   }
+
+  // Update iterator
+  it++;
 }
 
 void Mapper2D::process(const pose&               pose,
@@ -75,6 +83,13 @@ void Mapper2D::process(const pose&               pose,
   }
   // Estimate global map
   predict(pose, bearings_, depths_, labels, grid_map);
+
+  // Update iterator
+  it++;
+
+  // Filter semantic map at a given frequency
+  if (it % filter_frequency == 0)
+    filter(grid_map);
 }
 
 std::vector<point> Mapper2D::cam2base(const pose&               pose,
@@ -223,6 +238,23 @@ void Mapper2D::localMap(const std::vector<float>&     bearings,
 
     // Insert on output struct
     landmarks[i].pos = X_cam;
+  }
+}
+
+void Mapper2D::filter(OccupancyMap& grid_map)
+{
+  int old_limit = grid_map.n_landmarks - (grid_map.n_landmarks / 10);
+
+  for (auto& cell : grid_map) {
+    std::map<int, SemanticFeature> m_landmarks = cell.landmarks;
+    for (const auto& m_landmark : m_landmarks) {
+
+      if (m_landmark.first < old_limit &&
+          (m_landmark.second.gauss.stdev.x > stdev_threshold ||
+           m_landmark.second.gauss.stdev.y > stdev_threshold)) {
+        cell.landmarks.erase(m_landmark.first);
+      }
+    }
   }
 }
 

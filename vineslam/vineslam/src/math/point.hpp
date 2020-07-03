@@ -74,6 +74,17 @@ struct point {
     return result;
   }
 
+  // Division operator
+  point operator/(const float& scalar) const
+  {
+    point result(*this);
+    result.x /= scalar;
+    result.y /= scalar;
+    result.z /= scalar;
+
+    return result;
+  }
+
   // 3D euclidean distance
   float distance(const point& other) const
   {

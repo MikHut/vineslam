@@ -110,6 +110,51 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
                 const Plane&                        ground_plane,
                 OccupancyMap                        grid_map)
 {
+  // -------------------------------------------------------------------------------
+  // --- 3D ground plane [roll, pitch, z] estimation - only done once
+  // -------------------------------------------------------------------------------
+  // - Compute rotation matrix that transform the normal vector into a vector
+  // perpendicular to the plane z = 0
+  // ---- in other words, the rotation matrix that aligns the ground plane with
+  // the plane z = 0
+  // ---- this matrix will encode the absolute roll and pitch of the robot
+  //  std::array<float, 9> R{};
+  //  vector3D             m_normal = ground_plane.normal;
+  //  float norm = std::sqrt(m_normal.x * m_normal.x + m_normal.y * m_normal.y);
+  //  R[0]       = +m_normal.y / norm;
+  //  R[1]       = -m_normal.x / norm;
+  //  R[2]       = 0.;
+  //  R[3]       = (m_normal.x * m_normal.z) / norm;
+  //  R[4]       = (m_normal.y * m_normal.z) / norm;
+  //  R[5]       = -norm;
+  //  R[6]       = m_normal.x;
+  //  R[7]       = m_normal.y;
+  //  R[8]       = m_normal.z;
+
+  // - Compute the local ground plane altimetry as well as a gaussian representing
+  // the validity of the ground plane estimation
+  // ---- the higher the standard deviation of the z distances, the lower the
+  // precision of the estimation, since both planes should be paralel
+  //  float              z = 0.;
+  //  std::vector<float> zs;
+  //  std::vector<point> z_null_plane;
+  //  // Mean
+  //  for (const auto& pt : ground_plane.points) {
+  //    z += (pt.x * R[6] + pt.y * R[7] + pt.z * R[8]);
+  //    zs.push_back(z);
+  //  }
+  //  z /= static_cast<float>(zs.size());
+  //  // Standard deviation
+  //  float z_std = 0.;
+  //  for (const auto& m_z : zs) z_std += (m_z - z) * (m_z - z);
+  //  z_std /= std::sqrt(z_std / static_cast<float>(zs.size()));
+  //  // Save as gaussian
+  //  Gaussian<float, float> ground_plane_gauss(z, z_std);
+  //
+  //  // - Compute the componenets of interest and save as pose
+  //  std::array<float, 3> altimetry = {0., 0., z};
+  //  pose                 pose_from_ground(R, altimetry);
+
   // Loop over all particles
   for (auto& particle : particles) {
     // Convert particle orientation to rotation matrix
@@ -222,25 +267,28 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
     // --- Particle weight update
     // ------------------------------------------------------
     // - Semantic landmark matching weight
+    float w = 0.;
     if (dlandmarkvec.size() <= 1) {
-      particle.w = 0.;
+      w = 0.;
     } else {
-      float w = 0.;
+      float normalizer =
+          static_cast<float>(1.) / (sigma_landmark_matching * std::sqrt(2 * PI));
       for (const auto& dist : dlandmarkvec)
-        w += static_cast<float>(std::exp(-1. / sigma_landmark_matching * dist));
-      particle.w *= w;
+        w += (normalizer *
+              static_cast<float>(std::exp(-1. / sigma_landmark_matching * dist)));
     }
     // - Corner feature mathing weight
     if (dcornervec.size() <= 1) {
-      particle.w = 0.;
+      w = 0.;
     } else {
-      float w = 0.;
+      float normalizer =
+          static_cast<float>(1.) / (sigma_feature_matching * std::sqrt(2 * PI));
       for (const auto& dist : dcornervec)
-        w += static_cast<float>(std::exp(-1. / sigma_corner_matching * dist));
-      particle.w *= w;
+        w += (normalizer *
+              static_cast<float>(std::exp(-1. / sigma_corner_matching * dist)));
     }
     // - Add random noise to the particle weigth
-    particle.w += sampleGaussian(0.01);
+    particle.w = particle.w * w + sampleGaussian(0.001);
 
     w_sum += particle.w;
   }

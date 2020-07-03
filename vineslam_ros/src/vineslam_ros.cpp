@@ -96,7 +96,6 @@ void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
 
     // Initialize the multi-layer map
     mapper2D->init(robot_pose, bearings, depths, labels, *grid_map);
-    // MISSING 3D MAPS ...
 
     init = false;
   } else if (!init) {

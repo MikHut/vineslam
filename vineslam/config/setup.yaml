@@ -30,7 +30,7 @@ cloud_feature:
   RANSAC:
     max_iters: 20  # maximum number of RANSAC iterations
     dist_threshold: 0.08  # inliers distance threshold
-  edge_threshold: 0.001 # curvature maximum threshold to consider a feature as an adge
+  edge_threshold: 0.05 # curvature maximum threshold to consider a feature as an adge
 
 
 # Grid map definitions
@@ -51,6 +51,12 @@ grid_map:
 map_3D:
   max_range: 5.0 # meters
   max_height: 1.2 # meters
+  correspondence_threshold: 0.05 # meters
+
+# 2D semantic map definition
+map_semantic:
+  stdev_threshold: 0.2 # (meters) filtering threshold
+  filter_frequency: 5 # number of iterations between filtering calls
 
 
 # ICP scan matching parameters
@@ -72,17 +78,17 @@ ICP:
 # - particles2D - number of particles for landmark-based particle filter
 # - particles3D - number of particles for feature-based particle filter
 pf:
-  srr: 0.05 # rotation - rotation
-  srt: 0.01 # rotation - translation
-  str: 0.5 # translation - rotation
-  stt: 0.2 # translation - translation
+  srr: 0.005 # rotation - rotation
+  srt: 0.001 # rotation - translation
+  str: 0.005 # translation - rotation
+  stt: 0.002 # translation - translation
   sigma_xy: 0.15 # meters (just for initialization)
   sigma_z: 0.02 # meters
   sigma_roll: 0.5 # degrees
   sigma_pitch: 0.5 # degrees
   sigma_yaw: 1.0 # degrees (just for initialization)
-  sigma_landmark_matching: 0.4 # meters
-  sigma_feature_matching: 0.2 # meters
-  sigma_corner_matching: 0.2 # meters
+  sigma_landmark_matching: 0.2 # meters
+  sigma_feature_matching: 0.3 # meters
+  sigma_corner_matching: 0.3 # meters
   n_particles: 500 # number of particles
 ...

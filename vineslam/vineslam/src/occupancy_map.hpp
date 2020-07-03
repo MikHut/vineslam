@@ -124,6 +124,13 @@ public:
               const float&           i,
               const float&           j);
 
+  // Updates a corner 3D feature location
+  bool update(const Corner& old_corner, const Corner& new_corner);
+
+  // Updates a image 3D feature location
+  bool update(const ImageFeature& old_image_feature,
+              const ImageFeature& new_image_feature);
+
   // Method to get all the adjacent cells to a given cell
   bool getAdjacent(const int&         i,
                    const int&         j,
@@ -148,14 +155,14 @@ public:
     return (n_surf_features == 0 && n_landmarks == 0 && n_corner_features == 0);
   }
 
-private:
-  // Private grid map to store all the cells
-  std::vector<Cell> m_gmap;
-
   // Number of features and landmarks in the map
   int n_surf_features;
   int n_corner_features;
   int n_landmarks;
+
+private:
+  // Private grid map to store all the cells
+  std::vector<Cell> m_gmap;
 
   // Grid map dimensions
   // NOTE: corners are in reference to the given origin

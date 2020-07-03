@@ -23,6 +23,8 @@ Mapper3D::Mapper3D(const std::string& config_path)
   auto depth_vfov = config["camera_info"]["depth_vfov"].as<float>() *
                     static_cast<float>(PI / 180.);
   // Load 3D map parameters
+  correspondence_threshold =
+      config["map_3D"]["correspondence_threshold"].as<float>();
   max_range  = config["map_3D"]["max_range"].as<float>();
   max_height = config["map_3D"]["max_height"].as<float>();
   // Feature detector
@@ -208,8 +210,6 @@ void Mapper3D::globalCornerMap(const std::vector<Corner>& corners,
   // ------ Insert corner into the grid map
   for (const auto& corner : corners) {
     // - First convert them to map's referential using the robot pose
-    Corner m_corner = corner;
-
     point m_pt;
     m_pt.x = corner.pos.x * Rot[0] + corner.pos.y * Rot[1] + corner.pos.z * Rot[2] +
              trans[0];
@@ -218,11 +218,47 @@ void Mapper3D::globalCornerMap(const std::vector<Corner>& corners,
     m_pt.z = corner.pos.x * Rot[6] + corner.pos.y * Rot[7] + corner.pos.z * Rot[8] +
              trans[2];
 
-    m_corner.pos = m_pt;
+    // - Then, look for correspondences in the local map
+    Corner correspondence{};
+    float  best_correspondence = correspondence_threshold;
+    bool   found               = false;
+    for (const auto& m_corner : grid_map(m_pt.x, m_pt.y).corner_features) {
+      float dist_min = m_pt.distance(m_corner.pos);
+
+      if (dist_min < best_correspondence) {
+        correspondence      = m_corner;
+        best_correspondence = dist_min;
+        found               = true;
+      }
+    }
+
+    // Only search in the adjacent cells if we do not find in the source cell
+    if (!found) {
+      std::vector<Cell> adjacents;
+      grid_map.getAdjacent(m_pt.x, m_pt.y, 2, adjacents);
+      for (const auto& m_cell : adjacents) {
+        for (const auto& m_corner : m_cell.corner_features) {
+          float dist_min = m_pt.distance(m_corner.pos);
+          if (dist_min < best_correspondence) {
+            correspondence      = m_corner;
+            best_correspondence = dist_min;
+            found               = true;
+          }
+        }
+      }
+    }
 
     // - Then, insert the corner into the grid map
-    grid_map.insert(m_corner);
+    if (found) {
+      point  new_pt = (m_pt + correspondence.pos) / 2.;
+      Corner new_corner(new_pt, corner.which_plane);
+      grid_map.update(correspondence, new_corner);
+    } else {
+      Corner new_corner(m_pt, corner.which_plane);
+      grid_map.insert(new_corner);
+    }
   }
+  std::cout << grid_map.n_corner_features << std::endl;
 }
 
 void Mapper3D::reset()

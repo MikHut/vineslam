@@ -6,8 +6,10 @@
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find vineslam)/config/config.rviz" required="false"/>
 
   <!-- image republish -->
-  <node name="republish" type="republish" pkg="image_transport" output="screen"
-    args="compressed in:=/camera/image out:=/camera/image_raw" />
+  <node name="republish1" type="republish" pkg="image_transport" output="screen"
+    args="compressed in:=/zed/zed_node/left/image out:=/zed/zed_node/left/image_rect_color" />
+  <node name="republish2" type="republish" pkg="image_transport" output="screen"
+    args="compressed in:=/zed/zed_node/right/image out:=/zed/zed_node/right/image_rect_color" />
 
   <!-- slam node -->
   <node pkg="vineslam_ros" type="vineslam_ros" name="vineslam_ros" output="screen">
@@ -28,7 +30,9 @@
   </node>
 
   <!-- transforms -->
-  <node pkg="tf" type="static_transform_publisher" name="odom_to_map" args="+44.24 -5.78 0 0 0
+<!--   <node pkg="tf" type="static_transform_publisher" name="odom_to_map" args="+44.24 -5.78 0 0 0 -->
+<!--     0 1  /map /odom 10" /> -->
+  <node pkg="tf" type="static_transform_publisher" name="odom_to_map" args="-10.18 -104.55 0 0 0
     0 1  /map /odom 10" />
   <!-- <node pkg="tf" type="static_transform_publisher" name="map_to_odom" args="+67.34 -10.26 0 0 0
     0 1  /map /odom 10" /> -->

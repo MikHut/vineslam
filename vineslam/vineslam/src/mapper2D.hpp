@@ -49,6 +49,8 @@ public:
 
 private:
   // Input parameters
+  int         filter_frequency;
+  float       stdev_threshold;
   float       baseline;
   float       delta_d;
   float       fx;
@@ -56,6 +58,9 @@ private:
 
   // Semantic Feature identifier
   int id{};
+
+  // Iteration number
+  int it;
 
   // Array of Kalman Filters, one for each landmark
   std::vector<KF> filters;
@@ -66,6 +71,10 @@ private:
                const std::vector<float>& depths,
                const std::vector<int>&   labels,
                OccupancyMap&             grid_map);
+
+  // Filters semantic map based on the mapping uncertainty
+  // - old landmarks that have high uncertainty are removed
+  void filter(OccupancyMap& grid_map);
 
   // Computes a local map, on robot's frame
   static std::vector<point> cam2base(const pose&               pose,

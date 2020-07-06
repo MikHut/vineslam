@@ -15,8 +15,9 @@
   <node pkg="vineslam_ros" type="vineslam_ros" name="vineslam_ros" output="screen">
     <remap from="/left_image"  to="/zed/zed_node/left/image_rect_color"/>
     <remap from="/depth_image" to="/zed/zed_node/depth/depth_registered" />
-    <remap from="/detections" to="detections" />
-    <remap from="/odom" to="/husky_velocity_controller/odom" />
+    <remap from="/detections"  to="/detections" />
+    <remap from="/odom"        to="/husky_velocity_controller/odom" />
+    <remap from="/fix"         to="/fix" />
 
     <param name="/SLAMNode/config_path" value="$(find vineslam)/config/setup.yaml" />
   </node>

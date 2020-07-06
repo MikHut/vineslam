@@ -39,6 +39,10 @@ void vineslam_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)
   p_odom.yaw = yaw;
 }
 
+void vineslam_ros::gpsListener(nav_msgs::Odometry::ConstPtr& gps_odom)
+{
+}
+
 void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
                                const sensor_msgs::ImageConstPtr& depth_image,
                                const vision_msgs::Detection2DArrayConstPtr& dets)
@@ -103,7 +107,7 @@ void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
     // --------- Build local maps to use in the localization
     // - Compute 2D local map of semantic features on robot's referential frame
     std::vector<SemanticFeature> m_landmarks;
-    vineslam::Mapper2D::localMap(bearings, depths, m_landmarks);
+    mapper2D->localMap(bearings, depths, m_landmarks);
     // - Compute 3D PCL corners and ground plane on robot's referential frame
     std::vector<Corner> m_corners;
     Plane               m_ground_plane;
@@ -124,7 +128,7 @@ void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
     // ------- MULTI-LAYER MAPPING ------------ //
     // ---------------------------------------- //
     // - 2D high-level semantic map estimation
-    mapper2D->process(robot_pose, bearings, depths, labels, *grid_map);
+    mapper2D->process(robot_pose, m_landmarks, labels, *grid_map);
     // - 3D PCL corner map estimation
     mapper3D->globalCornerMap(m_corners, robot_pose, *grid_map);
     // - MISSING 3D feature map ...
@@ -176,6 +180,24 @@ void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
     // ------------------------------------------------ //
 
 #ifdef DEBUG
+    // Publish local corner map for debug
+    std::array<float, 9> Rot;
+    robot_pose.toRotMatrix(Rot);
+    std::vector<Corner> tmp_corners;
+    for (const auto& corner : m_corners) {
+      point pt;
+      pt.x = corner.pos.x * Rot[0] + corner.pos.y * Rot[1] + corner.pos.z * Rot[2] +
+             robot_pose.x;
+      pt.y = corner.pos.x * Rot[3] + corner.pos.y * Rot[4] + corner.pos.z * Rot[5] +
+             robot_pose.y;
+      pt.z = corner.pos.x * Rot[6] + corner.pos.y * Rot[7] + corner.pos.z * Rot[8] +
+             robot_pose.z;
+
+      Corner tmp_corner = corner;
+      tmp_corner.pos = pt;
+      tmp_corners.push_back(tmp_corner);
+    }
+    publish3DMap(tmp_corners, map3D_debug_publisher);
     // Publish all poses for DEBUG
     // ----------------------------------------------------------------------------
     std::vector<pose> poses;
@@ -215,6 +237,7 @@ void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
     R[6]       = m_normal.x;
     R[7]       = m_normal.y;
     R[8]       = m_normal.z;
+    pose pp(R, std::array<float, 3>{0., 0., 0.});
 
     Plane m_plane;
     for (const auto& pt : obsv.ground_plane.points) {
@@ -230,7 +253,7 @@ void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
     new_normal.y   = m_normal.x * R[3] + m_normal.y * R[4] + m_normal.z * R[5];
     new_normal.z   = m_normal.x * R[6] + m_normal.y * R[7] + m_normal.z * R[8];
     m_plane.normal = new_normal;
-    publish3DMap(m_plane, map3D_planes_publisher);
+    publish3DMap(obsv.ground_plane, map3D_planes_publisher);
 
     // - Publish ground plane normal for DEBUG
     float x = 0., y = 0., z = 0.;
@@ -249,9 +272,9 @@ void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
     p1.x = x;
     p1.y = y;
     p1.z = z;
-    p2.x = p1.x + m_plane.normal.x;
-    p2.y = p1.y + m_plane.normal.y;
-    p2.z = p1.z + m_plane.normal.z;
+    p2.x = p1.x + obsv.ground_plane.normal.x;
+    p2.y = p1.y + obsv.ground_plane.normal.y;
+    p2.z = p1.z + obsv.ground_plane.normal.z;
 
     visualization_msgs::Marker marker;
     marker.header.frame_id = "map";

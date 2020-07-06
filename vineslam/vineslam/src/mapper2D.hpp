@@ -27,11 +27,10 @@ public:
   Mapper2D(const std::string& config_path);
 
   // Global function that handles all the mapping process
-  void process(const pose&               pose,
-               const std::vector<float>& bearings,
-               const std::vector<float>& depths,
-               const std::vector<int>&   labels,
-               OccupancyMap&             grid_map);
+  void process(const pose&                         pose,
+               const std::vector<SemanticFeature>& landmarks,
+               const std::vector<int>&             labels,
+               OccupancyMap&                       grid_map);
 
   // Initializes the map
   // - Invocated only once to insert the first observations on the map
@@ -43,9 +42,9 @@ public:
 
   // Computes a local map on camera's referential given a set of range-bearing
   // observations
-  static void localMap(const std::vector<float>&     bearings,
-                       const std::vector<float>&     depths,
-                       std::vector<SemanticFeature>& landmarks);
+  void localMap(const std::vector<float>&     bearings,
+                const std::vector<float>&     depths,
+                std::vector<SemanticFeature>& landmarks) const;
 
 private:
   // Input parameters
@@ -53,6 +52,7 @@ private:
   float       stdev_threshold;
   float       baseline;
   float       delta_d;
+  float       cam_pitch;
   float       fx;
   std::string config_path;
 
@@ -77,9 +77,8 @@ private:
   void filter(OccupancyMap& grid_map);
 
   // Computes a local map, on robot's frame
-  static std::vector<point> cam2base(const pose&               pose,
-                                     const std::vector<float>& bearings,
-                                     const std::vector<float>& depths);
+  static std::vector<point> cam2base(const pose&                         pose,
+                                     const std::vector<SemanticFeature>& landmarks);
 
   // Searches from correspondences between observations and landmarks
   // already mapped

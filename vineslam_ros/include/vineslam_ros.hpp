@@ -51,6 +51,8 @@ public:
                    const vision_msgs::Detection2DArrayConstPtr& dets);
   // Odometry callback function
   void odomListener(const nav_msgs::OdometryConstPtr& msg);
+  // GPS callback function
+  void vineslam_ros::gpsListener(nav_msgs::Odometry::ConstPtr& gps_odom)
 
 private:
   // Publish 2D semantic features map
@@ -62,6 +64,8 @@ private:
   void publish3DMap();
   // Publish the 3D PCL planes map
   void publish3DMap(const Plane& plane, const ros::Publisher& pub);
+  // Publish a 3D PCL corners map
+  void publish3DMap(const std::vector<Corner>& corners, const ros::Publisher& pub);
   // Publish the grid map that contains all the maps
   void publishGridMap(const std_msgs::Header& header);
 
@@ -81,6 +85,7 @@ private:
   ros::Publisher map3D_features_publisher;
   ros::Publisher map3D_corners_publisher;
   ros::Publisher map3D_planes_publisher;
+  ros::Publisher map3D_debug_publisher;
   ros::Publisher pose_publisher;
   ros::Publisher path_publisher;
   ros::Publisher poses_publisher;

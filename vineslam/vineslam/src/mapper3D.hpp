@@ -82,7 +82,7 @@ public:
   // Adds the corner features to the global map
   void globalCornerMap(const std::vector<Corner>& corners,
                        const pose&                robot_pose,
-                       OccupancyMap&              grid_map);
+                       OccupancyMap&              grid_map) const;
 
 private:
   // -------------------------------------------------------------------------------

@@ -204,4 +204,23 @@ void vineslam_ros::publish3DMap(const Plane& plane, const ros::Publisher& pub)
   pub.publish(cloud_out);
 }
 
+void vineslam_ros::publish3DMap(const std::vector<Corner>& corners, const ros::Publisher& pub)
+{
+  pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(
+      new pcl::PointCloud<pcl::PointXYZI>);
+
+  pcl::PointXYZI m_pt(0);
+
+  for (const auto& corner : corners) {
+    m_pt.x = corner.pos.x;
+    m_pt.y = corner.pos.y;
+    m_pt.z = corner.pos.z;
+
+    cloud_out->points.push_back(m_pt);
+  }
+
+  cloud_out->header.frame_id = "map";
+  pub.publish(cloud_out);
+}
+
 }; // namespace vineslam

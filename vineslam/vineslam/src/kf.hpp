@@ -57,15 +57,15 @@ private:
   void computeR(const VectorXf& s, const VectorXf& g, const VectorXf& z);
 
   // Auxiliar function that normalizes an angle in the [-pi,pi] range
-  float normalizeAngle(const float& angle)
+  static float normalizeAngle(const float& angle)
   {
-    return (std::fmod(angle + PI, 2 * PI) - PI);
+    return std::atan2(std::sin(angle), std::cos(angle));
   }
 
   // Calculates the disparity error using the disparity noise model
-  float dispError(const float& depth)
+  float dispError(const float& depth) const
   {
-    return pow(depth, 2) / (baseline * fx) * delta_d;
+    return std::pow(depth, 2) / (baseline * fx) * delta_d;
   }
 };
 

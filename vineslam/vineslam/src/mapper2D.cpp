@@ -8,6 +8,7 @@ Mapper2D::Mapper2D(const std::string& config_path)
 {
   YAML::Node config = YAML::LoadFile(config_path);
   fx                = config["camera_info"]["fx"].as<float>();
+  cam_pitch         = config["camera_info"]["cam_pitch"].as<float>();
   baseline          = config["camera_info"]["baseline"].as<float>();
   delta_d           = config["camera_info"]["delta_d"].as<float>();
   filter_frequency  = config["map_semantic"]["filter_frequency"].as<int>();
@@ -27,7 +28,7 @@ void Mapper2D::init(const pose&               pose,
   Gaussian<point, point> robot_gauss = pose.getDist();
 
   // Convert 6-DOF pose to homogenous transformation
-  std::array<float, 9> Rot   = {0., 0., 0., 0., 0., 0., 0., 0., 0.};
+  std::array<float, 9> Rot{};
   point                trans = pose.getXYZ();
   pose.toRotMatrix(Rot);
 
@@ -66,17 +67,16 @@ void Mapper2D::init(const pose&               pose,
   it++;
 }
 
-void Mapper2D::process(const pose&               pose,
-                       const std::vector<float>& bearings,
-                       const std::vector<float>& depths,
-                       const std::vector<int>&   labels,
-                       OccupancyMap&             grid_map)
+void Mapper2D::process(const pose&                         pose,
+                       const std::vector<SemanticFeature>& landmarks,
+                       const std::vector<int>&             labels,
+                       OccupancyMap&                       grid_map)
 {
   // Compute local map on robot's referential frame
-  std::vector<point> l_map = cam2base(pose, bearings, depths);
+  std::vector<point> l_map = cam2base(pose, landmarks);
   // Convert local map to bearings and depths
-  std::vector<float> bearings_(bearings.size());
-  std::vector<float> depths_(depths.size());
+  std::vector<float> bearings_(landmarks.size());
+  std::vector<float> depths_(landmarks.size());
   for (size_t i = 0; i < l_map.size(); i++) {
     depths_[i]   = std::sqrt(pow(l_map[i].x, 2) + pow(l_map[i].y, 2));
     bearings_[i] = std::atan2(l_map[i].y, l_map[i].x) - pose.yaw;
@@ -92,22 +92,17 @@ void Mapper2D::process(const pose&               pose,
     filter(grid_map);
 }
 
-std::vector<point> Mapper2D::cam2base(const pose&               pose,
-                                      const std::vector<float>& bearings,
-                                      const std::vector<float>& depths)
+std::vector<point> Mapper2D::cam2base(const pose&                         pose,
+                                      const std::vector<SemanticFeature>& landmarks)
 {
-  std::vector<point> landmarks;
-
   // Convert 6-DOF pose to homogenous transformation
   std::array<float, 9> Rot{};
   point                trans = pose.getXYZ();
   pose.toRotMatrix(Rot);
 
-  for (size_t i = 0; i < bearings.size(); i++) {
-    // Calculate the estimation of the landmark position on
-    // camera's referential frame
-    float th = normalizeAngle(bearings[i]);
-    point X_cam(depths[i] * std::cos(th), depths[i] * std::sin(th), 0.);
+  std::vector<point> landmarks_;
+  for (size_t i = 0; i < landmarks.size(); i++) {
+    point X_cam(landmarks[i].pos.x, landmarks[i].pos.y, 0.);
 
     // Convert landmark to map's referential frame
     point X_map;
@@ -118,10 +113,10 @@ std::vector<point> Mapper2D::cam2base(const pose&               pose,
     // Convert landmark to robot's referential frame and insert
     // on array of landmarks
     point X_robot = X_map - pose.getXYZ();
-    landmarks.push_back(X_robot);
+    landmarks_.push_back(X_robot);
   }
 
-  return landmarks;
+  return landmarks_;
 }
 
 void Mapper2D::predict(const pose&               pose,
@@ -227,8 +222,12 @@ std::pair<int, point> Mapper2D::findCorr(const point& pos, OccupancyMap& grid_ma
 
 void Mapper2D::localMap(const std::vector<float>&     bearings,
                         const std::vector<float>&     depths,
-                        std::vector<SemanticFeature>& landmarks)
+                        std::vector<SemanticFeature>& landmarks) const
 {
+  pose                 pitch_comp(0., 0., 0., 0., cam_pitch, 0.);
+  std::array<float, 9> Rot{};
+  pitch_comp.toRotMatrix(Rot);
+
   landmarks.resize(bearings.size());
   for (size_t i = 0; i < bearings.size(); i++) {
     // Calculate the estimation of the landmark position on
@@ -236,8 +235,14 @@ void Mapper2D::localMap(const std::vector<float>&     bearings,
     float th = normalizeAngle(bearings[i]);
     point X_cam(depths[i] * std::cos(th), depths[i] * std::sin(th), 0.);
 
+    // Compensate camera inclination
+    point X_robot;
+    X_robot.x = X_cam.x * Rot[0] + X_cam.y * Rot[1] + X_cam.z * Rot[2];
+    X_robot.y = X_cam.x * Rot[3] + X_cam.y * Rot[4] + X_cam.z * Rot[5];
+    X_robot.z = X_cam.z;
+
     // Insert on output struct
-    landmarks[i].pos = X_cam;
+    landmarks[i].pos = X_robot;
   }
 }
 

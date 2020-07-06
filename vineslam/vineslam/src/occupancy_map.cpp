@@ -496,4 +496,4 @@ bool OccupancyMap::findNearestOnCell(const ImageFeature& input,
   return true;
 }
 
-}; // namespace vineslam
+} // namespace vineslam

@@ -69,7 +69,7 @@ void Mapper3D::localSurfMap(const cv::Mat&             img,
 
     point out_pt;
     point in_pt(static_cast<float>(feature.u), static_cast<float>(feature.v), 0.);
-    pixel2world(in_pt, 0., m_depth, out_pt);
+    pixel2world(in_pt, cam_pitch, m_depth, out_pt);
     // Get the RGB pixel values
     auto* p = img.ptr<cv::Point3_<uchar>>(feature.v, feature.u);
     //------------------------------------------------------------------------------
@@ -176,7 +176,7 @@ void Mapper3D::localPCLMap(const float*         depths,
 
       // Pixel to 3D point conversion
       point out_pt;
-      pixel2world(point(i, j), 0., m_depth, out_pt);
+      pixel2world(point(i, j), cam_pitch, m_depth, out_pt);
       // Save point and range
       pts3D[i + j * img_width] = out_pt;
       range_mat(i, j) =
@@ -200,7 +200,7 @@ void Mapper3D::localPCLMap(const float*         depths,
 
 void Mapper3D::globalCornerMap(const std::vector<Corner>& corners,
                                const pose&                robot_pose,
-                               OccupancyMap&              grid_map)
+                               OccupancyMap&              grid_map) const
 {
   // ------ Convert robot pose into homogeneous transformation
   std::array<float, 9> Rot{};
@@ -258,7 +258,6 @@ void Mapper3D::globalCornerMap(const std::vector<Corner>& corners,
       grid_map.insert(new_corner);
     }
   }
-  std::cout << grid_map.n_corner_features << std::endl;
 }
 
 void Mapper3D::reset()
@@ -309,7 +308,7 @@ void Mapper3D::groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl)
 
       float vertical_angle = std::atan2(dZ, std::sqrt(dX * dX + dY * dY + dZ * dZ));
 
-      if ((vertical_angle - cam_pitch) <= ground_th) {
+      if ((vertical_angle/* - cam_pitch*/) <= ground_th) {
         ground_mat(i, j)     = 1;
         ground_mat(i, j + 1) = 1;
         label_mat(i, j)      = -1;

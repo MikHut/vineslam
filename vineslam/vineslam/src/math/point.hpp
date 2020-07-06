@@ -91,7 +91,8 @@ struct point {
     float dist_x = x - other.x;
     float dist_y = y - other.y;
     float dist_z = z - other.z;
-    return sqrt(pow(dist_x, 2) + pow(dist_y, 2) + pow(dist_z, 2));
+    return std::sqrt(std::pow(dist_x, 2) + std::pow(dist_y, 2) +
+                     std::pow(dist_z, 2));
   }
 
   // 2D euclidean distance
@@ -99,7 +100,7 @@ struct point {
   {
     float dist_x = x - other.x;
     float dist_y = y - other.y;
-    return sqrt(pow(dist_x, 2) + pow(dist_y, 2));
+    return std::sqrt(std::pow(dist_x, 2) + std::pow(dist_y, 2));
   }
 
   // Convert point to Eigen 3D vector

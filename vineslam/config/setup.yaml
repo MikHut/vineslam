@@ -1,5 +1,9 @@
 # File where major input definitions and values are set
 ---
+# General system settings
+system:
+  use_gps: True
+
 # Camera calibration info
 camera_info:
   baseline: 0.12       # meters
@@ -39,9 +43,9 @@ cloud_feature:
 # - resolution of each cell (area = resolution x resolution)
 grid_map:
   origin:
-    x: -10
+    x: -75
     y: -25
-  width: 50
+  width: 150
   height: 50
   resolution: 0.25 # meters
   metric: "descriptor"
@@ -78,17 +82,19 @@ ICP:
 # - particles2D - number of particles for landmark-based particle filter
 # - particles3D - number of particles for feature-based particle filter
 pf:
-  srr: 0.005 # rotation - rotation
-  srt: 0.001 # rotation - translation
-  str: 0.005 # translation - rotation
-  stt: 0.002 # translation - translation
+  srr: 0.01 # rotation - rotation
+  srt: 0.01 # rotation - translation
+  str: 0.08 # translation - rotation
+  stt: 0.05 # translation - translation
   sigma_xy: 0.15 # meters (just for initialization)
-  sigma_z: 0.02 # meters
-  sigma_roll: 0.5 # degrees
-  sigma_pitch: 0.5 # degrees
+  sigma_z: 0.01 # meters
+  sigma_roll: 2.5 # degrees
+  sigma_pitch: 2.5 # degrees
   sigma_yaw: 1.0 # degrees (just for initialization)
-  sigma_landmark_matching: 0.2 # meters
-  sigma_feature_matching: 0.3 # meters
-  sigma_corner_matching: 0.3 # meters
+  sigma_ground_z: 0.02 # meters (derivative)
+  sigma_ground_rp: 5.0 # degrees
+  sigma_landmark_matching: 0.1 # meters
+  sigma_feature_matching: 0.4 # meters
+  sigma_corner_matching: 0.4 # meters
   n_particles: 500 # number of particles
 ...

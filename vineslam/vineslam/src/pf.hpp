@@ -30,8 +30,18 @@ struct Particle {
     (*this).p  = p;
     (*this).w  = w;
   }
+
+  Particle(const int& id, const pose& p, const pose& last_p, const float& w)
+  {
+    (*this).id     = id;
+    (*this).p      = p;
+    (*this).last_p = last_p;
+    (*this).w      = w;
+  }
+
   int   id{};
   pose  p;
+  pose  last_p;
   float w{};
 };
 
@@ -60,8 +70,9 @@ public:
   // Resample particles
   void resample();
 
-  // Previous odometry control
-  pose p_odom;
+  // Last iteration vars
+  float last_ground_plane_z;
+  pose  p_odom;
 
   // Particle weight sum
   float w_sum{};
@@ -92,6 +103,8 @@ private:
   float sigma_landmark_matching;
   float sigma_feature_matching;
   float sigma_corner_matching;
+  float sigma_ground_z;
+  float sigma_ground_rp;
   float n_particles;
 };
 

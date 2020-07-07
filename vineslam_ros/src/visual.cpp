@@ -3,7 +3,7 @@
 namespace vineslam
 {
 
-void vineslam_ros::publishGridMap(const std_msgs::Header& header)
+void VineSLAM_ros::publishGridMap(const std_msgs::Header& header)
 {
   // Define ROS occupancy grid map
   nav_msgs::OccupancyGrid occ_map;
@@ -49,7 +49,7 @@ void vineslam_ros::publishGridMap(const std_msgs::Header& header)
   mapOCC_publisher.publish(occ_map);
 }
 
-void vineslam_ros::publish2DMap(const std_msgs::Header&   header,
+void VineSLAM_ros::publish2DMap(const std_msgs::Header&   header,
                                 const pose&               pose,
                                 const std::vector<float>& bearings,
                                 const std::vector<float>& depths)
@@ -152,7 +152,7 @@ void vineslam_ros::publish2DMap(const std_msgs::Header&   header,
   map2D_publisher.publish(ellipse_array);
 }
 
-void vineslam_ros::publish3DMap()
+void VineSLAM_ros::publish3DMap()
 {
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr feature_cloud(
       new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -185,7 +185,7 @@ void vineslam_ros::publish3DMap()
   map3D_corners_publisher.publish(corner_cloud);
 }
 
-void vineslam_ros::publish3DMap(const Plane& plane, const ros::Publisher& pub)
+void VineSLAM_ros::publish3DMap(const Plane& plane, const ros::Publisher& pub)
 {
   pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(
       new pcl::PointCloud<pcl::PointXYZI>);
@@ -204,7 +204,7 @@ void vineslam_ros::publish3DMap(const Plane& plane, const ros::Publisher& pub)
   pub.publish(cloud_out);
 }
 
-void vineslam_ros::publish3DMap(const std::vector<Corner>& corners, const ros::Publisher& pub)
+void VineSLAM_ros::publish3DMap(const std::vector<Corner>& corners, const ros::Publisher& pub)
 {
   pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(
       new pcl::PointCloud<pcl::PointXYZI>);

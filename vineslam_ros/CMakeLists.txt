@@ -5,8 +5,10 @@ add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED
         vineslam
+        agrob_map_transform
         roscpp
         std_msgs
+        genmsg
         sensor_msgs
         geometry_msgs
         nav_msgs

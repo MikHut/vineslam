@@ -21,6 +21,7 @@
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
 #include <ros/ros.h>
+#include <sensor_msgs/NavSatFix.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/point_cloud_conversion.h>
@@ -32,17 +33,21 @@
 #include <pcl_ros/point_cloud.h>
 #include <yaml-cpp/yaml.h>
 
+// Services
+#include <agrob_map_transform/GetPose.h>
+#include <agrob_map_transform/SetDatum.h>
+
 #define DEBUG 1
 
 namespace vineslam
 {
-class vineslam_ros
+class VineSLAM_ros
 {
 public:
   // Class constructor that
   // - Initializes the ROS node
   // - Defines the publish and subscribe topics
-  vineslam_ros(int argc, char** argv);
+  VineSLAM_ros(int argc, char** argv);
 
   // Callback function that subscribes a rgb image, a  disparity image,
   // and the bounding boxes that locate the objects on the image
@@ -52,7 +57,7 @@ public:
   // Odometry callback function
   void odomListener(const nav_msgs::OdometryConstPtr& msg);
   // GPS callback function
-  void vineslam_ros::gpsListener(nav_msgs::Odometry::ConstPtr& gps_odom)
+  void gpsListener(const sensor_msgs::NavSatFixConstPtr& msg);
 
 private:
   // Publish 2D semantic features map
@@ -79,17 +84,23 @@ private:
                    float&                    depth,
                    float&                    bearing) const;
 
-  // Definitions of the ROS publishers
-  ros::Publisher mapOCC_publisher;
-  ros::Publisher map2D_publisher;
-  ros::Publisher map3D_features_publisher;
-  ros::Publisher map3D_corners_publisher;
-  ros::Publisher map3D_planes_publisher;
-  ros::Publisher map3D_debug_publisher;
-  ros::Publisher pose_publisher;
-  ros::Publisher path_publisher;
-  ros::Publisher poses_publisher;
-  ros::Publisher normal_pub;
+  // GNSS heading estimator
+  void getGNSSHeading(const pose& gps_odom);
+
+  // ROS publishers/services
+  ros::Publisher     mapOCC_publisher;
+  ros::Publisher     map2D_publisher;
+  ros::Publisher     map3D_features_publisher;
+  ros::Publisher     map3D_corners_publisher;
+  ros::Publisher     map3D_planes_publisher;
+  ros::Publisher     map3D_debug_publisher;
+  ros::Publisher     pose_publisher;
+  ros::Publisher     odom_publisher;
+  ros::Publisher     path_publisher;
+  ros::Publisher     poses_publisher;
+  ros::Publisher     normal_pub;
+  ros::ServiceClient polar2pose;
+  ros::ServiceClient set_datum;
 
   // Classes object members
   Localizer*    localizer;
@@ -103,9 +114,17 @@ private:
   // Motion variables
   pose odom;
   pose p_odom;
-  pose p_pose;
+  pose robot_pose;
 
-  // Numberic input parameters
+  // GNSS variables
+  int                  datum_autocorrection_stage;
+  int32_t              global_counter;
+  float                datum_orientation[360][4];
+  cv::Mat              hist;
+  cv::Mat              weights;
+  std::vector<int32_t> solution_ranges;
+
+  // Input parameters
   // ------------------------
   // Camera info parameters
   float h_fov;
@@ -123,8 +142,16 @@ private:
   float occ_resolution;
   float occ_width;
   float occ_height;
+  //------------------------
+  // System settings
+  bool  publish_odom;
+  bool  use_gps;
+  float gps_init_lat;
+  float gps_init_long;
+  float gps_init_head;
 
   // Initialize flag
   bool init;
 };
+
 }; // namespace vineslam

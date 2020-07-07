@@ -73,7 +73,7 @@ void Mapper2D::process(const pose&                         pose,
                        OccupancyMap&                       grid_map)
 {
   // Compute local map on robot's referential frame
-  std::vector<point> l_map = cam2base(pose, landmarks);
+  std::vector<point> l_map = base2map(pose, landmarks);
   // Convert local map to bearings and depths
   std::vector<float> bearings_(landmarks.size());
   std::vector<float> depths_(landmarks.size());
@@ -92,7 +92,7 @@ void Mapper2D::process(const pose&                         pose,
     filter(grid_map);
 }
 
-std::vector<point> Mapper2D::cam2base(const pose&                         pose,
+std::vector<point> Mapper2D::base2map(const pose&                         pose,
                                       const std::vector<SemanticFeature>& landmarks)
 {
   // Convert 6-DOF pose to homogenous transformation

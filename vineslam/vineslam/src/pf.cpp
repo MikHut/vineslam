@@ -120,7 +120,7 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
   // --- 3D ground plane [roll, pitch, z] estimation - only done once
   // -------------------------------------------------------------------------------
   pose                   pose_from_ground;
-  Gaussian<float, float> ground_plane_gauss;
+  Gaussian<float, float> ground_plane_gauss{};
   if (!ground_plane.points.empty()) {
     // - Compute rotation matrix that transform the normal vector into a vector
     // perpendicular to the plane z = 0
@@ -239,52 +239,52 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
     // ------------------------------------------------------
     // --- 3D corner map fitting
     // ------------------------------------------------------
-    Rot = {}; // clear rotation matrix to set for 3D estimation
-    particle.p.toRotMatrix(Rot);
-    std::vector<float> dcornervec;
-    for (const auto& corner : corners) {
-      // Convert landmark to the particle's referential frame
-      point X;
-      X.x = corner.pos.x * Rot[0] + corner.pos.y * Rot[1] + corner.pos.z * Rot[2] +
-            particle.p.x;
-      X.y = corner.pos.x * Rot[3] + corner.pos.y * Rot[4] + corner.pos.z * Rot[5] +
-            particle.p.y;
-      X.z = corner.pos.x * Rot[6] + corner.pos.y * Rot[7] + corner.pos.z * Rot[8] +
-            particle.p.z;
-
-      // Search for a correspondence in the current cell first
-      float best_correspondence = 0.05;
-      bool  found               = false;
-      for (const auto& m_corner : grid_map(X.x, X.y).corner_features) {
-        float dist_min = X.distance(m_corner.pos);
-
-        if (dist_min < best_correspondence) {
-          best_correspondence = dist_min;
-          found               = true;
-        }
-      }
-
-      // Only search in the adjacent cells if we do not find in the source cell
-      //      if (!found) {
-      //        std::vector<Cell> adjacents;
-      //        grid_map.getAdjacent(X.x, X.y, 1, adjacents);
-      //        for (const auto& m_cell : adjacents) {
-      //          for (const auto& m_corner : m_cell.corner_features) {
-      //            float dist_min = X.distance(m_corner.pos);
-      //            if (dist_min < best_correspondence) {
-      //              best_correspondence = dist_min;
-      //              found               = true;
-      //            }
-      //          }
-      //        }
-      //      }
-
-      // Save distance if a correspondence was found
-      if (!found)
-        continue;
-      else
-        dcornervec.push_back(best_correspondence);
-    }
+//    Rot = {}; // clear rotation matrix to set for 3D estimation
+//    particle.p.toRotMatrix(Rot);
+//    std::vector<float> dcornervec;
+//    for (const auto& corner : corners) {
+//      // Convert landmark to the particle's referential frame
+//      point X;
+//      X.x = corner.pos.x * Rot[0] + corner.pos.y * Rot[1] + corner.pos.z * Rot[2] +
+//            particle.p.x;
+//      X.y = corner.pos.x * Rot[3] + corner.pos.y * Rot[4] + corner.pos.z * Rot[5] +
+//            particle.p.y;
+//      X.z = corner.pos.x * Rot[6] + corner.pos.y * Rot[7] + corner.pos.z * Rot[8] +
+//            particle.p.z;
+//
+//      // Search for a correspondence in the current cell first
+//      float best_correspondence = std::numeric_limits<float>::max();
+//      bool  found               = false;
+//      for (const auto& m_corner : grid_map(X.x, X.y).corner_features) {
+//        float dist_min = X.distance(m_corner.pos);
+//
+//        if (dist_min < best_correspondence) {
+//          best_correspondence = dist_min;
+//          found               = true;
+//        }
+//      }
+//
+//      // Only search in the adjacent cells if we do not find in the source cell
+//      if (!found) {
+//        std::vector<Cell> adjacents;
+//        grid_map.getAdjacent(X.x, X.y, 1, adjacents);
+//        for (const auto& m_cell : adjacents) {
+//          for (const auto& m_corner : m_cell.corner_features) {
+//            float dist_min = X.distance(m_corner.pos);
+//            if (dist_min < best_correspondence) {
+//              best_correspondence = dist_min;
+//              found               = true;
+//            }
+//          }
+//        }
+//      }
+//
+//      // Save distance if a correspondence was found
+//      if (!found)
+//        continue;
+//      else
+//        dcornervec.push_back(best_correspondence);
+//    }
 
     // ------------------------------------------------------
     // --- Particle weight update
@@ -300,27 +300,26 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
              static_cast<float>(std::exp(-1. / sigma_landmark_matching * dist)));
     }
     // - Corner feature matching weight
-    float w_corners = 0.;
-    if (dcornervec.size() <= 1) {
-      w_corners = 0.;
-    } else {
-
-      for (const auto& dist : dcornervec) {
-        w_corners +=
-            (normalizer_corner *
-             static_cast<float>(std::exp(-1. / sigma_corner_matching * dist)));
-      }
-    }
+//    float w_corners = 0.;
+//    if (dcornervec.size() <= 1) {
+//      w_corners = 0.;
+//    } else {
+//
+//      for (const auto& dist : dcornervec) {
+//        w_corners +=
+//            (normalizer_corner *
+//             static_cast<float>(std::exp(-1. / sigma_corner_matching * dist)));
+//      }
+//    }
     // - Ground plane [roll, pitch, z] weight
-    pose  delta_pose = particle.p - particle.last_p;
-    float w_ground   = 0.;
+    float w_ground = 0.;
     if (ground_plane_gauss.mean != 0. && ground_plane_gauss.stdev != 0.) {
       float delta_particle_z = particle.p.z - particle.last_p.z;
       w_ground =
           (normalizer_ground_z *
            static_cast<float>(
                std::exp(-1. / sigma_ground_z *
-                        std::fabs(delta_ground_z - delta_particle_z))))  *
+                        std::fabs(delta_ground_z - delta_particle_z)))) *
           (normalizer_ground_rp *
            static_cast<float>(
                std::exp(-1. / sigma_ground_rp *
@@ -329,32 +328,30 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
            static_cast<float>(
                std::exp(-1. / sigma_ground_rp *
                         std::fabs(particle.p.pitch - pose_from_ground.pitch))));
-      //      std::cout << delta_particle_z << " -> " << w_ground << std::endl;
     }
-    //    std::cout << delta_pose << "--> " << w_ground << std::endl;
-    //    std::cout << "LANDMARKS: " << w_landmarks << " CORNERS: " << w_corners
-    //              << "GROUND: " << w_ground << std::endl;
 
     // Weights update heuristic
     float w = 0.;
-    if (w_landmarks > 0. && w_corners > 0.) {
-      w = w_landmarks * (w_corners * dlandmarkvec.size() / dcornervec.size());
-    } else if (w_landmarks == 0. && w_corners > 0. && dlandmarkvec.empty()) {
-      w = w_corners;
-    } else if (w_landmarks > 0. && w_corners == 0. && dcornervec.empty()) {
-      w = w_landmarks;
-    } else {
+//    if (w_landmarks > 0. && w_corners > 0.) {
+//      w = w_landmarks * (w_corners * dlandmarkvec.size() / dcornervec.size());
+//    } else if (w_landmarks == 0. && w_corners > 0. && dlandmarkvec.empty()) {
+//      w = w_corners;
+//    } else if (w_landmarks > 0. && w_corners == 0. && dcornervec.empty()) {
+//      w = w_landmarks;
+//    } else {
+//      w = 0.;
+//    }
+    if (w_landmarks > 0. && ground_plane.points.size() > 1)
+      w = (w_ground * w_landmarks);
+    else
       w = 0.;
-    }
-    if (ground_plane.points.size() >= 1)
-      w *= w_ground;
 
-    particle.w = particle.w * w; // + sampleGaussian(0.001);
+    float random_noise = sampleGaussian(0.001);
+    particle.w         = particle.w * w; // + random_noise;
 
     w_sum += particle.w;
   }
 
-  std::cout << delta_ground_z << std::endl;
   last_ground_plane_z = pose_from_ground.z;
 }
 

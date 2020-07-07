@@ -21,6 +21,7 @@
   <build_depend>tf</build_depend>
   <build_depend>pcl_ros</build_depend>
   <build_depend>vineslam</build_depend>
+  <build_depend>agrob_map_transform</build_depend>
   <exec_depend>roscpp</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>cv_bridge</exec_depend>
@@ -33,5 +34,6 @@
   <exec_depend>tf</exec_depend>
   <exec_depend>pcl_ros</exec_depend>
   <exec_depend>vineslam</exec_depend>
+  <exec_depend>agrob_map_transform</exec_depend>
 
 </package>

@@ -77,7 +77,7 @@ private:
   void filter(OccupancyMap& grid_map);
 
   // Computes a local map, on robot's frame
-  static std::vector<point> cam2base(const pose&                         pose,
+  static std::vector<point> base2map(const pose&                         pose,
                                      const std::vector<SemanticFeature>& landmarks);
 
   // Searches from correspondences between observations and landmarks

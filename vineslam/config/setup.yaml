@@ -2,7 +2,12 @@
 ---
 # General system settings
 system:
+  publish_odom: True # if true, vineslam publishes its localization also in a odometry msg
   use_gps: True
+  gps_datum:
+    lat: 41.205517 # initial gps latitude
+    long: -8.3073515 # initial gps longiture
+    head: 0. # initial gps heading (yaw - radians)
 
 # Camera calibration info
 camera_info:
@@ -82,10 +87,10 @@ ICP:
 # - particles2D - number of particles for landmark-based particle filter
 # - particles3D - number of particles for feature-based particle filter
 pf:
-  srr: 0.01 # rotation - rotation
-  srt: 0.01 # rotation - translation
-  str: 0.08 # translation - rotation
-  stt: 0.05 # translation - translation
+  srr: 0.001 # rotation - rotation
+  srt: 0.001 # rotation - translation
+  str: 0.008 # translation - rotation
+  stt: 0.005 # translation - translation
   sigma_xy: 0.15 # meters (just for initialization)
   sigma_z: 0.01 # meters
   sigma_roll: 2.5 # degrees

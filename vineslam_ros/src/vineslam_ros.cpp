@@ -3,47 +3,7 @@
 namespace vineslam
 {
 
-void vineslam_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)
-{
-  // Convert odometry msg to pose msg
-  tf::Pose            pose;
-  geometry_msgs::Pose odom_pose = (*msg).pose.pose;
-  tf::poseMsgToTF(odom_pose, pose);
-
-  // Check if yaw is NaN
-  float yaw = static_cast<float>(tf::getYaw(pose.getRotation()));
-  if (!std::isfinite(yaw))
-    yaw = 0;
-
-  // If it is the first iteration - initialize the Pose
-  // relative to the previous frame
-  if (init) {
-    p_odom.x   = (*msg).pose.pose.position.x;
-    p_odom.y   = (*msg).pose.pose.position.y;
-    p_odom.yaw = yaw;
-    odom       = vineslam::pose(0., 0., 0., 0., 0., yaw);
-    return;
-  }
-
-  // Integrate odometry pose to convert to the map frame
-  odom.x += static_cast<float>(msg->pose.pose.position.x) - p_odom.x;
-  odom.y += static_cast<float>(msg->pose.pose.position.y) - p_odom.y;
-  odom.z     = 0;
-  odom.roll  = 0;
-  odom.pitch = 0;
-  odom.yaw += (yaw - p_odom.yaw);
-
-  // Save current odometry pose to use in the next iteration
-  p_odom.x   = msg->pose.pose.position.x;
-  p_odom.y   = msg->pose.pose.position.y;
-  p_odom.yaw = yaw;
-}
-
-void vineslam_ros::gpsListener(nav_msgs::Odometry::ConstPtr& gps_odom)
-{
-}
-
-void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
+void VineSLAM_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
                                const sensor_msgs::ImageConstPtr& depth_image,
                                const vision_msgs::Detection2DArrayConstPtr& dets)
 {
@@ -91,7 +51,6 @@ void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
   auto* raw_depths = (float*)(&(*depth_image).data[0]);
 
   std::vector<ImageFeature> m_imgfeatures;
-  pose                      robot_pose;
 
   if (init && bearings.size() > 1) {
     // Initialize the localizer and get first particles distribution
@@ -139,9 +98,9 @@ void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
     tf::Quaternion q;
     q.setRPY(robot_pose.roll, robot_pose.pitch, robot_pose.yaw);
     q.normalize();
-    tf::Transform cam2map;
-    cam2map.setRotation(q);
-    cam2map.setOrigin(tf::Vector3(robot_pose.x, robot_pose.y, robot_pose.z));
+    tf::Transform base2map;
+    base2map.setRotation(q);
+    base2map.setOrigin(tf::Vector3(robot_pose.x, robot_pose.y, robot_pose.z));
 
     // Convert vineslam pose to ROS pose and publish it
     geometry_msgs::PoseStamped pose_stamped;
@@ -166,8 +125,8 @@ void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
 
     // Publish cam-to-map tf::Transform
     static tf::TransformBroadcaster br;
-    br.sendTransform(
-        tf::StampedTransform(cam2map, pose_stamped.header.stamp, "map", "cam"));
+    br.sendTransform(tf::StampedTransform(
+        base2map, pose_stamped.header.stamp, "map", "base_link"));
 
     // ---------- Publish Multi-layer map ------------- //
     // Publish the grid map
@@ -178,6 +137,15 @@ void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
     publish3DMap();
     //    publish3DMap(obsv.ground_plane, map3D_planes_publisher);
     // ------------------------------------------------ //
+
+    // Publish vineslam localization in odometry msg
+    if (publish_odom) {
+      nav_msgs::Odometry odom_pose;
+      odom_pose.header    = pose_stamped.header;
+      odom_pose.pose.pose = pose_stamped.pose;
+
+      odom_publisher.publish(odom_pose);
+    }
 
 #ifdef DEBUG
     // Publish local corner map for debug
@@ -194,7 +162,7 @@ void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
              robot_pose.z;
 
       Corner tmp_corner = corner;
-      tmp_corner.pos = pt;
+      tmp_corner.pos    = pt;
       tmp_corners.push_back(tmp_corner);
     }
     publish3DMap(tmp_corners, map3D_debug_publisher);
@@ -294,12 +262,11 @@ void vineslam_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
     marker.scale.z = 0.1;
 
     normal_pub.publish(marker);
-
 #endif
   }
 }
 
-void vineslam_ros::computeObsv(const sensor_msgs::Image& depth_img,
+void VineSLAM_ros::computeObsv(const sensor_msgs::Image& depth_img,
                                const int&                xmin,
                                const int&                ymin,
                                const int&                xmax,
@@ -338,6 +305,174 @@ void vineslam_ros::computeObsv(const sensor_msgs::Image& depth_img,
   } else {
     depth   = -1;
     bearing = -1;
+  }
+}
+
+void VineSLAM_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)
+{
+  // Convert odometry msg to pose msg
+  tf::Pose            pose;
+  geometry_msgs::Pose odom_pose = (*msg).pose.pose;
+  tf::poseMsgToTF(odom_pose, pose);
+
+  // Check if yaw is NaN
+  float yaw = static_cast<float>(tf::getYaw(pose.getRotation()));
+  if (!std::isfinite(yaw))
+    yaw = 0;
+
+  // If it is the first iteration - initialize the Pose
+  // relative to the previous frame
+  if (init) {
+    p_odom.x   = (*msg).pose.pose.position.x;
+    p_odom.y   = (*msg).pose.pose.position.y;
+    p_odom.yaw = yaw;
+    odom       = vineslam::pose(0., 0., 0., 0., 0., yaw);
+    return;
+  }
+
+  // Integrate odometry pose to convert to the map frame
+  odom.x += static_cast<float>(msg->pose.pose.position.x) - p_odom.x;
+  odom.y += static_cast<float>(msg->pose.pose.position.y) - p_odom.y;
+  odom.z     = 0;
+  odom.roll  = 0;
+  odom.pitch = 0;
+  odom.yaw += (yaw - p_odom.yaw);
+
+  // Save current odometry pose to use in the next iteration
+  p_odom.x   = msg->pose.pose.position.x;
+  p_odom.y   = msg->pose.pose.position.y;
+  p_odom.yaw = yaw;
+}
+
+void VineSLAM_ros::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
+{
+  if (init) {
+    // Set initial datum
+    agrob_map_transform::SetDatum srv;
+    srv.request.geo_pose.position.latitude  = gps_init_lat;
+    srv.request.geo_pose.position.longitude = gps_init_long;
+    srv.request.geo_pose.position.altitude  = 0.0;
+    tf::Quaternion quat;
+    quat.setRPY(0.0, 0.0, gps_init_head);
+    tf::quaternionTFToMsg(quat, srv.request.geo_pose.orientation);
+
+    set_datum.call(srv);
+  }
+
+  agrob_map_transform::GetPose srv;
+
+  // GNSS - odom service call
+  srv.request.geo_pose.latitude  = msg->latitude;
+  srv.request.geo_pose.longitude = msg->longitude;
+
+  if (polar2pose.call(srv)) {
+    pose gps_pose;
+    gps_pose.x = srv.response.local_pose.pose.pose.position.x;
+    gps_pose.y = srv.response.local_pose.pose.pose.position.y;
+
+    getGNSSHeading(gps_pose);
+  } else {
+    ROS_ERROR("Failed to call service Polar2Pose\n");
+    return;
+  }
+}
+
+void VineSLAM_ros::getGNSSHeading(const pose& gps_odom)
+{
+  if (datum_autocorrection_stage == 0) {
+    ROS_INFO("Initialization of AGROB DATUM");
+    datum_autocorrection_stage++;
+  } else {
+
+    float x, y;
+    x = robot_pose.x;
+    y = robot_pose.y;
+
+    float distance   = std::sqrt((gps_odom.x - x) * (gps_odom.x - x) +
+                               (gps_odom.y - y) * (gps_odom.y - y));
+    float center_map = std::sqrt(gps_odom.x * gps_odom.x + gps_odom.y * gps_odom.y);
+
+    if (datum_autocorrection_stage == 1) {
+      if (center_map < 2.0) {
+        ROS_ERROR("We are near to DATUM location");
+        if (distance < 5.0) {
+          ROS_INFO("We are near to DATUM location is OK");
+          datum_autocorrection_stage = 2;
+
+        } else {
+          ROS_ERROR(
+              "We are near to DATUM location is BAD...NEEDS to be corrected %d",
+              datum_autocorrection_stage);
+          datum_autocorrection_stage = -1;
+        }
+
+      } else {
+        ROS_ERROR("We are outside of DATUM location");
+        datum_autocorrection_stage = -1;
+      }
+    } else if (datum_autocorrection_stage == 2) {
+      // inicialização do filro
+      ROS_INFO("inicialização do filtro");
+      for (int i = 0; i < 360; i++) {
+        datum_orientation[i][0] = i;
+        datum_orientation[i][1] = 1.0;
+      }
+      datum_autocorrection_stage = 3;
+    } else if (datum_autocorrection_stage == 3) {
+      global_counter++;
+
+      float dist_temp_max = 0.0;
+      for (auto& i : datum_orientation) {
+        float xtemp, ytemp, dist_temp;
+        xtemp =
+            std::cos(i[0] * M_PI / 180.0) * x - std::sin(i[0] * M_PI / 180.0) * y;
+        ytemp =
+            std::sin(i[0] * M_PI / 180.0) * x + std::cos(i[0] * M_PI / 180.0) * y;
+        dist_temp = std::sqrt((gps_odom.x - xtemp) * (gps_odom.x - xtemp) +
+                              (gps_odom.y - ytemp) * (gps_odom.y - ytemp));
+        i[2]      = dist_temp;
+        if (dist_temp_max < dist_temp) {
+          dist_temp_max = dist_temp;
+        }
+      }
+
+      float peso_max = 0.0;
+      for (auto& i : datum_orientation) {
+
+        i[1] = (i[1] * static_cast<float>(global_counter) +
+                (1. - i[2] / dist_temp_max) * center_map) /
+               static_cast<float>(global_counter + center_map);
+
+        if (peso_max < i[1]) {
+          peso_max = i[1];
+        }
+      }
+
+      int indexT = 0, num_max = 0;
+      for (int i = 0; i < 360; i++) {
+
+        if (peso_max == datum_orientation[i][1]) {
+          num_max++;
+          indexT = i;
+
+          solution_ranges[i]++;
+          if (solution_ranges[i] >= 100)
+            solution_ranges[i] = 99;
+        }
+      }
+
+      if (num_max == 1) {
+        ROS_INFO("We have 1 solution = %d ", indexT);
+
+        int32_t i = indexT;
+      } else {
+        ROS_INFO("We have %d a solutions", num_max);
+      }
+
+    } else {
+      ROS_ERROR("We are near to DATUM location is BAD...NEEDS to be corrected %d",
+                datum_autocorrection_stage);
+    }
   }
 }
 

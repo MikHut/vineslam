@@ -70,7 +70,7 @@ private:
   // Auxiliar function that normalizes an angle in the [-pi,pi] range
   static float normalizeAngle(const float& angle)
   {
-    return static_cast<float>(std::fmod(angle + PI, 2 * PI) - PI);
+    return static_cast<float>(std::fmod(angle + M_PI, 2 * M_PI) - M_PI);
   }
 };
 }; // namespace vineslam

@@ -7,6 +7,7 @@
 
 #include "stat.hpp"
 #include "point.hpp"
+#include "const.hpp"
 
 namespace vineslam
 {
@@ -96,10 +97,10 @@ struct pose {
 
       if (Rot[6] < 0.) {
         roll  = atan2(Rot[1], Rot[2]);
-        pitch = PI / 2.;
+        pitch = M_PI / 2.;
       } else {
         roll  = atan2(-Rot[1], -Rot[2]);
-        pitch = -PI / 2.;
+        pitch = -M_PI / 2.;
       }
     } else {
       pitch = -asin(Rot[6]);
@@ -174,17 +175,17 @@ struct pose {
   // Normalize pose angles
   void normalize()
   {
-    roll = std::fmod(roll, 2. * PI);
-    if (roll > PI)
-      roll -= 2. * PI;
+    roll = std::fmod(roll, 2. * M_PI);
+    if (roll > M_PI)
+      roll -= 2. * M_PI;
 
-    pitch = std::fmod(pitch, 2. * PI);
-    if (pitch > PI)
-      pitch -= 2. * PI;
+    pitch = std::fmod(pitch, 2. * M_PI);
+    if (pitch > M_PI)
+      pitch -= 2. * M_PI;
 
-    yaw = std::fmod(yaw, 2. * PI);
-    if (yaw > PI)
-      yaw -= 2. * PI;
+    yaw = std::fmod(yaw, 2. * M_PI);
+    if (yaw > M_PI)
+      yaw -= 2. * M_PI;
   }
 
   // 2D and 3D norms of the pose

@@ -8,6 +8,7 @@
 #include <mapper3D.hpp>
 #include <math/point.hpp>
 #include <math/pose.hpp>
+#include <math/const.hpp>
 
 // std
 #include <iostream>
@@ -85,7 +86,7 @@ private:
                    float&                    bearing) const;
 
   // GNSS heading estimator
-  void getGNSSHeading(const pose& gps_odom);
+  void getGNSSHeading(const pose& gps_odom, const std_msgs::Header& header);
 
   // ROS publishers/services
   ros::Publisher     mapOCC_publisher;
@@ -98,6 +99,7 @@ private:
   ros::Publisher     odom_publisher;
   ros::Publisher     path_publisher;
   ros::Publisher     poses_publisher;
+  ros::Publisher     gps_publisher;
   ros::Publisher     normal_pub;
   ros::ServiceClient polar2pose;
   ros::ServiceClient set_datum;
@@ -117,12 +119,9 @@ private:
   pose robot_pose;
 
   // GNSS variables
-  int                  datum_autocorrection_stage;
-  int32_t              global_counter;
-  float                datum_orientation[360][4];
-  cv::Mat              hist;
-  cv::Mat              weights;
-  std::vector<int32_t> solution_ranges;
+  int     datum_autocorrection_stage;
+  int32_t global_counter;
+  float   datum_orientation[360][4];
 
   // Input parameters
   // ------------------------

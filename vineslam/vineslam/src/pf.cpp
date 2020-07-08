@@ -11,7 +11,7 @@ PF::PF(const std::string& config_path, const pose& initial_pose)
   // Read input parameters
   YAML::Node config = YAML::LoadFile(config_path);
   cam_pitch =
-      config["camera_info"]["cam_pitch"].as<float>() * static_cast<float>(PI / 180.);
+      config["camera_info"]["cam_pitch"].as<float>() * static_cast<float>(M_PI / 180.);
   srr      = config["pf"]["srr"].as<float>();
   str      = config["pf"]["str"].as<float>();
   stt      = config["pf"]["stt"].as<float>();
@@ -19,16 +19,16 @@ PF::PF(const std::string& config_path, const pose& initial_pose)
   sigma_xy = config["pf"]["sigma_xy"].as<float>();
   sigma_z  = config["pf"]["sigma_z"].as<float>();
   sigma_roll =
-      config["pf"]["sigma_roll"].as<float>() * static_cast<float>(PI / 180.);
+      config["pf"]["sigma_roll"].as<float>() * static_cast<float>(M_PI / 180.);
   sigma_pitch =
-      config["pf"]["sigma_pitch"].as<float>() * static_cast<float>(PI / 180.);
-  sigma_yaw = config["pf"]["sigma_yaw"].as<float>() * static_cast<float>(PI / 180.);
+      config["pf"]["sigma_pitch"].as<float>() * static_cast<float>(M_PI / 180.);
+  sigma_yaw = config["pf"]["sigma_yaw"].as<float>() * static_cast<float>(M_PI / 180.);
   sigma_landmark_matching = config["pf"]["sigma_landmark_matching"].as<float>();
   sigma_feature_matching  = config["pf"]["sigma_feature_matching"].as<float>();
   sigma_corner_matching   = config["pf"]["sigma_corner_matching"].as<float>();
   sigma_ground_z          = config["pf"]["sigma_ground_rp"].as<float>();
   sigma_ground_rp =
-      config["pf"]["sigma_ground_z"].as<float>() * static_cast<float>(PI / 180.);
+      config["pf"]["sigma_ground_z"].as<float>() * static_cast<float>(M_PI / 180.);
   n_particles = config["pf"]["n_particles"].as<float>();
 
   // Initialize normal distributions
@@ -71,7 +71,7 @@ void PF::motionModel(const pose& odom)
 
   // Motion sample standard deviations
   float comp = (odom_inc.x < 0)
-                   ? PI
+                   ? M_PI
                    : static_cast<float>(
                          0.); // PREVENT ERROR WHEN ROBOT IS MOVING BACKWARDS :-)
   float s_rot_a_draw = srr * (std::fabs(dt_rot_a) - comp) + srt * dt_trans;
@@ -171,14 +171,14 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
 
   // COMPUTE STATIC VARIABLES TO USE IN THE PARTICLES LOOP
   float normalizer_landmark =
-      static_cast<float>(1.) / (sigma_landmark_matching * std::sqrt(2 * PI));
+      static_cast<float>(1.) / (sigma_landmark_matching * std::sqrt(2. * M_PI));
   float normalizer_corner =
-      static_cast<float>(1.) / (sigma_feature_matching * std::sqrt(2 * PI));
+      static_cast<float>(1.) / (sigma_feature_matching * std::sqrt(2. * M_PI));
   float delta_ground_z = pose_from_ground.z - last_ground_plane_z;
   float normalizer_ground_z =
-      static_cast<float>(1.) / (sigma_ground_z * std::sqrt(2 * PI));
+      static_cast<float>(1.) / (sigma_ground_z * std::sqrt(2. * M_PI));
   float normalizer_ground_rp =
-      static_cast<float>(1.) / (sigma_ground_rp * std::sqrt(2 * PI));
+      static_cast<float>(1.) / (sigma_ground_rp * std::sqrt(2. * M_PI));
   // -----------------------------------------------------
 
   // Loop over all particles

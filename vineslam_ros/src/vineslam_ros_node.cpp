@@ -22,7 +22,7 @@ VineSLAM_ros::VineSLAM_ros(int argc, char** argv)
   // Load config file
   auto config = YAML::LoadFile(config_path);
   // Load camera info parameters
-  h_fov      = config["camera_info"]["h_fov"].as<float>() * PI / 180.;
+  h_fov      = config["camera_info"]["h_fov"].as<float>() * M_PI / 180.;
   img_width  = config["camera_info"]["img_width"].as<int>();
   img_height = config["camera_info"]["img_height"].as<int>();
   cam_height = config["camera_info"]["cam_height"].as<float>();
@@ -87,6 +87,7 @@ VineSLAM_ros::VineSLAM_ros(int argc, char** argv)
   normal_pub = nh.advertise<visualization_msgs::Marker>("/map3D/ground_normal", 1);
   pose_publisher  = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/pose", 1);
   odom_publisher  = nh.advertise<nav_msgs::Odometry>("/vineslam/odom", 1);
+  gps_publisher   = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/gps", 1);
   path_publisher  = nh.advertise<nav_msgs::Path>("/vineslam/path", 1);
   poses_publisher = nh.advertise<geometry_msgs::PoseArray>("/vineslam/poses", 1);
 
@@ -94,9 +95,6 @@ VineSLAM_ros::VineSLAM_ros(int argc, char** argv)
   if (use_gps) {
     datum_autocorrection_stage = 0;
     global_counter             = 0;
-    solution_ranges.resize(360, 0);
-    hist    = cv::Mat::zeros(100, 360, CV_8UC3);
-    weights = cv::Mat::zeros(100, 360, CV_8UC3);
   }
 
   ros::spin();

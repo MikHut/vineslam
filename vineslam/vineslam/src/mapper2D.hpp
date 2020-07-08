@@ -7,6 +7,7 @@
 #include <math/stat.hpp>
 #include <math/point.hpp>
 #include <math/pose.hpp>
+#include <math/const.hpp>
 
 // std, eigen
 #include <cmath>
@@ -87,7 +88,7 @@ private:
   // Auxiliar function that normalizes an angle in the [-pi,pi] range
   static float normalizeAngle(const float& angle)
   {
-    return static_cast<float>(std::fmod(angle + PI, 2 * PI) - PI);
+    return static_cast<float>(std::fmod(angle + M_PI, 2 * M_PI) - M_PI);
   }
 
   // Auxiliar function that the disparity error using the disparity

@@ -1,3 +1,5 @@
 #pragma once
 
-const float PI = 3.14159265359;
+#include <cmath>
+
+const float DEGREE_TO_RAD = static_cast<float>(M_PI / 180.);

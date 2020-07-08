@@ -125,8 +125,8 @@ void VineSLAM_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
 
     // Publish cam-to-map tf::Transform
     static tf::TransformBroadcaster br;
-    br.sendTransform(tf::StampedTransform(
-        base2map, pose_stamped.header.stamp, "map", "base_link"));
+    br.sendTransform(
+        tf::StampedTransform(base2map, pose_stamped.header.stamp, "map", "base_link"));
 
     // ---------- Publish Multi-layer map ------------- //
     // Publish the grid map
@@ -149,7 +149,7 @@ void VineSLAM_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
 
 #ifdef DEBUG
     // Publish local corner map for debug
-    std::array<float, 9> Rot;
+    std::array<float, 9> Rot{};
     robot_pose.toRotMatrix(Rot);
     std::vector<Corner> tmp_corners;
     for (const auto& corner : m_corners) {
@@ -174,18 +174,18 @@ void VineSLAM_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
     ros_poses.header          = depth_image->header;
     ros_poses.header.frame_id = "map";
     for (const auto& pose : poses) {
-      tf::Quaternion q;
-      q.setRPY(pose.roll, pose.pitch, pose.yaw);
-      q.normalize();
+      tf::Quaternion m_q;
+      m_q.setRPY(pose.roll, pose.pitch, pose.yaw);
+      m_q.normalize();
 
       geometry_msgs::Pose m_pose;
       m_pose.position.x    = pose.x;
       m_pose.position.y    = pose.y;
       m_pose.position.z    = pose.z;
-      m_pose.orientation.x = q.x();
-      m_pose.orientation.y = q.y();
-      m_pose.orientation.z = q.z();
-      m_pose.orientation.w = q.w();
+      m_pose.orientation.x = m_q.x();
+      m_pose.orientation.y = m_q.y();
+      m_pose.orientation.z = m_q.z();
+      m_pose.orientation.w = m_q.w();
 
       ros_poses.poses.push_back(m_pose);
     }
@@ -205,7 +205,6 @@ void VineSLAM_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
     R[6]       = m_normal.x;
     R[7]       = m_normal.y;
     R[8]       = m_normal.z;
-    pose pp(R, std::array<float, 3>{0., 0., 0.});
 
     Plane m_plane;
     for (const auto& pt : obsv.ground_plane.points) {
@@ -370,17 +369,18 @@ void VineSLAM_ros::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
     gps_pose.x = srv.response.local_pose.pose.pose.position.x;
     gps_pose.y = srv.response.local_pose.pose.pose.position.y;
 
-    getGNSSHeading(gps_pose);
+    getGNSSHeading(gps_pose, msg->header);
   } else {
     ROS_ERROR("Failed to call service Polar2Pose\n");
     return;
   }
 }
 
-void VineSLAM_ros::getGNSSHeading(const pose& gps_odom)
+void VineSLAM_ros::getGNSSHeading(const pose&             gps_odom,
+                                  const std_msgs::Header& header)
 {
   if (datum_autocorrection_stage == 0) {
-    ROS_INFO("Initialization of AGROB DATUM");
+    ROS_DEBUG("Initialization of AGROB DATUM");
     datum_autocorrection_stage++;
   } else {
 
@@ -394,27 +394,22 @@ void VineSLAM_ros::getGNSSHeading(const pose& gps_odom)
 
     if (datum_autocorrection_stage == 1) {
       if (center_map < 2.0) {
-        ROS_ERROR("We are near to DATUM location");
         if (distance < 5.0) {
-          ROS_INFO("We are near to DATUM location is OK");
           datum_autocorrection_stage = 2;
 
         } else {
-          ROS_ERROR(
-              "We are near to DATUM location is BAD...NEEDS to be corrected %d",
-              datum_autocorrection_stage);
+          ROS_ERROR("Datum localization is bad. Error on heading location.");
           datum_autocorrection_stage = -1;
         }
 
       } else {
-        ROS_ERROR("We are outside of DATUM location");
+        ROS_ERROR("Error on heading location.");
         datum_autocorrection_stage = -1;
       }
     } else if (datum_autocorrection_stage == 2) {
-      // inicialização do filro
-      ROS_INFO("inicialização do filtro");
+      ROS_DEBUG("Initializing datum filter.");
       for (int i = 0; i < 360; i++) {
-        datum_orientation[i][0] = i;
+        datum_orientation[i][0] = static_cast<float>(i);
         datum_orientation[i][1] = 1.0;
       }
       datum_autocorrection_stage = 3;
@@ -425,54 +420,62 @@ void VineSLAM_ros::getGNSSHeading(const pose& gps_odom)
       for (auto& i : datum_orientation) {
         float xtemp, ytemp, dist_temp;
         xtemp =
-            std::cos(i[0] * M_PI / 180.0) * x - std::sin(i[0] * M_PI / 180.0) * y;
+            std::cos(i[0] * DEGREE_TO_RAD) * x - std::sin(i[0] * DEGREE_TO_RAD) * y;
         ytemp =
-            std::sin(i[0] * M_PI / 180.0) * x + std::cos(i[0] * M_PI / 180.0) * y;
+            std::sin(i[0] * DEGREE_TO_RAD) * x + std::cos(i[0] * DEGREE_TO_RAD) * y;
         dist_temp = std::sqrt((gps_odom.x - xtemp) * (gps_odom.x - xtemp) +
                               (gps_odom.y - ytemp) * (gps_odom.y - ytemp));
         i[2]      = dist_temp;
-        if (dist_temp_max < dist_temp) {
+        if (dist_temp_max < dist_temp)
           dist_temp_max = dist_temp;
-        }
       }
 
-      float peso_max = 0.0;
+      float weight_max = 0.0;
+      int   indexT = 0, index = 0;
       for (auto& i : datum_orientation) {
 
         i[1] = (i[1] * static_cast<float>(global_counter) +
-                (1. - i[2] / dist_temp_max) * center_map) /
+                static_cast<float>(1. - i[2] / dist_temp_max) * center_map) /
                static_cast<float>(global_counter + center_map);
 
-        if (peso_max < i[1]) {
-          peso_max = i[1];
+        if (weight_max < i[1]) {
+          weight_max = i[1];
+          indexT     = index;
         }
+
+        index++;
       }
 
-      int indexT = 0, num_max = 0;
-      for (int i = 0; i < 360; i++) {
+      if (weight_max > 0.) {
+        // Compute the gnss to map transform
+        tf::Quaternion heading_quat;
+        heading_quat.setRPY(0., 0., static_cast<float>(indexT) * DEGREE_TO_RAD);
+        heading_quat.normalize();
+        tf::Transform ned2map(heading_quat, tf::Vector3(0., 0., 0.));
 
-        if (peso_max == datum_orientation[i][1]) {
-          num_max++;
-          indexT = i;
+        // Publish gnss to map tf::Transform
+        static tf::TransformBroadcaster br;
+        br.sendTransform(tf::StampedTransform(ned2map, header.stamp, "enu", "map"));
 
-          solution_ranges[i]++;
-          if (solution_ranges[i] >= 100)
-            solution_ranges[i] = 99;
-        }
-      }
+        // Publish gnss pose in the enu reference frame
+        geometry_msgs::PoseStamped gnss_pose;
+        gnss_pose.pose.position.x    = gps_odom.x;
+        gnss_pose.pose.position.y    = gps_odom.y;
+        gnss_pose.pose.position.z    = gps_odom.z;
+        gnss_pose.pose.orientation.x = 0.;
+        gnss_pose.pose.orientation.y = 0.;
+        gnss_pose.pose.orientation.z = 0.;
+        gnss_pose.pose.orientation.w = 1.;
+        gnss_pose.header             = header;
+        gnss_pose.header.frame_id    = "enu";
+        gps_publisher.publish(gnss_pose);
 
-      if (num_max == 1) {
-        ROS_INFO("We have 1 solution = %d ", indexT);
+        ROS_DEBUG("Solution = %d.", indexT);
+      } else
+        ROS_INFO("Did not find any solution for datum heading.");
 
-        int32_t i = indexT;
-      } else {
-        ROS_INFO("We have %d a solutions", num_max);
-      }
-
-    } else {
-      ROS_ERROR("We are near to DATUM location is BAD...NEEDS to be corrected %d",
-                datum_autocorrection_stage);
-    }
+    } else
+      ROS_ERROR("Datum localization is bad. Error on heading location.");
   }
 }
 

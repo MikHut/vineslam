@@ -13,15 +13,15 @@ Mapper3D::Mapper3D(const std::string& config_path)
   img_height = config["camera_info"]["img_height"].as<int>();
   cam_height = config["camera_info"]["cam_height"].as<float>();
   cam_pitch =
-      config["camera_info"]["cam_pitch"].as<float>() * static_cast<float>(PI / 180.);
+      config["camera_info"]["cam_pitch"].as<float>() * static_cast<float>(M_PI / 180.);
   fx              = config["camera_info"]["fx"].as<float>();
   fy              = config["camera_info"]["fy"].as<float>();
   cx              = config["camera_info"]["cx"].as<float>();
   cy              = config["camera_info"]["cy"].as<float>();
   auto depth_hfov = config["camera_info"]["depth_hfov"].as<float>() *
-                    static_cast<float>(PI / 180.);
+                    static_cast<float>(M_PI / 180.);
   auto depth_vfov = config["camera_info"]["depth_vfov"].as<float>() *
-                    static_cast<float>(PI / 180.);
+                    static_cast<float>(M_PI / 180.);
   // Load 3D map parameters
   correspondence_threshold =
       config["map_3D"]["correspondence_threshold"].as<float>();
@@ -32,9 +32,9 @@ Mapper3D::Mapper3D(const std::string& config_path)
   // Load pointcloud feature parameters
   downsample_f = config["cloud_feature"]["downsample_factor"].as<int>();
   planes_th    = config["cloud_feature"]["planes_theta"].as<float>() *
-              static_cast<float>(PI / 180.);
+              static_cast<float>(M_PI / 180.);
   ground_th = config["cloud_feature"]["ground_theta"].as<float>() *
-              static_cast<float>(PI / 180.);
+              static_cast<float>(M_PI / 180.);
   max_iters      = config["cloud_feature"]["RANSAC"]["max_iters"].as<int>();
   dist_threshold = config["cloud_feature"]["RANSAC"]["dist_threshold"].as<float>();
   edge_threshold = config["cloud_feature"]["edge_threshold"].as<float>();
@@ -435,7 +435,7 @@ bool Mapper3D::ransac(const Plane& in_plane, Plane& out_plane) const
   if (normal.z < 0) {
     vector3D             m_vec = normal;
     std::array<float, 9> Rot{};
-    pose                 transf(0., 0., 0., 0., PI, 0.);
+    pose                 transf(0., 0., 0., 0., M_PI, 0.);
     transf.toRotMatrix(Rot);
 
     m_vec.x = normal.x * Rot[0] + normal.y * Rot[1] + normal.z * Rot[2];
@@ -675,7 +675,7 @@ void Mapper3D::pixel2world(const point& in_pt,
 
   // Compute camera-world axis transformation matrix
   // - NOTE: We compensate here the camera height and pitch (!)
-  pose                 transform(0., 0., cam_height, -PI / 2. - pitch, 0., -PI / 2.);
+  pose                 transform(0., 0., cam_height, -M_PI / 2. - pitch, 0., -M_PI / 2.);
   std::array<float, 9> c2w_rot = {0., 0., 0., 0., 0., 0., 0., 0., 0.};
   transform.toRotMatrix(c2w_rot);
 

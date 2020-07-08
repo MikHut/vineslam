@@ -86,7 +86,7 @@ private:
                    float&                    bearing) const;
 
   // GNSS heading estimator
-  void getGNSSHeading(const pose& gps_odom, const std_msgs::Header& header);
+  bool getGNSSHeading(const pose& gps_odom, const std_msgs::Header& header);
 
   // ROS publishers/services
   ros::Publisher     mapOCC_publisher;
@@ -117,11 +117,13 @@ private:
   pose odom;
   pose p_odom;
   pose robot_pose;
+  pose gps_pose;
 
   // GNSS variables
   int     datum_autocorrection_stage;
   int32_t global_counter;
   float   datum_orientation[360][4];
+  bool    has_converged;
 
   // Input parameters
   // ------------------------

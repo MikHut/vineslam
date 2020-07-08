@@ -75,7 +75,7 @@ private:
 
   // Filters semantic map based on the mapping uncertainty
   // - old landmarks that have high uncertainty are removed
-  void filter(OccupancyMap& grid_map);
+  void filter(OccupancyMap& grid_map) const;
 
   // Computes a local map, on robot's frame
   static std::vector<point> base2map(const pose&                         pose,

@@ -22,7 +22,7 @@ VineSLAM_ros::VineSLAM_ros(int argc, char** argv)
   // Load config file
   auto config = YAML::LoadFile(config_path);
   // Load camera info parameters
-  h_fov      = config["camera_info"]["h_fov"].as<float>() * M_PI / 180.;
+  h_fov      = config["camera_info"]["h_fov"].as<float>() * DEGREE_TO_RAD;
   img_width  = config["camera_info"]["img_width"].as<int>();
   img_height = config["camera_info"]["img_height"].as<int>();
   cam_height = config["camera_info"]["cam_height"].as<float>();

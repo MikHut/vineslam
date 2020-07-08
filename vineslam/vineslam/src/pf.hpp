@@ -64,6 +64,11 @@ public:
   void update(const std::vector<SemanticFeature>& landmarks,
               const std::vector<Corner>&          corners,
               const Plane&                        ground_plane,
+              const pose&                         gps_pose,
+              OccupancyMap                        grid_map);
+  void update(const std::vector<SemanticFeature>& landmarks,
+              const std::vector<Corner>&          corners,
+              const Plane&                        ground_plane,
               OccupancyMap                        grid_map);
   // Normalize particles weights
   void normalizeWeights();
@@ -105,6 +110,11 @@ private:
   float sigma_corner_matching;
   float sigma_ground_z;
   float sigma_ground_rp;
+  float sigma_gps;
+  float semantic_norm;
+  float corners_norm;
+  float ground_norm;
+  float gps_norm;
   float n_particles;
 };
 

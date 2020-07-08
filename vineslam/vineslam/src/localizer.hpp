@@ -18,13 +18,13 @@
 namespace vineslam
 {
 
-// Structure that stores the multi-layer mapping observations to use in the
-// localization procedure
+// Structure that stores  observations to use in the localization procedure
 struct Observation {
   std::vector<SemanticFeature> landmarks;
   std::vector<Corner>          corners;
   std::vector<ImageFeature>    surf_features;
   Plane                        ground_plane;
+  pose                         gps_pose;
 };
 
 class Localizer
@@ -42,7 +42,8 @@ public:
   // - odom:      wheel odometry pose
   // - obsv:      current multi-layer mapping observation
   // - grid_map:  occupancy grid map that encodes the multi-layer map information
-  void process(const pose& odom, const Observation& obsv, const OccupancyMap& grid_map);
+  void
+  process(const pose& odom, const Observation& obsv, const OccupancyMap& grid_map);
 
   // Export the final pose resultant from the localization procedure
   pose getPose() const;
@@ -55,6 +56,7 @@ private:
   // Particle filter object
   PF* pf{};
   // Input parameters
+  bool  use_gps;
   float n_particles;
   float img_width;
   float img_height;

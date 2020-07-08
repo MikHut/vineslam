@@ -8,7 +8,7 @@ Mapper2D::Mapper2D(const std::string& config_path)
 {
   YAML::Node config = YAML::LoadFile(config_path);
   fx                = config["camera_info"]["fx"].as<float>();
-  cam_pitch         = config["camera_info"]["cam_pitch"].as<float>();
+  cam_pitch         = config["camera_info"]["cam_pitch"].as<float>() * DEGREE_TO_RAD;
   baseline          = config["camera_info"]["baseline"].as<float>();
   delta_d           = config["camera_info"]["delta_d"].as<float>();
   filter_frequency  = config["map_semantic"]["filter_frequency"].as<int>();
@@ -101,8 +101,8 @@ std::vector<point> Mapper2D::base2map(const pose&                         pose,
   pose.toRotMatrix(Rot);
 
   std::vector<point> landmarks_;
-  for (size_t i = 0; i < landmarks.size(); i++) {
-    point X_cam(landmarks[i].pos.x, landmarks[i].pos.y, 0.);
+  for (const auto & landmark : landmarks) {
+    point X_cam(landmark.pos.x, landmark.pos.y, 0.);
 
     // Convert landmark to map's referential frame
     point X_map;
@@ -246,7 +246,7 @@ void Mapper2D::localMap(const std::vector<float>&     bearings,
   }
 }
 
-void Mapper2D::filter(OccupancyMap& grid_map)
+void Mapper2D::filter(OccupancyMap& grid_map) const
 {
   int old_limit = grid_map.n_landmarks - (grid_map.n_landmarks / 10);
 

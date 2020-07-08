@@ -15,7 +15,7 @@ camera_info:
   delta_d: 1.0         # stereo matcher disparity error in pixels
   h_fov: 85            # ZED's horizontal field of view in degrees
   cam_pitch: 11.3      # camera inclination in degrees
-  cam_height: 1.0      # camera height in meters
+  cam_height: 0.95     # camera height in meters
   depth_hfov: 90.0     # degrees - depth image horizontal field of view
   depth_vfov: 60.0     # degrees - depth image vertical field of view
   img_width: 1280      # pixels
@@ -82,11 +82,10 @@ ICP:
 
 
 # Particle filter:
-# - s constants - sample_motion_model_odometry from Probabilistic Robotics
-# - standard deviation of zero mean gaussians for non observable states (z, roll, pitch)
-# - particles2D - number of particles for landmark-based particle filter
-# - particles3D - number of particles for feature-based particle filter
 pf:
+  n_particles: 500 # number of particles
+
+  ## --- PARTICLES INOVATION -- #
   srr: 0.001 # rotation - rotation
   srt: 0.001 # rotation - translation
   str: 0.008 # translation - rotation
@@ -96,10 +95,20 @@ pf:
   sigma_roll: 2.5 # degrees
   sigma_pitch: 2.5 # degrees
   sigma_yaw: 1.0 # degrees (just for initialization)
-  sigma_ground_z: 0.02 # meters (derivative)
-  sigma_ground_rp: 5.0 # degrees
+
+  ## -- Weights calculation -- #
+  ## This is a multi-modal weight calculation
+  ## To normalize the weight of each modality, the sum of all of them is maximum 1
+  ## --> Inter-normalization
+  semantic_norm: 0.4
+  corners_norm: 0.2
+  ground_norm: 0.4
+  gps_norm: 0.4
+  ## --> Intra-normalization (standard deviations of each gaussian)
+  sigma_ground_z: 0.08 # meters (derivative)
+  sigma_ground_rp: 1.0 # degrees
   sigma_landmark_matching: 0.1 # meters
   sigma_feature_matching: 0.4 # meters
   sigma_corner_matching: 0.4 # meters
-  n_particles: 500 # number of particles
+  sigma_gps: 0.2 # meters
 ...

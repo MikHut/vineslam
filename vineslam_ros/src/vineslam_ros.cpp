@@ -78,6 +78,10 @@ void VineSLAM_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
     obsv.landmarks    = m_landmarks;
     obsv.corners      = m_corners;
     obsv.ground_plane = m_ground_plane;
+    if (has_converged && use_gps)
+      obsv.gps_pose = gps_pose;
+    else
+      obsv.gps_pose = pose(0., 0., 0., 0., 0., 0.);
     // MISSING 3D image features
 
     // ------- LOCALIZATION PROCEDURE ---------- //
@@ -125,8 +129,8 @@ void VineSLAM_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
 
     // Publish cam-to-map tf::Transform
     static tf::TransformBroadcaster br;
-    br.sendTransform(
-        tf::StampedTransform(base2map, pose_stamped.header.stamp, "map", "base_link"));
+    br.sendTransform(tf::StampedTransform(
+        base2map, pose_stamped.header.stamp, "map", "base_link"));
 
     // ---------- Publish Multi-layer map ------------- //
     // Publish the grid map
@@ -206,6 +210,12 @@ void VineSLAM_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
     R[7]       = m_normal.y;
     R[8]       = m_normal.z;
 
+    std::array<float, 3> trans            = {0., 0., 0.};
+    pose                 pose_from_ground = pose(R, trans);
+    pose_from_ground.yaw                  = 0.;
+    R                                     = {};
+    pose_from_ground.toRotMatrix(R);
+
     Plane m_plane;
     for (const auto& pt : obsv.ground_plane.points) {
       point m_pt;
@@ -220,7 +230,7 @@ void VineSLAM_ros::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
     new_normal.y   = m_normal.x * R[3] + m_normal.y * R[4] + m_normal.z * R[5];
     new_normal.z   = m_normal.x * R[6] + m_normal.y * R[7] + m_normal.z * R[8];
     m_plane.normal = new_normal;
-    publish3DMap(obsv.ground_plane, map3D_planes_publisher);
+    publish3DMap(m_plane, map3D_planes_publisher);
 
     // - Publish ground plane normal for DEBUG
     float x = 0., y = 0., z = 0.;
@@ -346,6 +356,8 @@ void VineSLAM_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)
 void VineSLAM_ros::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
 {
   if (init) {
+    has_converged = false;
+
     // Set initial datum
     agrob_map_transform::SetDatum srv;
     srv.request.geo_pose.position.latitude  = gps_init_lat;
@@ -365,20 +377,21 @@ void VineSLAM_ros::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
   srv.request.geo_pose.longitude = msg->longitude;
 
   if (polar2pose.call(srv)) {
-    pose gps_pose;
-    gps_pose.x = srv.response.local_pose.pose.pose.position.x;
-    gps_pose.y = srv.response.local_pose.pose.pose.position.y;
+    pose gps_odom;
+    gps_odom.x = srv.response.local_pose.pose.pose.position.x;
+    gps_odom.y = srv.response.local_pose.pose.pose.position.y;
 
-    getGNSSHeading(gps_pose, msg->header);
+    has_converged = getGNSSHeading(gps_odom, msg->header);
   } else {
     ROS_ERROR("Failed to call service Polar2Pose\n");
     return;
   }
 }
 
-void VineSLAM_ros::getGNSSHeading(const pose&             gps_odom,
+bool VineSLAM_ros::getGNSSHeading(const pose&             gps_odom,
                                   const std_msgs::Header& header)
 {
+  float weight_max = 0.;
   if (datum_autocorrection_stage == 0) {
     ROS_DEBUG("Initialization of AGROB DATUM");
     datum_autocorrection_stage++;
@@ -430,8 +443,7 @@ void VineSLAM_ros::getGNSSHeading(const pose&             gps_odom,
           dist_temp_max = dist_temp;
       }
 
-      float weight_max = 0.0;
-      int   indexT = 0, index = 0;
+      int indexT = 0, index = 0;
       for (auto& i : datum_orientation) {
 
         i[1] = (i[1] * static_cast<float>(global_counter) +
@@ -470,6 +482,20 @@ void VineSLAM_ros::getGNSSHeading(const pose&             gps_odom,
         gnss_pose.header.frame_id    = "enu";
         gps_publisher.publish(gnss_pose);
 
+        // Transform locally the gps pose from enu to map to use in localization
+        tf::Matrix3x3 Rot = ned2map.getBasis().inverse();
+
+        gps_pose.x = static_cast<float>(Rot[0].getX()) * gps_odom.x +
+                     static_cast<float>(Rot[0].getY()) * gps_odom.y +
+                     static_cast<float>(Rot[0].getZ()) * gps_odom.z;
+        gps_pose.y = static_cast<float>(Rot[1].getX()) * gps_odom.x +
+                     static_cast<float>(Rot[1].getY()) * gps_odom.y +
+                     static_cast<float>(Rot[1].getZ()) * gps_odom.z;
+        gps_pose.z     = 0.;
+        gps_pose.roll  = 0.;
+        gps_pose.pitch = 0.;
+        gps_pose.yaw   = 0.;
+
         ROS_DEBUG("Solution = %d.", indexT);
       } else
         ROS_INFO("Did not find any solution for datum heading.");
@@ -477,6 +503,8 @@ void VineSLAM_ros::getGNSSHeading(const pose&             gps_odom,
     } else
       ROS_ERROR("Datum localization is bad. Error on heading location.");
   }
+
+  return weight_max > 0.6;
 }
 
 } // namespace vineslam

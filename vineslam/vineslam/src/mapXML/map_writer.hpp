@@ -60,9 +60,9 @@ public:
 
 private:
   // Opens a tag with a specified value
-  std::string open(const std::string& tag);
+  static std::string open(const std::string& tag);
   // Closes a tag with a specified value
-  std::string close(const std::string& tag);
+  static std::string close(const std::string& tag);
 
   // Input parameters
   std::string file_path;

@@ -44,16 +44,16 @@
 
 namespace vineslam
 {
-class VineSLAM_ros
+class SLAMNode
 {
 public:
   // Class constructor that
   // - Initializes the ROS node
   // - Defines the publish and subscribe topics
-  VineSLAM_ros(int argc, char** argv);
+  SLAMNode(int argc, char** argv);
 
   // Class destructor - saves the map to an output xml file
-  ~VineSLAM_ros();
+  ~SLAMNode();
 
   // Callback function that subscribes a rgb image, a  disparity image,
   // and the bounding boxes that locate the objects on the image

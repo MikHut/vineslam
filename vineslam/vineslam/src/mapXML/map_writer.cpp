@@ -110,8 +110,7 @@ bool MapWriter::writeToFile(OccupancyMap grid_map)
         xmlfile << TAB << TAB << TAB << TAB << open(LAPLACIAN)
                 << surf_feature.laplacian << close(LAPLACIAN) << ENDL;
         xmlfile << TAB << TAB << TAB << TAB << open(SIGNATURE) << ENDL;
-        for (int j = 0; j < surf_feature.signature.size(); j++) {
-          float m_signature = surf_feature.signature[j];
+        for (float m_signature : surf_feature.signature) {
           xmlfile << TAB << TAB << TAB << TAB << TAB << open(VALUE) << m_signature
                   << close(VALUE) << ENDL;
         }
@@ -123,7 +122,6 @@ bool MapWriter::writeToFile(OccupancyMap grid_map)
   }
   xmlfile << TAB << close(CELL) << ENDL;
   xmlfile << close(DATA_) << ENDL << ENDL;
-
   // --------------------------------------------------------------------------------
 
   // Save file

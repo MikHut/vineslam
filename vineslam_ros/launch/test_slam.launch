@@ -21,7 +21,7 @@
     args="compressed in:=/zed/zed_node/right/image out:=/zed/zed_node/right/image_rect_color" />
 
   <!-- slam node -->
-  <node pkg="vineslam_ros" type="vineslam_ros" name="vineslam_ros" output="screen">
+  <node pkg="vineslam_ros" type="slam_node" name="slam_node" output="screen">
     <remap from="/left_image"  to="/zed/zed_node/left/image_rect_color"/>
     <remap from="/depth_image" to="/zed/zed_node/depth/depth_registered" />
     <remap from="/detections"  to="/detections" />

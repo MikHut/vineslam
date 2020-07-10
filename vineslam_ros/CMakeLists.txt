@@ -31,16 +31,16 @@ include_directories(
         ${catkin_INCLUDE_DIRS}
         ${vineslam_INCLUDE_DIRS})
 
-SET(${PROJECT_NAME}_SOURCES
-        src/main.cpp
-        src/visual.cpp
-        src/${PROJECT_NAME}.cpp
-        src/${PROJECT_NAME}_node.cpp)
-
-add_executable(${PROJECT_NAME}
-        ${${PROJECT_NAME}_SOURCES})
-add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS}
+add_executable(slam_node src/slam_node.cpp)
+add_dependencies(slam_node ${${PROJECT_NAME}_EXPORTED_TARGETS}
         ${catkin_EXPORTED_TARGETS})
-target_link_libraries(${PROJECT_NAME}
+target_link_libraries(slam_node
+        ${catkin_LIBRARIES}
+        yaml-cpp)
+
+add_executable(localization_node src/localization_node.cpp)
+add_dependencies(localization_node ${${PROJECT_NAME}_EXPORTED_TARGETS}
+        ${catkin_EXPORTED_TARGETS})
+target_link_libraries(localization_node
         ${catkin_LIBRARIES}
         yaml-cpp)

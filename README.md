@@ -1,4 +1,4 @@
-# wildSLAM
+# vineslam
 
 This package contains a SLAM approach dedicated to vineyards.
 The estimator receives a disparity image and a set of bounding boxes locating objects in
@@ -20,13 +20,13 @@ Follow the steps described in the [installation file](installation.md).
 
 ### Published topics
 
-* **/wildSLAM/map2D**
+* **/vineslam/map2D**
   ([visualization_msgs::MarkerArray](http://docs.ros.org/melodic/api/visualization_msgs/html/msg/MarkerArray.html)) - the 2D map
-* **/wildSLAM/map3D/raw**
+* **/vineslam/map3D/raw**
   ([sensor_msgs::PointCloud2](http://docs.ros.org/melodic/api/sensor_msgs/html/msg/PointCloud2.html)) - the raw 3D map
-* **/wildSLAM/map3D/trunks**
+* **/vineslam/map3D/trunks**
   ([sensor_msgs::PointCloud2](http://docs.ros.org/melodic/api/sensor_msgs/html/msg/PointCloud2.html)) - the trunks 3D map
-* **/wildSLAM/particles**
+* **/vineslam/particles**
   ([geometry_msgs::PoseArray](http://docs.ros.org/melodic/api/geometry_msgs/html/msg/PoseArray.html)) - the robot pose
 
 ### Transforms
@@ -45,9 +45,9 @@ To set the parameters of the Detector node, edit the `test/detector/launch/test.
 * **/model_path**, path to the Edge TPU model
 * **/labels_path**, path to the object detection labels file
 
-#### wildSLAM
+#### vineslam
 
-To set the parameters of wildSLAM edit the file `wildSLAM/config/setup.yaml`.
+To set the parameters of vineslam edit the file `vineslam/config/setup.yaml`.
 
 * **camera_info**:
   * baseline - stereo camera baseline (meters)
@@ -69,16 +69,16 @@ To set the parameters of wildSLAM edit the file `wildSLAM/config/setup.yaml`.
 
 ## How to run
 
-To run wildSLAM and visualize the 3D map using OctoMap create a launch file with the following format
+To run vineslam and visualize the 3D map using OctoMap create a launch file with the following format
 
 ```
   <!-- slam node -->
-  <node pkg="wildSLAM_ros" type="wildSLAM_ros" name="wildSLAM_ros" output="screen">
+  <node pkg="vineslam_ros" type="vineslam_ros" name="vineslam_ros" output="screen">
     <remap from="/image" to="/zed/zed_node/depth/depth_registered" />
     <remap from="/detections" to="detections" />
     <remap from="/odom" to="/husky_velocity_controller/odom" />
     
-    <param name="/SLAMNode/config_path" value="$(find wildSLAM)/config/setup.yaml" />
+    <param name="/SLAMNode/config_path" value="$(find vineslam)/config/setup.yaml" />
   </node>
 
   <!-- octomap_server node -->
@@ -86,7 +86,7 @@ To run wildSLAM and visualize the 3D map using OctoMap create a launch file with
     <param name="resolution" value="0.05" />
     <param name="frame_id" type="string" value="map" />
     <param name="sensor_model/max_range" value="20.0" />
-    <remap from="cloud_in" to="/wildSLAM/map3D/raw" />   
+    <remap from="cloud_in" to="/vineslam/map3D/raw" />   
    </node>
 ```
 

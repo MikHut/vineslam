@@ -1,6 +1,6 @@
 #pragma once
 
-#include <math/point3D.hpp>
+#include <math/point.hpp>
 
 // ROS and iostream
 #include <cv_bridge/cv_bridge.h>

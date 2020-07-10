@@ -9,6 +9,8 @@
 #include <math/point.hpp>
 #include <math/pose.hpp>
 #include <math/const.hpp>
+#include <mapXML/map_writer.hpp>
+#include <mapXML/map_parser.hpp>
 
 // std
 #include <iostream>
@@ -49,6 +51,9 @@ public:
   // - Initializes the ROS node
   // - Defines the publish and subscribe topics
   VineSLAM_ros(int argc, char** argv);
+
+  // Class destructor - saves the map to an output xml file
+  ~VineSLAM_ros();
 
   // Callback function that subscribes a rgb image, a  disparity image,
   // and the bounding boxes that locate the objects on the image
@@ -122,11 +127,12 @@ private:
   // GNSS variables
   int     datum_autocorrection_stage;
   int32_t global_counter;
-  float   datum_orientation[360][4];
-  bool    has_converged;
+  float   datum_orientation[360][4]{};
+  bool    has_converged{};
 
   // Input parameters
   // ------------------------
+  std::string config_path;
   // Camera info parameters
   float h_fov;
   int   img_width;

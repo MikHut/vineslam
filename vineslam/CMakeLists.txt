@@ -3,8 +3,7 @@ project(vineslam)
 
 add_compile_options(-std=c++11)
 
-find_package(catkin REQUIRED
-        vision_msgs pcl_ros)
+find_package(catkin REQUIRED)
 
 set("OpenCV_DIR" /usr/local/include/opencv2)
 find_package(OpenCV 3.2.0 REQUIRED)
@@ -27,7 +26,9 @@ add_library(vineslam
         ${PROJECT_NAME}/src/localizer.cpp
         ${PROJECT_NAME}/src/pf.cpp
         ${PROJECT_NAME}/src/occupancy_map.cpp
-        ${PROJECT_NAME}/src/icp.cpp)
+        ${PROJECT_NAME}/src/icp.cpp
+        ${PROJECT_NAME}/src/mapXML/map_writer.cpp
+        ${PROJECT_NAME}/src/mapXML/map_parser.cpp)
 
 target_link_libraries(vineslam
         ${catkin_LIBRARIES}

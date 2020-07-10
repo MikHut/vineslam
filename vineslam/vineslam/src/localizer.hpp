@@ -10,9 +10,8 @@
 
 // std, eigen
 #include <iostream>
+#include <thread>
 #include <map>
-#include <vision_msgs/Detection2D.h>
-#include <vision_msgs/Detection2DArray.h>
 #include <yaml-cpp/yaml.h>
 
 namespace vineslam
@@ -31,7 +30,7 @@ class Localizer
 {
 public:
   // Class constructor
-  Localizer(const std::string& config_path);
+  explicit Localizer(const std::string& config_path);
 
   // Initializes the particle filter with the number of particles
   // and the first odometry pose
@@ -56,8 +55,8 @@ private:
   // Particle filter object
   PF* pf{};
   // Input parameters
-  bool  use_gps;
-  float n_particles;
+  int   num_threads;
+  int   n_particles;
   float img_width;
   float img_height;
   float cam_height;

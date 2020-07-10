@@ -56,19 +56,19 @@ class PF
 public:
   // Class constructor
   // - initializes the total set of particles
-  PF(const std::string& config_path, const pose& initial_pose);
+  PF(const std::string& config_path,
+     const pose&        initial_pose,
+     const int&         m_n_particles);
 
   // Apply odometry motion model to all particles
   void motionModel(const pose& odom);
   // Update particles weights using the multi-layer map
-  void update(const std::vector<SemanticFeature>& landmarks,
+  void update(const int&                          xmin,
+              const int&                          xmax,
+              const std::vector<SemanticFeature>& landmarks,
               const std::vector<Corner>&          corners,
               const Plane&                        ground_plane,
               const pose&                         gps_pose,
-              OccupancyMap                        grid_map);
-  void update(const std::vector<SemanticFeature>& landmarks,
-              const std::vector<Corner>&          corners,
-              const Plane&                        ground_plane,
               OccupancyMap                        grid_map);
   // Normalize particles weights
   void normalizeWeights();
@@ -115,7 +115,7 @@ private:
   float corners_norm;
   float ground_norm;
   float gps_norm;
-  float n_particles;
+  int   n_particles;
 };
 
 }; // namespace vineslam

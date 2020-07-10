@@ -2,6 +2,7 @@
 ---
 # General system settings
 system:
+  num_threads: 4 # (1 or 4) if you do not want multithreading, just set this to 1
   publish_odom: True # if true, vineslam publishes its localization also in a odometry msg
   use_gps: True
   gps_datum:
@@ -32,7 +33,7 @@ image_feature:
 
 # 3D cloud feature extraction settings
 cloud_feature:
-  downsample_factor: 5  # constant to downscale dense disparity image
+  downsample_factor: 10  # constant to downscale dense disparity image
   ground_theta: 2.0  # (degrees) vertical angle threshold to consider ground points
   # from "Fast Range Image-Based Segmentation of Sparse 3D Laser Scans for Online Operation"
   planes_theta: 5.0 # (degrees) angle threshold to cluster planes
@@ -54,6 +55,9 @@ grid_map:
   height: 50
   resolution: 0.25 # meters
   metric: "descriptor"
+  save_map: True
+  output_file: "/home/andre-criis/map.xml"
+  input_file: "/home/andre-criis/map.xml"
 
 
 # 3D map definitions
@@ -86,10 +90,10 @@ pf:
   n_particles: 500 # number of particles
 
   ## --- PARTICLES INOVATION -- #
-  srr: 0.001 # rotation - rotation
-  srt: 0.001 # rotation - translation
-  str: 0.008 # translation - rotation
-  stt: 0.005 # translation - translation
+  srr: 0.005 # rotation - rotation (rad / rad)
+  srt: 0.01 # rotation - translation (rad / meter)
+  str: 0.008 # translation - rotation (meter / rad)
+  stt: 0.2 # translation - translation (meter / meter)
   sigma_xy: 0.15 # meters (just for initialization)
   sigma_z: 0.01 # meters
   sigma_roll: 2.5 # degrees
@@ -109,6 +113,6 @@ pf:
   sigma_ground_rp: 1.0 # degrees
   sigma_landmark_matching: 0.1 # meters
   sigma_feature_matching: 0.4 # meters
-  sigma_corner_matching: 0.4 # meters
+  sigma_corner_matching: 0.1 # meters
   sigma_gps: 0.2 # meters
 ...

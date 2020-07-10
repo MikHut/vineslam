@@ -160,10 +160,6 @@ public:
   int n_corner_features;
   int n_landmarks;
 
-private:
-  // Private grid map to store all the cells
-  std::vector<Cell> m_gmap;
-
   // Grid map dimensions
   // NOTE: corners are in reference to the given origin
   point origin;
@@ -172,6 +168,9 @@ private:
   float resolution;
   // Search metric to use: euclidean / descriptor
   std::string metric;
+private:
+  // Private grid map to store all the cells
+  std::vector<Cell> m_gmap;
 };
 
 }; // namespace vineslam

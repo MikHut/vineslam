@@ -15,14 +15,18 @@ Localizer::Localizer(const std::string& config_path)
   fy                = config["camera_info"]["fy"].as<float>();
   cx                = config["camera_info"]["cx"].as<float>();
   cy                = config["camera_info"]["cy"].as<float>();
-  n_particles       = config["pf"]["n_particles"].as<float>();
-  use_gps           = config["system"]["use_gps"].as<bool>();
+  n_particles       = config["pf"]["n_particles"].as<int>();
+  num_threads       = config["system"]["num_threads"].as<int>();
 }
 
 void Localizer::init(const pose& initial_pose)
 {
+  // Certificate that the number of threads and number of particles are multiples
+  if (n_particles % num_threads != 0) {
+    n_particles = num_threads * static_cast<int>(n_particles / num_threads);
+  }
   // Initialize the particle filter
-  pf = new PF(config_path, initial_pose);
+  pf = new PF(config_path, initial_pose, n_particles);
 
   // Compute average pose and standard deviation of the
   // first distribution
@@ -46,13 +50,69 @@ void Localizer::process(const pose&         odom,
   // ------------------------------------------------------------------------------
   // ---------------- Update particles weights using multi-layer map
   // ------------------------------------------------------------------------------
-  if (!(obsv.gps_pose.x == 0. && obsv.gps_pose.y == 0. && obsv.gps_pose.z == 0. &&
-        obsv.gps_pose.roll == 0. && obsv.gps_pose.pitch == 0. &&
-        obsv.gps_pose.yaw == 0.))
-    pf->update(
-        obsv.landmarks, obsv.corners, obsv.ground_plane, obsv.gps_pose, grid_map);
-  else
-    pf->update(obsv.landmarks, obsv.corners, obsv.ground_plane, grid_map);
+  if (num_threads == 1) { // single thread
+    pf->update(0,
+               n_particles,
+               obsv.landmarks,
+               obsv.corners,
+               obsv.ground_plane,
+               obsv.gps_pose,
+               grid_map);
+
+  } else { // Multi threading
+    // Trough threads
+    int xmin, xmax;
+
+    xmin = 0 * (n_particles / num_threads);
+    xmax = xmin + (n_particles / num_threads);
+    std::thread t1(&PF::update,
+                   pf,
+                   xmin,
+                   xmax,
+                   obsv.landmarks,
+                   obsv.corners,
+                   obsv.ground_plane,
+                   obsv.gps_pose,
+                   grid_map);
+    xmin = 1 * (n_particles / num_threads);
+    xmax = xmin + (n_particles / num_threads);
+    std::thread t2(&PF::update,
+                   pf,
+                   xmin,
+                   xmax,
+                   obsv.landmarks,
+                   obsv.corners,
+                   obsv.ground_plane,
+                   obsv.gps_pose,
+                   grid_map);
+    xmin = 2 * (n_particles / num_threads);
+    xmax = xmin + (n_particles / num_threads);
+    std::thread t3(&PF::update,
+                   pf,
+                   xmin,
+                   xmax,
+                   obsv.landmarks,
+                   obsv.corners,
+                   obsv.ground_plane,
+                   obsv.gps_pose,
+                   grid_map);
+    xmin = 3 * (n_particles / num_threads);
+    xmax = xmin + (n_particles / num_threads);
+    std::thread t4(&PF::update,
+                   pf,
+                   xmin,
+                   xmax,
+                   obsv.landmarks,
+                   obsv.corners,
+                   obsv.ground_plane,
+                   obsv.gps_pose,
+                   grid_map);
+
+    t1.join();
+    t2.join();
+    t3.join();
+    t4.join();
+  }
   // ------------------------------------------------------------------------------
   // ---------------- Normalize particle weights
   // ------------------------------------------------------------------------------

@@ -13,7 +13,6 @@ VineSLAM_ros::VineSLAM_ros(int argc, char** argv)
   init = true;
 
   // Load params
-  std::string config_path;
   if (!nh.getParam("/vineslam_ros/SLAMNode/config_path", config_path)) {
     ROS_ERROR("/config_path parameter not found. Shutting down...");
     return;
@@ -99,6 +98,18 @@ VineSLAM_ros::VineSLAM_ros(int argc, char** argv)
 
   ros::spin();
   ROS_INFO("ROS shutting down...");
+}
+
+VineSLAM_ros::~VineSLAM_ros()
+{
+  auto config = YAML::LoadFile(config_path);
+  bool save_map      = config["grid_map"]["save_map"].as<bool>();
+
+  if(save_map) {
+    std::cout << "Writing map to file ..." << std::endl;
+    MapWriter mw(config_path);
+    mw.writeToFile(*grid_map);
+  }
 }
 
 } // namespace vineslam

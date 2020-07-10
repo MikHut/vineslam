@@ -5,7 +5,9 @@
 namespace vineslam
 {
 
-PF::PF(const std::string& config_path, const pose& initial_pose)
+PF::PF(const std::string& config_path,
+       const pose&        initial_pose,
+       const int&         m_n_particles)
     : config_path(config_path)
 {
   // Read input parameters
@@ -30,7 +32,7 @@ PF::PF(const std::string& config_path, const pose& initial_pose)
   corners_norm    = config["pf"]["corners_norm"].as<float>();
   ground_norm     = config["pf"]["ground_norm"].as<float>();
   gps_norm        = config["pf"]["gps_norm"].as<float>();
-  n_particles     = config["pf"]["n_particles"].as<float>();
+  n_particles     = m_n_particles;
 
   // Initialize normal distributions
   particles.resize(n_particles);
@@ -112,16 +114,8 @@ void PF::motionModel(const pose& odom)
   p_odom = odom;
 }
 
-void PF::update(const std::vector<SemanticFeature>& landmarks,
-                const std::vector<Corner>&          corners,
-                const Plane&                        ground_plane,
-                OccupancyMap                        grid_map)
-{
-  pose gps_pose(-1., -1., -1., -1., -1., -1.);
-  update(landmarks, corners, ground_plane, gps_pose, grid_map);
-}
-
-void PF::update(const std::vector<SemanticFeature>& landmarks,
+void PF::update(const int& xmin, const int& xmax,
+                const std::vector<SemanticFeature>& landmarks,
                 const std::vector<Corner>&          corners,
                 const Plane&                        ground_plane,
                 const pose&                         gps_pose,
@@ -182,17 +176,16 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
 
   // Compute static vars to use in the PF loop
   float normalizer_landmark =
-      static_cast<float>(1.) / (sigma_landmark_matching * std::sqrt(2. * M_PI));
+      static_cast<float>(1.) / (sigma_landmark_matching * std::sqrt(M_2PI));
   float normalizer_corner =
-      static_cast<float>(1.) / (sigma_feature_matching * std::sqrt(2. * M_PI));
+      static_cast<float>(1.) / (sigma_feature_matching * std::sqrt(M_2PI));
   float normalizer_ground_rp =
-      static_cast<float>(1.) / (sigma_ground_rp * std::sqrt(2. * M_PI));
-  float normalizer_gps = static_cast<float>(1.) / (sigma_gps * std::sqrt(2. * M_PI));
+      static_cast<float>(1.) / (sigma_ground_rp * std::sqrt(M_2PI));
+  float normalizer_gps = static_cast<float>(1.) / (sigma_gps * std::sqrt(M_2PI));
   // ----- Check if we want or not to use GPS
   bool use_gps =
-      !(gps_pose.x == -1. && gps_pose.y == -1. && gps_pose.z == -1. &&
-        gps_pose.roll == -1. && gps_pose.pitch == -1. && gps_pose.yaw == -1.);
-  std::cout << "USE GPS = " << use_gps << "\n";
+      !(gps_pose.x == -0. && gps_pose.y == -0. && gps_pose.z == -0. &&
+        gps_pose.roll == -0. && gps_pose.pitch == -0. && gps_pose.yaw == -0.);
 
   // Declare arrays to save the unnormalized weights
   std::vector<float> semantic_weights(n_particles);
@@ -201,7 +194,8 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
   std::vector<float> gps_weights(n_particles);
 
   // Loop over all particles
-  for (auto& particle : particles) {
+  for (int i = xmin; i < xmax; i++) {
+    Particle &particle = particles[i];
     // Convert particle orientation to rotation matrix
     pose m_pose  = particle.p;
     m_pose.roll  = 0.;
@@ -274,6 +268,7 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
             particle.p.z;
 
       // Search for a correspondence in the current cell first
+      // TODO (André Aguiar): Changle float max to 0.02 (e.g.) when this is on GPU
       float best_correspondence = std::numeric_limits<float>::max();
       bool  found               = false;
       for (const auto& m_corner : grid_map(X.x, X.y).corner_features) {
@@ -348,12 +343,9 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
     // - GPS [x, y] weight
     float w_gps = 0.;
     if (use_gps) {
-      w_gps = (normalizer_gps *
-               static_cast<float>(std::exp(-1. / sigma_gps *
-                                           std::fabs(particle.p.x - gps_pose.x)))) *
-              (normalizer_gps *
-               static_cast<float>(std::exp(-1. / sigma_gps *
-                                           std::fabs(particle.p.y - gps_pose.y))));
+      float dist = particle.p.distance(gps_pose);
+      w_gps =
+          (normalizer_gps * static_cast<float>(std::exp(-1. / sigma_gps * dist)));
     }
 
     // - Save each layer weight
@@ -370,20 +362,21 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
       *std::max_element(corners_weights.begin(), corners_weights.end());
   float ground_max = *std::max_element(ground_weights.begin(), ground_weights.end());
   float gps_max    = *std::max_element(gps_weights.begin(), gps_weights.end());
-  for (auto& particle : particles) {
+  for (int i = xmin; i < xmax; i++) {
+    Particle &particle = particles[i];
     float m_lw = (semantic_max > 0.)
-                     ? semantic_weights[particle.id] * semantic_norm / semantic_max
-                     : static_cast<float>(0.);
+                     ? semantic_weights[particle.id] //* semantic_norm / semantic_max
+                     : static_cast<float>(1.);
     float m_cw = (corners_max > 0.)
-                     ? corners_weights[particle.id] * corners_norm / corners_max
-                     : static_cast<float>(0.);
+                     ? corners_weights[particle.id] //* corners_norm / corners_max
+                     : static_cast<float>(1.);
     float m_gw = (ground_max > 0.)
-                     ? ground_weights[particle.id] * ground_norm / ground_max
-                     : static_cast<float>(0.);
-    float m_gpsw = (gps_max > 0.) ? gps_weights[particle.id] * gps_norm / gps_max
-                                  : static_cast<float>(0.);
+                     ? ground_weights[particle.id] //* ground_norm / ground_max
+                     : static_cast<float>(1.);
+    float m_gpsw = (gps_max > 0.) ? gps_weights[particle.id] // * gps_norm / gps_max
+                                  : static_cast<float>(1.);
 
-    particle.w = m_lw + m_cw + m_gw + m_gpsw;
+    particle.w = m_lw * m_cw * m_gw * m_gpsw;
     w_sum += particle.w;
   }
 

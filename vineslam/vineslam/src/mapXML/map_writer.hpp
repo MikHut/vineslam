@@ -30,7 +30,8 @@
 #define ID_ "id"
 #define LTAG "l"
 #define STDX "std_x"
-#define STDY "std_x"
+#define STDY "std_y"
+#define ANGLE "angle"
 #define LABEL "label"
 // ----- Corners
 #define CORNERF "corner_features"
@@ -56,7 +57,7 @@ public:
   explicit MapWriter(const std::string& config_file);
 
   // Receives the occupancy grid map and writes it to a xml file
-  bool writeToFile(OccupancyMap grid_map);
+  void writeToFile(OccupancyMap grid_map);
 
 private:
   // Opens a tag with a specified value

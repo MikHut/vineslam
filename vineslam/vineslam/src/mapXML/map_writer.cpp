@@ -10,7 +10,7 @@ MapWriter::MapWriter(const std::string& config_file)
   file_path         = config["grid_map"]["output_file"].as<std::string>();
 }
 
-bool MapWriter::writeToFile(OccupancyMap grid_map)
+void MapWriter::writeToFile(OccupancyMap grid_map)
 {
   // Create file
   std::ofstream xmlfile;
@@ -69,6 +69,8 @@ bool MapWriter::writeToFile(OccupancyMap grid_map)
                 << landmark.second.gauss.stdev.x << close(STDX) << ENDL;
         xmlfile << TAB << TAB << TAB << TAB << open(STDY)
                 << landmark.second.gauss.stdev.y << close(STDY) << ENDL;
+        xmlfile << TAB << TAB << TAB << TAB << open(ANGLE)
+                << landmark.second.gauss.theta << close(ANGLE) << ENDL;
         xmlfile << TAB << TAB << TAB << TAB << open(LABEL)
                 << landmark.second.info.character << close(LABEL) << ENDL;
         xmlfile << TAB << TAB << TAB << close(LTAG) << ENDL;
@@ -82,6 +84,8 @@ bool MapWriter::writeToFile(OccupancyMap grid_map)
         xmlfile << TAB << TAB << TAB << TAB << open(X_) << corner.pos.x << close(X_)
                 << ENDL;
         xmlfile << TAB << TAB << TAB << TAB << open(Y_) << corner.pos.y << close(Y_)
+                << ENDL;
+        xmlfile << TAB << TAB << TAB << TAB << open(Z_) << corner.pos.z << close(Z_)
                 << ENDL;
         xmlfile << TAB << TAB << TAB << TAB << open(PLANE) << corner.which_plane
                 << close(PLANE) << ENDL;
@@ -97,6 +101,8 @@ bool MapWriter::writeToFile(OccupancyMap grid_map)
                 << close(X_) << ENDL;
         xmlfile << TAB << TAB << TAB << TAB << open(Y_) << surf_feature.pos.y
                 << close(Y_) << ENDL;
+        xmlfile << TAB << TAB << TAB << TAB << open(Z_) << surf_feature.pos.z
+                << close(Z_) << ENDL;
         xmlfile << TAB << TAB << TAB << TAB << open(U_) << surf_feature.u
                 << close(U_) << ENDL;
         xmlfile << TAB << TAB << TAB << TAB << open(V_) << surf_feature.v

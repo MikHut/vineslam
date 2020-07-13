@@ -74,9 +74,9 @@ private:
   // Publish the 3D maps
   void publish3DMap();
   // Publish the 3D PCL planes map
-  void publish3DMap(const Plane& plane, const ros::Publisher& pub);
+  static void publish3DMap(const Plane& plane, const ros::Publisher& pub);
   // Publish a 3D PCL corners map
-  void publish3DMap(const std::vector<Corner>& corners, const ros::Publisher& pub);
+  static void publish3DMap(const std::vector<Corner>& corners, const ros::Publisher& pub);
   // Publish the grid map that contains all the maps
   void publishGridMap(const std_msgs::Header& header);
 

@@ -8,7 +8,7 @@ system:
   gps_datum:
     lat: 41.205517 # initial gps latitude
     long: -8.3073515 # initial gps longiture
-    head: 0. # initial gps heading (yaw - radians)
+    head: 0. # this is estimated online
 
 # Camera calibration info
 camera_info:
@@ -100,19 +100,15 @@ pf:
   sigma_pitch: 2.5 # degrees
   sigma_yaw: 1.0 # degrees (just for initialization)
 
-  ## -- Weights calculation -- #
-  ## This is a multi-modal weight calculation
-  ## To normalize the weight of each modality, the sum of all of them is maximum 1
-  ## --> Inter-normalization
-  semantic_norm: 0.4
-  corners_norm: 0.2
-  ground_norm: 0.4
-  gps_norm: 0.4
-  ## --> Intra-normalization (standard deviations of each gaussian)
-  sigma_ground_z: 0.08 # meters (derivative)
+  ## --- PARTICLES UPDATE -- #
+  ## Standard deviations
   sigma_ground_rp: 1.0 # degrees
   sigma_landmark_matching: 0.1 # meters
   sigma_feature_matching: 0.4 # meters
   sigma_corner_matching: 0.1 # meters
   sigma_gps: 0.2 # meters
+  ## Image feature map layer
+  k_clusters: 10
+  k_iterations: 20
+
 ...

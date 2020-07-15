@@ -3,6 +3,9 @@ project(vineslam_ros)
 
 add_compile_options(-std=c++11)
 
+# System flags
+add_definitions(-DDEBUG)
+
 find_package(catkin REQUIRED
         vineslam
         agrob_map_transform

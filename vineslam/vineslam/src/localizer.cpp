@@ -16,7 +16,10 @@ Localizer::Localizer(const std::string& config_path)
   cx                = config["camera_info"]["cx"].as<float>();
   cy                = config["camera_info"]["cy"].as<float>();
   n_particles       = config["pf"]["n_particles"].as<int>();
+  k_clusters        = config["pf"]["k_clusters"].as<int>();
   num_threads       = config["system"]["num_threads"].as<int>();
+
+  it = 0;
 }
 
 void Localizer::init(const pose& initial_pose)
@@ -113,10 +116,21 @@ void Localizer::process(const pose&         odom,
     t3.join();
     t4.join();
   }
+
   // ------------------------------------------------------------------------------
   // ---------------- Normalize particle weights
   // ------------------------------------------------------------------------------
   pf->normalizeWeights();
+
+  // ------------------------------------------------------------------------------
+  // ---------------- Cluster particles
+  // ------------------------------------------------------------------------------
+  std::map<int, Gaussian<pose, pose>> gauss_map;
+  pf->cluster(gauss_map);
+#ifdef TEST
+  saveParticleClusters(pf->particles, k_clusters, it);
+#endif
+
   // ------------------------------------------------------------------------------
   // ---------------- Resample particles
   // ------------------------------------------------------------------------------
@@ -126,6 +140,8 @@ void Localizer::process(const pose&         odom,
   std::vector<pose> poses;
   for (const auto& particle : pf->particles) poses.push_back(particle.p);
   average_pose = pose(poses);
+
+  it++;
 
   // - Save current control to use in the next iteration
   pf->p_odom = odom;

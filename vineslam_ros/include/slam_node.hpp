@@ -40,8 +40,6 @@
 #include <agrob_map_transform/GetPose.h>
 #include <agrob_map_transform/SetDatum.h>
 
-#define DEBUG 1
-
 namespace vineslam
 {
 class SLAMNode

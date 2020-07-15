@@ -25,13 +25,10 @@ PF::PF(const std::string& config_path,
   sigma_landmark_matching = config["pf"]["sigma_landmark_matching"].as<float>();
   sigma_feature_matching  = config["pf"]["sigma_feature_matching"].as<float>();
   sigma_corner_matching   = config["pf"]["sigma_corner_matching"].as<float>();
-  sigma_ground_z          = config["pf"]["sigma_ground_z"].as<float>();
   sigma_ground_rp = config["pf"]["sigma_ground_rp"].as<float>() * DEGREE_TO_RAD;
   sigma_gps       = config["pf"]["sigma_gps"].as<float>();
-  semantic_norm   = config["pf"]["semantic_norm"].as<float>();
-  corners_norm    = config["pf"]["corners_norm"].as<float>();
-  ground_norm     = config["pf"]["ground_norm"].as<float>();
-  gps_norm        = config["pf"]["gps_norm"].as<float>();
+  k_clusters      = config["pf"]["k_clusters"].as<int>();
+  k_iterations    = config["pf"]["k_iterations"].as<int>();
   n_particles     = m_n_particles;
 
   // Initialize normal distributions
@@ -51,12 +48,11 @@ PF::PF(const std::string& config_path,
     // Compute initial weight of each particle
     float weight = 1.;
     // Insert the particle into the particles array
-    particles[i] = Particle(i, m_pose, pose(0., 0., 0., 0., 0., 0.), weight);
+    particles[i] = Particle(i, m_pose, weight);
   }
 
   // Set last iteration vars
-  p_odom              = initial_pose;
-  last_ground_plane_z = 0.;
+  p_odom = initial_pose;
 }
 
 void PF::motionModel(const pose& odom)
@@ -100,8 +96,6 @@ void PF::motionModel(const pose& odom)
     dt_pose.pitch = -sampleGaussian(sigma_pitch);
     dt_pose.yaw   = s_rot_a + s_rot_b; //+ sampleGaussian(0.0005);
 
-    // Save last pose before inovation
-    particle.last_p = particle.p;
     // Innovate particles using the odometry motion model
     particle.p.x += dt_pose.x;
     particle.p.y += dt_pose.y;
@@ -114,7 +108,8 @@ void PF::motionModel(const pose& odom)
   p_odom = odom;
 }
 
-void PF::update(const int& xmin, const int& xmax,
+void PF::update(const int&                          xmin,
+                const int&                          xmax,
                 const std::vector<SemanticFeature>& landmarks,
                 const std::vector<Corner>&          corners,
                 const Plane&                        ground_plane,
@@ -195,7 +190,7 @@ void PF::update(const int& xmin, const int& xmax,
 
   // Loop over all particles
   for (int i = xmin; i < xmax; i++) {
-    Particle &particle = particles[i];
+    Particle& particle = particles[i];
     // Convert particle orientation to rotation matrix
     pose m_pose  = particle.p;
     m_pose.roll  = 0.;
@@ -363,24 +358,19 @@ void PF::update(const int& xmin, const int& xmax,
   float ground_max = *std::max_element(ground_weights.begin(), ground_weights.end());
   float gps_max    = *std::max_element(gps_weights.begin(), gps_weights.end());
   for (int i = xmin; i < xmax; i++) {
-    Particle &particle = particles[i];
-    float m_lw = (semantic_max > 0.)
-                     ? semantic_weights[particle.id] //* semantic_norm / semantic_max
-                     : static_cast<float>(1.);
-    float m_cw = (corners_max > 0.)
-                     ? corners_weights[particle.id] //* corners_norm / corners_max
-                     : static_cast<float>(1.);
-    float m_gw = (ground_max > 0.)
-                     ? ground_weights[particle.id] //* ground_norm / ground_max
-                     : static_cast<float>(1.);
-    float m_gpsw = (gps_max > 0.) ? gps_weights[particle.id] // * gps_norm / gps_max
-                                  : static_cast<float>(1.);
+    Particle& particle = particles[i];
+    float     m_lw =
+        (semantic_max > 0.) ? semantic_weights[particle.id] : static_cast<float>(1.);
+    float m_cw =
+        (corners_max > 0.) ? corners_weights[particle.id] : static_cast<float>(1.);
+    float m_gw =
+        (ground_max > 0.) ? ground_weights[particle.id] : static_cast<float>(1.);
+    float m_gpsw =
+        (gps_max > 0.) ? gps_weights[particle.id] : static_cast<float>(1.);
 
     particle.w = m_lw * m_cw * m_gw * m_gpsw;
     w_sum += particle.w;
   }
-
-  last_ground_plane_z = pose_from_ground.z;
 }
 
 void PF::normalizeWeights()
@@ -427,5 +417,110 @@ void PF::resample()
     particles[j].w = particles[indexes[j]].w;
   }
 }
+
+void PF::cluster(std::map<int, Gaussian<pose, pose>>& gauss_map)
+{
+  // -------------------------------------------------------------------------------
+  // ------ (1) Initialize the clusters - kmean++
+  // ------ (1) from: https://www.geeksforgeeks.org/ml-k-means-algorithm/
+  // -------------------------------------------------------------------------------
+  // -- Select first centroid randomly
+  std::vector<pose> centroids;
+  int               n = particles.size();
+  srand(time(0)); // need to set the random seed
+  centroids.push_back(particles[rand() % n].p);
+  // -- Compute remaining k - 1 centroids
+  for (int i = 0; i < k_clusters - 1; i++) {
+    std::vector<float> min_dists;
+    for (const auto& particle : particles) {
+      // Find minimum distance to already computed centroid
+      float min_dist = std::numeric_limits<float>::max();
+      for (auto& centroid : centroids) {
+        float m_dist = particle.p.distance(centroid);
+        if (m_dist < min_dist) {
+          min_dist = m_dist;
+        }
+      }
+      min_dists.push_back(min_dist);
+    }
+    // Select data point with maximum distance as our next centroid
+    auto it  = std::max_element(min_dists.begin(), min_dists.end());
+    int  idx = std::distance(min_dists.begin(), it);
+    centroids.push_back(particles[idx].p);
+  }
+
+  for (int i = 0; i < k_iterations; i++) {
+    // -----------------------------------------------------------------------------
+    // ------ (2) Assign the particles to clusters
+    // -----------------------------------------------------------------------------
+    for (auto& particle : particles) {
+      float min_dist      = std::numeric_limits<float>::max();
+      int   which_cluster = 0;
+      for (int cluster = 0; cluster < k_clusters; cluster++) {
+        float m_dist = particle.p.distance(centroids[cluster]);
+        if (m_dist < min_dist) {
+          min_dist      = m_dist;
+          which_cluster = cluster;
+        }
+      }
+      particle.which_cluster = which_cluster;
+    }
+
+    // -----------------------------------------------------------------------------
+    // ------ (3) Re-compute the centroids
+    // -----------------------------------------------------------------------------
+    // TODO (André Aguiar): Consider the particles weight to compute the centroid
+    std::vector<int> num_per_cluster(k_clusters, 0);
+    for (const auto& particle : particles) {
+      centroids[particle.which_cluster].x += particle.p.x;
+      centroids[particle.which_cluster].y += particle.p.y;
+      centroids[particle.which_cluster].z += particle.p.z;
+
+      num_per_cluster[particle.which_cluster]++;
+    }
+
+    for (int j = 0; j < centroids.size(); j++) {
+      if (num_per_cluster[j] == 0) {
+        centroids[j] = pose(0., 0., 0., 0., 0., 0.);
+        continue;
+        ;
+      } else {
+        centroids[j].x /= num_per_cluster[j];
+        centroids[j].y /= num_per_cluster[j];
+        centroids[j].z /= num_per_cluster[j];
+      }
+    }
+  }
+
+  // -----------------------------------------------------------------------------
+  // ------ (4) Compute Gaussian approximation of each cluster
+  // -----------------------------------------------------------------------------
+  for (int cluster = 0; cluster < k_clusters; cluster++) {
+    pose centroid = centroids[cluster];
+    if (centroid.x == 0. && centroid.y == 0. && centroid.z == 0.) {
+      continue;
+    } else {
+      pose  stdev(0., 0., 0., 0., 0., 0.);
+      float n_pts = 0;
+      for (const auto& particle : particles) {
+        if (particle.which_cluster == cluster) {
+          stdev.x += ((particle.p.x - centroid.x) * (particle.p.x - centroid.x));
+          stdev.y += ((particle.p.y - centroid.y) * (particle.p.y - centroid.y));
+          stdev.z += ((particle.p.z - centroid.z) * (particle.p.z - centroid.z));
+
+          n_pts = n_pts + static_cast<float>(1.);
+        }
+      }
+      stdev.x = std::sqrt(stdev.x / n_pts);
+      stdev.y = std::sqrt(stdev.y / n_pts);
+      stdev.z = std::sqrt(stdev.z / n_pts);
+
+      Gaussian<pose, pose> m_gaussian(centroid, stdev);
+      gauss_map[cluster] = m_gaussian;
+    }
+  }
+}
+
+void PF::scanMatch() {}
 
 } // namespace vineslam

@@ -115,7 +115,7 @@ LocalizationNode::LocalizationNode(int argc, char** argv)
   ROS_INFO("ROS shutting down...");
 }
 
-LocalizationNode::~LocalizationNode() {}
+LocalizationNode::~LocalizationNode() = default;
 
 // --------------------------------------------------------------------------------
 // ----- Callbacks and observation functions
@@ -300,7 +300,7 @@ void LocalizationNode::publish3DMap()
     }
 
     for (const auto& corner : it.corner_features) {
-      pcl::PointXYZI m_pt(corner.which_plane);
+      pcl::PointXYZI m_pt(static_cast<float>(corner.which_plane));
       m_pt.x = corner.pos.x;
       m_pt.y = corner.pos.y;
       m_pt.z = corner.pos.z;

@@ -56,12 +56,6 @@ private:
   // Function that calculates the current observations covariance matrix
   void computeR(const VectorXf& s, const VectorXf& g, const VectorXf& z);
 
-  // Auxiliar function that normalizes an angle in the [-pi,pi] range
-  static float normalizeAngle(const float& angle)
-  {
-    return std::atan2(std::sin(angle), std::cos(angle));
-  }
-
   // Calculates the disparity error using the disparity noise model
   float dispError(const float& depth) const
   {

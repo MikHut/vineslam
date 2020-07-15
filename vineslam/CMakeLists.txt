@@ -2,21 +2,28 @@ cmake_minimum_required(VERSION 2.8.3)
 project(vineslam)
 
 add_compile_options(-std=c++11)
+add_definitions(-DTEST)
 
 find_package(catkin REQUIRED)
 
 set("OpenCV_DIR" /usr/local/include/opencv2)
 find_package(OpenCV 3.2.0 REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(PythonLibs 2.7)
 
 catkin_package(
-        INCLUDE_DIRS ${PROJECT_NAME}/src ${PROJECT_NAME}/src/math
+        INCLUDE_DIRS
+        ${PROJECT_NAME}/src
+        ${PROJECT_NAME}/src/math
+        ${PROJECT_NAME}/src/mapXML
+        ${PROJECT_NAME}/src/utils
         LIBRARIES vineslam
 )
 
 include_directories(
         ${PROJECT_NAME}/src
         ${catkin_INCLUDE_DIRS}
+        ${PYTHON_INCLUDE_DIRS}
 )
 
 add_library(vineslam
@@ -33,7 +40,8 @@ add_library(vineslam
 target_link_libraries(vineslam
         ${catkin_LIBRARIES}
         ${Eigen3_LIBRARIES}
-        ${OpenCV_LIBRARIES})
+        ${OpenCV_LIBRARIES}
+        ${PYTHON_LIBRARIES})
 
 install(TARGETS vineslam
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

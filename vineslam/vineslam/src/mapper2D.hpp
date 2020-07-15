@@ -85,12 +85,6 @@ private:
   // already mapped
   static std::pair<int, point> findCorr(const point& l_pos, OccupancyMap& grid_map);
 
-  // Auxiliar function that normalizes an angle in the [-pi,pi] range
-  static float normalizeAngle(const float& angle)
-  {
-    return static_cast<float>(std::fmod(angle + M_PI, 2 * M_PI) - M_PI);
-  }
-
   // Auxiliar function that the disparity error using the disparity
   // noise model
   float dispError(const float& depth) const

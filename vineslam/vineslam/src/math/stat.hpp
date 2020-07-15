@@ -14,34 +14,23 @@ struct Covariance {
   // Main constructor
   Covariance(const float& m_xx,
              const float& m_yy,
-             const float& m_tt,
-             const float& m_xy,
-             const float& m_xt,
-             const float& m_yt)
+             const float& m_zz,
+             const float& m_rr,
+             const float& m_pp,
+             const float& m_ywyw)
   {
-    xx = m_xx;
-    xy = m_xy;
-    yy = m_yy;
-    tt = m_tt;
-    xy = m_xy;
-    xt = m_xt;
-    yt = m_yt;
+    xx   = m_xx;
+    yy   = m_yy;
+    zz   = m_zz;
+    rr   = m_rr;
+    pp   = m_pp;
+    ywyw = m_ywyw;
   }
 
   // Assignment operator
-  Covariance operator=(const Covariance& other)
-  {
-    xx = other.xx;
-    yy = other.yy;
-    tt = other.tt;
-    xy = other.xy;
-    xt = other.xt;
-    yt = other.yt;
+  Covariance& operator=(const Covariance& other) = default;
 
-    return *this;
-  }
-
-  float xx, yy, tt, xy, xt, yt;
+  float xx, yy, zz, rr, pp, ywyw;
 };
 
 // Gaussian uses a template for the covariance so that it can be
@@ -78,7 +67,7 @@ template <typename T1, typename T2> struct Gaussian {
 
   T1    mean;
   T2    stdev;
-  float theta; // TO USE IN REPRESENTATION: the angle of the corresponding ellipse
+  float theta{}; // TO USE IN REPRESENTATION: the angle of the corresponding ellipse
 };
 
 // Samples a zero mean Gaussian

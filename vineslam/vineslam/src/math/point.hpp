@@ -130,4 +130,4 @@ static std::ostream& operator<<(std::ostream& out, point const& p)
 {
   return out << '(' << p.x << ' ' << p.y << ' ' << p.z << ")\n";
 }
-}; // namespace vineslam
+} // namespace vineslam

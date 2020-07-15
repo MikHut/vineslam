@@ -7,6 +7,7 @@
 #include <math/point.hpp>
 #include <math/pose.hpp>
 #include <math/const.hpp>
+#include <utils/save_data.hpp>
 
 // std, eigen
 #include <iostream>
@@ -50,6 +51,8 @@ public:
   void getParticles(std::vector<pose>& in) const;
 
 private:
+  // Iteration number
+  int it;
   // Average particles pose
   pose average_pose;
   // Particle filter object
@@ -57,6 +60,7 @@ private:
   // Input parameters
   int   num_threads;
   int   n_particles;
+  int   k_clusters;
   float img_width;
   float img_height;
   float cam_height;
@@ -67,11 +71,5 @@ private:
 
   // Input parameters file name
   std::string config_path;
-
-  // Auxiliar function that normalizes an angle in the [-pi,pi] range
-  static float normalizeAngle(const float& angle)
-  {
-    return static_cast<float>(std::fmod(angle + M_PI, 2 * M_PI) - M_PI);
-  }
 };
 }; // namespace vineslam

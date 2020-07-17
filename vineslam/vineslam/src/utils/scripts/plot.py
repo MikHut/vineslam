@@ -15,25 +15,28 @@ def plotClustersFile(path):
 
     i = 0
     with open(path) as input_file:
+        print("Reading %s") % (path)
         for line in input_file:
             line = line.strip()
             numbers = line.split()
 
+            # Centroid
+            x_mean, y_mean, z_mean = float(numbers[0]), float(numbers[1]), float(numbers[2])
+            ax.scatter(x_mean, y_mean, z_mean, markers[i], s=100)
+
+            # Points
             x = []
             y = []
             z = []
-            for idx in range(1, len(numbers), 3):
+            for idx in range(3, len(numbers), 3):
                 x.append(float(numbers[idx + 0]))
                 y.append(float(numbers[idx + 1]))
                 z.append(float(numbers[idx + 2]))
 
             ax.scatter(x, y, z, markers[i])
-            ax.set_xlabel('X Label')
-            ax.set_ylabel('Y Label')
-            ax.set_zlabel('Z Label')
-
-            print(
-                '%d %d %d' % (len(x), len(y), len(z)))
+            ax.set_xlabel('X')
+            ax.set_ylabel('Y')
+            ax.set_zlabel('Z')
 
             i += 1
 

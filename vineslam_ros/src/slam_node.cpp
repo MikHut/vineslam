@@ -69,8 +69,8 @@ SLAMNode::SLAMNode(int argc, char** argv)
   message_filters::Subscriber<vision_msgs::Detection2DArray> detections_sub(
       nh, "/detections", 1);
   message_filters::TimeSynchronizer<sensor_msgs::Image,
-      sensor_msgs::Image,
-      vision_msgs::Detection2DArray>
+                                    sensor_msgs::Image,
+                                    vision_msgs::Detection2DArray>
       sync(left_image_sub, depth_image_sub, detections_sub, 10);
   sync.registerCallback(boost::bind(&SLAMNode::callbackFct, this, _1, _2, _3));
 
@@ -112,10 +112,10 @@ SLAMNode::SLAMNode(int argc, char** argv)
 
 SLAMNode::~SLAMNode()
 {
-  auto config = YAML::LoadFile(config_path);
-  bool save_map      = config["grid_map"]["save_map"].as<bool>();
+  auto config   = YAML::LoadFile(config_path);
+  bool save_map = config["grid_map"]["save_map"].as<bool>();
 
-  if(save_map) {
+  if (save_map) {
     std::cout << "Writing map to file ..." << std::endl;
     MapWriter mw(config_path);
     mw.writeToFile(*grid_map);
@@ -126,9 +126,9 @@ SLAMNode::~SLAMNode()
 // ----- Callbacks and observation functions
 // --------------------------------------------------------------------------------
 
-void SLAMNode::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
-                               const sensor_msgs::ImageConstPtr& depth_image,
-                               const vision_msgs::Detection2DArrayConstPtr& dets)
+void SLAMNode::callbackFct(const sensor_msgs::ImageConstPtr&            left_image,
+                           const sensor_msgs::ImageConstPtr&            depth_image,
+                           const vision_msgs::Detection2DArrayConstPtr& dets)
 {
   // Declaration of the arrays that will constitute the SLAM observations
   std::vector<int>   labels;
@@ -194,7 +194,9 @@ void SLAMNode::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
     std::vector<Corner> m_corners;
     Plane               m_ground_plane;
     mapper3D->localPCLMap(raw_depths, m_corners, m_ground_plane);
-    // MISSING feature 3D map
+    // - Compute 3D image features on robot's referential frame
+    std::vector<ImageFeature> m_surf_features;
+    mapper3D->localSurfMap(img, raw_depths, m_surf_features);
 
     // ------- Build observation structure to use in the localization
     Observation obsv;
@@ -205,19 +207,19 @@ void SLAMNode::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
       obsv.gps_pose = gps_pose;
     else
       obsv.gps_pose = pose(0., 0., 0., 0., 0., 0.);
-    // MISSING 3D image features
+    obsv.surf_features = m_surf_features;
 
     // ------- LOCALIZATION PROCEDURE ---------- //
     localizer->process(odom, obsv, *grid_map);
     robot_pose = localizer->getPose();
 
     // ------- MULTI-LAYER MAPPING ------------ //
-    // ---------------------------------------- //
     // - 2D high-level semantic map estimation
     mapper2D->process(robot_pose, m_landmarks, labels, *grid_map);
     // - 3D PCL corner map estimation
     mapper3D->globalCornerMap(m_corners, robot_pose, *grid_map);
-    // - MISSING 3D feature map ...
+    // - 3D image feature map estimation
+    mapper3D->globalSurfMap(m_surf_features, robot_pose, *grid_map);
     // ---------------------------------------- //
 
     // Convert robot pose to tf::Transform corresponding
@@ -399,12 +401,12 @@ void SLAMNode::callbackFct(const sensor_msgs::ImageConstPtr& left_image,
 }
 
 void SLAMNode::computeObsv(const sensor_msgs::Image& depth_img,
-                               const int&                xmin,
-                               const int&                ymin,
-                               const int&                xmax,
-                               const int&                ymax,
-                               float&                    depth,
-                               float&                    bearing) const
+                           const int&                xmin,
+                           const int&                ymin,
+                           const int&                xmax,
+                           const int&                ymax,
+                           float&                    depth,
+                           float&                    bearing) const
 {
   // Declare array with all the disparities computed
   auto* depths = (float*)(&(depth_img).data[0]);
@@ -511,8 +513,7 @@ void SLAMNode::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
   }
 }
 
-bool SLAMNode::getGNSSHeading(const pose&             gps_odom,
-                                  const std_msgs::Header& header)
+bool SLAMNode::getGNSSHeading(const pose& gps_odom, const std_msgs::Header& header)
 {
   float weight_max = 0.;
   if (datum_autocorrection_stage == 0) {
@@ -835,7 +836,8 @@ void SLAMNode::publish3DMap(const Plane& plane, const ros::Publisher& pub)
   pub.publish(cloud_out);
 }
 
-void SLAMNode::publish3DMap(const std::vector<Corner>& corners, const ros::Publisher& pub)
+void SLAMNode::publish3DMap(const std::vector<Corner>& corners,
+                            const ros::Publisher&      pub)
 {
   pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(
       new pcl::PointCloud<pcl::PointXYZI>);

@@ -128,8 +128,13 @@ void Localizer::process(const pose&         odom,
   std::map<int, Gaussian<pose, pose>> gauss_map;
   pf->cluster(gauss_map);
 #ifdef TEST
-  saveParticleClusters(pf->particles, k_clusters, it);
+  saveParticleClusters(gauss_map, pf->particles, k_clusters, it);
 #endif
+
+  // ------------------------------------------------------------------------------
+  // ---------------- Scan match
+  // ------------------------------------------------------------------------------
+//  pf->scanMatch(gauss_map, obsv.surf_features, grid_map);
 
   // ------------------------------------------------------------------------------
   // ---------------- Resample particles

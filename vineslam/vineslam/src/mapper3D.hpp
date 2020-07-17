@@ -89,7 +89,7 @@ private:
   // ---- 3D image feature map
   // -------------------------------------------------------------------------------
   // Perform feature extraction
-  void extractSurfFeatures(const cv::Mat& in, std::vector<ImageFeature>& out);
+  static void extractSurfFeatures(const cv::Mat& in, std::vector<ImageFeature>& out);
 
   // -------------------------------------------------------------------------------
   // ---- 3D pointcloud feature map

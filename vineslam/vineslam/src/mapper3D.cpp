@@ -95,22 +95,73 @@ void Mapper3D::globalSurfMap(const std::vector<ImageFeature>& features,
   std::array<float, 3> trans = {robot_pose.x, robot_pose.y, robot_pose.z};
 
   // ------ Insert features into the grid map
-  for (const auto& feature : features) {
+  for (const auto& image_feature : features) {
     // - First convert them to map's referential using the robot pose
-    ImageFeature m_feature = feature;
+    ImageFeature m_feature = image_feature;
 
     point m_pt;
-    m_pt.x = feature.pos.x * Rot[0] + feature.pos.y * Rot[1] +
-             feature.pos.z * Rot[2] + trans[0];
-    m_pt.y = feature.pos.x * Rot[3] + feature.pos.y * Rot[4] +
-             feature.pos.z * Rot[5] + trans[1];
-    m_pt.z = feature.pos.x * Rot[6] + feature.pos.y * Rot[7] +
-             feature.pos.z * Rot[8] + trans[2];
+    m_pt.x = image_feature.pos.x * Rot[0] + image_feature.pos.y * Rot[1] +
+             image_feature.pos.z * Rot[2] + trans[0];
+    m_pt.y = image_feature.pos.x * Rot[3] + image_feature.pos.y * Rot[4] +
+             image_feature.pos.z * Rot[5] + trans[1];
+    m_pt.z = image_feature.pos.x * Rot[6] + image_feature.pos.y * Rot[7] +
+             image_feature.pos.z * Rot[8] + trans[2];
 
     m_feature.pos = m_pt;
 
-    // - Then, insert the feature into the grid map
-    grid_map.insert(m_feature);
+    // - Then, look for correspondences in the local map
+    ImageFeature correspondence{};
+    float        best_correspondence = correspondence_threshold;
+    bool         found               = false;
+    for (const auto& m_image_feature : grid_map(m_pt.x, m_pt.y).surf_features) {
+      float dist_min = m_pt.distance(m_image_feature.pos);
+
+      if (dist_min < best_correspondence) {
+        correspondence      = m_image_feature;
+        best_correspondence = dist_min;
+        found               = true;
+      }
+    }
+
+    // Only search in the adjacent cells if we do not find in the source cell
+    if (!found) {
+      std::vector<Cell> adjacents;
+      grid_map.getAdjacent(m_pt.x, m_pt.y, 2, adjacents);
+      for (const auto& m_cell : adjacents) {
+        for (const auto& m_image_feature : m_cell.surf_features) {
+          float dist_min = m_pt.distance(m_image_feature.pos);
+          if (dist_min < best_correspondence) {
+            correspondence      = m_image_feature;
+            best_correspondence = dist_min;
+            found               = true;
+          }
+        }
+      }
+    }
+
+    // - Then, insert the image feature into the grid map
+    if (found) {
+      point        new_pt = (m_pt + correspondence.pos) / 2.;
+      ImageFeature new_image_feature(image_feature.u,
+                                     image_feature.v,
+                                     image_feature.r,
+                                     image_feature.g,
+                                     image_feature.b,
+                                     new_pt);
+      new_image_feature.laplacian = image_feature.laplacian;
+      new_image_feature.signature = image_feature.signature;
+      grid_map.update(correspondence, new_image_feature);
+    } else {
+      ImageFeature new_image_feature(image_feature.u,
+                                     image_feature.v,
+                                     image_feature.r,
+                                     image_feature.g,
+                                     image_feature.b,
+                                     m_pt);
+      new_image_feature.laplacian = image_feature.laplacian;
+      new_image_feature.signature = image_feature.signature;
+      grid_map.insert(new_image_feature);
+    }
   }
 }
 
@@ -126,7 +177,7 @@ void Mapper3D::extractSurfFeatures(const cv::Mat& in, std::vector<ImageFeature>&
   cv::Mat desc;
 
   // Perform feature extraction
-  auto surf = SURF::create(1800);
+  auto surf = SURF::create(3000);
   surf->detectAndCompute(in, cv::Mat(), kpts, desc);
 
   // Save features in the output array
@@ -422,8 +473,8 @@ bool Mapper3D::ransac(const Plane& in_plane, Plane& out_plane) const
   Eigen::MatrixXf covariance_mat = (centered_mat.adjoint() * centered_mat);
   // - 4rd: calculate eigenvectors and eigenvalues of the covariance matrix
   Eigen::SelfAdjointEigenSolver<Eigen::MatrixXf> eigen_solver(covariance_mat);
-  Eigen::VectorXf eigen_values  = eigen_solver.eigenvalues();
-  Eigen::MatrixXf eigen_vectors = eigen_solver.eigenvectors();
+  const Eigen::VectorXf& eigen_values  = eigen_solver.eigenvalues();
+  Eigen::MatrixXf        eigen_vectors = eigen_solver.eigenvectors();
 
   vector3D normal(
       eigen_vectors.col(0)[0], eigen_vectors.col(0)[1], eigen_vectors.col(0)[2]);

@@ -3,6 +3,7 @@
 // Include class objects
 #include <feature.hpp>
 #include <occupancy_map.hpp>
+#include <icp.hpp>
 #include <math/pose.hpp>
 #include <math/stat.hpp>
 #include <math/const.hpp>
@@ -70,7 +71,9 @@ public:
   // K-means based particle clustering
   void cluster(std::map<int, Gaussian<pose, pose>>& gauss_map);
   // Scan match on clustered particles
-  void scanMatch();
+  void scanMatch(const std::map<int, Gaussian<pose, pose>>& gauss_map,
+                 const std::vector<ImageFeature>&           features,
+                 const OccupancyMap&                        grid_map);
 
   // Last iteration vars
   pose p_odom;
@@ -82,6 +85,9 @@ public:
   std::vector<Particle> particles;
 
 private:
+  // Iterative closest point member
+  ICP *icp;
+
   // Input parameters file name
   std::string config_path;
   // Input numeric parameters

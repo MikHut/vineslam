@@ -54,7 +54,7 @@ grid_map:
   width: 150
   height: 50
   resolution: 0.25 # meters
-  metric: "descriptor"
+  metric: "euclidean"
   save_map: True
   output_file: "/home/andre-criis/map.xml"
   input_file: "/home/andre-criis/map.xml"
@@ -62,8 +62,8 @@ grid_map:
 
 # 3D map definitions
 map_3D:
-  max_range: 5.0 # meters
-  max_height: 1.2 # meters
+  max_range: 3.0 # meters
+  max_height: 2.0 # meters
   correspondence_threshold: 0.05 # meters
 
 # 2D semantic map definition
@@ -108,7 +108,7 @@ pf:
   sigma_corner_matching: 0.1 # meters
   sigma_gps: 0.2 # meters
   ## Image feature map layer
-  k_clusters: 10
+  k_clusters: 3
   k_iterations: 20
 
 ...

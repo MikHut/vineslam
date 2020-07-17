@@ -99,7 +99,7 @@ bool ICP::align(float& rms_error, std::vector<ImageFeature>& aligned)
 {
   // Set rotation to identity and translation to 0
   std::array<float, 9> m_R = {1., 0., 0., 0., 1., 0., 0., 0., 1.};
-  std::array<float, 3> m_t = {0., 0., 0.};
+  std::array<float, 3> m_t{};
 
   return align(m_R, m_t, rms_error, aligned);
 }

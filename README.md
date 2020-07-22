@@ -61,5 +61,4 @@ TODO
 
 ## Some results
 
-<img src="https://gitlab.inesctec.pt/agrob/vineslam/-/blob/master/docs/res1.gif" width="300"/>
-
+![](./docs/res1.gif)

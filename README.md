@@ -62,5 +62,5 @@ TODO
 ## Some results
 
 <p align="center">
-    <img src="https://gitlab.inesctec.pt/agrob/vineslam/blob/master/docs/res1.gif" width="500"/>
+    <img src="https://gitlab.inesctec.pt/agrob/vineslam/-/blob/master/docs/res1.gif" width="500"/>
 </p>

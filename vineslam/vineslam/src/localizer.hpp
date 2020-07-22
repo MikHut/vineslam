@@ -7,7 +7,6 @@
 #include <math/point.hpp>
 #include <math/pose.hpp>
 #include <math/const.hpp>
-#include <utils/save_data.hpp>
 
 // std, eigen
 #include <iostream>
@@ -51,17 +50,11 @@ public:
   void getParticles(std::vector<pose>& in) const;
 
 private:
-  // Iteration number
-  int it;
   // Average particles pose
   pose average_pose;
   // Particle filter object
   PF* pf{};
   // Input parameters
-  int   num_threads;
-  int   n_particles;
-  bool  use_icp;
-  int   k_clusters;
   float img_width;
   float img_height;
   float cam_height;

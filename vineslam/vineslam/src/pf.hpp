@@ -8,6 +8,7 @@
 #include <math/stat.hpp>
 #include <math/tf.hpp>
 #include <math/const.hpp>
+//#include <utils/save_data.hpp>
 
 // Include std members and yaml-cpp
 #include <cstdlib>
@@ -51,30 +52,21 @@ class PF
 public:
   // Class constructor
   // - initializes the total set of particles
-  PF(const std::string& config_path,
-     const pose&        initial_pose,
-     const int&         m_n_particles);
+  PF(const std::string& config_path, const pose& initial_pose);
 
   // Apply odometry motion model to all particles
   void motionModel(const pose& odom);
   // Update particles weights using the multi-layer map
-  void update(const int&                          xmin,
-              const int&                          xmax,
-              const std::vector<SemanticFeature>& landmarks,
+  void update(const std::vector<SemanticFeature>& landmarks,
               const std::vector<Corner>&          corners,
               const Plane&                        ground_plane,
+              const std::vector<ImageFeature>&    surf_features,
               const pose&                         gps_pose,
-              OccupancyMap                        grid_map);
+              const OccupancyMap&                        grid_map);
   // Normalize particles weights
   void normalizeWeights();
   // Resample particles
   void resample();
-  // K-means based particle clustering
-  void cluster(std::map<int, Gaussian<pose, pose>>& gauss_map);
-  // Scan match on clustered particles
-  void scanMatch(std::map<int, Gaussian<pose, pose>>& gauss_map,
-                 const std::vector<ImageFeature>&           features,
-                 const OccupancyMap&                        grid_map);
 
   // Last iteration vars
   pose p_odom;
@@ -86,15 +78,49 @@ public:
   std::vector<Particle> particles;
 
 private:
-  // Iterative closest point member
-  ICP* icp;
+  // Update functions
+  // - High level semantic features layer
+  void highLevel(const std::vector<SemanticFeature>& landmarks,
+                 OccupancyMap                        grid_map,
+                 std::vector<float>&                 ws);
+  // - Medium level corner features layer
+  void mediumLevelCorners(const std::vector<Corner>& corners,
+                          OccupancyMap               grid_map,
+                          std::vector<float>&        ws);
+  // - Medium level ground plane layer
+  void mediumLevelGround(const Plane& ground_plane, std::vector<float>& ws);
+  // - Low level image features layer
+  void lowLevel(const std::vector<ImageFeature>& surf_features,
+                const OccupancyMap&              grid_map,
+                std::vector<float>&              ws);
+  // -------- (Low level) K-means based particle clustering
+  void cluster(std::map<int, Gaussian<pose, pose>>& gauss_map);
+  // -------- (Low level) Scan match on clustered particles
+  void scanMatch(const std::vector<ImageFeature>&     features,
+                 const OccupancyMap&                  grid_map,
+                 std::map<int, Gaussian<pose, pose>>& gauss_map,
+                 std::vector<float>&                  ws);
+  // - GPS
+  void gps(const pose& gps_pose, std::vector<float>& ws);
+
+      // Iterative closest point member
+      ICP* icp;
+
+  // Iteration number
+  int n_it;
 
   // Input parameters file name
   std::string config_path;
   // Input numeric parameters
-  int   n_particles;
+  // - General parameters
+  bool  use_landmarks;
+  bool  use_corners;
+  bool  use_ground_plane;
   bool  use_icp;
+  bool  use_gps;
+  int   n_particles;
   float cam_pitch;
+  // - Innovation parameters
   float srr;
   float str;
   float stt;
@@ -104,13 +130,15 @@ private:
   float sigma_roll;
   float sigma_pitch;
   float sigma_yaw;
+  // - Update standard deviation of each layers
   float sigma_landmark_matching;
   float sigma_feature_matching;
   float sigma_corner_matching;
   float sigma_ground_rp;
   float sigma_gps;
-  int   k_clusters;
-  int   k_iterations;
+  // - Clustering parameters
+  int k_clusters;
+  int k_iterations;
 };
 
-}; // namespace vineslam
+} // namespace vineslam

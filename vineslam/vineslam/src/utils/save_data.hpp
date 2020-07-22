@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <pf.hpp>
 
 const std::string folder = "/home/andre-criis/Source/vineslam_data/";
 

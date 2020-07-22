@@ -76,11 +76,7 @@ bool ICP::align(TF tf, float& rms_error, std::vector<ImageFeature>& aligned)
   // Check if ICP produced a big step. If so, invalid iteration
   TF   tf_res(R, t);
   TF   tf_delta = tf.inverse() * tf_res;
-  pose original(tf.R, tf.t);
   pose delta_p(tf_delta.R, tf_delta.t);
-  std::cout << "ORIGINAL: " << original;
-  std::cout << "RESULT: " << pose(tf_res.R, tf_res.t);
-  std::cout << "DELTA: " << delta_p;
   if (std::fabs(delta_p.x) > 0.3 || std::fabs(delta_p.y) > 0.3 ||
       std::fabs(delta_p.z) > 0.3 || std::fabs(delta_p.roll) > 0.35 ||
       std::fabs(delta_p.pitch) > 0.35 || std::fabs(delta_p.yaw) > 0.35) {
@@ -189,7 +185,7 @@ bool ICP::step(Eigen::Matrix3f& m_R, Eigen::Vector3f& m_t, float& rms_error)
 
       // Store correspondences errors just for inliers
       // ----------------------------------------------
-     // - Euclidean/Descriptor distance
+      // - Euclidean/Descriptor distance
       dmean += min_dist;
       derrorvec.push_back(min_dist);
       // ----------------------------------------------

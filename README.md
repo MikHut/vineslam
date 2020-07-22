@@ -31,23 +31,11 @@ Follow the steps described in the [installation file](installation.md).
 
 ### Transforms
 
-* **cam2map** ([tf::Transform](http://docs.ros.org/jade/api/tf/html/c++/classtf_1_1Transform.html)) - camera to map dynamic transformation encoding the robot pose
-  relatively to the map
+TODO
 
 ### Parameters
 
-#### Detector
-
-To set the parameters of the Detector node, edit the `test/detector/launch/test.launch` file.
-
-* **/image_left**, left image topic from stereo camera (string)
-* **/image_depth**, depth image topic from stereo camera (string)
-* **/model_path**, path to the Edge TPU model
-* **/labels_path**, path to the object detection labels file
-
-#### vineslam
-
-To set the parameters of vineslam edit the file `vineslam/config/setup.yaml`.
+NOT FINISHED
 
 * **camera_info**:
   * baseline - stereo camera baseline (meters)
@@ -69,37 +57,9 @@ To set the parameters of vineslam edit the file `vineslam/config/setup.yaml`.
 
 ## How to run
 
-To run vineslam and visualize the 3D map using OctoMap create a launch file with the following format
+TODO
 
-```
-  <!-- slam node -->
-  <node pkg="vineslam_ros" type="vineslam_ros" name="vineslam_ros" output="screen">
-    <remap from="/image" to="/zed/zed_node/depth/depth_registered" />
-    <remap from="/detections" to="detections" />
-    <remap from="/odom" to="/husky_velocity_controller/odom" />
-    
-    <param name="/SLAMNode/config_path" value="$(find vineslam)/config/setup.yaml" />
-  </node>
+## Some results
 
-  <!-- octomap_server node -->
-  <node pkg="octomap_server" type="octomap_server_node" name="octomap_server">
-    <param name="resolution" value="0.05" />
-    <param name="frame_id" type="string" value="map" />
-    <param name="sensor_model/max_range" value="20.0" />
-    <remap from="cloud_in" to="/vineslam/map3D/raw" />   
-   </node>
-```
-
-## How to test
-
-If you want to test the system we provide a test case that uses a Coral USB Accelerator in
-the `test` folder.
-This folder contains:
-  * An Edge TPU API that performs object detection
-  * A `detector` node that uses this API and publishes the detections in the desired format
-
-We also provide a model suitable for vine trunk detection in the `test/edgetpu_cpp/model/`
-dir, that is loaded by the `detector` launch file.
-
-You can download several rosbags to test the system
-[here](www.vcriis01.inesctec.pt/datasets/DataSet/Romovi/aveleda_2020-01-16-11-agrob17.zip). 
+------------- |
+<img align="center" src="https://gitlab.inesctec.pt/agrob/agrobvslam/blob/master/docs/res1.gif" width="500"/>

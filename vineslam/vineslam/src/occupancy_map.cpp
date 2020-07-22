@@ -20,13 +20,15 @@ OccupancyMap::OccupancyMap(const std::string& config_path)
   m_gmap.resize(map_size);
 
   // Initialize number of features and landmarks
-  n_surf_features = 0;
-  n_landmarks     = 0;
+  n_surf_features   = 0;
+  n_landmarks       = 0;
+  n_corner_features = 0;
 }
 
 OccupancyMap::OccupancyMap(const OccupancyMap& grid_map)
 {
   this->m_gmap          = grid_map.m_gmap;
+  this->n_surf_features = grid_map.n_corner_features;
   this->n_surf_features = grid_map.n_surf_features;
   this->n_landmarks     = grid_map.n_landmarks;
   this->resolution      = grid_map.resolution;
@@ -431,7 +433,7 @@ bool OccupancyMap::findNearest(const ImageFeature& input,
 
           // Check validity of descriptors data
           if (desc.size() != m_desc.size()) {
-            std::cout << "WARNING (findNearest): source and target descriptor have "
+            std::cout << "WARNING (findNearest): source and target descriptors have "
                          "different size ... "
                       << std::endl;
             break;

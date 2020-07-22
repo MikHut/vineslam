@@ -65,12 +65,33 @@ struct pose {
   // Construct from set of poses
   explicit pose(const std::vector<pose>& poses)
   {
-    pose   mean(0., 0., 0., 0., 0., 0.);
-    point  stdev(0., 0., 0.);
+    pose  mean(0., 0., 0., 0., 0., 0.);
+    pose  mean_cos(0., 0., 0., 0., 0., 0.);
+    pose  mean_sin(0., 0., 0., 0., 0., 0.);
+    point stdev(0., 0., 0.);
+
+    auto n_poses = static_cast<float>(poses.size());
 
     // Calculate mean of all the robot poses
-    for (const auto& pose : poses) mean = mean + pose;
-    mean = mean / (float)poses.size();
+    // - for the orientations: Mean of circular quantities
+    //  (https://en.wikipedia.org/wiki/Mean_of_circular_quantities)
+    for (const auto& pose : poses) {
+      mean.x += pose.x;
+      mean.y += pose.y;
+      mean.z += pose.z;
+      mean_cos.roll += std::cos(pose.roll);
+      mean_sin.roll += std::sin(pose.roll);
+      mean_cos.pitch += std::cos(pose.pitch);
+      mean_sin.pitch += std::sin(pose.pitch);
+      mean_cos.yaw += std::cos(pose.yaw);
+      mean_sin.yaw += std::sin(pose.yaw);
+    }
+    mean.x /= n_poses;
+    mean.y /= n_poses;
+    mean.z /= n_poses;
+    mean.roll  = std::atan2(mean_sin.roll / n_poses, mean_cos.roll / n_poses);
+    mean.pitch = std::atan2(mean_sin.pitch / n_poses, mean_cos.pitch / n_poses);
+    mean.yaw   = std::atan2(mean_sin.yaw / n_poses, mean_cos.yaw / n_poses);
 
     // Calculate standard deviation of all the robot positions
     for (const auto& pose : poses) {
@@ -96,16 +117,16 @@ struct pose {
       yaw = 0.;
 
       if (Rot[6] < 0.) {
-        roll  = atan2(Rot[1], Rot[2]);
+        roll  = std::atan2(Rot[1], Rot[2]);
         pitch = M_PI / 2.;
       } else {
-        roll  = atan2(-Rot[1], -Rot[2]);
+        roll  = std::atan2(-Rot[1], -Rot[2]);
         pitch = -M_PI / 2.;
       }
     } else {
-      pitch = -asin(Rot[6]);
-      roll  = atan2(Rot[7] / cos(pitch), Rot[8] / cos(pitch));
-      yaw   = atan2(Rot[3] / cos(pitch), Rot[0] / cos(pitch));
+      pitch = -std::asin(Rot[6]);
+      roll  = std::atan2(Rot[7] / std::cos(pitch), Rot[8] / std::cos(pitch));
+      yaw   = std::atan2(Rot[3] / std::cos(pitch), Rot[0] / std::cos(pitch));
     }
     // -------------------------------------------
     // ------------ Translation vector to x, y, z
@@ -189,8 +210,8 @@ struct pose {
   }
 
   // 2D and 3D norms of the pose
-  float norm2D() { return std::sqrt(x * x + y * y); }
-  float norm3D() { return std::sqrt(x * x + y * y + z * z); }
+  float norm2D() const { return std::sqrt(x * x + y * y); }
+  float norm3D() const { return std::sqrt(x * x + y * y + z * z); }
 
   // Set gaussian noise characterizing the robot pose
   void setDist(const Gaussian<point, point>& other) { dist = other; }
@@ -207,7 +228,7 @@ struct pose {
     float dist_x = x - other.x;
     float dist_y = y - other.y;
     float dist_z = z - other.z;
-    return sqrt(dist_x * dist_x + dist_y * dist_y + dist_z * dist_z);
+    return std::sqrt(dist_x * dist_x + dist_y * dist_y + dist_z * dist_z);
   }
 
   // 2D euclidean distance
@@ -215,18 +236,18 @@ struct pose {
   {
     float dist_x = x - other.x;
     float dist_y = y - other.y;
-    return sqrt(dist_x * dist_x + dist_y * dist_y);
+    return std::sqrt(dist_x * dist_x + dist_y * dist_y);
   }
 
   // Convert pose Euler angles to a Rotation matrix
   void toRotMatrix(std::array<float, 9>& m_rot) const
   {
-    float ci = cos(roll);
-    float cj = cos(pitch);
-    float ch = cos(yaw);
-    float si = sin(roll);
-    float sj = sin(pitch);
-    float sh = sin(yaw);
+    float ci = std::cos(roll);
+    float cj = std::cos(pitch);
+    float ch = std::cos(yaw);
+    float si = std::sin(roll);
+    float sj = std::sin(pitch);
+    float sh = std::sin(yaw);
     float cc = ci * ch;
     float cs = ci * sh;
     float sc = si * ch;
@@ -276,8 +297,6 @@ struct pose {
 static std::ostream& operator<<(std::ostream& out, pose const& p)
 {
   return out << "Pose (" << p.x << ' ' << p.y << ' ' << p.z << ' ' << p.roll << ' '
-             << p.pitch << ' ' << p.yaw << ")\n"
-             << "Distribution: (" << p.dist.stdev.x << ' ' << p.dist.stdev.y
-             << ")\n";
+             << p.pitch << ' ' << p.yaw << ")\n";
 }
-}; // namespace vineslam
+} // namespace vineslam

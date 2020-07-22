@@ -6,9 +6,11 @@ system:
   publish_odom: True # if true, vineslam publishes its localization also in a odometry msg
   use_gps: True
   gps_datum:
+#    lat: 41.2055128333 # initial gps latitude
     lat: 41.205517 # initial gps latitude
+#    long: -8.30738533333 # initial gps longiture
     long: -8.3073515 # initial gps longiture
-    head: 0. # initial gps heading (yaw - radians)
+    head: 0. # this is estimated online
 
 # Camera calibration info
 camera_info:
@@ -30,6 +32,7 @@ camera_info:
 # - supported types: SURF
 image_feature:
   type: "SURF"
+  hessian_threshold: 2000
 
 # 3D cloud feature extraction settings
 cloud_feature:
@@ -54,7 +57,7 @@ grid_map:
   width: 150
   height: 50
   resolution: 0.25 # meters
-  metric: "descriptor"
+  metric: "euclidean"
   save_map: True
   output_file: "/home/andre-criis/map.xml"
   input_file: "/home/andre-criis/map.xml"
@@ -62,9 +65,9 @@ grid_map:
 
 # 3D map definitions
 map_3D:
-  max_range: 5.0 # meters
-  max_height: 1.2 # meters
-  correspondence_threshold: 0.05 # meters
+  max_range: 4.0 # meters
+  max_height: 2.0 # meters
+  correspondence_threshold: 0.02 # meters
 
 # 2D semantic map definition
 map_semantic:
@@ -81,18 +84,19 @@ map_semantic:
 ICP:
   max_iters: 20
   tolerance: 0.0001
-  distance_threshold: 0.08
+  distance_threshold: 0.03
   reject_outliers: "True"
 
 
 # Particle filter:
 pf:
   n_particles: 500 # number of particles
+  use_icp: True
 
   ## --- PARTICLES INOVATION -- #
-  srr: 0.005 # rotation - rotation (rad / rad)
+  srr: 0.0001 # rotation - rotation (rad / rad)
   srt: 0.01 # rotation - translation (rad / meter)
-  str: 0.008 # translation - rotation (meter / rad)
+  str: 0.001 # translation - rotation (meter / rad)
   stt: 0.2 # translation - translation (meter / meter)
   sigma_xy: 0.15 # meters (just for initialization)
   sigma_z: 0.01 # meters
@@ -100,19 +104,15 @@ pf:
   sigma_pitch: 2.5 # degrees
   sigma_yaw: 1.0 # degrees (just for initialization)
 
-  ## -- Weights calculation -- #
-  ## This is a multi-modal weight calculation
-  ## To normalize the weight of each modality, the sum of all of them is maximum 1
-  ## --> Inter-normalization
-  semantic_norm: 0.4
-  corners_norm: 0.2
-  ground_norm: 0.4
-  gps_norm: 0.4
-  ## --> Intra-normalization (standard deviations of each gaussian)
-  sigma_ground_z: 0.08 # meters (derivative)
+  ## --- PARTICLES UPDATE -- #
+  ## Standard deviations
   sigma_ground_rp: 1.0 # degrees
   sigma_landmark_matching: 0.1 # meters
   sigma_feature_matching: 0.4 # meters
   sigma_corner_matching: 0.1 # meters
   sigma_gps: 0.2 # meters
+  ## Image feature map layer
+  # -- K-means
+  k_clusters: 5
+  k_iterations: 20
 ...

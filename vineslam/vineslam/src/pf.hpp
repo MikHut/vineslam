@@ -3,8 +3,10 @@
 // Include class objects
 #include <feature.hpp>
 #include <occupancy_map.hpp>
+#include <icp.hpp>
 #include <math/pose.hpp>
 #include <math/stat.hpp>
+#include <math/tf.hpp>
 #include <math/const.hpp>
 
 // Include std members and yaml-cpp
@@ -31,20 +33,13 @@ struct Particle {
     (*this).w  = w;
   }
 
-  Particle(const int& id, const pose& p, const pose& last_p, const float& w)
-  {
-    (*this).id     = id;
-    (*this).p      = p;
-    (*this).last_p = last_p;
-    (*this).w      = w;
-  }
-
   int   id{};
   pose  p;
-  pose  last_p;
   float w{};
+  int   which_cluster{};
 };
 
+// Print particle ...
 static std::ostream& operator<<(std::ostream& o, const Particle& p)
 {
   o << "Particle " << p.id << ":\n" << p.p << p.w << "\n\n";
@@ -74,10 +69,15 @@ public:
   void normalizeWeights();
   // Resample particles
   void resample();
+  // K-means based particle clustering
+  void cluster(std::map<int, Gaussian<pose, pose>>& gauss_map);
+  // Scan match on clustered particles
+  void scanMatch(std::map<int, Gaussian<pose, pose>>& gauss_map,
+                 const std::vector<ImageFeature>&           features,
+                 const OccupancyMap&                        grid_map);
 
   // Last iteration vars
-  float last_ground_plane_z;
-  pose  p_odom;
+  pose p_odom;
 
   // Particle weight sum
   float w_sum{};
@@ -85,16 +85,15 @@ public:
   // Particles
   std::vector<Particle> particles;
 
-  // Normalize an angle between -PI and PI
-  static float normalizeAngle(const float& angle)
-  {
-    return std::atan2(std::sin(angle), std::cos(angle));
-  }
-
 private:
+  // Iterative closest point member
+  ICP* icp;
+
   // Input parameters file name
   std::string config_path;
   // Input numeric parameters
+  int   n_particles;
+  bool  use_icp;
   float cam_pitch;
   float srr;
   float str;
@@ -108,14 +107,10 @@ private:
   float sigma_landmark_matching;
   float sigma_feature_matching;
   float sigma_corner_matching;
-  float sigma_ground_z;
   float sigma_ground_rp;
   float sigma_gps;
-  float semantic_norm;
-  float corners_norm;
-  float ground_norm;
-  float gps_norm;
-  int   n_particles;
+  int   k_clusters;
+  int   k_iterations;
 };
 
 }; // namespace vineslam

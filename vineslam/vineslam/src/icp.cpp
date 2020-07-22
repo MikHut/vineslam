@@ -25,10 +25,7 @@ ICP::ICP(const std::string& config_path)
   t = {0., 0., 0.};
 }
 
-bool ICP::align(const std::array<float, 9>& m_R,
-                const std::array<float, 3>& m_t,
-                float&                      rms_error,
-                std::vector<ImageFeature>&  aligned)
+bool ICP::align(TF tf, float& rms_error, std::vector<ImageFeature>& aligned)
 {
   if (source.empty()) {
     std::cout << "WARNING (ICP::align): source cloud empty. Returning first guess."
@@ -42,8 +39,8 @@ bool ICP::align(const std::array<float, 9>& m_R,
   // Initialize homogeneous transformation
   Eigen::Matrix3f Rot;
   Eigen::Vector3f trans;
-  stdToEig(m_R, Rot);
-  stdToEig(m_t, trans);
+  stdToEig(tf.R, Rot);
+  stdToEig(tf.t, trans);
 
   // Perform first iteration and save the error
   float p_rms_error;
@@ -76,6 +73,23 @@ bool ICP::align(const std::array<float, 9>& m_R,
   eigToStd(Rot, R);
   eigToStd(trans, t);
 
+  // Check if ICP produced a big step. If so, invalid iteration
+  TF   tf_res(R, t);
+  TF   tf_delta = tf.inverse() * tf_res;
+  pose original(tf.R, tf.t);
+  pose delta_p(tf_delta.R, tf_delta.t);
+  std::cout << "ORIGINAL: " << original;
+  std::cout << "RESULT: " << pose(tf_res.R, tf_res.t);
+  std::cout << "DELTA: " << delta_p;
+  if (std::fabs(delta_p.x) > 0.3 || std::fabs(delta_p.y) > 0.3 ||
+      std::fabs(delta_p.z) > 0.3 || std::fabs(delta_p.roll) > 0.35 ||
+      std::fabs(delta_p.pitch) > 0.35 || std::fabs(delta_p.yaw) > 0.35) {
+    std::cout << "WARNING ICP::align: Huge jump detected on ICP - considering "
+                 "iteration as invalid..."
+              << std::endl;
+    return false;
+  }
+
   // Compute aligned point cloud
   aligned.resize(source.size());
   for (size_t i = 0; i < aligned.size(); i++) {
@@ -99,9 +113,11 @@ bool ICP::align(float& rms_error, std::vector<ImageFeature>& aligned)
 {
   // Set rotation to identity and translation to 0
   std::array<float, 9> m_R = {1., 0., 0., 0., 1., 0., 0., 0., 1.};
-  std::array<float, 3> m_t = {0., 0., 0.};
+  std::array<float, 3> m_t{};
 
-  return align(m_R, m_t, rms_error, aligned);
+  TF tf(m_R, m_t);
+
+  return align(tf, rms_error, aligned);
 }
 
 bool ICP::step(Eigen::Matrix3f& m_R, Eigen::Vector3f& m_t, float& rms_error)
@@ -129,12 +145,10 @@ bool ICP::step(Eigen::Matrix3f& m_R, Eigen::Vector3f& m_t, float& rms_error)
   // Iterator that will count the number inliers
   int32_t nsamples = 0;
 
-  // Distance mean and standard deviation
-  float smean = 0., sstd = 0.; // spatial mean & stdev
-  float dmean = 0., dstd = 0.; // descriptor mean & stdev
+  // Mean and standard deviation
+  float dmean = 0., dstd = 0.;
   // Arrays to all the correspondences errors
-  serrorvec.clear(); // spatial error
-  derrorvec.clear(); // descriptor error
+  derrorvec.clear(); // clear error array
 
   for (const auto& m_feature : source) {
     // Convert feature into the target reference frame using current [R|t] solution
@@ -175,11 +189,7 @@ bool ICP::step(Eigen::Matrix3f& m_R, Eigen::Vector3f& m_t, float& rms_error)
 
       // Store correspondences errors just for inliers
       // ----------------------------------------------
-      // - Euclidean distance
-      float cdist = _ftransformed.pos.distance(_ftarget.pos);
-      smean += cdist;
-      serrorvec.push_back(cdist);
-      // - Descriptor distance
+     // - Euclidean/Descriptor distance
       dmean += min_dist;
       derrorvec.push_back(min_dist);
       // ----------------------------------------------
@@ -210,16 +220,12 @@ bool ICP::step(Eigen::Matrix3f& m_R, Eigen::Vector3f& m_t, float& rms_error)
 
   // Compute final means and standard deviations
   dmean /= static_cast<float>(nsamples);
-  smean /= static_cast<float>(nsamples);
   for (size_t i = 0; i < nsamples; i++) {
     dstd += (derrorvec[i] - dmean) * (derrorvec[i] - dmean);
-    sstd += (serrorvec[i] - smean) * (serrorvec[i] - smean);
   }
   dstd = static_cast<float>(std::sqrt(dstd / nsamples));
-  sstd = static_cast<float>(std::sqrt(sstd / nsamples));
   // Set output Gaussians
   dprob = Gaussian<float, float>(dmean, dstd);
-  sprob = Gaussian<float, float>(smean, sstd);
 
   // Compute pointwise difference in relation to the center of mass of each point
   // cloud
@@ -331,4 +337,5 @@ inline void ICP::eigToStd(const Eigen::Vector3f& trans, std::array<float, 3>& m_
   m_t[1] = trans(1, 0);
   m_t[2] = trans(2, 0);
 }
-}; // namespace vineslam
+
+} // namespace vineslam

@@ -6,6 +6,7 @@
 #include <icp.hpp>
 #include <math/pose.hpp>
 #include <math/stat.hpp>
+#include <math/tf.hpp>
 #include <math/const.hpp>
 
 // Include std members and yaml-cpp
@@ -71,7 +72,7 @@ public:
   // K-means based particle clustering
   void cluster(std::map<int, Gaussian<pose, pose>>& gauss_map);
   // Scan match on clustered particles
-  void scanMatch(const std::map<int, Gaussian<pose, pose>>& gauss_map,
+  void scanMatch(std::map<int, Gaussian<pose, pose>>& gauss_map,
                  const std::vector<ImageFeature>&           features,
                  const OccupancyMap&                        grid_map);
 
@@ -86,12 +87,13 @@ public:
 
 private:
   // Iterative closest point member
-  ICP *icp;
+  ICP* icp;
 
   // Input parameters file name
   std::string config_path;
   // Input numeric parameters
   int   n_particles;
+  bool  use_icp;
   float cam_pitch;
   float srr;
   float str;

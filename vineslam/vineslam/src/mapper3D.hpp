@@ -89,7 +89,7 @@ private:
   // ---- 3D image feature map
   // -------------------------------------------------------------------------------
   // Perform feature extraction
-  static void extractSurfFeatures(const cv::Mat& in, std::vector<ImageFeature>& out);
+  void extractSurfFeatures(const cv::Mat& in, std::vector<ImageFeature>& out);
 
   // -------------------------------------------------------------------------------
   // ---- 3D pointcloud feature map
@@ -139,7 +139,9 @@ private:
   // 3D map parameters
   float       max_range;
   float       max_height;
+  std::string metric;
   std::string fdetector;
+  int         hessian_threshold;
   // 3D cloud feature parameters
   float correspondence_threshold;
   int   downsample_f;

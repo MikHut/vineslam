@@ -6,6 +6,7 @@
 #include <math/point.hpp>
 #include <math/pose.hpp>
 #include <math/stat.hpp>
+#include <math/tf.hpp>
 #include <occupancy_map.hpp>
 #include <feature.hpp>
 
@@ -17,13 +18,10 @@ class ICP
 public:
   // Class contructor:
   // - sets the default stop criteria parameters
-  ICP(const std::string& config_path);
+  explicit ICP(const std::string& config_path);
 
   // ICP main routine - aligns two point clouds
-  bool align(const std::array<float, 9>& m_R,
-             const std::array<float, 3>& m_t,
-             float&                      rms_error,
-             std::vector<ImageFeature>&  aligned);
+  bool align(TF tf, float& rms_error, std::vector<ImageFeature>& aligned);
   bool align(float& rms_error, std::vector<ImageFeature>& aligned);
 
   // Compute the rms error of the alignment between a source and the current target
@@ -55,29 +53,20 @@ public:
   }
 
   // Method to export the Gaussian distributions
-  void getProb(Gaussian<float, float>& m_sprob,
-               Gaussian<float, float>& m_dprob) const
-  {
-    m_sprob = sprob;
-    m_dprob = dprob;
-  }
+  void getProb(Gaussian<float, float>& m_dprob) const { m_dprob = dprob; }
 
   // Methods to export the errors arrays
-  void getErrors(std::vector<float>& serror, std::vector<float>& derror) const
-  {
-    serror = serrorvec;
-    derror = derrorvec;
-  }
+  void getErrors(std::vector<float>& derror) const { derror = derrorvec; }
 
 private:
   // Method that performs a single ICP step
   bool step(Eigen::Matrix3f& m_R, Eigen::Vector3f& m_t, float& rms_error);
 
   // Auxiliar functions to convert from std arrays to eigen and vice versa
-  inline void stdToEig(const std::array<float, 9>& m_R, Eigen::Matrix3f& Rot);
-  inline void stdToEig(const std::array<float, 3>& m_t, Eigen::Vector3f& trans);
-  inline void eigToStd(const Eigen::Matrix3f& Rot, std::array<float, 9>& m_R);
-  inline void eigToStd(const Eigen::Vector3f& trans, std::array<float, 3>& m_t);
+  static inline void stdToEig(const std::array<float, 9>& m_R, Eigen::Matrix3f& Rot);
+  static inline void stdToEig(const std::array<float, 3>& m_t, Eigen::Vector3f& trans);
+  static inline void eigToStd(const Eigen::Matrix3f& Rot, std::array<float, 9>& m_R);
+  static inline void eigToStd(const Eigen::Vector3f& trans, std::array<float, 3>& m_t);
 
   // Parameters:
   // - maximum number of iterations
@@ -98,15 +87,10 @@ private:
   std::array<float, 3> t;
 
   // Structure to store the correspondence errors resulting from the scan match
-  std::vector<float> serrorvec;
   std::vector<float> derrorvec;
 
   // Probabilistic setup of the last calculations
-  // - Gaussian representing the spatial alignment
-  // - Gaussian representing the feature descriptor matching (if using image
-  // descriptors)
-  Gaussian<float, float> sprob; // spatial Gaussian
   Gaussian<float, float> dprob; // descriptor Gaussian
 };
 
-}; // namespace vineslam
+} // namespace vineslam

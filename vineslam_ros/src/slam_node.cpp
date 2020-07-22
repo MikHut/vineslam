@@ -19,8 +19,10 @@ SLAMNode::SLAMNode(int argc, char** argv)
   ros::init(argc, argv, "SLAMNode");
   ros::NodeHandle nh;
 
-  // Set initialize flag default values
-  init = true;
+  // Set initialization flags default values
+  init      = true;
+  init_gps  = true;
+  init_odom = true;
 
   // Load params
   if (!nh.getParam("/slam_node/SLAMNode/config_path", config_path)) {
@@ -175,16 +177,26 @@ void SLAMNode::callbackFct(const sensor_msgs::ImageConstPtr&            left_ima
 
   std::vector<ImageFeature> m_imgfeatures;
 
-  if (init && bearings.size() > 1) {
+  if (init && !init_odom && !init_gps && bearings.size() > 1) {
     // Initialize the localizer and get first particles distribution
     localizer->init(pose(0, 0, 0, 0, 0, odom.yaw));
     robot_pose = localizer->getPose();
 
-    // Initialize the multi-layer map
+    // ---- Initialize the multi-layer map
+    // - 2D semantic feature map
     mapper2D->init(robot_pose, bearings, depths, labels, *grid_map);
+    // - 3D PCL corner map estimation
+    std::vector<Corner> m_corners;
+    Plane               m_ground_plane;
+    mapper3D->localPCLMap(raw_depths, m_corners, m_ground_plane);
+    mapper3D->globalCornerMap(m_corners, robot_pose, *grid_map);
+    // - 3D image feature map estimation
+    std::vector<ImageFeature> m_surf_features;
+    mapper3D->localSurfMap(img, raw_depths, m_surf_features);
+    mapper3D->globalSurfMap(m_surf_features, robot_pose, *grid_map);
 
     init = false;
-  } else if (!init) {
+  } else if (!init && !init_odom && !init_gps) {
 
     // --------- Build local maps to use in the localization
     // - Compute 2D local map of semantic features on robot's referential frame
@@ -456,11 +468,12 @@ void SLAMNode::odomListener(const nav_msgs::OdometryConstPtr& msg)
 
   // If it is the first iteration - initialize the Pose
   // relative to the previous frame
-  if (init) {
+  if (init_odom) {
     p_odom.x   = (*msg).pose.pose.position.x;
     p_odom.y   = (*msg).pose.pose.position.y;
     p_odom.yaw = yaw;
     odom       = vineslam::pose(0., 0., 0., 0., 0., yaw);
+    init_odom  = false;
     return;
   }
 
@@ -480,7 +493,7 @@ void SLAMNode::odomListener(const nav_msgs::OdometryConstPtr& msg)
 
 void SLAMNode::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
 {
-  if (init) {
+  if (init_gps) {
     has_converged = false;
 
     // Set initial datum
@@ -493,6 +506,8 @@ void SLAMNode::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
     tf::quaternionTFToMsg(quat, srv.request.geo_pose.orientation);
 
     set_datum.call(srv);
+
+    init_gps = false;
   }
 
   agrob_map_transform::GetPose srv;

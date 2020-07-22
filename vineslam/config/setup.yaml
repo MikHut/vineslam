@@ -6,7 +6,9 @@ system:
   publish_odom: True # if true, vineslam publishes its localization also in a odometry msg
   use_gps: True
   gps_datum:
+#    lat: 41.2055128333 # initial gps latitude
     lat: 41.205517 # initial gps latitude
+#    long: -8.30738533333 # initial gps longiture
     long: -8.3073515 # initial gps longiture
     head: 0. # this is estimated online
 
@@ -30,6 +32,7 @@ camera_info:
 # - supported types: SURF
 image_feature:
   type: "SURF"
+  hessian_threshold: 2000
 
 # 3D cloud feature extraction settings
 cloud_feature:
@@ -62,9 +65,9 @@ grid_map:
 
 # 3D map definitions
 map_3D:
-  max_range: 3.0 # meters
+  max_range: 4.0 # meters
   max_height: 2.0 # meters
-  correspondence_threshold: 0.05 # meters
+  correspondence_threshold: 0.02 # meters
 
 # 2D semantic map definition
 map_semantic:
@@ -81,18 +84,19 @@ map_semantic:
 ICP:
   max_iters: 20
   tolerance: 0.0001
-  distance_threshold: 0.08
+  distance_threshold: 0.03
   reject_outliers: "True"
 
 
 # Particle filter:
 pf:
   n_particles: 500 # number of particles
+  use_icp: True
 
   ## --- PARTICLES INOVATION -- #
-  srr: 0.005 # rotation - rotation (rad / rad)
+  srr: 0.0001 # rotation - rotation (rad / rad)
   srt: 0.01 # rotation - translation (rad / meter)
-  str: 0.008 # translation - rotation (meter / rad)
+  str: 0.001 # translation - rotation (meter / rad)
   stt: 0.2 # translation - translation (meter / meter)
   sigma_xy: 0.15 # meters (just for initialization)
   sigma_z: 0.01 # meters
@@ -108,7 +112,7 @@ pf:
   sigma_corner_matching: 0.1 # meters
   sigma_gps: 0.2 # meters
   ## Image feature map layer
-  k_clusters: 3
+  # -- K-means
+  k_clusters: 5
   k_iterations: 20
-
 ...

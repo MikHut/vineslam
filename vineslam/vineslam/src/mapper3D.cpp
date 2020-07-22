@@ -20,12 +20,14 @@ Mapper3D::Mapper3D(const std::string& config_path)
   auto depth_hfov = config["camera_info"]["depth_hfov"].as<float>() * DEGREE_TO_RAD;
   auto depth_vfov = config["camera_info"]["depth_vfov"].as<float>() * DEGREE_TO_RAD;
   // Load 3D map parameters
+  metric = config["grid_map"]["metric"].as<std::string>();
   correspondence_threshold =
       config["map_3D"]["correspondence_threshold"].as<float>();
   max_range  = config["map_3D"]["max_range"].as<float>();
   max_height = config["map_3D"]["max_height"].as<float>();
   // Feature detector
-  fdetector = config["image_feature"]["type"].as<std::string>();
+  hessian_threshold = config["image_feature"]["hessian_threshold"].as<int>();
+  fdetector         = config["image_feature"]["type"].as<std::string>();
   // Load pointcloud feature parameters
   downsample_f = config["cloud_feature"]["downsample_factor"].as<int>();
   planes_th    = config["cloud_feature"]["planes_theta"].as<float>() * DEGREE_TO_RAD;
@@ -148,8 +150,10 @@ void Mapper3D::globalSurfMap(const std::vector<ImageFeature>& features,
                                      image_feature.g,
                                      image_feature.b,
                                      new_pt);
-      new_image_feature.laplacian = image_feature.laplacian;
-      new_image_feature.signature = image_feature.signature;
+      if (metric != "euclidean") {
+        new_image_feature.laplacian = image_feature.laplacian;
+        new_image_feature.signature = image_feature.signature;
+      }
       grid_map.update(correspondence, new_image_feature);
     } else {
       ImageFeature new_image_feature(image_feature.u,
@@ -158,8 +162,10 @@ void Mapper3D::globalSurfMap(const std::vector<ImageFeature>& features,
                                      image_feature.g,
                                      image_feature.b,
                                      m_pt);
-      new_image_feature.laplacian = image_feature.laplacian;
-      new_image_feature.signature = image_feature.signature;
+      if (metric != "euclidean") {
+        new_image_feature.laplacian = image_feature.laplacian;
+        new_image_feature.signature = image_feature.signature;
+      }
       grid_map.insert(new_image_feature);
     }
   }
@@ -177,7 +183,7 @@ void Mapper3D::extractSurfFeatures(const cv::Mat& in, std::vector<ImageFeature>&
   cv::Mat desc;
 
   // Perform feature extraction
-  auto surf = SURF::create(3000);
+  auto surf = SURF::create(hessian_threshold);
   surf->detectAndCompute(in, cv::Mat(), kpts, desc);
 
   // Save features in the output array

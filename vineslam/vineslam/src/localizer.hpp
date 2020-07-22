@@ -60,6 +60,7 @@ private:
   // Input parameters
   int   num_threads;
   int   n_particles;
+  bool  use_icp;
   int   k_clusters;
   float img_width;
   float img_height;

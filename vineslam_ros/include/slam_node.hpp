@@ -155,8 +155,10 @@ private:
   float gps_init_long;
   float gps_init_head;
 
-  // Initialize flag
+  // Initialization flags
   bool init;
+  bool init_gps;
+  bool init_odom;
 };
 
 }; // namespace vineslam

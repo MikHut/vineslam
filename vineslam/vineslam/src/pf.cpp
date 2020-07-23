@@ -110,9 +110,9 @@ void PF::motionModel(const pose& odom)
     pose dt_pose;
     dt_pose.x     = s_trans * std::cos(normalizeAngle(particle.p.yaw + s_rot_a));
     dt_pose.y     = s_trans * std::sin(normalizeAngle(particle.p.yaw + s_rot_a));
-    dt_pose.z     = -sampleGaussian(sigma_z);
-    dt_pose.roll  = -sampleGaussian(sigma_roll);
-    dt_pose.pitch = -sampleGaussian(sigma_pitch);
+    dt_pose.z     = sampleGaussian(sigma_z);
+    dt_pose.roll  = sampleGaussian(sigma_roll);
+    dt_pose.pitch = sampleGaussian(sigma_pitch);
     dt_pose.yaw   = s_rot_a + s_rot_b;
 
     // Innovate particles using the odometry motion model
@@ -157,6 +157,7 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
   float corners_max =
       *std::max_element(corner_weights.begin(), corner_weights.end());
   float ground_max = *std::max_element(ground_weights.begin(), ground_weights.end());
+  float surf_max   = *std::max_element(surf_weights.begin(), surf_weights.end());
   float gps_max    = *std::max_element(gps_weights.begin(), gps_weights.end());
   for (auto& particle : particles) {
     float m_lw =
@@ -165,10 +166,15 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
         (corners_max > 0.) ? corner_weights[particle.id] : static_cast<float>(1.);
     float m_gw =
         (ground_max > 0.) ? ground_weights[particle.id] : static_cast<float>(1.);
+    float m_sw =
+        (surf_max > 0.) ? surf_weights[particle.id] : static_cast<float>(1.);
     float m_gpsw =
         (gps_max > 0.) ? gps_weights[particle.id] : static_cast<float>(1.);
 
-    particle.w = m_lw * m_cw * m_gw * m_gpsw;
+//    std::cout << "LANDMARKS: " << m_lw << ", CORNERS: " << m_cw
+//              << ", GROUND: " << m_gw << ", ICP: " << m_sw << ", GPS: " << m_gpsw
+//              << std::endl;
+    particle.w = m_lw * m_cw * m_gw * m_sw * m_gpsw;
     w_sum += particle.w;
   }
 }
@@ -197,10 +203,8 @@ void PF::highLevel(const std::vector<SemanticFeature>& landmarks,
   // Loop over all particles
   for (const auto& particle : particles) {
     // Convert particle orientation to rotation matrix
-    pose m_pose  = particle.p;
-    m_pose.roll  = 0.;
-    m_pose.pitch = 0.;
-    m_pose.z     = 0.;
+    pose m_pose = particle.p;
+    m_pose.z    = 0.;
     std::array<float, 9> Rot{};
     m_pose.toRotMatrix(Rot);
 
@@ -271,21 +275,16 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
                             std::vector<float>&        ws)
 {
   float normalizer_corner =
-      static_cast<float>(1.) / (sigma_feature_matching * std::sqrt(M_2PI));
+      static_cast<float>(1.) / (sigma_corner_matching * std::sqrt(M_2PI));
 
   // Loop over all particles
   for (const auto& particle : particles) {
-    // Convert particle orientation to rotation matrix
-    std::array<float, 9> Rot{};
-    particle.p.toRotMatrix(Rot);
-
     // ------------------------------------------------------
     // --- 3D corner map fitting
     // ------------------------------------------------------
-    Rot = {}; // clear rotation matrix to set for 3D estimation
+    std::array<float, 9> Rot{};
     particle.p.toRotMatrix(Rot);
     std::vector<float> dcornervec;
-//    std::cout << "PARTICLE " << particle.id << std::endl;
     for (const auto& corner : corners) {
       // Convert landmark to the particle's referential frame
       point X;
@@ -304,7 +303,7 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
         float dist_min = X.distance(m_corner.pos);
 
         if (dist_min < best_correspondence) {
-          dpos = m_corner.pos;
+          dpos                = m_corner.pos;
           best_correspondence = dist_min;
           found               = true;
         }
@@ -319,15 +318,17 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
           for (const auto& m_corner : m_cell.corner_features) {
             float dist_min = X.distance(m_corner.pos);
             if (dist_min < best_correspondence) {
-              dpos = m_corner.pos;
+              dpos                = m_corner.pos;
               best_correspondence = dist_min;
               found               = true;
             }
           }
         }
       }
-//      std::cout << "(" << corner.pos.x << "," << corner.pos.y << "," << corner.pos.z
-//                << ") -----> (" << dpos.x << "," << dpos.y << "," << dpos.z << ") : " << best_correspondence << std::endl;
+      //      std::cout << "(" << corner.pos.x << "," << corner.pos.y << "," <<
+      //      corner.pos.z
+      //                << ") -----> (" << dpos.x << "," << dpos.y << "," << dpos.z
+      //                << ") : " << best_correspondence << std::endl;
 
       // Save distance if a correspondence was found
       if (!found)
@@ -335,7 +336,7 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
       else
         dcornervec.push_back(best_correspondence);
     }
-//    std::cout << std::endl;
+    //    std::cout << std::endl;
 
     // - Corner feature matching [x, y, z, roll, pitch, yaw] weight
     float w_corners = 0.;
@@ -676,6 +677,9 @@ void PF::scanMatch(const std::vector<ImageFeature>&     features,
                    std::map<int, Gaussian<pose, pose>>& gauss_map,
                    std::vector<float>&                  ws)
 {
+  float normalizer_icp =
+      static_cast<float>(1.) / (sigma_feature_matching * std::sqrt(M_2PI));
+
   std::map<int, TF> tfs;
   // -------------------------------------------------------------------------------
   // ------- 3D scan matching using low level features
@@ -684,7 +688,8 @@ void PF::scanMatch(const std::vector<ImageFeature>&     features,
   icp->setInputTarget(grid_map);
   icp->setInputSource(features);
   // - Perform scan matching for each cluster
-  bool valid_it = true;
+  bool                 valid_it = true;
+  std::map<int, float> cluster_ws;
   for (auto& it : gauss_map) {
     // Convert cluster pose to [R|t]
     std::array<float, 3> trans = {
@@ -711,23 +716,22 @@ void PF::scanMatch(const std::vector<ImageFeature>&     features,
       m_tf.R = final_Rot;
       m_tf.t = final_trans;
 
+      //      final_tf = m_tf;
       final_tf = original_tf.inverse() * m_tf;
 
       // ---------------------------------------------------------------------------
       // ----------- Compute scan match weights
       // ---------------------------------------------------------------------------
-      // - Save scan matcher spatial and descriptor gaussian distribution
-      Gaussian<float, float> dprob{};
-      icp->getProb(dprob);
-
       // - Get the correspondences errors both spatial and for the descriptors
       std::vector<float> derror;
       icp->getErrors(derror);
 
       // - Prevent single correspondence - standard deviation = 0
       if (derror.size() <= 1) {
-        final_tf.R   = std::array<float, 9>{1., 0., 0., 0., 1., 0., 0., 0., 1.};
-        final_tf.t   = std::array<float, 3>{0., 0., 0.};
+        final_tf.R = std::array<float, 9>{1., 0., 0., 0., 1., 0., 0., 0., 1.};
+        final_tf.t = std::array<float, 3>{0., 0., 0.};
+        //        final_tf.R   = Rot;
+        //        final_tf.t   = trans;
         ws[it.first] = 0.;
         continue;
       }
@@ -735,20 +739,19 @@ void PF::scanMatch(const std::vector<ImageFeature>&     features,
       // - Compute weight
       float w = 0.;
       for (float j : derror) {
-        auto m_dprob =
-            static_cast<float>((1. / (std::sqrt(2. * M_PI) * dprob.stdev)) *
-                               exp(-j / (2. * M_PI * dprob.stdev * dprob.stdev)));
-
-        w += m_dprob;
+        w += static_cast<float>(normalizer_icp *
+                                exp(1. / sigma_feature_matching * j));
       }
 
-      ws[it.first] = w;
+      cluster_ws[it.first] = w;
+      valid_it             = true;
     } else {
       final_tf.R = std::array<float, 9>{1., 0., 0., 0., 1., 0., 0., 0., 1.};
       final_tf.t = std::array<float, 3>{0., 0., 0.};
+      //      final_tf.R = Rot;
+      //      final_tf.t = trans;
 
       ws[it.first] = 0.;
-      valid_it     = false;
     }
 
     // Get delta transform
@@ -772,7 +775,11 @@ void PF::scanMatch(const std::vector<ImageFeature>&     features,
 
       particle_tf = particle_tf * m_tf;
       particle.p  = pose(particle_tf.R, particle_tf.t);
+      //      particle.p = pose(m_tf.R, m_tf.t);
       particle.p.normalize();
+
+      // Update particle weight
+      ws[particle.id] = cluster_ws[particle.which_cluster];
     }
   }
 }

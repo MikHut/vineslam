@@ -6,9 +6,9 @@ system:
   # - Define system inputs
   use_ground_plane: False
   use_landmarks: False
-  use_corners: True
-  use_icp: False
-  use_gps: True
+  use_corners: False
+  use_icp: True
+  use_gps: False
   # ---------------------
   gps_datum:
 #    lat: 41.2054771667 # initial gps latitude (larger)
@@ -72,7 +72,7 @@ grid_map:
 
 # 3D map definitions
 map_3D:
-  max_range: 3.0 # meters
+  max_range: 5.0 # meters
   max_height: 2.0 # meters
   correspondence_threshold: 0.02 # meters
 
@@ -106,16 +106,16 @@ pf:
   stt: 0.2 # translation - translation (meter / meter)
   sigma_xy: 0.15 # meters (just for initialization)
   sigma_z: 0.01 # meters
-  sigma_roll: 2.5 # degrees
-  sigma_pitch: 2.5 # degrees
+  sigma_roll: 0.5 # degrees
+  sigma_pitch: 0.5 # degrees
   sigma_yaw: 1.0 # degrees (just for initialization)
+  sigma_ground_rp: 1.0 # degrees
 
   ## --- PARTICLES UPDATE -- #
   ## Standard deviations
-  sigma_ground_rp: 1.0 # degrees
   sigma_landmark_matching: 0.1 # meters
-  sigma_feature_matching: 0.4 # meters
-  sigma_corner_matching: 0.1 # meters
+  sigma_feature_matching: 0.05 # meters
+  sigma_corner_matching: 0.005 # meters
   sigma_gps: 0.2 # meters
   ## Image feature map layer
   # -- K-means

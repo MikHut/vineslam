@@ -214,15 +214,6 @@ bool ICP::step(Eigen::Matrix3f& m_R, Eigen::Vector3f& m_t, float& rms_error)
   target_mean /= static_cast<float>(nsamples);
   source_mean /= static_cast<float>(nsamples);
 
-  // Compute final means and standard deviations
-  dmean /= static_cast<float>(nsamples);
-  for (size_t i = 0; i < nsamples; i++) {
-    dstd += (derrorvec[i] - dmean) * (derrorvec[i] - dmean);
-  }
-  dstd = static_cast<float>(std::sqrt(dstd / nsamples));
-  // Set output Gaussians
-  dprob = Gaussian<float, float>(dmean, dstd);
-
   // Compute pointwise difference in relation to the center of mass of each point
   // cloud
   // -------------------------------------------------------------------------------

@@ -198,7 +198,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: RGB8
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 4096
@@ -215,7 +215,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -228,10 +228,10 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: Intensity
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
-      Max Intensity: 31
+      Max Intensity: 24
       Min Color: 0; 0; 0
       Min Intensity: 1
       Name: Corners 3D Map
@@ -245,7 +245,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 0; 0; 0
@@ -274,25 +274,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 68.85209655761719
+      Distance: 6.60248327255249
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 4.654492378234863
-        Y: -6.169742584228516
-        Z: -6.57262989989249e-6
+        X: 0.26880019903182983
+        Y: -0.5154004693031311
+        Z: -4.66528126707999e-6
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: -0.04520328715443611
       Target Frame: <Fixed Frame>
       Value: XYOrbit (rviz)
-      Yaw: 3.1358728408813477
+      Yaw: 0.552692174911499
     Saved: ~
 Window Geometry:
   Displays:
@@ -313,4 +313,4 @@ Window Geometry:
     collapsed: false
   Width: 1389
   X: 222
-  Y: 117
+  Y: 87

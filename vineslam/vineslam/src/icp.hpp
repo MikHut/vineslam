@@ -52,9 +52,6 @@ public:
     m_t = t;
   }
 
-  // Method to export the Gaussian distributions
-  void getProb(Gaussian<float, float>& m_dprob) const { m_dprob = dprob; }
-
   // Methods to export the errors arrays
   void getErrors(std::vector<float>& derror) const { derror = derrorvec; }
 

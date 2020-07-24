@@ -89,7 +89,7 @@ void Mapper3D::localSurfMap(const cv::Mat&             img,
 
 void Mapper3D::globalSurfMap(const std::vector<ImageFeature>& features,
                              const pose&                      robot_pose,
-                             OccupancyMap&                    grid_map)
+                             OccupancyMap&                    grid_map) const
 {
   // ------ Convert robot pose into homogeneous transformation
   std::array<float, 9> Rot{};
@@ -150,10 +150,8 @@ void Mapper3D::globalSurfMap(const std::vector<ImageFeature>& features,
                                      image_feature.g,
                                      image_feature.b,
                                      new_pt);
-      if (metric != "euclidean") {
-        new_image_feature.laplacian = image_feature.laplacian;
-        new_image_feature.signature = image_feature.signature;
-      }
+      new_image_feature.laplacian = image_feature.laplacian;
+      new_image_feature.signature = image_feature.signature;
       grid_map.update(correspondence, new_image_feature);
     } else {
       ImageFeature new_image_feature(image_feature.u,
@@ -162,16 +160,15 @@ void Mapper3D::globalSurfMap(const std::vector<ImageFeature>& features,
                                      image_feature.g,
                                      image_feature.b,
                                      m_pt);
-      if (metric != "euclidean") {
-        new_image_feature.laplacian = image_feature.laplacian;
-        new_image_feature.signature = image_feature.signature;
-      }
+      new_image_feature.laplacian = image_feature.laplacian;
+      new_image_feature.signature = image_feature.signature;
       grid_map.insert(new_image_feature);
     }
   }
 }
 
-void Mapper3D::extractSurfFeatures(const cv::Mat& in, std::vector<ImageFeature>& out)
+void Mapper3D::extractSurfFeatures(const cv::Mat&             in,
+                                   std::vector<ImageFeature>& out) const
 {
   using namespace cv::xfeatures2d;
 

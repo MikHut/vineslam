@@ -80,6 +80,16 @@ void PF::motionModel(const pose& odom)
 {
   // Compute odometry increment
   pose odom_inc = odom - p_odom;
+  odom_inc.normalize();
+
+  // Update motion state
+  if (odom_inc.norm2D() > 0.01 && std::fabs(odom_inc.yaw) < 0.027) {
+    motion_state = FORWARD;
+  } else if (std::fabs(odom_inc.yaw) > 0.027) {
+    motion_state = ROTATING;
+  } else if (odom_inc.norm2D() < 0.01 && std::fabs(odom_inc.yaw) < 0.027) {
+    motion_state = STOPED;
+  }
 
   // Compute the relative pose given by the odometry motion model
   float dt_trans = odom_inc.norm2D();
@@ -140,7 +150,7 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
   std::vector<float> surf_weights(n_particles, 0.);
   std::vector<float> gps_weights(n_particles, 0.);
 
-  if (use_landmarks)
+  if (use_landmarks && !(motion_state == ROTATING))
     highLevel(landmarks, grid_map, semantic_weights);
   if (use_corners)
     mediumLevelCorners(corners, grid_map, corner_weights);
@@ -171,9 +181,9 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
     float m_gpsw =
         (gps_max > 0.) ? gps_weights[particle.id] : static_cast<float>(1.);
 
-//    std::cout << "LANDMARKS: " << m_lw << ", CORNERS: " << m_cw
-//              << ", GROUND: " << m_gw << ", ICP: " << m_sw << ", GPS: " << m_gpsw
-//              << std::endl;
+    std::cout << "LANDMARKS: " << m_lw << ", CORNERS: " << m_cw
+              << ", GROUND: " << m_gw << ", ICP: " << m_sw << ", GPS: " << m_gpsw
+              << std::endl;
     particle.w = m_lw * m_cw * m_gw * m_sw * m_gpsw;
     w_sum += particle.w;
   }
@@ -203,8 +213,10 @@ void PF::highLevel(const std::vector<SemanticFeature>& landmarks,
   // Loop over all particles
   for (const auto& particle : particles) {
     // Convert particle orientation to rotation matrix
-    pose m_pose = particle.p;
-    m_pose.z    = 0.;
+    pose m_pose  = particle.p;
+    m_pose.roll  = 0.;
+    m_pose.pitch = 0.;
+    m_pose.z     = 0.;
     std::array<float, 9> Rot{};
     m_pose.toRotMatrix(Rot);
 
@@ -309,8 +321,9 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
         }
       }
 
+      // NOTE (André Aguiar): with this, the filter becomes to slow ...
+      // found &= (best_correspondence < 0.05);
       // Only search in the adjacent cells if we do not find in the source cell
-      found &= (best_correspondence < 0.05);
       if (!found) {
         std::vector<Cell> adjacents;
         grid_map.getAdjacent(X.x, X.y, 1, adjacents);
@@ -325,10 +338,6 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
           }
         }
       }
-      //      std::cout << "(" << corner.pos.x << "," << corner.pos.y << "," <<
-      //      corner.pos.z
-      //                << ") -----> (" << dpos.x << "," << dpos.y << "," << dpos.z
-      //                << ") : " << best_correspondence << std::endl;
 
       // Save distance if a correspondence was found
       if (!found)
@@ -336,7 +345,6 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
       else
         dcornervec.push_back(best_correspondence);
     }
-    //    std::cout << std::endl;
 
     // - Corner feature matching [x, y, z, roll, pitch, yaw] weight
     float w_corners = 0.;
@@ -716,31 +724,33 @@ void PF::scanMatch(const std::vector<ImageFeature>&     features,
       m_tf.R = final_Rot;
       m_tf.t = final_trans;
 
-      //      final_tf = m_tf;
       final_tf = original_tf.inverse() * m_tf;
 
       // ---------------------------------------------------------------------------
       // ----------- Compute scan match weights
       // ---------------------------------------------------------------------------
       // - Get the correspondences errors both spatial and for the descriptors
+      std::vector<float> serror;
       std::vector<float> derror;
-      icp->getErrors(derror);
+      icp->getErrors(serror, derror);
 
       // - Prevent single correspondence - standard deviation = 0
-      if (derror.size() <= 1) {
-        final_tf.R = std::array<float, 9>{1., 0., 0., 0., 1., 0., 0., 0., 1.};
-        final_tf.t = std::array<float, 3>{0., 0., 0.};
-        //        final_tf.R   = Rot;
-        //        final_tf.t   = trans;
+      if (derror.size() <= 1 || serror.size() <= 1 ||
+          serror.size() != derror.size()) {
+        final_tf.R   = std::array<float, 9>{1., 0., 0., 0., 1., 0., 0., 0., 1.};
+        final_tf.t   = std::array<float, 3>{0., 0., 0.};
         ws[it.first] = 0.;
         continue;
       }
 
       // - Compute weight
       float w = 0.;
-      for (float j : derror) {
+      for (size_t i = 0; i < serror.size(); i++) {
         w += static_cast<float>(normalizer_icp *
-                                exp(1. / sigma_feature_matching * j));
+                                exp(-1. / sigma_feature_matching * serror[i]));
+        //             static_cast<float>(normalizer_icp *
+        //                                exp(-1. / sigma_feature_matching *
+        //                                derror[i]));
       }
 
       cluster_ws[it.first] = w;
@@ -748,8 +758,6 @@ void PF::scanMatch(const std::vector<ImageFeature>&     features,
     } else {
       final_tf.R = std::array<float, 9>{1., 0., 0., 0., 1., 0., 0., 0., 1.};
       final_tf.t = std::array<float, 3>{0., 0., 0.};
-      //      final_tf.R = Rot;
-      //      final_tf.t = trans;
 
       ws[it.first] = 0.;
     }
@@ -775,7 +783,6 @@ void PF::scanMatch(const std::vector<ImageFeature>&     features,
 
       particle_tf = particle_tf * m_tf;
       particle.p  = pose(particle_tf.R, particle_tf.t);
-      //      particle.p = pose(m_tf.R, m_tf.t);
       particle.p.normalize();
 
       // Update particle weight

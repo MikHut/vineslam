@@ -4,9 +4,9 @@
 system:
   publish_odom: True # if true, vineslam publishes its localization also in a odometry msg
   # - Define system inputs
-  use_ground_plane: False
-  use_landmarks: False
-  use_corners: False
+  use_ground_plane: True
+  use_landmarks: True
+  use_corners: True
   use_icp: True
   use_gps: False
   # ---------------------
@@ -65,6 +65,7 @@ grid_map:
   height: 50
   resolution: 0.25 # meters
   metric: "euclidean"
+  register_map: True
   save_map: True
   output_file: "/home/andre-criis/map.xml"
   input_file: "/home/andre-criis/map.xml"

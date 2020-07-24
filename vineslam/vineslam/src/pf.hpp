@@ -8,7 +8,6 @@
 #include <math/stat.hpp>
 #include <math/tf.hpp>
 #include <math/const.hpp>
-//#include <utils/save_data.hpp>
 
 // Include std members and yaml-cpp
 #include <cstdlib>
@@ -20,6 +19,8 @@
 
 namespace vineslam
 {
+
+enum MOTION_STATE {FORWARD, ROTATING, STOPED};
 
 // Struct that represents a single particle with
 // - identification number
@@ -62,7 +63,7 @@ public:
               const Plane&                        ground_plane,
               const std::vector<ImageFeature>&    surf_features,
               const pose&                         gps_pose,
-              const OccupancyMap&                        grid_map);
+              const OccupancyMap&                 grid_map);
   // Normalize particles weights
   void normalizeWeights();
   // Resample particles
@@ -103,11 +104,14 @@ private:
   // - GPS
   void gps(const pose& gps_pose, std::vector<float>& ws);
 
-      // Iterative closest point member
-      ICP* icp;
+  // Iterative closest point member
+  ICP* icp;
 
   // Iteration number
   int n_it;
+
+  // Motion state
+  MOTION_STATE motion_state;
 
   // Input parameters file name
   std::string config_path;

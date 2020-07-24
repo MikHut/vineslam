@@ -141,10 +141,9 @@ bool ICP::step(Eigen::Matrix3f& m_R, Eigen::Vector3f& m_t, float& rms_error)
   // Iterator that will count the number inliers
   int32_t nsamples = 0;
 
-  // Mean and standard deviation
-  float dmean = 0., dstd = 0.;
   // Arrays to all the correspondences errors
   derrorvec.clear(); // clear error array
+  serrorvec.clear(); // clear error array
 
   for (const auto& m_feature : source) {
     // Convert feature into the target reference frame using current [R|t] solution
@@ -157,8 +156,9 @@ bool ICP::step(Eigen::Matrix3f& m_R, Eigen::Vector3f& m_t, float& rms_error)
     _ftransformed.pos =
         point(ftransformed(0, 0), ftransformed(1, 0), ftransformed(2, 0));
     // Save minimum distance found (usually for the descriptor)
-    float min_dist = 1e6;
-    if (!target->findNearest(_ftransformed, _ftarget, min_dist)) {
+    float sdist = 1e6;
+    float ddist = 1e6;
+    if (!target->findNearest(_ftransformed, _ftarget, sdist, ddist)) {
       continue;
     }
 
@@ -170,7 +170,7 @@ bool ICP::step(Eigen::Matrix3f& m_R, Eigen::Vector3f& m_t, float& rms_error)
     // Remove (or not) outliers using a displacement threshold on the descriptor
     // space
     // -----------------------------------------------------------------------------
-    if (min_dist < dist_threshold || !reject_outliers) {
+    if (sdist < dist_threshold || !reject_outliers) {
       nsamples = inliers_spoints.cols() + 1;
 
       inliers_tpoints.conservativeResize(3, nsamples);
@@ -184,11 +184,8 @@ bool ICP::step(Eigen::Matrix3f& m_R, Eigen::Vector3f& m_t, float& rms_error)
       source_mean += inliers_spoints.block<3, 1>(0, nsamples - 1);
 
       // Store correspondences errors just for inliers
-      // ----------------------------------------------
-      // - Euclidean/Descriptor distance
-      dmean += min_dist;
-      derrorvec.push_back(min_dist);
-      // ----------------------------------------------
+      serrorvec.push_back(sdist);
+      derrorvec.push_back(ddist);
     }
     // -----------------------------------------------------------------------------
 

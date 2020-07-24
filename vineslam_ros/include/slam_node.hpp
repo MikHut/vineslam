@@ -35,6 +35,8 @@
 #include <nav_msgs/OccupancyGrid.h>
 #include <pcl_ros/point_cloud.h>
 #include <yaml-cpp/yaml.h>
+#include <vineslam_ros/start_map_registration.h>
+#include <vineslam_ros/stop_map_registration.h>
 
 // Services
 #include <agrob_map_transform/GetPose.h>
@@ -62,6 +64,11 @@ public:
   void odomListener(const nav_msgs::OdometryConstPtr& msg);
   // GPS callback function
   void gpsListener(const sensor_msgs::NavSatFixConstPtr& msg);
+  // Services callbacks
+  bool startRegistration(vineslam_ros::start_map_registration::Request&,
+                         vineslam_ros::start_map_registration::Response&);
+  bool stopRegistration(vineslam_ros::stop_map_registration::Request&,
+                        vineslam_ros::stop_map_registration::Response&);
 
 private:
   // Publish 2D semantic features map
@@ -74,7 +81,8 @@ private:
   // Publish the 3D PCL planes map
   static void publish3DMap(const Plane& plane, const ros::Publisher& pub);
   // Publish a 3D PCL corners map
-  static void publish3DMap(const std::vector<Corner>& corners, const ros::Publisher& pub);
+  static void publish3DMap(const std::vector<Corner>& corners,
+                           const ros::Publisher&      pub);
   // Publish the grid map that contains all the maps
   void publishGridMap(const std_msgs::Header& header);
 
@@ -106,6 +114,8 @@ private:
   ros::Publisher     normal_pub;
   ros::ServiceClient polar2pose;
   ros::ServiceClient set_datum;
+  ros::ServiceServer start_reg_srv;
+  ros::ServiceServer stop_reg_srv;
 
   // Classes object members
   Localizer*    localizer;
@@ -141,7 +151,8 @@ private:
   float cx;
   float cy;
   // ------------------------
-  // Grid map dimensions
+  // Grid map
+  bool register_map;
   // NOTE: corners are in reference to the given origin
   point occ_origin;
   float occ_resolution;

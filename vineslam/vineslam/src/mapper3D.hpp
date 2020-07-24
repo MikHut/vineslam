@@ -69,7 +69,7 @@ public:
   // Adds the image features to the global map
   void globalSurfMap(const std::vector<ImageFeature>& features,
                      const pose&                      robot_pose,
-                     OccupancyMap&                    grid_map);
+                     OccupancyMap&                    grid_map) const;
 
   // -------------------------------------------------------------------------------
   // ---- 3D pointcloud feature map
@@ -89,7 +89,7 @@ private:
   // ---- 3D image feature map
   // -------------------------------------------------------------------------------
   // Perform feature extraction
-  void extractSurfFeatures(const cv::Mat& in, std::vector<ImageFeature>& out);
+  void extractSurfFeatures(const cv::Mat& in, std::vector<ImageFeature>& out) const;
 
   // -------------------------------------------------------------------------------
   // ---- 3D pointcloud feature map

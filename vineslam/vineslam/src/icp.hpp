@@ -53,7 +53,11 @@ public:
   }
 
   // Methods to export the errors arrays
-  void getErrors(std::vector<float>& derror) const { derror = derrorvec; }
+  void getErrors(std::vector<float>& serror, std::vector<float>& derror) const
+  {
+    serror = serrorvec;
+    derror = derrorvec;
+  }
 
 private:
   // Method that performs a single ICP step
@@ -61,9 +65,11 @@ private:
 
   // Auxiliar functions to convert from std arrays to eigen and vice versa
   static inline void stdToEig(const std::array<float, 9>& m_R, Eigen::Matrix3f& Rot);
-  static inline void stdToEig(const std::array<float, 3>& m_t, Eigen::Vector3f& trans);
+  static inline void stdToEig(const std::array<float, 3>& m_t,
+                              Eigen::Vector3f&            trans);
   static inline void eigToStd(const Eigen::Matrix3f& Rot, std::array<float, 9>& m_R);
-  static inline void eigToStd(const Eigen::Vector3f& trans, std::array<float, 3>& m_t);
+  static inline void eigToStd(const Eigen::Vector3f& trans,
+                              std::array<float, 3>&  m_t);
 
   // Parameters:
   // - maximum number of iterations
@@ -84,10 +90,8 @@ private:
   std::array<float, 3> t;
 
   // Structure to store the correspondence errors resulting from the scan match
+  std::vector<float> serrorvec;
   std::vector<float> derrorvec;
-
-  // Probabilistic setup of the last calculations
-  Gaussian<float, float> dprob; // descriptor Gaussian
 };
 
 } // namespace vineslam

@@ -11,7 +11,6 @@ find_package(catkin REQUIRED
         agrob_map_transform
         roscpp
         std_msgs
-        genmsg
         sensor_msgs
         geometry_msgs
         nav_msgs
@@ -20,12 +19,22 @@ find_package(catkin REQUIRED
         tf
         geometry_msgs
         message_filters
+        message_generation
         cv_bridge
         image_geometry
         image_transport
         pcl_ros)
 
 find_package(yaml-cpp REQUIRED)
+
+add_service_files(FILES
+        start_map_registration.srv
+        stop_map_registration.srv)
+
+generate_messages(
+        DEPENDENCIES
+        std_msgs
+)
 
 catkin_package()
 

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(vineslam)
 
 add_compile_options(-std=c++11)
-add_definitions(-DTEST)
+#add_definitions(-DTEST)
 
 find_package(catkin REQUIRED)
 

@@ -144,8 +144,10 @@ public:
                    std::vector<Cell>& adjacent);
 
   // Find nearest neighbor of a feature considering adjacent cells
-  bool
-  findNearest(const ImageFeature& input, ImageFeature& nearest, float& min_dist);
+  bool findNearest(const ImageFeature& input,
+                   ImageFeature&       nearest,
+                   float&              sdist,
+                   float&              ddist);
   // Find nearest neighbor of a feature on its cell
   bool findNearestOnCell(const ImageFeature& input, ImageFeature& nearest);
 
@@ -168,6 +170,7 @@ public:
   float resolution;
   // Search metric to use: euclidean / descriptor
   std::string metric;
+
 private:
   // Private grid map to store all the cells
   std::vector<Cell> m_gmap;

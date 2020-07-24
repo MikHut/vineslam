@@ -264,7 +264,8 @@ bool OccupancyMap::getAdjacent(const float&       i,
 
 bool OccupancyMap::findNearest(const ImageFeature& input,
                                ImageFeature&       nearest,
-                               float&              min_dist)
+                               float&              sdist,
+                               float&              ddist)
 {
   if (n_surf_features == 0) {
     std::cout
@@ -289,7 +290,8 @@ bool OccupancyMap::findNearest(const ImageFeature& input,
   // iterator to move into the desired next cell
   int it = 0;
   // distance checker
-  min_dist = 1e6;
+  sdist = 1e6;
+  ddist = 1e6;
   // booleans for stop criteria
   bool found_solution;
   bool valid_iteration;
@@ -419,9 +421,9 @@ bool OccupancyMap::findNearest(const ImageFeature& input,
         // ------- Grid map is used to limit the search space
         for (const auto& feature : (*this)(m_i, m_j).surf_features) {
           float dist = input.pos.distance(feature.pos);
-          if (dist < min_dist) {
-            min_dist = dist;
-            nearest  = feature;
+          if (dist < sdist) {
+            sdist   = dist;
+            nearest = feature;
           }
         }
       } else {
@@ -452,9 +454,9 @@ bool OccupancyMap::findNearest(const ImageFeature& input,
             ssd += (desc[k] - m_desc[k]) * (desc[k] - m_desc[k]);
 
           // Update correspondence if we found a local minimum
-          if (ssd < min_dist) {
-            min_dist = ssd;
-            nearest  = feature;
+          if (ssd < ddist) {
+            ddist   = ssd;
+            nearest = feature;
           }
         }
       }
@@ -464,6 +466,21 @@ bool OccupancyMap::findNearest(const ImageFeature& input,
 
     level++;
   } while (level < 2 && valid_iteration && !found_solution);
+
+//  // Compute missing error
+//  if (found_solution) {
+//    if (metric == "euclidean") {
+//      std::vector<float> input_desc   = input.signature;
+//      std::vector<float> nearest_desc = nearest.signature;
+//
+//      ddist = 0.;
+//      for (size_t k = 0; k < input_desc.size(); k++)
+//        ddist +=
+//            (input_desc[k] - nearest_desc[k]) * (input_desc[k] - nearest_desc[k]);
+//    } else {
+//      sdist = input.pos.distance(nearest.pos);
+//    }
+//  }
 
   return found_solution;
 }

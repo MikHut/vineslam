@@ -42,6 +42,7 @@ SLAMNode::SLAMNode(int argc, char** argv)
   cx         = config["camera_info"]["cx"].as<float>();
   cy         = config["camera_info"]["cy"].as<float>();
   // Load occupancy grid map parameters
+  register_map   = config["grid_map"]["register_map"].as<bool>();
   occ_origin.x   = config["grid_map"]["origin"]["x"].as<float>();
   occ_origin.y   = config["grid_map"]["origin"]["y"].as<float>();
   occ_resolution = config["grid_map"]["resolution"].as<float>();
@@ -102,6 +103,12 @@ SLAMNode::SLAMNode(int argc, char** argv)
   path_publisher  = nh.advertise<nav_msgs::Path>("/vineslam/path", 1);
   poses_publisher = nh.advertise<geometry_msgs::PoseArray>("/vineslam/poses", 1);
 
+  // ROS services
+  start_reg_srv =
+      nh.advertiseService("start_registration", &SLAMNode::startRegistration, this);
+  stop_reg_srv =
+      nh.advertiseService("stop_registration", &SLAMNode::stopRegistration, this);
+
   // GNSS varibales
   if (use_gps) {
     datum_autocorrection_stage = 0;
@@ -127,6 +134,24 @@ SLAMNode::~SLAMNode()
 // --------------------------------------------------------------------------------
 // ----- Callbacks and observation functions
 // --------------------------------------------------------------------------------
+
+bool SLAMNode::startRegistration(
+    vineslam_ros::start_map_registration::Request&,
+    vineslam_ros::start_map_registration::Response&)
+{
+  ROS_INFO("Activating map registration ...\n");
+  register_map = true;
+  return true;
+}
+
+bool SLAMNode::stopRegistration(
+    vineslam_ros::stop_map_registration::Request&,
+    vineslam_ros::stop_map_registration::Response&)
+{
+  ROS_INFO("Deactivating map registration ...\n");
+  register_map = false;
+  return true;
+}
 
 void SLAMNode::callbackFct(const sensor_msgs::ImageConstPtr&            left_image,
                            const sensor_msgs::ImageConstPtr&            depth_image,
@@ -177,26 +202,28 @@ void SLAMNode::callbackFct(const sensor_msgs::ImageConstPtr&            left_ima
 
   std::vector<ImageFeature> m_imgfeatures;
 
-  if (init && !init_odom && !init_gps && bearings.size() > 1) {
+  if (init && !init_odom && (!init_gps || !use_gps) && bearings.size() > 1) {
     // Initialize the localizer and get first particles distribution
     localizer->init(pose(0, 0, 0, 0, 0, odom.yaw));
     robot_pose = localizer->getPose();
 
-    // ---- Initialize the multi-layer map
-    // - 2D semantic feature map
-    mapper2D->init(robot_pose, bearings, depths, labels, *grid_map);
-    // - 3D PCL corner map estimation
-    std::vector<Corner> m_corners;
-    Plane               m_ground_plane;
-    mapper3D->localPCLMap(raw_depths, m_corners, m_ground_plane);
-    mapper3D->globalCornerMap(m_corners, robot_pose, *grid_map);
-    // - 3D image feature map estimation
-    std::vector<ImageFeature> m_surf_features;
-    mapper3D->localSurfMap(img, raw_depths, m_surf_features);
-    mapper3D->globalSurfMap(m_surf_features, robot_pose, *grid_map);
+    if (register_map) {
+      // ---- Initialize the multi-layer map
+      // - 2D semantic feature map
+      mapper2D->init(robot_pose, bearings, depths, labels, *grid_map);
+      // - 3D PCL corner map estimation
+      std::vector<Corner> m_corners;
+      Plane               m_ground_plane;
+      mapper3D->localPCLMap(raw_depths, m_corners, m_ground_plane);
+      mapper3D->globalCornerMap(m_corners, robot_pose, *grid_map);
+      // - 3D image feature map estimation
+      std::vector<ImageFeature> m_surf_features;
+      mapper3D->localSurfMap(img, raw_depths, m_surf_features);
+      mapper3D->globalSurfMap(m_surf_features, robot_pose, *grid_map);
+    }
 
     init = false;
-  } else if (!init && !init_odom && !init_gps) {
+  } else if (!init && !init_odom && (!init_gps || !use_gps)) {
 
     // --------- Build local maps to use in the localization
     // - Compute 2D local map of semantic features on robot's referential frame
@@ -225,14 +252,16 @@ void SLAMNode::callbackFct(const sensor_msgs::ImageConstPtr&            left_ima
     localizer->process(odom, obsv, *grid_map);
     robot_pose = localizer->getPose();
 
-    // ------- MULTI-LAYER MAPPING ------------ //
-    // - 2D high-level semantic map estimation
-    mapper2D->process(robot_pose, m_landmarks, labels, *grid_map);
-    // - 3D PCL corner map estimation
-    mapper3D->globalCornerMap(m_corners, robot_pose, *grid_map);
-    // - 3D image feature map estimation
-    mapper3D->globalSurfMap(m_surf_features, robot_pose, *grid_map);
-    // ---------------------------------------- //
+    if (register_map) {
+      // ------- MULTI-LAYER MAPPING REGISTRATION ------------ //
+      // - 2D high-level semantic map estimation
+      mapper2D->process(robot_pose, m_landmarks, labels, *grid_map);
+      // - 3D PCL corner map estimation
+      mapper3D->globalCornerMap(m_corners, robot_pose, *grid_map);
+      // - 3D image feature map estimation
+      mapper3D->globalSurfMap(m_surf_features, robot_pose, *grid_map);
+      // ---------------------------------------- //
+    }
 
     // Convert robot pose to tf::Transform corresponding
     // to the camera to map transformation
@@ -276,7 +305,6 @@ void SLAMNode::callbackFct(const sensor_msgs::ImageConstPtr&            left_ima
     publish2DMap(depth_image->header, robot_pose, bearings, depths);
     // Publish 3D maps
     publish3DMap();
-    //    publish3DMap(obsv.ground_plane, map3D_planes_publisher);
     // ------------------------------------------------ //
 
     // Publish vineslam localization in odometry msg
@@ -493,6 +521,9 @@ void SLAMNode::odomListener(const nav_msgs::OdometryConstPtr& msg)
 
 void SLAMNode::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
 {
+  if (!use_gps)
+    return;
+
   if (init_gps) {
     has_converged = false;
 

@@ -14,7 +14,7 @@ KF::KF(const VectorXf&    X0,
   YAML::Node config = YAML::LoadFile(config_path);
   fx                = config["camera_info"]["fx"].as<float>();
   baseline          = config["camera_info"]["baseline"].as<float>();
-  delta_d           = config["camera_info"]["delta_d"].as<float>();
+  delta_d           = 0.1;
 
   // Initialize the process covariance P
   computeR(s, g, z);

@@ -1,20 +1,13 @@
 #include "localizer.hpp"
 
+#include <utility>
+
 namespace vineslam
 {
 
-Localizer::Localizer(const std::string& config_path)
-    : config_path(config_path)
+Localizer::Localizer(std::string config_path)
+    : config_path(std::move(config_path))
 {
-  // Read input parameters
-  YAML::Node config = YAML::LoadFile(config_path);
-  img_width         = config["camera_info"]["img_width"].as<float>();
-  img_height        = config["camera_info"]["img_height"].as<float>();
-  cam_height        = config["camera_info"]["cam_height"].as<float>();
-  fx                = config["camera_info"]["fx"].as<float>();
-  fy                = config["camera_info"]["fy"].as<float>();
-  cx                = config["camera_info"]["cx"].as<float>();
-  cy                = config["camera_info"]["cy"].as<float>();
 }
 
 void Localizer::init(const pose& initial_pose)

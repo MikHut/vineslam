@@ -140,7 +140,6 @@ private:
   float       max_range;
   float       max_height;
   std::string metric;
-  std::string fdetector;
   int         hessian_threshold;
   // 3D cloud feature parameters
   float correspondence_threshold;

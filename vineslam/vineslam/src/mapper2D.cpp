@@ -10,9 +10,9 @@ Mapper2D::Mapper2D(const std::string& config_path)
   fx                = config["camera_info"]["fx"].as<float>();
   cam_pitch         = config["camera_info"]["cam_pitch"].as<float>() * DEGREE_TO_RAD;
   baseline          = config["camera_info"]["baseline"].as<float>();
-  delta_d           = config["camera_info"]["delta_d"].as<float>();
-  filter_frequency  = config["map_semantic"]["filter_frequency"].as<int>();
-  stdev_threshold   = config["map_semantic"]["stdev_threshold"].as<float>();
+
+  filter_frequency  = 5;
+  stdev_threshold   = 0.2;
 
   // Initialize iterator
   it = 0;

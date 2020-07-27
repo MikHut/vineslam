@@ -20,25 +20,28 @@ Mapper3D::Mapper3D(const std::string& config_path)
   auto depth_hfov = config["camera_info"]["depth_hfov"].as<float>() * DEGREE_TO_RAD;
   auto depth_vfov = config["camera_info"]["depth_vfov"].as<float>() * DEGREE_TO_RAD;
   // Load 3D map parameters
-  metric = config["grid_map"]["metric"].as<std::string>();
-  correspondence_threshold =
-      config["map_3D"]["correspondence_threshold"].as<float>();
-  max_range  = config["map_3D"]["max_range"].as<float>();
-  max_height = config["map_3D"]["max_height"].as<float>();
+  metric     = config["multilayer_mapping"]["grid_map"]["metric"].as<std::string>();
+  max_range  = config["multilayer_mapping"]["map_3D"]["max_range"].as<float>();
+  max_height = config["multilayer_mapping"]["map_3D"]["max_height"].as<float>();
   // Feature detector
-  hessian_threshold = config["image_feature"]["hessian_threshold"].as<int>();
-  fdetector         = config["image_feature"]["type"].as<std::string>();
-  // Load pointcloud feature parameters
-  downsample_f = config["cloud_feature"]["downsample_factor"].as<int>();
-  planes_th    = config["cloud_feature"]["planes_theta"].as<float>() * DEGREE_TO_RAD;
-  ground_th    = config["cloud_feature"]["ground_theta"].as<float>() * DEGREE_TO_RAD;
-  max_iters    = config["cloud_feature"]["RANSAC"]["max_iters"].as<int>();
-  dist_threshold = config["cloud_feature"]["RANSAC"]["dist_threshold"].as<float>();
-  edge_threshold = config["cloud_feature"]["edge_threshold"].as<float>();
+  hessian_threshold =
+      config["multilayer_mapping"]["image_feature"]["hessian_threshold"].as<int>();
+
+  // Set pointcloud feature parameters
+  downsample_f =
+      config["multilayer_mapping"]["cloud_feature"]["downsample_factor"].as<int>();
+  planes_th      = static_cast<float>(5.) * DEGREE_TO_RAD;
+  ground_th      = static_cast<float>(2.) * DEGREE_TO_RAD;
+  max_iters      = 20;
+  dist_threshold = 0.08;
+  edge_threshold = 0.05;
 
   // Compute x and y angle resolution of depth image
   angle_hres = depth_hfov / static_cast<float>(img_width);
   angle_vres = depth_vfov / static_cast<float>(img_height);
+
+  // Threshold to consider correspondences
+  correspondence_threshold = 0.02;
 }
 
 // -------------------------------------------------------------------------------

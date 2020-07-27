@@ -76,7 +76,7 @@ A 3D map with features - **corners** and **planes** directly extracted from a 3D
 
 Ground Plane | Other Planes | 3D Map of a Vineyard
 :-------------------------:|:-------------------------:|:-------------------------:
-<img src="./docs/ground_plane" width="250" height="250"/> | <img src="./docs/segmentation.png" width="250" height="250"/> | <img src="./docs/corners_map.png" width="250" height="250"/>
+<img src="./docs/ground_plane.png" width="250" height="250"/> | <img src="./docs/segmentation.png" width="250" height="250"/> | <img src="./docs/corners_map.png" width="250" height="250"/>
 
 ### 3D [SURF](https://en.wikipedia.org/wiki/Speeded_up_robust_features) Feature Map
 

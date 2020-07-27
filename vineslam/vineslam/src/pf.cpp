@@ -35,17 +35,15 @@ PF::PF(const std::string& config_path, const pose& initial_pose)
   sigma_corner_matching   = config["pf"]["sigma_corner_matching"].as<float>();
   sigma_ground_rp = config["pf"]["sigma_ground_rp"].as<float>() * DEGREE_TO_RAD;
   sigma_gps       = config["pf"]["sigma_gps"].as<float>();
-  // - Clustering parameters
+  // - Set clustering parameters
   k_clusters   = config["pf"]["k_clusters"].as<int>();
-  k_iterations = config["pf"]["k_iterations"].as<int>();
+  k_iterations = 20;
 
   // Initialize and set ICP parameters
-  auto icp_max_iters = config["ICP"]["max_iters"].as<float>();
-  auto icp_tolerance = config["ICP"]["tolerance"].as<float>();
-  auto dthreshold    = config["ICP"]["distance_threshold"].as<float>();
+  auto icp_max_iters = config["multilayer_mapping"]["ICP"]["max_iters"].as<float>();
+  auto dthreshold    = config["multilayer_mapping"]["ICP"]["distance_threshold"].as<float>();
   icp                = new ICP(config_path);
   icp->setMaxIterations(static_cast<int>(icp_max_iters));
-  icp->setTolerance(icp_tolerance);
   icp->setThreshold(dthreshold);
   // ---------------------------------
 

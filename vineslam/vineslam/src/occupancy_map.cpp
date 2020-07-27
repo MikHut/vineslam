@@ -7,12 +7,12 @@ OccupancyMap::OccupancyMap(const std::string& config_path)
 {
   // Read input parameters
   YAML::Node config = YAML::LoadFile(config_path);
-  origin.x          = config["grid_map"]["origin"]["x"].as<float>();
-  origin.y          = config["grid_map"]["origin"]["y"].as<float>();
-  resolution        = config["grid_map"]["resolution"].as<float>();
-  width             = config["grid_map"]["width"].as<float>();
-  height            = config["grid_map"]["height"].as<float>();
-  metric            = config["grid_map"]["metric"].as<std::string>();
+  origin.x   = config["multilayer_mapping"]["grid_map"]["origin"]["x"].as<float>();
+  origin.y   = config["multilayer_mapping"]["grid_map"]["origin"]["y"].as<float>();
+  resolution = config["multilayer_mapping"]["grid_map"]["resolution"].as<float>();
+  width      = config["multilayer_mapping"]["grid_map"]["width"].as<float>();
+  height     = config["multilayer_mapping"]["grid_map"]["height"].as<float>();
+  metric     = config["multilayer_mapping"]["grid_map"]["metric"].as<std::string>();
 
   // Set the grid map size
   int map_size =
@@ -27,15 +27,15 @@ OccupancyMap::OccupancyMap(const std::string& config_path)
 
 OccupancyMap::OccupancyMap(const OccupancyMap& grid_map)
 {
-  this->m_gmap          = grid_map.m_gmap;
-  this->n_surf_features = grid_map.n_corner_features;
-  this->n_surf_features = grid_map.n_surf_features;
-  this->n_landmarks     = grid_map.n_landmarks;
-  this->resolution      = grid_map.resolution;
-  this->origin          = grid_map.origin;
-  this->height          = grid_map.height;
-  this->width           = grid_map.width;
-  this->metric          = grid_map.metric;
+  this->m_gmap            = grid_map.m_gmap;
+  this->n_corner_features = grid_map.n_corner_features;
+  this->n_surf_features   = grid_map.n_surf_features;
+  this->n_landmarks       = grid_map.n_landmarks;
+  this->resolution        = grid_map.resolution;
+  this->origin            = grid_map.origin;
+  this->height            = grid_map.height;
+  this->width             = grid_map.width;
+  this->metric            = grid_map.metric;
 }
 
 bool OccupancyMap::insert(const SemanticFeature& m_landmark,
@@ -467,20 +467,21 @@ bool OccupancyMap::findNearest(const ImageFeature& input,
     level++;
   } while (level < 2 && valid_iteration && !found_solution);
 
-//  // Compute missing error
-//  if (found_solution) {
-//    if (metric == "euclidean") {
-//      std::vector<float> input_desc   = input.signature;
-//      std::vector<float> nearest_desc = nearest.signature;
-//
-//      ddist = 0.;
-//      for (size_t k = 0; k < input_desc.size(); k++)
-//        ddist +=
-//            (input_desc[k] - nearest_desc[k]) * (input_desc[k] - nearest_desc[k]);
-//    } else {
-//      sdist = input.pos.distance(nearest.pos);
-//    }
-//  }
+  //  // Compute missing error
+  //  if (found_solution) {
+  //    if (metric == "euclidean") {
+  //      std::vector<float> input_desc   = input.signature;
+  //      std::vector<float> nearest_desc = nearest.signature;
+  //
+  //      ddist = 0.;
+  //      for (size_t k = 0; k < input_desc.size(); k++)
+  //        ddist +=
+  //            (input_desc[k] - nearest_desc[k]) * (input_desc[k] -
+  //            nearest_desc[k]);
+  //    } else {
+  //      sdist = input.pos.distance(nearest.pos);
+  //    }
+  //  }
 
   return found_solution;
 }

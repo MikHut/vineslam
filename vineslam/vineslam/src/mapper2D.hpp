@@ -25,7 +25,7 @@ class Mapper2D
 public:
   // Class constructor
   // - Loads the parameters
-  Mapper2D(const std::string& config_path);
+  explicit Mapper2D(const std::string& config_path);
 
   // Global function that handles all the mapping process
   void process(const pose&                         pose,
@@ -52,7 +52,6 @@ private:
   int         filter_frequency;
   float       stdev_threshold;
   float       baseline;
-  float       delta_d;
   float       cam_pitch;
   float       fx;
   std::string config_path;
@@ -84,13 +83,6 @@ private:
   // Searches from correspondences between observations and landmarks
   // already mapped
   static std::pair<int, point> findCorr(const point& l_pos, OccupancyMap& grid_map);
-
-  // Auxiliar function that the disparity error using the disparity
-  // noise model
-  float dispError(const float& depth) const
-  {
-    return static_cast<float>(std::pow(depth, 2) / (baseline * fx) * delta_d);
-  }
 };
 
-}; // namespace vineslam
+} // namespace vineslam

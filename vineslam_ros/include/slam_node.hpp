@@ -142,7 +142,6 @@ private:
   // ------------------------
   std::string config_path;
   // Camera info parameters
-  float h_fov;
   int   img_width;
   int   img_height;
   float cam_height;
@@ -160,11 +159,9 @@ private:
   float occ_height;
   //------------------------
   // System settings
-  bool  publish_odom;
   bool  use_gps;
   float gps_init_lat;
   float gps_init_long;
-  float gps_init_head;
 
   // Initialization flags
   bool init;

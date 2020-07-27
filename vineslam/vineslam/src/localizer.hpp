@@ -30,7 +30,7 @@ class Localizer
 {
 public:
   // Class constructor
-  explicit Localizer(const std::string& config_path);
+  explicit Localizer(std::string  config_path);
 
   // Initializes the particle filter with the number of particles
   // and the first odometry pose
@@ -54,14 +54,6 @@ private:
   pose average_pose;
   // Particle filter object
   PF* pf{};
-  // Input parameters
-  float img_width;
-  float img_height;
-  float cam_height;
-  float fx;
-  float fy;
-  float cx;
-  float cy;
 
   // Input parameters file name
   std::string config_path;

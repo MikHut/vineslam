@@ -162,6 +162,16 @@ To tune the system parameters, you can change them in `./vineslam/config/setup.y
 
 All the parameters are set to their **default values**, so you can run the system witouth changing them.
 
+* **system**:
+  **use_ground_plane** - [True/False] whether to use or not the ground plane on 6-DoF Localization
+  **use_landmarks** - [True/False] whether to use or not the 2D semantic feature map on 6-DoF Localization
+  **use_corners** - [True/False] whether to use or not the 3D corners map on 6-DoF Localization
+  **use_icp** - [True/False] whether to use or not the 3D SURF feature map on 6-DoF Localization
+  **use_gps** - [True/False] whether to use or not the GPS on 6-DoF Localization
+  **gps_datum**:
+    **lat** - GPS latitude datum (degrees)
+    **long** - GPS latitude datum (degrees)
+
 * **camera_info**:
   * **baseline** - stereo camera baseline (meters)
   * **h_fov** - stereo camera horizontal field of view (degrees)

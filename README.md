@@ -242,4 +242,4 @@ Some visual results of each the SLAM system mapping each one of the three maps, 
 
 2D Semantic Vine Trunk Map | 3D PointCloud Corners Map | 3D SURF Features Map
 :-------------------------:|:-------------------------:|:-------------------------:
-<img src="./docs/semantic_video.gif" width="220" height="250"/> | <img src="./docs/corners_video.gif" width="220" height="250"/> | <img src="./docs/surf_video.gif" width="220" height="250"/>
+<img src="./docs/semantic_video.gif" width="250" height="270"/> | <img src="./docs/corners_video.gif" width="250" height="270"/> | <img src="./docs/surf_video.gif" width="250" height="270"/>

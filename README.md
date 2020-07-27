@@ -172,6 +172,7 @@ All the parameters are set to their **default values**, so you can run the syste
     * **lat** - GPS latitude datum (degrees)
     * **long** - GPS latitude datum (degrees)
 
+
 * **camera_info**:
   * **baseline** - stereo camera baseline (meters)
   * **h_fov** - stereo camera horizontal field of view (degrees)
@@ -183,6 +184,7 @@ All the parameters are set to their **default values**, so you can run the syste
   * **fy** - vertical focal length (pixels)
   * **cx** - x coordinate of image principal point (pixels)
   * **cy** - y coordinate of image principal point (pixels)
+
 
 * **multilayer-mapping**:
   * **grid_map**:
@@ -207,6 +209,7 @@ All the parameters are set to their **default values**, so you can run the syste
     * **max_iters** - maximum number of iterations of ICP
     * **distance_threshold** - maximum distance to consider point correspondences (meters)
     * **reject_outliers** - [True/False]
+    
     
 * **pf**:
   * **n_particles** - number of particles of the particle filter

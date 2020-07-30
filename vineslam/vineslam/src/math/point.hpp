@@ -1,6 +1,7 @@
 #pragma once
 
 #include "const.hpp"
+#include "tf.hpp"
 
 #include <cmath>
 #include <eigen3/Eigen/Dense>
@@ -85,14 +86,24 @@ struct point {
     return result;
   }
 
+  // Multiplication by homogeneous transformation
+  point operator*(const TF& tf) const
+  {
+    point res;
+    res.x = x * tf.R[0] + y * tf.R[1] + z * tf.R[2] + tf.t[0];
+    res.y = x * tf.R[3] + y * tf.R[4] + z * tf.R[5] + tf.t[1];
+    res.z = x * tf.R[6] + y * tf.R[7] + z * tf.R[8] + tf.t[2];
+
+    return res;
+  }
+
   // 3D euclidean distance
   float distance(const point& other) const
   {
     float dist_x = x - other.x;
     float dist_y = y - other.y;
     float dist_z = z - other.z;
-    return std::sqrt(std::pow(dist_x, 2) + std::pow(dist_y, 2) +
-                     std::pow(dist_z, 2));
+    return sqrt(std::pow(dist_x, 2) + std::pow(dist_y, 2) + std::pow(dist_z, 2));
   }
 
   // 2D euclidean distance
@@ -100,11 +111,14 @@ struct point {
   {
     float dist_x = x - other.x;
     float dist_y = y - other.y;
-    return std::sqrt(std::pow(dist_x, 2) + std::pow(dist_y, 2));
+    return sqrt(std::pow(dist_x, 2) + std::pow(dist_y, 2));
   }
 
+  // 3D point norm
+  float norm3D() { return sqrt(std::pow(x, 2) + std::pow(y, 2) + std::pow(z, 2)); }
+
   // Convert point to Eigen 3D vector
-  Eigen::VectorXf toEig2D()
+  Eigen::VectorXf toEig2D() const
   {
     Eigen::VectorXf vec(2, 1);
     vec << x, y;
@@ -112,7 +126,7 @@ struct point {
   }
 
   // Convert point to Eigen 3D vector
-  Eigen::VectorXf toEig3D()
+  Eigen::VectorXf toEig3D() const
   {
     Eigen::VectorXf vec(3, 1);
     vec << x, y, z;

@@ -24,6 +24,7 @@
   <node pkg="vineslam_ros" type="slam_node" name="slam_node" output="screen">
     <remap from="/left_image"  to="/zed/zed_node/left/image_rect_color"/>
     <remap from="/depth_image" to="/zed/zed_node/depth/depth_registered" />
+    <remap from="/scan_3D"     to="/velodyne_points" />
     <remap from="/detections"  to="/detections" />
     <remap from="/odom"        to="/husky_velocity_controller/odom" />
     <remap from="/fix"         to="/fix" />

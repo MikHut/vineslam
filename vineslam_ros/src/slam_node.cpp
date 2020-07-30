@@ -25,31 +25,33 @@ SLAMNode::SLAMNode(int argc, char** argv)
   init_odom    = true;
   register_map = true;
 
-  // Load params
-  if (!nh.getParam("/slam_node/SLAMNode/config_path", config_path)) {
-    ROS_ERROR("/config_path parameter not found. Shutting down...");
-    return;
-  }
+  // Load param
+  config_path =
+      "/home/andre-criis/Source/catkin_ws/src/vineslam/vineslam/config/setup.yaml";
+  //  if (!nh.getParam("/slam_node/SLAMNode/config_path", config_path)) {
+  //    ROS_ERROR("/config_path parameter not found. Shutting down...");
+  //    return;
+  //  }
 
   // Load config file
   auto config = YAML::LoadFile(config_path);
   // Load camera info parameters
   img_width  = config["camera_info"]["img_width"].as<int>();
   img_height = config["camera_info"]["img_height"].as<int>();
-  cam_height = config["camera_info"]["cam_height"].as<float>();
   fx         = config["camera_info"]["fx"].as<float>();
   fy         = config["camera_info"]["fy"].as<float>();
   cx         = config["camera_info"]["cx"].as<float>();
   cy         = config["camera_info"]["cy"].as<float>();
   // Load occupancy grid map parameters
-  occ_origin.x   = config["multilayer_mapping"]["grid_map"]["origin"]["x"].as<float>();
-  occ_origin.y   = config["multilayer_mapping"]["grid_map"]["origin"]["y"].as<float>();
-  occ_resolution = config["multilayer_mapping"]["grid_map"]["resolution"].as<float>();
-  occ_width      = config["multilayer_mapping"]["grid_map"]["width"].as<float>();
-  occ_height     = config["multilayer_mapping"]["grid_map"]["height"].as<float>();
-  use_gps        = config["system"]["use_gps"].as<bool>();
-  gps_init_lat   = config["system"]["gps_datum"]["lat"].as<float>();
-  gps_init_long  = config["system"]["gps_datum"]["long"].as<float>();
+  occ_origin.x = config["multilayer_mapping"]["grid_map"]["origin"]["x"].as<float>();
+  occ_origin.y = config["multilayer_mapping"]["grid_map"]["origin"]["y"].as<float>();
+  occ_resolution =
+      config["multilayer_mapping"]["grid_map"]["resolution"].as<float>();
+  occ_width     = config["multilayer_mapping"]["grid_map"]["width"].as<float>();
+  occ_height    = config["multilayer_mapping"]["grid_map"]["height"].as<float>();
+  use_gps       = config["system"]["use_gps"].as<bool>();
+  gps_init_lat  = config["system"]["gps_datum"]["lat"].as<float>();
+  gps_init_long = config["system"]["gps_datum"]["long"].as<float>();
 
   // Declare the Mappers and Localizer objects
   localizer = new Localizer(config_path);
@@ -62,21 +64,33 @@ SLAMNode::SLAMNode(int argc, char** argv)
   set_datum  = nh.serviceClient<agrob_map_transform::SetDatum>("datum");
 
   // Synchronize subscribers of both topics
+  //  message_filters::Subscriber<sensor_msgs::Image> left_image_sub(
+  //      nh, "/left_image", 1);
   message_filters::Subscriber<sensor_msgs::Image> left_image_sub(
-      nh, "/left_image", 1);
+      nh, "/zed/zed_node/left/image_rect_color", 1);
+  //  message_filters::Subscriber<sensor_msgs::Image> depth_image_sub(
+  //      nh, "/depth_image", 1);
   message_filters::Subscriber<sensor_msgs::Image> depth_image_sub(
-      nh, "/depth_image", 1);
+      nh, "/zed/zed_node/depth/depth_registered", 1);
   message_filters::Subscriber<vision_msgs::Detection2DArray> detections_sub(
       nh, "/detections", 1);
   message_filters::TimeSynchronizer<sensor_msgs::Image,
                                     sensor_msgs::Image,
                                     vision_msgs::Detection2DArray>
       sync(left_image_sub, depth_image_sub, detections_sub, 10);
-  sync.registerCallback(boost::bind(&SLAMNode::callbackFct, this, _1, _2, _3));
+  sync.registerCallback(boost::bind(&SLAMNode::mainCallbackFct, this, _1, _2, _3));
 
+  // Scan subscription
+  //  ros::Subscriber scan_subscriber =
+  //      nh.subscribe("/scan_3D", 1, &SLAMNode::scanListener, this);
+  ros::Subscriber scan_subscriber =
+      nh.subscribe("/velodyne_points", 1, &SLAMNode::scanListener, this);
   // Odometry subscription
-  ros::Subscriber odom_subscriber =
-      nh.subscribe("/odom", 1, &SLAMNode::odomListener, this);
+  //  ros::Subscriber odom_subscriber =
+  //      nh.subscribe("/odom", 1, &SLAMNode::odomListener, this);
+  ros::Subscriber odom_subscriber = nh.subscribe(
+      "/husky_velocity_controller/odom", 1, &SLAMNode::odomListener, this);
+  // GPS subscription
   ros::Subscriber gps_subscriber =
       nh.subscribe("/fix", 1, &SLAMNode::gpsListener, this);
 
@@ -91,19 +105,15 @@ SLAMNode::SLAMNode(int argc, char** argv)
       nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners", 1);
   map3D_planes_publisher =
       nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/ground", 1);
-  map3D_debug_publisher =
-      nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/debug", 1);
-  normal_pub = nh.advertise<visualization_msgs::Marker>("/map3D/ground_normal", 1);
   pose_publisher  = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/pose", 1);
-  odom_publisher  = nh.advertise<nav_msgs::Odometry>("/vineslam/odom", 1);
   gps_publisher   = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/gps", 1);
   path_publisher  = nh.advertise<nav_msgs::Path>("/vineslam/path", 1);
   poses_publisher = nh.advertise<geometry_msgs::PoseArray>("/vineslam/poses", 1);
 
   // ROS services
-  start_reg_srv =
+  ros::ServiceServer start_reg_srv =
       nh.advertiseService("start_registration", &SLAMNode::startRegistration, this);
-  stop_reg_srv =
+  ros::ServiceServer stop_reg_srv =
       nh.advertiseService("stop_registration", &SLAMNode::stopRegistration, this);
 
   // GNSS varibales
@@ -148,9 +158,9 @@ bool SLAMNode::stopRegistration(vineslam_ros::stop_map_registration::Request&,
   return true;
 }
 
-void SLAMNode::callbackFct(const sensor_msgs::ImageConstPtr&            left_image,
-                           const sensor_msgs::ImageConstPtr&            depth_image,
-                           const vision_msgs::Detection2DArrayConstPtr& dets)
+void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
+                               const sensor_msgs::ImageConstPtr& depth_image,
+                               const vision_msgs::Detection2DArrayConstPtr& dets)
 {
   // Declaration of the arrays that will constitute the SLAM observations
   std::vector<int>   labels;
@@ -209,7 +219,7 @@ void SLAMNode::callbackFct(const sensor_msgs::ImageConstPtr&            left_ima
       // - 3D PCL corner map estimation
       std::vector<Corner> m_corners;
       Plane               m_ground_plane;
-      mapper3D->localPCLMap(raw_depths, m_corners, m_ground_plane);
+      mapper3D->localPCLMap(scan_pts, m_corners, m_ground_plane);
       mapper3D->globalCornerMap(m_corners, robot_pose, *grid_map);
       // - 3D image feature map estimation
       std::vector<ImageFeature> m_surf_features;
@@ -227,16 +237,16 @@ void SLAMNode::callbackFct(const sensor_msgs::ImageConstPtr&            left_ima
     // - Compute 3D PCL corners and ground plane on robot's referential frame
     std::vector<Corner> m_corners;
     Plane               m_ground_plane;
-    mapper3D->localPCLMap(raw_depths, m_corners, m_ground_plane);
+    mapper3D->localPCLMap(scan_pts, m_corners, m_ground_plane);
     // - Compute 3D image features on robot's referential frame
     std::vector<ImageFeature> m_surf_features;
     mapper3D->localSurfMap(img, raw_depths, m_surf_features);
 
     // ------- Build observation structure to use in the localization
     Observation obsv;
-    obsv.landmarks    = m_landmarks;
-    obsv.corners      = m_corners;
-    obsv.ground_plane = m_ground_plane;
+    obsv.landmarks = m_landmarks;
+    //    obsv.corners      = m_corners;
+    //    obsv.ground_plane = m_ground_plane;
     if (has_converged && use_gps)
       obsv.gps_pose = gps_pose;
     else
@@ -299,28 +309,12 @@ void SLAMNode::callbackFct(const sensor_msgs::ImageConstPtr&            left_ima
     // Publish the 2D map
     publish2DMap(depth_image->header, robot_pose, bearings, depths);
     // Publish 3D maps
-    publish3DMap();
+    //    publish3DMap();
+    publish3DMap(m_corners, map3D_corners_publisher);
+    publish3DMap(m_ground_plane, map3D_planes_publisher);
     // ------------------------------------------------ //
 
 #ifdef DEBUG
-    // Publish local corner map for debug
-    std::array<float, 9> Rot{};
-    robot_pose.toRotMatrix(Rot);
-    std::vector<Corner> tmp_corners;
-    for (const auto& corner : m_corners) {
-      point pt;
-      pt.x = corner.pos.x * Rot[0] + corner.pos.y * Rot[1] + corner.pos.z * Rot[2] +
-             robot_pose.x;
-      pt.y = corner.pos.x * Rot[3] + corner.pos.y * Rot[4] + corner.pos.z * Rot[5] +
-             robot_pose.y;
-      pt.z = corner.pos.x * Rot[6] + corner.pos.y * Rot[7] + corner.pos.z * Rot[8] +
-             robot_pose.z;
-
-      Corner tmp_corner = corner;
-      tmp_corner.pos    = pt;
-      tmp_corners.push_back(tmp_corner);
-    }
-    publish3DMap(tmp_corners, map3D_debug_publisher);
     // Publish all poses for DEBUG
     // ----------------------------------------------------------------------------
     std::vector<pose> poses;
@@ -348,123 +342,52 @@ void SLAMNode::callbackFct(const sensor_msgs::ImageConstPtr&            left_ima
 
     // - Compute rotation matrix from ground plane normal vector and aplly it to the
     // plane
-    std::array<float, 9> R{};
-    vector3D             m_normal = obsv.ground_plane.normal;
-    float norm = std::sqrt(m_normal.x * m_normal.x + m_normal.y * m_normal.y);
-    R[0]       = +m_normal.y / norm;
-    R[1]       = -m_normal.x / norm;
-    R[2]       = 0.;
-    R[3]       = (m_normal.x * m_normal.z) / norm;
-    R[4]       = (m_normal.y * m_normal.z) / norm;
-    R[5]       = -norm;
-    R[6]       = m_normal.x;
-    R[7]       = m_normal.y;
-    R[8]       = m_normal.z;
-
-    std::array<float, 3> trans            = {0., 0., 0.};
-    pose                 pose_from_ground = pose(R, trans);
-    pose_from_ground.yaw                  = 0.;
-    R                                     = {};
-    pose_from_ground.toRotMatrix(R);
-
-    Plane m_plane;
-    for (const auto& pt : obsv.ground_plane.points) {
-      point m_pt;
-      m_pt.x = pt.x * R[0] + pt.y * R[1] + pt.z * R[2];
-      m_pt.y = pt.x * R[3] + pt.y * R[4] + pt.z * R[5];
-      m_pt.z = pt.x * R[6] + pt.y * R[7] + pt.z * R[8];
-
-      m_plane.points.push_back(m_pt);
-    }
-    vector3D new_normal;
-    new_normal.x   = m_normal.x * R[0] + m_normal.y * R[1] + m_normal.z * R[2];
-    new_normal.y   = m_normal.x * R[3] + m_normal.y * R[4] + m_normal.z * R[5];
-    new_normal.z   = m_normal.x * R[6] + m_normal.y * R[7] + m_normal.z * R[8];
-    m_plane.normal = new_normal;
-    publish3DMap(m_plane, map3D_planes_publisher);
-
-    // - Publish ground plane normal for DEBUG
-    float x = 0., y = 0., z = 0.;
-    float min_x = 1000., min_y = 1000.;
-    for (const auto& m_pt : m_plane.points) {
-      if (x < min_x && y < min_y) {
-        x = m_pt.x;
-        y = m_pt.y;
-        z = m_pt.z;
-
-        min_x = x;
-        min_y = y;
-      }
-    }
-    geometry_msgs::Point p1, p2;
-    p1.x = x;
-    p1.y = y;
-    p1.z = z;
-    p2.x = p1.x + obsv.ground_plane.normal.x;
-    p2.y = p1.y + obsv.ground_plane.normal.y;
-    p2.z = p1.z + obsv.ground_plane.normal.z;
-
-    visualization_msgs::Marker marker;
-    marker.header.frame_id = "map";
-    marker.header.stamp    = ros::Time();
-    marker.ns              = "normal";
-    marker.id              = 0;
-    marker.type            = visualization_msgs::Marker::LINE_STRIP;
-    marker.action          = visualization_msgs::Marker::ADD;
-    marker.points.push_back(p1);
-    marker.points.push_back(p2);
-    marker.color.a = 1;
-    marker.color.r = 1;
-    marker.color.b = 0;
-    marker.color.g = 0;
-    marker.scale.x = 0.1;
-    marker.scale.y = 0.1;
-    marker.scale.z = 0.1;
-
-    normal_pub.publish(marker);
+//    std::array<float, 9> R{};
+//    vector3D             m_normal = obsv.ground_plane.normal;
+//    float norm = std::sqrt(m_normal.x * m_normal.x + m_normal.y * m_normal.y);
+//    R[0]       = +m_normal.y / norm;
+//    R[1]       = -m_normal.x / norm;
+//    R[2]       = 0.;
+//    R[3]       = (m_normal.x * m_normal.z) / norm;
+//    R[4]       = (m_normal.y * m_normal.z) / norm;
+//    R[5]       = -norm;
+//    R[6]       = m_normal.x;
+//    R[7]       = m_normal.y;
+//    R[8]       = m_normal.z;
+//
+//    std::array<float, 3> trans            = {0., 0., 0.};
+//    pose                 pose_from_ground = pose(R, trans);
+//    pose_from_ground.yaw                  = 0.;
+//    R                                     = {};
+//    pose_from_ground.toRotMatrix(R);
+//
+//    Plane m_plane;
+//    for (const auto& pt : obsv.ground_plane.points) {
+//      point m_pt;
+//      m_pt.x = pt.x * R[0] + pt.y * R[1] + pt.z * R[2];
+//      m_pt.y = pt.x * R[3] + pt.y * R[4] + pt.z * R[5];
+//      m_pt.z = pt.x * R[6] + pt.y * R[7] + pt.z * R[8];
+//
+//      m_plane.points.push_back(pt);
+//    }
+//    publish3DMap(m_plane, map3D_planes_publisher);
 #endif
   }
 }
 
-void SLAMNode::computeObsv(const sensor_msgs::Image& depth_img,
-                           const int&                xmin,
-                           const int&                ymin,
-                           const int&                xmax,
-                           const int&                ymax,
-                           float&                    depth,
-                           float&                    bearing) const
+void SLAMNode::scanListener(const sensor_msgs::PointCloud2ConstPtr& msg)
 {
-  // Declare array with all the disparities computed
-  auto* depths = (float*)(&(depth_img).data[0]);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr velodyne_pcl(
+      new pcl::PointCloud<pcl::PointXYZI>);
+  pcl::fromROSMsg(*msg, *velodyne_pcl);
+  // Remove Nan points
+  std::vector<int> indices;
+  pcl::removeNaNFromPointCloud(*velodyne_pcl, *velodyne_pcl, indices);
 
-  // Set minimum and maximum depth values to consider
-  float range_min = 0.01;
-  float range_max = 10.0;
-
-  std::map<float, float> dtheta;
-  for (int i = xmin; i < xmax; i++) {
-    for (int j = ymin; j < ymax; j++) {
-      int idx = i + depth_img.width * j;
-
-      // Fill the depth array with the values of interest
-      if (std::isfinite(depths[idx]) && depths[idx] > range_min &&
-          depths[idx] < range_max) {
-        float x         = depths[idx];
-        float y         = -(static_cast<float>(i) - cx) * (x / fx);
-        float m_depth   = static_cast<float>(sqrt(pow(x, 2) + pow(y, 2)));
-        dtheta[m_depth] = atan2(y, x);
-      }
-    }
-  }
-
-  // compute minimum of all observations
-  size_t n_depths = dtheta.size();
-  if (n_depths > 0) {
-    depth   = dtheta.begin()->first;
-    bearing = dtheta.begin()->second;
-  } else {
-    depth   = -1;
-    bearing = -1;
+  scan_pts.clear();
+  for (const auto& pt : *velodyne_pcl) {
+    point m_pt(pt.x, pt.y, pt.z);
+    scan_pts.push_back(m_pt);
   }
 }
 
@@ -661,6 +584,48 @@ bool SLAMNode::getGNSSHeading(const pose& gps_odom, const std_msgs::Header& head
   }
 
   return weight_max > 0.6;
+}
+
+void SLAMNode::computeObsv(const sensor_msgs::Image& depth_img,
+                           const int&                xmin,
+                           const int&                ymin,
+                           const int&                xmax,
+                           const int&                ymax,
+                           float&                    depth,
+                           float&                    bearing) const
+{
+  // Declare array with all the disparities computed
+  auto* depths = (float*)(&(depth_img).data[0]);
+
+  // Set minimum and maximum depth values to consider
+  float range_min = 0.01;
+  float range_max = 10.0;
+
+  std::map<float, float> dtheta;
+  for (int i = xmin; i < xmax; i++) {
+    for (int j = ymin; j < ymax; j++) {
+      int idx = i + depth_img.width * j;
+
+      // Fill the depth array with the values of interest
+      if (std::isfinite(depths[idx]) && depths[idx] > range_min &&
+          depths[idx] < range_max) {
+        float x         = depths[idx];
+        float y         = -(static_cast<float>(i) - cx) * (x / fx);
+        float m_depth   = static_cast<float>(sqrt(pow(x, 2) + pow(y, 2)));
+        dtheta[m_depth] = atan2(y, x);
+      }
+    }
+  }
+
+  // compute minimum of all observations
+  size_t n_depths = dtheta.size();
+  if (n_depths > 0) {
+    depth   = dtheta.begin()->first;
+    bearing = dtheta.begin()->second;
+  } else {
+    depth   = -1;
+    bearing = -1;
+  }
 }
 
 // --------------------------------------------------------------------------------

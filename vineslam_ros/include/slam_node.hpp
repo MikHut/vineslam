@@ -34,6 +34,7 @@
 #include <visualization_msgs/MarkerArray.h>
 #include <nav_msgs/OccupancyGrid.h>
 #include <pcl_ros/point_cloud.h>
+#include <pcl/filters/filter.h>
 #include <yaml-cpp/yaml.h>
 #include <vineslam_ros/start_map_registration.h>
 #include <vineslam_ros/stop_map_registration.h>
@@ -57,9 +58,11 @@ public:
 
   // Callback function that subscribes a rgb image, a  disparity image,
   // and the bounding boxes that locate the objects on the image
-  void callbackFct(const sensor_msgs::ImageConstPtr&            left_image,
-                   const sensor_msgs::ImageConstPtr&            depth_image,
-                   const vision_msgs::Detection2DArrayConstPtr& dets);
+  void mainCallbackFct(const sensor_msgs::ImageConstPtr&            left_image,
+                       const sensor_msgs::ImageConstPtr&            depth_image,
+                       const vision_msgs::Detection2DArrayConstPtr& dets);
+  // Scan callback function
+  void scanListener(const sensor_msgs::PointCloud2ConstPtr& msg);
   // Odometry callback function
   void odomListener(const nav_msgs::OdometryConstPtr& msg);
   // GPS callback function
@@ -105,17 +108,12 @@ private:
   ros::Publisher     map3D_features_publisher;
   ros::Publisher     map3D_corners_publisher;
   ros::Publisher     map3D_planes_publisher;
-  ros::Publisher     map3D_debug_publisher;
   ros::Publisher     pose_publisher;
-  ros::Publisher     odom_publisher;
   ros::Publisher     path_publisher;
   ros::Publisher     poses_publisher;
   ros::Publisher     gps_publisher;
-  ros::Publisher     normal_pub;
   ros::ServiceClient polar2pose;
   ros::ServiceClient set_datum;
-  ros::ServiceServer start_reg_srv;
-  ros::ServiceServer stop_reg_srv;
 
   // Classes object members
   Localizer*    localizer;
@@ -132,6 +130,9 @@ private:
   pose robot_pose;
   pose gps_pose;
 
+  // 3D scan points handler
+  std::vector<point> scan_pts;
+
   // GNSS variables
   int     datum_autocorrection_stage;
   int32_t global_counter;
@@ -144,7 +145,6 @@ private:
   // Camera info parameters
   int   img_width;
   int   img_height;
-  float cam_height;
   float fx;
   float fy;
   float cx;

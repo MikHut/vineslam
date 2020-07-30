@@ -11,6 +11,7 @@
 #include <math/point.hpp>
 #include <math/pose.hpp>
 #include <math/const.hpp>
+#include <math/tf.hpp>
 
 // OpenCV
 #include <opencv2/core.hpp>
@@ -75,9 +76,9 @@ public:
   // ---- 3D pointcloud feature map
   // -------------------------------------------------------------------------------
   // Builds local map given the current 3D point cloud
-  void localPCLMap(const float*         depths,
-                   std::vector<Corner>& out_corners,
-                   Plane&               out_groundplane);
+  void localPCLMap(const std::vector<point>& pcl,
+                   std::vector<Corner>&      out_corners,
+                   Plane&                    out_groundplane);
 
   // Adds the corner features to the global map
   void globalCornerMap(const std::vector<Corner>& corners,
@@ -120,18 +121,11 @@ private:
   // ------------------------------------------------------------------------------
 
   // Converts a pixel into world's coordinate reference
-  void pixel2world(const point& in_pt,
-                   const float& pitch,
-                   const float& depth,
-                   point&       out_pt) const;
+  void pixel2base(const point& in_pt, const float& depth, point& out_pt) const;
 
   // Camera info parameters
   int   img_width;
   int   img_height;
-  float cam_height;
-  float cam_pitch;
-  float angle_hres;
-  float angle_vres;
   float fx;
   float fy;
   float cx;
@@ -149,6 +143,20 @@ private:
   float planes_th;
   float ground_th;
   float edge_threshold;
+  // Velodyne parameters
+  int   vertical_scans;
+  int   horizontal_scans;
+  int   ground_scan_idx;
+  int   segment_valid_point_num;
+  int   segment_valid_line_num;
+  float vertical_angle_bottom;
+  float ang_res_x;
+  float ang_res_y;
+  // Transformation parameters
+  float cam2base_x, cam2base_y, cam2base_z, cam2base_roll, cam2base_pitch,
+      cam2base_yaw;
+  float vel2base_x, vel2base_y, vel2base_z, vel2base_roll, vel2base_pitch,
+      vel2base_yaw;
 
   // Cloud segmentation matrices
   Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> range_mat;
@@ -157,4 +165,4 @@ private:
   // Cloud segmentation & feature extraction structure
   SegPCL seg_pcl;
 };
-}; // namespace vineslam
+} // namespace vineslam

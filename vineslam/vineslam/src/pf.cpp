@@ -17,7 +17,6 @@ PF::PF(const std::string& config_path, const pose& initial_pose)
   use_icp          = config["system"]["use_icp"].as<bool>();
   use_gps          = config["system"]["use_gps"].as<bool>();
   n_particles      = config["pf"]["n_particles"].as<int>();
-  cam_pitch        = config["camera_info"]["cam_pitch"].as<float>() * DEGREE_TO_RAD;
   // - Motion model parameters
   srr = config["pf"]["srr"].as<float>();
   str = config["pf"]["str"].as<float>();
@@ -179,9 +178,6 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
     float m_gpsw =
         (gps_max > 0.) ? gps_weights[particle.id] : static_cast<float>(1.);
 
-    std::cout << "LANDMARKS: " << m_lw << ", CORNERS: " << m_cw
-              << ", GROUND: " << m_gw << ", ICP: " << m_sw << ", GPS: " << m_gpsw
-              << std::endl;
     particle.w = m_lw * m_cw * m_gw * m_sw * m_gpsw;
     w_sum += particle.w;
   }

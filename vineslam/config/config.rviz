@@ -78,19 +78,43 @@ Visualization Manager:
       Unreliable: false
       Value: true
     - Class: rviz/TF
-      Enabled: false
+      Enabled: true
       Frame Timeout: 15
       Frames:
         All Enabled: false
+        base_link:
+          Value: true
+        enu:
+          Value: false
+        gps:
+          Value: false
+        map:
+          Value: true
+        odom:
+          Value: false
+        velodyne:
+          Value: true
+        zed_left_camera_frame:
+          Value: true
       Marker Scale: 5
       Name: TF
-      Show Arrows: true
+      Show Arrows: false
       Show Axes: true
-      Show Names: true
+      Show Names: false
       Tree:
-        {}
+        enu:
+          {}
+        map:
+          odom:
+            base_link:
+              gps:
+                {}
+              velodyne:
+                {}
+              zed_left_camera_frame:
+                {}
       Update Interval: 0
-      Value: false
+      Value: true
     - Angle Tolerance: 0.10000000149011612
       Class: rviz/Odometry
       Covariance:
@@ -190,13 +214,14 @@ Visualization Manager:
       Use Timestamp: false
       Value: false
     - Class: rviz/MarkerArray
-      Enabled: false
+      Enabled: true
       Marker Topic: /vineslam/map2D
       Name: Semantic Map
       Namespaces:
-        {}
+        /ellipses: true
+        /markers: true
       Queue Size: 10000
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -209,7 +234,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: RGB8
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 4096
@@ -226,7 +251,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -315,25 +340,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 22.010234832763672
+      Distance: 59.84712219238281
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 3.1171927452087402
-        Y: -0.651604950428009
-        Z: -6.095792741689365e-6
+        X: 8.183479309082031
+        Y: 0.042087554931640625
+        Z: 1.342622454103548e-6
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.12979678809642792
+      Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
       Value: XYOrbit (rviz)
-      Yaw: 2.260007858276367
+      Yaw: 3.1854605674743652
     Saved: ~
 Window Geometry:
   Displays:

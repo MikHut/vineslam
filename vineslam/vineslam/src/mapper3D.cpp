@@ -25,38 +25,11 @@ Mapper3D::Mapper3D(const std::string& config_path)
   hessian_threshold =
       config["multilayer_mapping"]["image_feature"]["hessian_threshold"].as<int>();
 
-  // Get transformations parameters
-  vel2base_x     = config["system"]["vel2base"]["x"].as<float>();
-  vel2base_y     = config["system"]["vel2base"]["y"].as<float>();
-  vel2base_z     = config["system"]["vel2base"]["z"].as<float>();
-  vel2base_roll  = config["system"]["vel2base"]["roll"].as<float>() * DEGREE_TO_RAD;
-  vel2base_pitch = config["system"]["vel2base"]["pitch"].as<float>() * DEGREE_TO_RAD;
-  vel2base_yaw   = config["system"]["vel2base"]["yaw"].as<float>() * DEGREE_TO_RAD;
-  cam2base_x     = config["system"]["cam2base"]["x"].as<float>();
-  cam2base_y     = config["system"]["cam2base"]["y"].as<float>();
-  cam2base_z     = config["system"]["cam2base"]["z"].as<float>();
-  cam2base_roll  = config["system"]["cam2base"]["roll"].as<float>() * DEGREE_TO_RAD;
-  cam2base_pitch = config["system"]["cam2base"]["pitch"].as<float>() * DEGREE_TO_RAD;
-  cam2base_yaw   = config["system"]["cam2base"]["yaw"].as<float>() * DEGREE_TO_RAD;
-
   // Set pointcloud feature parameters
-  downsample_f =
-      config["multilayer_mapping"]["cloud_feature"]["downsample_factor"].as<int>();
-  planes_th      = static_cast<float>(60.) * DEGREE_TO_RAD;
-  ground_th      = static_cast<float>(10.) * DEGREE_TO_RAD;
   max_iters      = 20;
   dist_threshold = 0.08;
-  edge_threshold = 0.1;
-
-  // Set velodyne configuration parameters
-  vertical_scans          = 16;
-  horizontal_scans        = 1800;
-  ground_scan_idx         = 7;
-  segment_valid_point_num = 5;
-  segment_valid_line_num  = 3;
-  vertical_angle_bottom   = static_cast<float>(15. + 0.1) * DEGREE_TO_RAD;
-  ang_res_x               = static_cast<float>(0.2) * DEGREE_TO_RAD;
-  ang_res_y               = static_cast<float>(2.) * DEGREE_TO_RAD;
+  downsample_f =
+      config["multilayer_mapping"]["cloud_feature"]["downsample_factor"].as<int>();
 
   // Threshold to consider correspondences
   correspondence_threshold = 0.02;
@@ -243,49 +216,69 @@ void Mapper3D::reset()
 
 void Mapper3D::localPCLMap(const std::vector<point>& pcl,
                            std::vector<Corner>&      out_corners,
-                           Plane&                    out_groundplane)
+                           Plane&                    out_groundplane,
+                           const std::string&        sensor)
 {
-  // Reset global variables and members
-  reset();
+  std::vector<point> transformed_pcl;
+  if (sensor == "velodyne") {
+    // Set velodyne configuration parameters
+    planes_th               = static_cast<float>(60.) * DEGREE_TO_RAD;
+    ground_th               = static_cast<float>(10.) * DEGREE_TO_RAD;
+    edge_threshold          = 0.1;
+    vertical_scans          = 16;
+    horizontal_scans        = 1800;
+    ground_scan_idx         = 7;
+    segment_valid_point_num = 5;
+    segment_valid_line_num  = 3;
+    vertical_angle_bottom   = static_cast<float>(15. + 0.1) * DEGREE_TO_RAD;
+    ang_res_x               = static_cast<float>(0.2) * DEGREE_TO_RAD;
+    ang_res_y               = static_cast<float>(2.) * DEGREE_TO_RAD;
 
-  // Range image projection
-  const size_t       cloud_size = pcl.size();
-  std::vector<point> transformed_pcl(vertical_scans * horizontal_scans);
-  for (size_t i = 0; i < cloud_size; ++i) {
-    point m_pt = pcl[i];
+    // Reset global variables and members
+    reset();
 
-    float range = m_pt.norm3D();
+    // Range image projection
+    const size_t cloud_size = pcl.size();
+    transformed_pcl.resize(vertical_scans * horizontal_scans);
+    for (size_t i = 0; i < cloud_size; ++i) {
+      point m_pt = pcl[i];
 
-    // find the row and column index in the image for this point
-    float vertical_angle =
-        std::atan2(m_pt.z, std::sqrt(m_pt.x * m_pt.x + m_pt.y * m_pt.y));
+      float range = m_pt.norm3D();
 
-    int row_idx = (vertical_angle + vertical_angle_bottom) / ang_res_y;
-    if (row_idx < 0 || row_idx >= vertical_scans) {
-      continue;
+      // find the row and column index in the image for this point
+      float vertical_angle =
+          std::atan2(m_pt.z, std::sqrt(m_pt.x * m_pt.x + m_pt.y * m_pt.y));
+
+      int row_idx =
+          static_cast<int>((vertical_angle + vertical_angle_bottom) / ang_res_y);
+      if (row_idx < 0 || row_idx >= vertical_scans) {
+        continue;
+      }
+
+      float horizon_angle = std::atan2(m_pt.x, m_pt.y);
+
+      int column_idx = static_cast<int>(
+          -round((horizon_angle - M_PI_2) / ang_res_x) + horizontal_scans / 2.);
+
+      if (column_idx >= horizontal_scans) {
+        column_idx -= horizontal_scans;
+      }
+
+      if (column_idx < 0 || column_idx >= horizontal_scans) {
+        continue;
+      }
+
+      if (range < 1.0) {
+        continue;
+      }
+
+      range_mat(row_idx, column_idx) = range;
+
+      size_t idx           = column_idx + row_idx * horizontal_scans;
+      transformed_pcl[idx] = m_pt;
     }
+  } else {
 
-    float horizon_angle = std::atan2(m_pt.x, m_pt.y);
-
-    int column_idx =
-        -round((horizon_angle - M_PI_2) / ang_res_x) + horizontal_scans / 2;
-
-    if (column_idx >= horizontal_scans) {
-      column_idx -= horizontal_scans;
-    }
-
-    if (column_idx < 0 || column_idx >= horizontal_scans) {
-      continue;
-    }
-
-    if (range < 1.0) {
-      continue;
-    }
-
-    range_mat(row_idx, column_idx) = range;
-
-    size_t idx           = column_idx + row_idx * horizontal_scans;
-    transformed_pcl[idx] = m_pt;
   }
 
   // - GROUND PLANE
@@ -302,22 +295,38 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
   extractCorners(cloud_seg, out_corners);
 
   // Convert features to base_link referential frame
-  pose vel2base_pose(vel2base_x,
-                     vel2base_y,
-                     vel2base_z,
-                     vel2base_roll,
-                     vel2base_pitch,
-                     vel2base_yaw);
+  pose tf_pose;
+  TF   tf;
 
-  std::array<float, 9> v2b_rot{};
-  vel2base_pose.toRotMatrix(v2b_rot);
-  TF vel2base(v2b_rot, std::array<float, 3>{vel2base_x, vel2base_y, vel2base_z});
+  if (sensor == "velodyne") {
+    tf_pose = pose(vel2base_x,
+                   vel2base_y,
+                   vel2base_z,
+                   vel2base_roll,
+                   vel2base_pitch,
+                   vel2base_yaw);
+
+    std::array<float, 9> tf_rot{};
+    tf_pose.toRotMatrix(tf_rot);
+    tf = TF(tf_rot, std::array<float, 3>{vel2base_x, vel2base_y, vel2base_z});
+  } else {
+    tf_pose = pose(cam2base_x,
+                   cam2base_y,
+                   cam2base_z,
+                   cam2base_roll,
+                   cam2base_pitch,
+                   cam2base_yaw);
+
+    std::array<float, 9> tf_rot{};
+    tf_pose.toRotMatrix(tf_rot);
+    tf = TF(tf_rot, std::array<float, 3>{cam2base_x, cam2base_y, cam2base_z});
+  }
 
   for (auto& pt : out_groundplane.points) {
-    pt = pt * vel2base.inverse();
+    pt = pt * tf.inverse();
   }
   for (auto& corner : out_corners) {
-    corner.pos = corner.pos * vel2base.inverse();
+    corner.pos = corner.pos * tf.inverse();
   }
   // -------------------------------------------
 }

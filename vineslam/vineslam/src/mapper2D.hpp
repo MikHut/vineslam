@@ -47,12 +47,15 @@ public:
                 const std::vector<float>&     depths,
                 std::vector<SemanticFeature>& landmarks) const;
 
+  // Setters
+  void setCamPitch(const float& pitch) { cam_pitch = pitch; }
+
 private:
   // Input parameters
   int         filter_frequency;
   float       stdev_threshold;
   float       baseline;
-  float       cam_pitch;
+  float       cam_pitch{};
   float       fx;
   std::string config_path;
 

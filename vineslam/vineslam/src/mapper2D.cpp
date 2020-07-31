@@ -8,7 +8,6 @@ Mapper2D::Mapper2D(const std::string& config_path)
 {
   YAML::Node config = YAML::LoadFile(config_path);
   fx                = config["camera_info"]["fx"].as<float>();
-  cam_pitch = config["system"]["cam2base"]["pitch"].as<float>() * DEGREE_TO_RAD;
   baseline  = config["camera_info"]["baseline"].as<float>();
 
   filter_frequency = 5;

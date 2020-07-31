@@ -78,12 +78,46 @@ public:
   // Builds local map given the current 3D point cloud
   void localPCLMap(const std::vector<point>& pcl,
                    std::vector<Corner>&      out_corners,
-                   Plane&                    out_groundplane);
+                   Plane&                    out_groundplane,
+                   const std::string&        sensor = "velodyne");
 
   // Adds the corner features to the global map
   void globalCornerMap(const std::vector<Corner>& corners,
                        const pose&                robot_pose,
                        OccupancyMap&              grid_map) const;
+  // -------------------------------------------------------------------------------
+
+
+
+  // Setter functions
+  void setCam2Base(const float& x,
+                   const float& y,
+                   const float& z,
+                   const float& roll,
+                   const float& pitch,
+                   const float& yaw)
+  {
+    cam2base_x     = x;
+    cam2base_y     = y;
+    cam2base_z     = z;
+    cam2base_roll  = roll;
+    cam2base_pitch = pitch;
+    cam2base_yaw   = yaw;
+  }
+  void setVel2Base(const float& x,
+                   const float& y,
+                   const float& z,
+                   const float& roll,
+                   const float& pitch,
+                   const float& yaw)
+  {
+    vel2base_x     = x;
+    vel2base_y     = y;
+    vel2base_z     = z;
+    vel2base_roll  = roll;
+    vel2base_pitch = pitch;
+    vel2base_yaw   = yaw;
+  }
 
 private:
   // -------------------------------------------------------------------------------
@@ -140,23 +174,23 @@ private:
   int   downsample_f;
   int   max_iters;
   float dist_threshold;
-  float planes_th;
-  float ground_th;
-  float edge_threshold;
+  float planes_th{};
+  float ground_th{};
+  float edge_threshold{};
   // Velodyne parameters
-  int   vertical_scans;
-  int   horizontal_scans;
-  int   ground_scan_idx;
-  int   segment_valid_point_num;
-  int   segment_valid_line_num;
-  float vertical_angle_bottom;
-  float ang_res_x;
-  float ang_res_y;
+  int   vertical_scans{};
+  int   horizontal_scans{};
+  int   ground_scan_idx{};
+  int   segment_valid_point_num{};
+  int   segment_valid_line_num{};
+  float vertical_angle_bottom{};
+  float ang_res_x{};
+  float ang_res_y{};
   // Transformation parameters
-  float cam2base_x, cam2base_y, cam2base_z, cam2base_roll, cam2base_pitch,
-      cam2base_yaw;
-  float vel2base_x, vel2base_y, vel2base_z, vel2base_roll, vel2base_pitch,
-      vel2base_yaw;
+  float cam2base_x{}, cam2base_y{}, cam2base_z{}, cam2base_roll{}, cam2base_pitch{},
+      cam2base_yaw{};
+  float vel2base_x{}, vel2base_y{}, vel2base_z{}, vel2base_roll{}, vel2base_pitch{},
+      vel2base_yaw{};
 
   // Cloud segmentation matrices
   Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> range_mat;

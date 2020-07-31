@@ -26,12 +26,10 @@ SLAMNode::SLAMNode(int argc, char** argv)
   register_map = true;
 
   // Load param
-  config_path =
-      "/home/andre-criis/Source/catkin_ws/src/vineslam/vineslam/config/setup.yaml";
-  //  if (!nh.getParam("/slam_node/SLAMNode/config_path", config_path)) {
-  //    ROS_ERROR("/config_path parameter not found. Shutting down...");
-  //    return;
-  //  }
+  if (!nh.getParam("/slam_node/SLAMNode/config_path", config_path)) {
+    ROS_ERROR("/config_path parameter not found. Shutting down...");
+    return;
+  }
 
   // Load config file
   auto config = YAML::LoadFile(config_path);
@@ -64,14 +62,10 @@ SLAMNode::SLAMNode(int argc, char** argv)
   set_datum  = nh.serviceClient<agrob_map_transform::SetDatum>("datum");
 
   // Synchronize subscribers of both topics
-  //  message_filters::Subscriber<sensor_msgs::Image> left_image_sub(
-  //      nh, "/left_image", 1);
   message_filters::Subscriber<sensor_msgs::Image> left_image_sub(
-      nh, "/zed/zed_node/left/image_rect_color", 1);
-  //  message_filters::Subscriber<sensor_msgs::Image> depth_image_sub(
-  //      nh, "/depth_image", 1);
+      nh, "/left_image", 1);
   message_filters::Subscriber<sensor_msgs::Image> depth_image_sub(
-      nh, "/zed/zed_node/depth/depth_registered", 1);
+      nh, "/depth_image", 1);
   message_filters::Subscriber<vision_msgs::Detection2DArray> detections_sub(
       nh, "/detections", 1);
   message_filters::TimeSynchronizer<sensor_msgs::Image,
@@ -81,15 +75,11 @@ SLAMNode::SLAMNode(int argc, char** argv)
   sync.registerCallback(boost::bind(&SLAMNode::mainCallbackFct, this, _1, _2, _3));
 
   // Scan subscription
-  //  ros::Subscriber scan_subscriber =
-  //      nh.subscribe("/scan_3D", 1, &SLAMNode::scanListener, this);
   ros::Subscriber scan_subscriber =
-      nh.subscribe("/velodyne_points", 1, &SLAMNode::scanListener, this);
+      nh.subscribe("/scan_3D", 1, &SLAMNode::scanListener, this);
   // Odometry subscription
-  //  ros::Subscriber odom_subscriber =
-  //      nh.subscribe("/odom", 1, &SLAMNode::odomListener, this);
-  ros::Subscriber odom_subscriber = nh.subscribe(
-      "/husky_velocity_controller/odom", 1, &SLAMNode::odomListener, this);
+  ros::Subscriber odom_subscriber =
+      nh.subscribe("/odom", 1, &SLAMNode::odomListener, this);
   // GPS subscription
   ros::Subscriber gps_subscriber =
       nh.subscribe("/fix", 1, &SLAMNode::gpsListener, this);
@@ -129,7 +119,7 @@ SLAMNode::SLAMNode(int argc, char** argv)
 SLAMNode::~SLAMNode()
 {
   auto config   = YAML::LoadFile(config_path);
-  bool save_map = config["grid_map"]["save_map"].as<bool>();
+  bool save_map = config["multilayer_mapping"]["grid_map"]["save_map"].as<bool>();
 
   if (save_map) {
     std::cout << "Writing map to file ..." << std::endl;
@@ -212,6 +202,53 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
     localizer->init(pose(0, 0, 0, 0, 0, odom.yaw));
     robot_pose = localizer->getPose();
 
+    // Get static sensor tfs
+    tf::TransformListener listener;
+    tf::StampedTransform  cam2base;
+    try {
+      ROS_INFO("Looking for transform from /base_link to /zed_left_camera_frame...");
+      listener.waitForTransform("/zed_left_camera_frame",
+                                "/base_link",
+                                ros::Time::now(),
+                                ros::Duration(1.0));
+      listener.lookupTransform(
+          "/zed_left_camera_frame", "/base_link", ros::Time::now(), cam2base);
+      tf::Vector3 t = cam2base.getOrigin();
+      tfScalar    roll, pitch, yaw;
+      cam2base.getBasis().getRPY(roll, pitch, yaw);
+
+      mapper3D->setCam2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
+      mapper2D->setCamPitch(pitch);
+    } catch (tf::TransformException& ex) {
+      ROS_ERROR("%s", ex.what());
+      ROS_ERROR("Setting transformation as identity...");
+      mapper3D->setCam2Base(0., 0., 0., 0., 0., 0.);
+      mapper2D->setCamPitch(0.);
+
+      return;
+    }
+    tf::StampedTransform vel2base;
+    try {
+      ROS_INFO("Looking for transform from /base_link to /velodyne...");
+      listener.waitForTransform(
+          "/velodyne", "/base_link", ros::Time::now(), ros::Duration(1.0));
+      listener.lookupTransform(
+          "/velodyne", "/base_link", ros::Time::now(), vel2base);
+      tf::Vector3 t = vel2base.getOrigin();
+      tfScalar    roll, pitch, yaw;
+      vel2base.getBasis().getRPY(roll, pitch, yaw);
+
+      mapper3D->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
+    } catch (tf::TransformException& ex) {
+      ROS_ERROR("%s", ex.what());
+      ROS_ERROR("Setting transformation as identity...");
+      mapper3D->setVel2Base(0., 0., 0., 0., 0., 0.);
+
+      return;
+    }
+
+    ROS_INFO("Got the transforms!");
+
     if (register_map) {
       // ---- Initialize the multi-layer map
       // - 2D semantic feature map
@@ -246,7 +283,7 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
     Observation obsv;
     obsv.landmarks = m_landmarks;
     //    obsv.corners      = m_corners;
-    //    obsv.ground_plane = m_ground_plane;
+    obsv.ground_plane = m_ground_plane;
     if (has_converged && use_gps)
       obsv.gps_pose = gps_pose;
     else
@@ -309,9 +346,8 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
     // Publish the 2D map
     publish2DMap(depth_image->header, robot_pose, bearings, depths);
     // Publish 3D maps
-    //    publish3DMap();
+    publish3DMap();
     publish3DMap(m_corners, map3D_corners_publisher);
-    publish3DMap(m_ground_plane, map3D_planes_publisher);
     // ------------------------------------------------ //
 
 #ifdef DEBUG
@@ -342,35 +378,35 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
 
     // - Compute rotation matrix from ground plane normal vector and aplly it to the
     // plane
-//    std::array<float, 9> R{};
-//    vector3D             m_normal = obsv.ground_plane.normal;
-//    float norm = std::sqrt(m_normal.x * m_normal.x + m_normal.y * m_normal.y);
-//    R[0]       = +m_normal.y / norm;
-//    R[1]       = -m_normal.x / norm;
-//    R[2]       = 0.;
-//    R[3]       = (m_normal.x * m_normal.z) / norm;
-//    R[4]       = (m_normal.y * m_normal.z) / norm;
-//    R[5]       = -norm;
-//    R[6]       = m_normal.x;
-//    R[7]       = m_normal.y;
-//    R[8]       = m_normal.z;
-//
-//    std::array<float, 3> trans            = {0., 0., 0.};
-//    pose                 pose_from_ground = pose(R, trans);
-//    pose_from_ground.yaw                  = 0.;
-//    R                                     = {};
-//    pose_from_ground.toRotMatrix(R);
-//
-//    Plane m_plane;
-//    for (const auto& pt : obsv.ground_plane.points) {
-//      point m_pt;
-//      m_pt.x = pt.x * R[0] + pt.y * R[1] + pt.z * R[2];
-//      m_pt.y = pt.x * R[3] + pt.y * R[4] + pt.z * R[5];
-//      m_pt.z = pt.x * R[6] + pt.y * R[7] + pt.z * R[8];
-//
-//      m_plane.points.push_back(pt);
-//    }
-//    publish3DMap(m_plane, map3D_planes_publisher);
+    std::array<float, 9> R{};
+    vector3D             m_normal = obsv.ground_plane.normal;
+    float norm = std::sqrt(m_normal.x * m_normal.x + m_normal.y * m_normal.y);
+    R[0]       = +m_normal.y / norm;
+    R[1]       = -m_normal.x / norm;
+    R[2]       = 0.;
+    R[3]       = (m_normal.x * m_normal.z) / norm;
+    R[4]       = (m_normal.y * m_normal.z) / norm;
+    R[5]       = -norm;
+    R[6]       = m_normal.x;
+    R[7]       = m_normal.y;
+    R[8]       = m_normal.z;
+
+    std::array<float, 3> trans            = {0., 0., 0.};
+    pose                 pose_from_ground = pose(R, trans);
+    pose_from_ground.yaw                  = 0.;
+    R                                     = {};
+    pose_from_ground.toRotMatrix(R);
+
+    Plane m_plane;
+    for (const auto& pt : obsv.ground_plane.points) {
+      point m_pt;
+      m_pt.x = pt.x * R[0] + pt.y * R[1] + pt.z * R[2];
+      m_pt.y = pt.x * R[3] + pt.y * R[4] + pt.z * R[5];
+      m_pt.z = pt.x * R[6] + pt.y * R[7] + pt.z * R[8];
+
+      m_plane.points.push_back(pt);
+    }
+    publish3DMap(m_plane, map3D_planes_publisher);
 #endif
   }
 }

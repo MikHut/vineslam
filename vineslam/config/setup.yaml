@@ -10,25 +10,9 @@ system:
   use_gps: True
   # ---------------------
   gps_datum:
-    lat: 41.2054771667 # initial gps latitude (larger)
-    long: -8.3073805 # initial gps longiture (larger)
+    lat: 41.205517 # initial gps latitude (larger)
+    long: -8.3073515 # initial gps longiture (larger)
   # ---------------------
-  # velodyne to base_link transformation
-  vel2base:
-    x: -0.245 # meters
-    y: 0.123 # meters
-    z: -0.961 # meters
-    roll: 4.278 # degrees
-    pitch: -1.749 # degrees
-    yaw: 1.437 # degrees
-  # camera to base_link transformation
-  cam2base:
-    x: -0.185 # meters
-    y: -0.140 # meters
-    z: -0.844 # meters
-    roll: -0.586 # degrees
-    pitch: -10.504 # degrees
-    yaw: 2.472 # degrees
 
 # Camera calibration info
 camera_info:

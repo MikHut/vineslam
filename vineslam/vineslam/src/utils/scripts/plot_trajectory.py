@@ -4,6 +4,7 @@ import glob
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import numpy as np
+import argparse
 
 
 def plotClustersFile(path):
@@ -44,15 +45,14 @@ def plotClustersFile(path):
         i = 0
 
 
-def readClustersFiles(dir):
-    return glob.glob(dir + "*.txt")
-
-
 def main():
-    dir = "/home/andre-criis/Source/vineslam_data/"
-    files = readClustersFiles(dir)
-    for file in files:
-        plotClustersFile(file)
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-file", "--path_file", help="File containing robot path.", type=str, required=True)
+    args = vars(ap.parse_args(args=arglist))
+
+    path_file = args['path_file']
+
+    plotPath(path_file)
 
 
 if __name__ == "__main__":

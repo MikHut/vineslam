@@ -1,6 +1,6 @@
 #include "pf.hpp"
 
-#include <cmath>
+#include <utils/save_data.hpp>
 
 namespace vineslam
 {
@@ -181,6 +181,8 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
     particle.w = m_lw * m_cw * m_gw * m_sw * m_gpsw;
     w_sum += particle.w;
   }
+
+  n_it++;
 }
 
 void PF::gps(const pose& gps_pose, std::vector<float>& ws)
@@ -449,6 +451,8 @@ void PF::lowLevel(const std::vector<ImageFeature>& surf_features,
   // ---------------- Scan match
   // ------------------------------------------------------------------------------
   scanMatch(surf_features, grid_map, gauss_map, ws);
+
+  saveParticleClusters(gauss_map, particles, k_clusters, n_it);
 }
 
 void PF::cluster(std::map<int, Gaussian<pose, pose>>& gauss_map)

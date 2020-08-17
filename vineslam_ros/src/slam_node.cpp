@@ -118,6 +118,7 @@ SLAMNode::SLAMNode(int argc, char** argv)
 
 SLAMNode::~SLAMNode()
 {
+  // Save map data
   auto config   = YAML::LoadFile(config_path);
   bool save_map = config["multilayer_mapping"]["grid_map"]["save_map"].as<bool>();
 
@@ -126,6 +127,9 @@ SLAMNode::~SLAMNode()
     MapWriter mw(config_path);
     mw.writeToFile(*grid_map);
   }
+
+  // Save path data
+  saveRobotPath(gps_path, robot_path);
 }
 
 // --------------------------------------------------------------------------------
@@ -304,6 +308,10 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
       mapper3D->globalSurfMap(m_surf_features, robot_pose, *grid_map);
       // ---------------------------------------- //
     }
+
+    // Save poses to paths
+    robot_path.push_back(robot_pose);
+    gps_path.push_back(gps_pose);
 
     // Convert robot pose to tf::Transform corresponding
     // to the camera to map transformation

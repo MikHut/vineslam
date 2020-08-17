@@ -11,6 +11,7 @@
 #include <math/const.hpp>
 #include <mapXML/map_writer.hpp>
 #include <mapXML/map_parser.hpp>
+#include <utils/save_data.hpp>
 
 // std
 #include <iostream>
@@ -22,8 +23,8 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 #include <nav_msgs/Odometry.h>
-#include <nav_msgs/Path.h>
 #include <ros/ros.h>
+#include <nav_msgs/Path.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/PointCloud2.h>
@@ -130,6 +131,10 @@ private:
   pose p_odom;
   pose robot_pose;
   pose gps_pose;
+
+  // Path variables
+  std::vector<pose> robot_path;
+  std::vector<pose> gps_path;
 
   // 3D scan points handler
   std::vector<point> scan_pts;

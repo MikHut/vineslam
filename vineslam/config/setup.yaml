@@ -7,7 +7,7 @@ system:
   use_landmarks: True
   use_corners: True
   use_icp: True
-  use_gps: True
+  use_gps: False
   # ---------------------
   gps_datum:
     lat: 41.205517 # initial gps latitude (larger)

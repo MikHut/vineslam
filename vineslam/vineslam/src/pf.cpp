@@ -553,7 +553,7 @@ void PF::cluster(std::map<int, Gaussian<pose, pose>>& gauss_map)
       if (which_cluster != particle.which_cluster) {
         auto it = swap.find(particle.which_cluster);
         if (num_per_cluster[particle.which_cluster] >
-            static_cast<float>(n_particles / k_clusters) * 0.3) {
+            static_cast<float>(n_particles / k_clusters) * 1.0) {
           num_per_cluster[which_cluster]++;
           num_per_cluster[particle.which_cluster]--;
           particle.which_cluster = which_cluster;

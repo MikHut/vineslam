@@ -133,8 +133,8 @@ private:
   pose gps_pose;
 
   // Path variables
-  std::vector<pose> robot_path;
-  std::vector<pose> gps_path;
+  std::vector<TF> robot_path;
+  std::vector<TF> gps_path;
 
   // 3D scan points handler
   std::vector<point> scan_pts;

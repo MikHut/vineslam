@@ -202,7 +202,6 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
   std::vector<ImageFeature> m_imgfeatures;
 
   if (init && !init_odom && !init_gps && bearings.size() > 1) {
-    ROS_INFO("IF\n");
     // Initialize the localizer and get first particles distribution
     localizer->init(pose(0, 0, 0, 0, 0, odom.yaw));
     robot_pose = localizer->getPose();
@@ -311,8 +310,15 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
     }
 
     // Save poses to paths
-    robot_path.push_back(robot_pose);
-    gps_path.push_back(gps_pose);
+    std::array<float, 9> robot_R{};
+    robot_pose.toRotMatrix(robot_R);
+    TF robot_tf(robot_R,
+                std::array<float, 3>{robot_pose.x, robot_pose.y, robot_pose.z});
+    robot_path.push_back(robot_tf);
+    std::array<float, 9> gps_R{};
+    robot_pose.toRotMatrix(gps_R);
+    TF gps_tf(robot_R, std::array<float, 3>{gps_pose.x, gps_pose.y, gps_pose.z});
+    gps_path.push_back(gps_tf);
 
     // Convert robot pose to tf::Transform corresponding
     // to the camera to map transformation

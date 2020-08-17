@@ -38,7 +38,7 @@ multilayer_mapping:
     resolution: 0.25 # meters
     metric: "euclidean"
     save_map: True
-    output_file: "/home/andre-criis/map.xml"
+    output_folder: "/home/andre-criis/Source/vineslam_data/08-2020-paper-clusters/raw_data/maps/"
     input_file: "/home/andre-criis/map.xml"
   # Feature extractor and descriptor settings
   image_feature:

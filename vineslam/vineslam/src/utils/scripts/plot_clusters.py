@@ -21,8 +21,8 @@ def plotClustersFile(path):
             numbers = line.split()
 
             # Centroid
-            x_mean, y_mean, z_mean = float(numbers[0]), float(numbers[1]), float(numbers[2])
-            ax.scatter(x_mean, y_mean, z_mean, markers[i], s=100)
+            # x_mean, y_mean, z_mean = float(numbers[0]), float(numbers[1]), float(numbers[2])
+            # ax.scatter(x_mean, y_mean, z_mean, markers[i], s=100)
 
             # Points
             x = []
@@ -49,9 +49,10 @@ def readClustersFiles(dir):
 
 
 def main():
-    dir = "/home/andre-criis/Source/vineslam_data/raw_data/clusters"
+    dir = "/home/andre-criis/Source/vineslam_data/08-2020-paper-clusters/raw_data/clusters/"
     files = readClustersFiles(dir)
     for file in files:
+        print(file)
         plotClustersFile(file)
 
 

@@ -5,7 +5,8 @@
 #include <fstream>
 #include <pf.hpp>
 
-const std::string folder = "/home/andre-criis/Source/vineslam_data/raw_data";
+const std::string folder = "/home/andre-criis/Source/vineslam_data/"
+                           "08-2020-paper-clusters/raw_data";
 
 namespace vineslam
 {
@@ -32,22 +33,29 @@ void saveParticleClusters(const std::map<int, Gaussian<pose, pose>>& gauss_map,
   file.close();
 }
 
-void saveRobotPath(const std::vector<pose>& gt, const std::vector<pose>& rp)
+void saveRobotPath(const std::vector<TF>& gt, const std::vector<TF>& rp)
 {
-  std::time_t t = std::time(0);
+  std::time_t   t = std::time(0);
   std::ofstream file;
-  file.open(folder + "/paths/" + "path_" + std::to_string(t) + ".txt");
 
-  for (const auto& m_pose : gt) {
-    file << m_pose.x << " " << m_pose.y << " " << m_pose.z << " ";
+  file.open(folder + "/paths/" + "path_vineslam_" + std::to_string(t) + ".txt");
+  for (const auto& m_tf : rp) {
+    file << m_tf.R[0] << " " << m_tf.R[1] << " " << m_tf.R[2] << " " << m_tf.t[0]
+         << " " << m_tf.R[3] << " " << m_tf.R[4] << " " << m_tf.R[5] << " "
+         << m_tf.t[1] << " " << m_tf.R[6] << " " << m_tf.R[7] << " " << m_tf.R[8]
+         << " " << m_tf.t[2] << "\n";
   }
   file << "\n";
+  file.close();
 
-  for (const auto& m_pose : rp) {
-    file << m_pose.x << " " << m_pose.y << " " << m_pose.z << " ";
+  file.open(folder + "/paths/" + "path_gps_" + std::to_string(t) + ".txt");
+  for (const auto& m_tf : gt) {
+    file << m_tf.R[0] << " " << m_tf.R[1] << " " << m_tf.R[2] << " " << m_tf.t[0]
+         << " " << m_tf.R[3] << " " << m_tf.R[4] << " " << m_tf.R[5] << " "
+         << m_tf.t[1] << " " << m_tf.R[6] << " " << m_tf.R[7] << " " << m_tf.R[8]
+         << " " << m_tf.t[2] << "\n";
   }
   file << "\n";
-
   file.close();
 }
 

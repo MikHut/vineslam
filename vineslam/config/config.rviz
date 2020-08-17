@@ -274,7 +274,7 @@ Visualization Manager:
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
-      Size (Pixels): 6
+      Size (Pixels): 2
       Size (m): 0.05000000074505806
       Style: Points
       Topic: /vineslam/map3D/corners
@@ -340,25 +340,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 59.84712219238281
+      Distance: 28.794384002685547
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 8.183479309082031
-        Y: 0.042087554931640625
-        Z: 1.342622454103548e-6
+        X: 2.4230117797851562
+        Y: 0.42298901081085205
+        Z: -1.995237653318327e-6
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: -0.01020275242626667
       Target Frame: <Fixed Frame>
       Value: XYOrbit (rviz)
-      Yaw: 3.1854605674743652
+      Yaw: 2.1091084480285645
     Saved: ~
 Window Geometry:
   Displays:

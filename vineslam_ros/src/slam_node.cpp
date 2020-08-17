@@ -286,7 +286,7 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
 
     // ------- Build observation structure to use in the localization
     Observation obsv;
-    obsv.landmarks = m_landmarks;
+    obsv.landmarks    = m_landmarks;
     obsv.corners      = m_corners;
     obsv.ground_plane = m_ground_plane;
     if (has_converged && use_gps)
@@ -356,7 +356,6 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
     publish2DMap(depth_image->header, robot_pose, bearings, depths);
     // Publish 3D maps
     publish3DMap();
-    publish3DMap(m_corners, map3D_corners_publisher);
     // ------------------------------------------------ //
 
 #ifdef DEBUG

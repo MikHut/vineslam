@@ -262,6 +262,17 @@ void Mapper3D::localPCLMap(const float*         depths,
   // Filter outliers using RANSAC
   ransac(gplane_unfilt, out_groundplane);
 
+  // -------------------------------------------------------------------------------
+  // ----- Mark ground points
+  // -------------------------------------------------------------------------------
+  for (const auto& index : out_groundplane.indexes) {
+    int i = static_cast<int>(index.x);
+    int j = static_cast<int>(index.y);
+
+    ground_mat(i, j) = 1;
+    label_mat(i, j)  = -1;
+  }
+
   // - OTHER PLANES
   std::vector<PlanePoint> cloud_seg;
   cloudSegmentation(pts3D, cloud_seg);
@@ -339,6 +350,17 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
   groundRemoval(transformed_pcl, gplane_unfilt);
   // Filter outliers using RANSAC
   ransac(gplane_unfilt, out_groundplane);
+
+  // -------------------------------------------------------------------------------
+  // ----- Mark ground points
+  // -------------------------------------------------------------------------------
+  for (const auto& index : out_groundplane.indexes) {
+    int i = static_cast<int>(index.x);
+    int j = static_cast<int>(index.y);
+
+    ground_mat(i, j) = 1;
+    label_mat(i, j)  = -1;
+  }
 
   // - OTHER PLANES
   std::vector<PlanePoint> cloud_seg;
@@ -470,13 +492,10 @@ void Mapper3D::groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl)
       float vertical_angle = std::atan2(dZ, std::sqrt(dX * dX + dY * dY));
 
       if (vertical_angle <= ground_th) {
-        ground_mat(i, j)     = 1;
-        ground_mat(i + 1, j) = 1;
-        label_mat(i, j)      = -1;
-        label_mat(i + 1, j)  = -1;
-
         out_pcl.points.push_back(lower_pt);
         out_pcl.points.push_back(upper_pt);
+        out_pcl.indexes.emplace_back(i, j);
+        out_pcl.indexes.emplace_back(i + 1, j);
       }
       i += downsample_f;
     }
@@ -714,27 +733,21 @@ void Mapper3D::labelComponents(const int&                row,
   }
 
   // Check if this segment is valid
-//  bool feasible_segment = false;
-//  if (global_queue.size() >= 30) {
-//    feasible_segment = true;
-//  } else if (global_queue.size() >= segment_valid_point_num) {
-//    int line_count = 0;
-//    for (int i = 0; i < vertical_scans; i++) {
-//      if (line_count_flag[i])
-//        line_count++;
-//    }
-//
-//    if (line_count >= segment_valid_line_num)
-//      feasible_segment = true;
-//  }
-//
-//  if (feasible_segment) {
-//    label++;
-//  } else {
-//    for (auto& i : global_queue) label_mat(i.x(), i.y()) = 999999;
-//  }
-
+  bool feasible_segment = false;
   if (global_queue.size() >= 30) {
+    feasible_segment = true;
+  } else if (global_queue.size() >= segment_valid_point_num) {
+    int line_count = 0;
+    for (int i = 0; i < vertical_scans; i++) {
+      if (line_count_flag[i])
+        line_count++;
+    }
+
+    if (line_count >= segment_valid_line_num)
+      feasible_segment = true;
+  }
+
+  if (feasible_segment) {
     label++;
   } else {
     for (auto& i : global_queue) label_mat(i.x(), i.y()) = 999999;
@@ -795,7 +808,7 @@ void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,
         if (neighbor_picked[idx] == 0 &&
             cloud_smoothness[l].value > edge_threshold) {
           picked_counter++;
-          if (picked_counter <= 2) {
+          if (picked_counter <= 20) {
             Corner m_corner(in_plane_pts[idx].pos, in_plane_pts[idx].which_plane);
             out_corners.push_back(m_corner);
           } else {

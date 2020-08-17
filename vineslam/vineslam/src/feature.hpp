@@ -181,7 +181,7 @@ struct PlanePoint : public Corner {
     which_plane = m_which_plane;
   }
 
-  PlanePoint(const Corner& m_corner)
+  explicit PlanePoint(const Corner& m_corner)
   {
     pos         = m_corner.pos;
     which_plane = m_corner.which_plane;
@@ -203,8 +203,9 @@ struct Plane {
     points = m_points;
   }
 
-  vector3D           normal;
-  std::vector<point> points;
+  vector3D           normal; // plane normal vector
+  std::vector<point> points; // set of points that belong to the plane
+  std::vector<point> indexes; // indexes of points projected into the range image
 };
 
 }; // namespace vineslam

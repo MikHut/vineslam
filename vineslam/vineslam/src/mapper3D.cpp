@@ -9,14 +9,14 @@ Mapper3D::Mapper3D(const std::string& config_path)
   YAML::Node config = YAML::LoadFile(config_path);
 
   // Load camera info parameters
-  img_width       = config["camera_info"]["img_width"].as<int>();
-  img_height      = config["camera_info"]["img_height"].as<int>();
-  fx              = config["camera_info"]["fx"].as<float>();
-  fy              = config["camera_info"]["fy"].as<float>();
-  cx              = config["camera_info"]["cx"].as<float>();
-  cy              = config["camera_info"]["cy"].as<float>();
-  auto depth_hfov = config["camera_info"]["depth_hfov"].as<float>() * DEGREE_TO_RAD;
-  auto depth_vfov = config["camera_info"]["depth_vfov"].as<float>() * DEGREE_TO_RAD;
+  img_width  = config["camera_info"]["img_width"].as<int>();
+  img_height = config["camera_info"]["img_height"].as<int>();
+  fx         = config["camera_info"]["fx"].as<float>();
+  fy         = config["camera_info"]["fy"].as<float>();
+  cx         = config["camera_info"]["cx"].as<float>();
+  cy         = config["camera_info"]["cy"].as<float>();
+  depth_hfov = config["camera_info"]["depth_hfov"].as<float>() * DEGREE_TO_RAD;
+  depth_vfov = config["camera_info"]["depth_vfov"].as<float>() * DEGREE_TO_RAD;
   // Load 3D map parameters
   metric     = config["multilayer_mapping"]["grid_map"]["metric"].as<std::string>();
   max_range  = config["multilayer_mapping"]["map_3D"]["max_range"].as<float>();
@@ -214,71 +214,124 @@ void Mapper3D::reset()
   seg_pcl.range.assign(cloud_size, 0);
 }
 
+void Mapper3D::localPCLMap(const float*         depths,
+                           std::vector<Corner>& out_corners,
+                           Plane&               out_groundplane)
+{
+  // Set velodyne configuration parameters
+  sensor                  = "zed";
+  planes_th               = static_cast<float>(5.) * DEGREE_TO_RAD;
+  ground_th               = static_cast<float>(2.) * DEGREE_TO_RAD;
+  edge_threshold          = 0.05;
+  vertical_scans          = img_height;
+  horizontal_scans        = img_width;
+  ground_scan_idx         = static_cast<int>(img_height / 2. - 1.);
+  segment_valid_point_num = 5;
+  segment_valid_line_num  = 3;
+  ang_res_x               = depth_hfov / static_cast<float>(img_width);
+  ang_res_y               = depth_vfov / static_cast<float>(img_height);
+
+  // Reset global variables and members
+  reset();
+
+  std::vector<point> pts3D(horizontal_scans * vertical_scans);
+  for (auto j = 0; j < horizontal_scans; j++) {
+    for (auto i = 0; i < vertical_scans; i++) {
+      int idx = j + horizontal_scans * i;
+
+      float m_depth = depths[idx];
+
+      // Check validity of depth information
+      if (!std::isfinite(m_depth) || m_depth > max_range) {
+        range_mat(i, j) = -1;
+        continue;
+      }
+
+      // Pixel to 3D point conversion
+      point out_pt;
+      pixel2base(point(j, i), m_depth, out_pt);
+      // Save point and range
+      pts3D[idx]      = out_pt;
+      range_mat(i, j) = out_pt.norm3D();
+    }
+  }
+
+  // - GROUND PLANE
+  Plane gplane_unfilt;
+  groundRemoval(pts3D, gplane_unfilt);
+  // Filter outliers using RANSAC
+  ransac(gplane_unfilt, out_groundplane);
+
+  // - OTHER PLANES
+  std::vector<PlanePoint> cloud_seg;
+  cloudSegmentation(pts3D, cloud_seg);
+
+  //- Feature extraction and publication
+  extractCorners(cloud_seg, out_corners);
+}
+
 void Mapper3D::localPCLMap(const std::vector<point>& pcl,
                            std::vector<Corner>&      out_corners,
-                           Plane&                    out_groundplane,
-                           const std::string&        sensor)
+                           Plane&                    out_groundplane)
 {
   std::vector<point> transformed_pcl;
-  if (sensor == "velodyne") {
-    // Set velodyne configuration parameters
-    planes_th               = static_cast<float>(60.) * DEGREE_TO_RAD;
-    ground_th               = static_cast<float>(10.) * DEGREE_TO_RAD;
-    edge_threshold          = 0.1;
-    vertical_scans          = 16;
-    horizontal_scans        = 1800;
-    ground_scan_idx         = 7;
-    segment_valid_point_num = 5;
-    segment_valid_line_num  = 3;
-    vertical_angle_bottom   = static_cast<float>(15. + 0.1) * DEGREE_TO_RAD;
-    ang_res_x               = static_cast<float>(0.2) * DEGREE_TO_RAD;
-    ang_res_y               = static_cast<float>(2.) * DEGREE_TO_RAD;
+  // Set velodyne configuration parameters
+  sensor                  = "velodyne";
+  planes_th               = static_cast<float>(60.) * DEGREE_TO_RAD;
+  ground_th               = static_cast<float>(10.) * DEGREE_TO_RAD;
+  edge_threshold          = 0.1;
+  vertical_scans          = 16;
+  horizontal_scans        = 1800;
+  ground_scan_idx         = 7;
+  segment_valid_point_num = 5;
+  segment_valid_line_num  = 3;
+  vertical_angle_bottom   = static_cast<float>(15. + 0.1) * DEGREE_TO_RAD;
+  ang_res_x               = static_cast<float>(0.2) * DEGREE_TO_RAD;
+  ang_res_y               = static_cast<float>(2.) * DEGREE_TO_RAD;
+  downsample_f            = 1;
 
-    // Reset global variables and members
-    reset();
+  // Reset global variables and members
+  reset();
 
-    // Range image projection
-    const size_t cloud_size = pcl.size();
-    transformed_pcl.resize(vertical_scans * horizontal_scans);
-    for (size_t i = 0; i < cloud_size; ++i) {
-      point m_pt = pcl[i];
+  // Range image projection
+  const size_t cloud_size = pcl.size();
+  transformed_pcl.resize(vertical_scans * horizontal_scans);
+  for (size_t i = 0; i < cloud_size; ++i) {
+    point m_pt = pcl[i];
 
-      float range = m_pt.norm3D();
+    float range = m_pt.norm3D();
 
-      // find the row and column index in the image for this point
-      float vertical_angle =
-          std::atan2(m_pt.z, std::sqrt(m_pt.x * m_pt.x + m_pt.y * m_pt.y));
+    // find the row and column index in the image for this point
+    float vertical_angle =
+        std::atan2(m_pt.z, std::sqrt(m_pt.x * m_pt.x + m_pt.y * m_pt.y));
 
-      int row_idx =
-          static_cast<int>((vertical_angle + vertical_angle_bottom) / ang_res_y);
-      if (row_idx < 0 || row_idx >= vertical_scans) {
-        continue;
-      }
-
-      float horizon_angle = std::atan2(m_pt.x, m_pt.y);
-
-      int column_idx = static_cast<int>(
-          -round((horizon_angle - M_PI_2) / ang_res_x) + horizontal_scans / 2.);
-
-      if (column_idx >= horizontal_scans) {
-        column_idx -= horizontal_scans;
-      }
-
-      if (column_idx < 0 || column_idx >= horizontal_scans) {
-        continue;
-      }
-
-      if (range < 1.0) {
-        continue;
-      }
-
-      range_mat(row_idx, column_idx) = range;
-
-      size_t idx           = column_idx + row_idx * horizontal_scans;
-      transformed_pcl[idx] = m_pt;
+    int row_idx =
+        static_cast<int>((vertical_angle + vertical_angle_bottom) / ang_res_y);
+    if (row_idx < 0 || row_idx >= vertical_scans) {
+      continue;
     }
-  } else {
 
+    float horizon_angle = std::atan2(m_pt.x, m_pt.y);
+
+    int column_idx = static_cast<int>(-round((horizon_angle - M_PI_2) / ang_res_x) +
+                                      horizontal_scans / 2.);
+
+    if (column_idx >= horizontal_scans) {
+      column_idx -= horizontal_scans;
+    }
+
+    if (column_idx < 0 || column_idx >= horizontal_scans) {
+      continue;
+    }
+
+    if (range < 1.0) {
+      continue;
+    }
+
+    range_mat(row_idx, column_idx) = range;
+
+    size_t idx           = column_idx + row_idx * horizontal_scans;
+    transformed_pcl[idx] = m_pt;
   }
 
   // - GROUND PLANE
@@ -298,29 +351,16 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
   pose tf_pose;
   TF   tf;
 
-  if (sensor == "velodyne") {
-    tf_pose = pose(vel2base_x,
-                   vel2base_y,
-                   vel2base_z,
-                   vel2base_roll,
-                   vel2base_pitch,
-                   vel2base_yaw);
+  tf_pose = pose(vel2base_x,
+                 vel2base_y,
+                 vel2base_z,
+                 vel2base_roll,
+                 vel2base_pitch,
+                 vel2base_yaw);
 
-    std::array<float, 9> tf_rot{};
-    tf_pose.toRotMatrix(tf_rot);
-    tf = TF(tf_rot, std::array<float, 3>{vel2base_x, vel2base_y, vel2base_z});
-  } else {
-    tf_pose = pose(cam2base_x,
-                   cam2base_y,
-                   cam2base_z,
-                   cam2base_roll,
-                   cam2base_pitch,
-                   cam2base_yaw);
-
-    std::array<float, 9> tf_rot{};
-    tf_pose.toRotMatrix(tf_rot);
-    tf = TF(tf_rot, std::array<float, 3>{cam2base_x, cam2base_y, cam2base_z});
-  }
+  std::array<float, 9> tf_rot{};
+  tf_pose.toRotMatrix(tf_rot);
+  tf = TF(tf_rot, std::array<float, 3>{vel2base_x, vel2base_y, vel2base_z});
 
   for (auto& pt : out_groundplane.points) {
     pt = pt * tf.inverse();
@@ -399,8 +439,17 @@ void Mapper3D::groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl)
   // -1, no valid info to check if ground of not
   //  0, initial value, after validation, means not ground
   //  1, ground
-  for (int j = 0; j < horizontal_scans; j++) {
-    for (int i = 0; i < ground_scan_idx; i++) {
+  int ymin, ylim;
+  if (sensor == "zed") {
+    ymin = vertical_scans / 2;
+    ylim = vertical_scans;
+  } else {
+    ymin = 0;
+    ylim = ground_scan_idx;
+  }
+
+  for (int j = 0; j < horizontal_scans;) {
+    for (int i = ymin; i < ylim - 1;) {
       int lower_idx = j + i * horizontal_scans;
       int upper_idx = j + (i + 1) * horizontal_scans;
 
@@ -410,6 +459,7 @@ void Mapper3D::groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl)
       if (range_mat(i, j) == -1 || range_mat(i + 1, j) == -1) {
         // no info to check, invalid points
         ground_mat(i, j) = -1;
+        i += downsample_f;
         continue;
       }
 
@@ -428,7 +478,9 @@ void Mapper3D::groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl)
         out_pcl.points.push_back(lower_pt);
         out_pcl.points.push_back(upper_pt);
       }
+      i += downsample_f;
     }
+    j += downsample_f;
   }
 }
 
@@ -561,11 +613,13 @@ void Mapper3D::cloudSegmentation(const std::vector<point>& in_pts,
 {
   // Segmentation process
   int label = 1;
-  for (int i = 0; i < vertical_scans; i++) {
-    for (int j = 0; j < horizontal_scans; j++) {
+  for (int i = 0; i < vertical_scans;) {
+    for (int j = 0; j < horizontal_scans;) {
       if (label_mat(i, j) == 0 && range_mat(i, j) != -1)
         labelComponents(i, j, in_pts, label);
+      j += downsample_f;
     }
+    i += downsample_f;
   }
 
   // Extract segmented cloud for visualization
@@ -605,7 +659,8 @@ void Mapper3D::labelComponents(const int&                row,
   std::vector<bool> line_count_flag(vertical_scans, false);
 
   // - Define neighborhood
-  const Coord2D neighbor_it[4] = {{0, -1}, {-1, 0}, {1, 0}, {0, 1}};
+  const Coord2D neighbor_it[4] = {
+      {0, -downsample_f}, {-downsample_f, 0}, {downsample_f, 0}, {0, downsample_f}};
 
   while (!queue.empty()) {
     // Evaluate front element of the queue and pop it
@@ -659,21 +714,27 @@ void Mapper3D::labelComponents(const int&                row,
   }
 
   // Check if this segment is valid
-  bool feasible_segment = false;
+//  bool feasible_segment = false;
+//  if (global_queue.size() >= 30) {
+//    feasible_segment = true;
+//  } else if (global_queue.size() >= segment_valid_point_num) {
+//    int line_count = 0;
+//    for (int i = 0; i < vertical_scans; i++) {
+//      if (line_count_flag[i])
+//        line_count++;
+//    }
+//
+//    if (line_count >= segment_valid_line_num)
+//      feasible_segment = true;
+//  }
+//
+//  if (feasible_segment) {
+//    label++;
+//  } else {
+//    for (auto& i : global_queue) label_mat(i.x(), i.y()) = 999999;
+//  }
+
   if (global_queue.size() >= 30) {
-    feasible_segment = true;
-  } else if (global_queue.size() >= segment_valid_point_num) {
-    int line_count = 0;
-    for (int i = 0; i < vertical_scans; i++) {
-      if (line_count_flag[i])
-        line_count++;
-    }
-
-    if (line_count >= segment_valid_line_num)
-      feasible_segment = true;
-  }
-
-  if (feasible_segment) {
     label++;
   } else {
     for (auto& i : global_queue) label_mat(i.x(), i.y()) = 999999;
@@ -734,7 +795,7 @@ void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,
         if (neighbor_picked[idx] == 0 &&
             cloud_smoothness[l].value > edge_threshold) {
           picked_counter++;
-          if (picked_counter <= 20) {
+          if (picked_counter <= 2) {
             Corner m_corner(in_plane_pts[idx].pos, in_plane_pts[idx].which_plane);
             out_corners.push_back(m_corner);
           } else {

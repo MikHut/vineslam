@@ -45,7 +45,7 @@ multilayer_mapping:
     hessian_threshold: 3500 # SURF threshold: the higher the value, the lesser the number of features computed
   # 3D cloud feature extraction settings
   cloud_feature:
-    downsample_factor: 10  # constant to downscale dense disparity image
+    downsample_factor: 5  # constant to downscale dense disparity image
   # 3D map definitions
   map_3D:
     max_range: 5.0 # meters

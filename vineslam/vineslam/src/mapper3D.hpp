@@ -75,19 +75,20 @@ public:
   // -------------------------------------------------------------------------------
   // ---- 3D pointcloud feature map
   // -------------------------------------------------------------------------------
-  // Builds local map given the current 3D point cloud
+  // Builds local map given the current 3D point cloud - for velodyne
   void localPCLMap(const std::vector<point>& pcl,
                    std::vector<Corner>&      out_corners,
-                   Plane&                    out_groundplane,
-                   const std::string&        sensor = "velodyne");
+                   Plane&                    out_groundplane);
+  // Builds local map given the current 3D point cloud - for ZED
+  void localPCLMap(const float*         depths,
+                   std::vector<Corner>& out_corners,
+                   Plane&               out_groundplane);
 
   // Adds the corner features to the global map
   void globalCornerMap(const std::vector<Corner>& corners,
                        const pose&                robot_pose,
                        OccupancyMap&              grid_map) const;
   // -------------------------------------------------------------------------------
-
-
 
   // Setter functions
   void setCam2Base(const float& x,
@@ -164,11 +165,16 @@ private:
   float fy;
   float cx;
   float cy;
+  float depth_hfov;
+  float depth_vfov;
+
   // 3D map parameters
+  std::string sensor;
+  std::string metric;
   float       max_range;
   float       max_height;
-  std::string metric;
   int         hessian_threshold;
+
   // 3D cloud feature parameters
   float correspondence_threshold;
   int   downsample_f;
@@ -177,6 +183,7 @@ private:
   float planes_th{};
   float ground_th{};
   float edge_threshold{};
+
   // Velodyne parameters
   int   vertical_scans{};
   int   horizontal_scans{};
@@ -186,6 +193,7 @@ private:
   float vertical_angle_bottom{};
   float ang_res_x{};
   float ang_res_y{};
+
   // Transformation parameters
   float cam2base_x{}, cam2base_y{}, cam2base_z{}, cam2base_roll{}, cam2base_pitch{},
       cam2base_yaw{};
@@ -199,4 +207,5 @@ private:
   // Cloud segmentation & feature extraction structure
   SegPCL seg_pcl;
 };
+
 } // namespace vineslam

@@ -201,7 +201,8 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
 
   std::vector<ImageFeature> m_imgfeatures;
 
-  if (init && !init_odom && (!init_gps || !use_gps) && bearings.size() > 1) {
+  if (init && !init_odom && !init_gps && bearings.size() > 1) {
+    ROS_INFO("IF\n");
     // Initialize the localizer and get first particles distribution
     localizer->init(pose(0, 0, 0, 0, 0, odom.yaw));
     robot_pose = localizer->getPose();
@@ -260,7 +261,7 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
       // - 3D PCL corner map estimation
       std::vector<Corner> m_corners;
       Plane               m_ground_plane;
-      mapper3D->localPCLMap(scan_pts, m_corners, m_ground_plane);
+      mapper3D->localPCLMap(raw_depths, m_corners, m_ground_plane);
       mapper3D->globalCornerMap(m_corners, robot_pose, *grid_map);
       // - 3D image feature map estimation
       std::vector<ImageFeature> m_surf_features;
@@ -269,7 +270,7 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
     }
 
     init = false;
-  } else if (!init && !init_odom && (!init_gps || !use_gps)) {
+  } else if (!init && !init_odom && !init_gps) {
 
     // --------- Build local maps to use in the localization
     // - Compute 2D local map of semantic features on robot's referential frame
@@ -278,7 +279,7 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
     // - Compute 3D PCL corners and ground plane on robot's referential frame
     std::vector<Corner> m_corners;
     Plane               m_ground_plane;
-    mapper3D->localPCLMap(scan_pts, m_corners, m_ground_plane);
+    mapper3D->localPCLMap(raw_depths, m_corners, m_ground_plane);
     // - Compute 3D image features on robot's referential frame
     std::vector<ImageFeature> m_surf_features;
     mapper3D->localSurfMap(img, raw_depths, m_surf_features);
@@ -286,7 +287,7 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
     // ------- Build observation structure to use in the localization
     Observation obsv;
     obsv.landmarks = m_landmarks;
-    //    obsv.corners      = m_corners;
+    obsv.corners      = m_corners;
     obsv.ground_plane = m_ground_plane;
     if (has_converged && use_gps)
       obsv.gps_pose = gps_pose;
@@ -474,9 +475,6 @@ void SLAMNode::odomListener(const nav_msgs::OdometryConstPtr& msg)
 
 void SLAMNode::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
 {
-  if (!use_gps)
-    return;
-
   if (init_gps) {
     has_converged = false;
 

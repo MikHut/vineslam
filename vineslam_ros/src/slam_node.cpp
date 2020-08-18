@@ -129,7 +129,7 @@ SLAMNode::~SLAMNode()
   }
 
   // Save path data
-  saveRobotPath(gps_path, robot_path);
+  saveRobotPath(gps_path, odom_path, robot_path);
 }
 
 // --------------------------------------------------------------------------------
@@ -251,7 +251,7 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
       return;
     }
 
-    ROS_INFO("Got the transforms!");
+    ROS_INFO("Got the transforms! Initializing maps...");
 
     if (register_map) {
       // ---- Initialize the multi-layer map
@@ -268,6 +268,8 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
       mapper3D->globalSurfMap(m_surf_features, robot_pose, *grid_map);
     }
 
+    ROS_INFO("DONE! Starting Localization and Mapping.");
+
     init = false;
   } else if (!init && !init_odom && !init_gps) {
 
@@ -276,9 +278,12 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
     std::vector<SemanticFeature> m_landmarks;
     mapper2D->localMap(bearings, depths, m_landmarks);
     // - Compute 3D PCL corners and ground plane on robot's referential frame
-    std::vector<Corner> m_corners;
-    Plane               m_ground_plane;
-    mapper3D->localPCLMap(raw_depths, m_corners, m_ground_plane);
+    std::vector<Corner> m_corners_zed;
+    std::vector<Corner> m_corners_vel;
+    Plane               m_ground_plane_zed;
+    Plane               m_ground_plane_vel;
+    mapper3D->localPCLMap(scan_pts, m_corners_vel, m_ground_plane_vel);
+    mapper3D->localPCLMap(raw_depths, m_corners_zed, m_ground_plane_zed);
     // - Compute 3D image features on robot's referential frame
     std::vector<ImageFeature> m_surf_features;
     mapper3D->localSurfMap(img, raw_depths, m_surf_features);
@@ -286,8 +291,8 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
     // ------- Build observation structure to use in the localization
     Observation obsv;
     obsv.landmarks    = m_landmarks;
-    obsv.corners      = m_corners;
-    obsv.ground_plane = m_ground_plane;
+    obsv.corners      = m_corners_zed;
+    obsv.ground_plane = m_ground_plane_vel;
     if (has_converged && use_gps)
       obsv.gps_pose = gps_pose;
     else
@@ -303,7 +308,7 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
       // - 2D high-level semantic map estimation
       mapper2D->process(robot_pose, m_landmarks, labels, *grid_map);
       // - 3D PCL corner map estimation
-      mapper3D->globalCornerMap(m_corners, robot_pose, *grid_map);
+      mapper3D->globalCornerMap(m_corners_zed, robot_pose, *grid_map);
       // - 3D image feature map estimation
       mapper3D->globalSurfMap(m_surf_features, robot_pose, *grid_map);
       // ---------------------------------------- //
@@ -317,8 +322,12 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
     robot_path.push_back(robot_tf);
     std::array<float, 9> gps_R{};
     robot_pose.toRotMatrix(gps_R);
-    TF gps_tf(robot_R, std::array<float, 3>{gps_pose.x, gps_pose.y, gps_pose.z});
+    TF gps_tf(gps_R, std::array<float, 3>{gps_pose.x, gps_pose.y, gps_pose.z});
     gps_path.push_back(gps_tf);
+    std::array<float, 9> odom_R{};
+    odom.toRotMatrix(odom_R);
+    TF odom_tf(odom_R, std::array<float, 3>{odom.x, odom.y, odom.z});
+    odom_path.push_back(gps_tf);
 
     // Convert robot pose to tf::Transform corresponding
     // to the camera to map transformation
@@ -480,6 +489,9 @@ void SLAMNode::odomListener(const nav_msgs::OdometryConstPtr& msg)
 
 void SLAMNode::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
 {
+  if (!use_gps)
+    return;
+
   if (init_gps) {
     has_converged = false;
 
@@ -509,44 +521,6 @@ void SLAMNode::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
     gps_odom.y = srv.response.local_pose.pose.pose.position.y;
 
     has_converged = getGNSSHeading(gps_odom, msg->header);
-
-    // Compute the gnss to map transform
-    tf::Quaternion heading_quat;
-    heading_quat.setRPY(0., 0., heading);
-    heading_quat.normalize();
-    tf::Transform ned2map(heading_quat, tf::Vector3(0., 0., 0.));
-
-    // Publish gnss to map tf::Transform
-    static tf::TransformBroadcaster br;
-    br.sendTransform(tf::StampedTransform(ned2map, msg->header.stamp, "enu", "map"));
-
-    // Publish gnss pose in the enu reference frame
-    geometry_msgs::PoseStamped gnss_pose;
-    gnss_pose.pose.position.x    = gps_odom.x;
-    gnss_pose.pose.position.y    = gps_odom.y;
-    gnss_pose.pose.position.z    = gps_odom.z;
-    gnss_pose.pose.orientation.x = 0.;
-    gnss_pose.pose.orientation.y = 0.;
-    gnss_pose.pose.orientation.z = 0.;
-    gnss_pose.pose.orientation.w = 1.;
-    gnss_pose.header             = msg->header;
-    gnss_pose.header.frame_id    = "enu";
-    gps_publisher.publish(gnss_pose);
-
-    // Transform locally the gps pose from enu to map to use in localization
-    tf::Matrix3x3 Rot = ned2map.getBasis().inverse();
-
-    gps_pose.x = static_cast<float>(Rot[0].getX()) * gps_odom.x +
-                 static_cast<float>(Rot[0].getY()) * gps_odom.y +
-                 static_cast<float>(Rot[0].getZ()) * gps_odom.z;
-    gps_pose.y = static_cast<float>(Rot[1].getX()) * gps_odom.x +
-                 static_cast<float>(Rot[1].getY()) * gps_odom.y +
-                 static_cast<float>(Rot[1].getZ()) * gps_odom.z;
-    gps_pose.z     = 0.;
-    gps_pose.roll  = 0.;
-    gps_pose.pitch = 0.;
-    gps_pose.yaw   = 0.;
-
   } else {
     ROS_ERROR("Failed to call service Polar2Pose\n");
     return;
@@ -566,7 +540,7 @@ bool SLAMNode::getGNSSHeading(const pose& gps_odom, const std_msgs::Header& head
     y = robot_pose.y;
 
     float distance   = std::sqrt((gps_odom.x - x) * (gps_odom.x - x) +
-                               (gps_odom.y - y) * (gps_odom.y - y));
+                                 (gps_odom.y - y) * (gps_odom.y - y));
     float center_map = std::sqrt(gps_odom.x * gps_odom.x + gps_odom.y * gps_odom.y);
 
     if (datum_autocorrection_stage == 1) {
@@ -623,7 +597,43 @@ bool SLAMNode::getGNSSHeading(const pose& gps_odom, const std_msgs::Header& head
       }
 
       if (weight_max > 0.) {
-        heading = static_cast<float>(indexT) * DEGREE_TO_RAD;
+        // Compute the gnss to map transform
+        tf::Quaternion heading_quat;
+        heading_quat.setRPY(0., 0., static_cast<float>(indexT) * DEGREE_TO_RAD);
+        heading_quat.normalize();
+        tf::Transform ned2map(heading_quat, tf::Vector3(0., 0., 0.));
+
+        // Publish gnss to map tf::Transform
+        static tf::TransformBroadcaster br;
+        br.sendTransform(tf::StampedTransform(ned2map, header.stamp, "enu", "map"));
+
+        // Publish gnss pose in the enu reference frame
+        geometry_msgs::PoseStamped gnss_pose;
+        gnss_pose.pose.position.x    = gps_odom.x;
+        gnss_pose.pose.position.y    = gps_odom.y;
+        gnss_pose.pose.position.z    = gps_odom.z;
+        gnss_pose.pose.orientation.x = 0.;
+        gnss_pose.pose.orientation.y = 0.;
+        gnss_pose.pose.orientation.z = 0.;
+        gnss_pose.pose.orientation.w = 1.;
+        gnss_pose.header             = header;
+        gnss_pose.header.frame_id    = "enu";
+        gps_publisher.publish(gnss_pose);
+
+        // Transform locally the gps pose from enu to map to use in localization
+        tf::Matrix3x3 Rot = ned2map.getBasis().inverse();
+
+        gps_pose.x = static_cast<float>(Rot[0].getX()) * gps_odom.x +
+                     static_cast<float>(Rot[0].getY()) * gps_odom.y +
+                     static_cast<float>(Rot[0].getZ()) * gps_odom.z;
+        gps_pose.y = static_cast<float>(Rot[1].getX()) * gps_odom.x +
+                     static_cast<float>(Rot[1].getY()) * gps_odom.y +
+                     static_cast<float>(Rot[1].getZ()) * gps_odom.z;
+        gps_pose.z     = 0.;
+        gps_pose.roll  = 0.;
+        gps_pose.pitch = 0.;
+        gps_pose.yaw   = 0.;
+
         ROS_DEBUG("Solution = %d.", indexT);
       } else
         ROS_INFO("Did not find any solution for datum heading.");
@@ -632,9 +642,10 @@ bool SLAMNode::getGNSSHeading(const pose& gps_odom, const std_msgs::Header& head
       ROS_ERROR("Datum localization is bad. Error on heading location.");
   }
 
-  std::cout << weight_max << std::endl;
   return weight_max > 0.6;
 }
+
+
 
 void SLAMNode::computeObsv(const sensor_msgs::Image& depth_img,
                            const int&                xmin,

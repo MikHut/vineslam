@@ -40,8 +40,9 @@ PF::PF(const std::string& config_path, const pose& initial_pose)
 
   // Initialize and set ICP parameters
   auto icp_max_iters = config["multilayer_mapping"]["ICP"]["max_iters"].as<float>();
-  auto dthreshold    = config["multilayer_mapping"]["ICP"]["distance_threshold"].as<float>();
-  icp                = new ICP(config_path);
+  auto dthreshold =
+      config["multilayer_mapping"]["ICP"]["distance_threshold"].as<float>();
+  icp = new ICP(config_path);
   icp->setMaxIterations(static_cast<int>(icp_max_iters));
   icp->setThreshold(dthreshold);
   // ---------------------------------
@@ -147,16 +148,40 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
   std::vector<float> surf_weights(n_particles, 0.);
   std::vector<float> gps_weights(n_particles, 0.);
 
+  auto before = std::chrono::high_resolution_clock::now();
   if (use_landmarks && !(motion_state == ROTATING))
     highLevel(landmarks, grid_map, semantic_weights);
+  auto after = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<float, std::milli> duration = after - before;
+  std::cout << "Time elapsed on PF - high-level features (msecs): "
+            << duration.count() << std::endl;
+  before = std::chrono::high_resolution_clock::now();
   if (use_corners)
     mediumLevelCorners(corners, grid_map, corner_weights);
+  after    = std::chrono::high_resolution_clock::now();
+  duration = after - before;
+  std::cout << "Time elapsed on PF - corner features (msecs): " << duration.count()
+            << " (" << corners.size() << ", " << grid_map.n_corner_features << ")"
+            << std::endl;
+  before = std::chrono::high_resolution_clock::now();
   if (use_ground_plane)
     mediumLevelGround(ground_plane, ground_weights);
+  after    = std::chrono::high_resolution_clock::now();
+  duration = after - before;
+  std::cout << "Time elapsed on PF - ground (msecs): " << duration.count()
+            << std::endl;
+  before = std::chrono::high_resolution_clock::now();
   if (use_icp)
     lowLevel(surf_features, grid_map, surf_weights);
+  after    = std::chrono::high_resolution_clock::now();
+  duration = after - before;
+  std::cout << "Time elapsed on PF - icp (msecs): " << duration.count() << std::endl;
+  before = std::chrono::high_resolution_clock::now();
   if (use_gps)
     gps(gps_pose, gps_weights);
+  after    = std::chrono::high_resolution_clock::now();
+  duration = after - before;
+  std::cout << "Time elapsed on PF - gps (msecs): " << duration.count() << std::endl;
 
   // Multi-modal weights normalization
   float semantic_max =

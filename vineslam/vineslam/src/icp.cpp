@@ -96,8 +96,6 @@ bool ICP::align(TF tf, float& rms_error, std::vector<ImageFeature>& aligned)
 
     aligned[i].pos = apt;
   }
-  std::cout << "Obtained rms error of " << rms_error << " in " << n_iters
-            << " iterations\n\n";
 
   return true;
 }

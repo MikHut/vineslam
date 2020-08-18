@@ -183,8 +183,8 @@ private:
   float planes_th{};
   float ground_th{};
   float edge_threshold{};
-
-  // Velodyne parameters
+  // ----------------------------
+  int   picked_num{};
   int   vertical_scans{};
   int   horizontal_scans{};
   int   ground_scan_idx{};

@@ -220,6 +220,7 @@ void Mapper3D::localPCLMap(const float*         depths,
 {
   // Set velodyne configuration parameters
   sensor                  = "zed";
+  picked_num              = 2;
   planes_th               = static_cast<float>(5.) * DEGREE_TO_RAD;
   ground_th               = static_cast<float>(2.) * DEGREE_TO_RAD;
   edge_threshold          = 0.05;
@@ -230,6 +231,7 @@ void Mapper3D::localPCLMap(const float*         depths,
   segment_valid_line_num  = 3;
   ang_res_x               = depth_hfov / static_cast<float>(img_width);
   ang_res_y               = depth_vfov / static_cast<float>(img_height);
+  downsample_f            = 15;
 
   // Reset global variables and members
   reset();
@@ -288,6 +290,7 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
   std::vector<point> transformed_pcl;
   // Set velodyne configuration parameters
   sensor                  = "velodyne";
+  picked_num              = 20;
   planes_th               = static_cast<float>(60.) * DEGREE_TO_RAD;
   ground_th               = static_cast<float>(10.) * DEGREE_TO_RAD;
   edge_threshold          = 0.1;
@@ -471,7 +474,7 @@ void Mapper3D::groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl)
   }
 
   for (int j = 0; j < horizontal_scans;) {
-    for (int i = ymin; i < ylim - 1;) {
+    for (int i = ymin; i < ylim;) {
       int lower_idx = j + i * horizontal_scans;
       int upper_idx = j + (i + 1) * horizontal_scans;
 
@@ -489,7 +492,7 @@ void Mapper3D::groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl)
       float dY = upper_pt.y - lower_pt.y;
       float dZ = upper_pt.z - lower_pt.z;
 
-      float vertical_angle = std::atan2(dZ, std::sqrt(dX * dX + dY * dY));
+      float vertical_angle = std::atan2(dZ, std::sqrt(dX * dX + dY * dY + dZ * dZ));
 
       if (vertical_angle <= ground_th) {
         out_pcl.points.push_back(lower_pt);
@@ -733,24 +736,32 @@ void Mapper3D::labelComponents(const int&                row,
   }
 
   // Check if this segment is valid
-  bool feasible_segment = false;
-  if (global_queue.size() >= 30) {
-    feasible_segment = true;
-  } else if (global_queue.size() >= segment_valid_point_num) {
-    int line_count = 0;
-    for (int i = 0; i < vertical_scans; i++) {
-      if (line_count_flag[i])
-        line_count++;
+  if (sensor == "velodyne") {
+    bool feasible_segment = false;
+    if (global_queue.size() >= 30) {
+      feasible_segment = true;
+    } else if (global_queue.size() >= segment_valid_point_num) {
+      int line_count = 0;
+      for (int i = 0; i < vertical_scans; i++) {
+        if (line_count_flag[i])
+          line_count++;
+      }
+
+      if (line_count >= segment_valid_line_num)
+        feasible_segment = true;
     }
 
-    if (line_count >= segment_valid_line_num)
-      feasible_segment = true;
-  }
-
-  if (feasible_segment) {
-    label++;
+    if (feasible_segment) {
+      label++;
+    } else {
+      for (auto& i : global_queue) label_mat(i.x(), i.y()) = 999999;
+    }
   } else {
-    for (auto& i : global_queue) label_mat(i.x(), i.y()) = 999999;
+    if (global_queue.size() >= 30) {
+      label++;
+    } else {
+      for (auto& i : global_queue) label_mat(i.x(), i.y()) = 999999;
+    }
   }
 }
 
@@ -808,7 +819,7 @@ void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,
         if (neighbor_picked[idx] == 0 &&
             cloud_smoothness[l].value > edge_threshold) {
           picked_counter++;
-          if (picked_counter <= 20) {
+          if (picked_counter <= picked_num) {
             Corner m_corner(in_plane_pts[idx].pos, in_plane_pts[idx].which_plane);
             out_corners.push_back(m_corner);
           } else {

@@ -7,7 +7,7 @@ system:
   use_landmarks: True
   use_corners: True
   use_icp: True
-  use_gps: False
+  use_gps: True
   # ---------------------
   gps_datum:
     lat: 41.205517 # initial gps latitude (larger)
@@ -45,7 +45,7 @@ multilayer_mapping:
     hessian_threshold: 2500 # SURF threshold: the higher the value, the lesser the number of features computed
   # 3D cloud feature extraction settings
   cloud_feature:
-    downsample_factor: 10  # constant to downscale dense disparity image
+    downsample_factor: 15  # constant to downscale dense disparity image
   # 3D map definitions
   map_3D:
     max_range: 5.0 # meters

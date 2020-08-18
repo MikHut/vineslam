@@ -135,6 +135,7 @@ private:
   // Path variables
   std::vector<TF> robot_path;
   std::vector<TF> gps_path;
+  std::vector<TF> odom_path;
 
   // 3D scan points handler
   std::vector<point> scan_pts;

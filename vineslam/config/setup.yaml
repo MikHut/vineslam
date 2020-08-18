@@ -42,7 +42,7 @@ multilayer_mapping:
     input_file: "/home/andre-criis/map.xml"
   # Feature extractor and descriptor settings
   image_feature:
-    hessian_threshold: 3500 # SURF threshold: the higher the value, the lesser the number of features computed
+    hessian_threshold: 2500 # SURF threshold: the higher the value, the lesser the number of features computed
   # 3D cloud feature extraction settings
   cloud_feature:
     downsample_factor: 10  # constant to downscale dense disparity image
@@ -78,5 +78,5 @@ pf:
   sigma_ground_rp: 1.0 # degrees
   sigma_gps: 0.08 # meters
 
-  k_clusters: 5
+  k_clusters: 3
 ...

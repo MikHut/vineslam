@@ -464,7 +464,7 @@ void Mapper3D::groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl)
   int ymin, ylim;
   if (sensor == "zed") {
     ymin = vertical_scans / 2;
-    ylim = vertical_scans;
+    ylim = vertical_scans - 1;
   } else {
     ymin = 0;
     ylim = ground_scan_idx;

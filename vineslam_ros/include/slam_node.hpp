@@ -144,6 +144,7 @@ private:
   int32_t global_counter;
   float   datum_orientation[360][4]{};
   bool    has_converged{};
+  float   heading;
 
   // Input parameters
   // ------------------------

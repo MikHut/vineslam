@@ -509,6 +509,44 @@ void SLAMNode::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
     gps_odom.y = srv.response.local_pose.pose.pose.position.y;
 
     has_converged = getGNSSHeading(gps_odom, msg->header);
+
+    // Compute the gnss to map transform
+    tf::Quaternion heading_quat;
+    heading_quat.setRPY(0., 0., heading);
+    heading_quat.normalize();
+    tf::Transform ned2map(heading_quat, tf::Vector3(0., 0., 0.));
+
+    // Publish gnss to map tf::Transform
+    static tf::TransformBroadcaster br;
+    br.sendTransform(tf::StampedTransform(ned2map, msg->header.stamp, "enu", "map"));
+
+    // Publish gnss pose in the enu reference frame
+    geometry_msgs::PoseStamped gnss_pose;
+    gnss_pose.pose.position.x    = gps_odom.x;
+    gnss_pose.pose.position.y    = gps_odom.y;
+    gnss_pose.pose.position.z    = gps_odom.z;
+    gnss_pose.pose.orientation.x = 0.;
+    gnss_pose.pose.orientation.y = 0.;
+    gnss_pose.pose.orientation.z = 0.;
+    gnss_pose.pose.orientation.w = 1.;
+    gnss_pose.header             = msg->header;
+    gnss_pose.header.frame_id    = "enu";
+    gps_publisher.publish(gnss_pose);
+
+    // Transform locally the gps pose from enu to map to use in localization
+    tf::Matrix3x3 Rot = ned2map.getBasis().inverse();
+
+    gps_pose.x = static_cast<float>(Rot[0].getX()) * gps_odom.x +
+                 static_cast<float>(Rot[0].getY()) * gps_odom.y +
+                 static_cast<float>(Rot[0].getZ()) * gps_odom.z;
+    gps_pose.y = static_cast<float>(Rot[1].getX()) * gps_odom.x +
+                 static_cast<float>(Rot[1].getY()) * gps_odom.y +
+                 static_cast<float>(Rot[1].getZ()) * gps_odom.z;
+    gps_pose.z     = 0.;
+    gps_pose.roll  = 0.;
+    gps_pose.pitch = 0.;
+    gps_pose.yaw   = 0.;
+
   } else {
     ROS_ERROR("Failed to call service Polar2Pose\n");
     return;
@@ -585,43 +623,7 @@ bool SLAMNode::getGNSSHeading(const pose& gps_odom, const std_msgs::Header& head
       }
 
       if (weight_max > 0.) {
-        // Compute the gnss to map transform
-        tf::Quaternion heading_quat;
-        heading_quat.setRPY(0., 0., static_cast<float>(indexT) * DEGREE_TO_RAD);
-        heading_quat.normalize();
-        tf::Transform ned2map(heading_quat, tf::Vector3(0., 0., 0.));
-
-        // Publish gnss to map tf::Transform
-        static tf::TransformBroadcaster br;
-        br.sendTransform(tf::StampedTransform(ned2map, header.stamp, "enu", "map"));
-
-        // Publish gnss pose in the enu reference frame
-        geometry_msgs::PoseStamped gnss_pose;
-        gnss_pose.pose.position.x    = gps_odom.x;
-        gnss_pose.pose.position.y    = gps_odom.y;
-        gnss_pose.pose.position.z    = gps_odom.z;
-        gnss_pose.pose.orientation.x = 0.;
-        gnss_pose.pose.orientation.y = 0.;
-        gnss_pose.pose.orientation.z = 0.;
-        gnss_pose.pose.orientation.w = 1.;
-        gnss_pose.header             = header;
-        gnss_pose.header.frame_id    = "enu";
-        gps_publisher.publish(gnss_pose);
-
-        // Transform locally the gps pose from enu to map to use in localization
-        tf::Matrix3x3 Rot = ned2map.getBasis().inverse();
-
-        gps_pose.x = static_cast<float>(Rot[0].getX()) * gps_odom.x +
-                     static_cast<float>(Rot[0].getY()) * gps_odom.y +
-                     static_cast<float>(Rot[0].getZ()) * gps_odom.z;
-        gps_pose.y = static_cast<float>(Rot[1].getX()) * gps_odom.x +
-                     static_cast<float>(Rot[1].getY()) * gps_odom.y +
-                     static_cast<float>(Rot[1].getZ()) * gps_odom.z;
-        gps_pose.z     = 0.;
-        gps_pose.roll  = 0.;
-        gps_pose.pitch = 0.;
-        gps_pose.yaw   = 0.;
-
+        heading = static_cast<float>(indexT) * DEGREE_TO_RAD;
         ROS_DEBUG("Solution = %d.", indexT);
       } else
         ROS_INFO("Did not find any solution for datum heading.");
@@ -630,6 +632,7 @@ bool SLAMNode::getGNSSHeading(const pose& gps_odom, const std_msgs::Header& head
       ROS_ERROR("Datum localization is bad. Error on heading location.");
   }
 
+  std::cout << weight_max << std::endl;
   return weight_max > 0.6;
 }
 

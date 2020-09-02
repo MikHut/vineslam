@@ -9,16 +9,14 @@ Mapper3D::Mapper3D(const std::string& config_path)
   YAML::Node config = YAML::LoadFile(config_path);
 
   // Load camera info parameters
-  img_width       = config["camera_info"]["img_width"].as<int>();
-  img_height      = config["camera_info"]["img_height"].as<int>();
-  cam_height      = config["camera_info"]["cam_height"].as<float>();
-  cam_pitch       = config["camera_info"]["cam_pitch"].as<float>() * DEGREE_TO_RAD;
-  fx              = config["camera_info"]["fx"].as<float>();
-  fy              = config["camera_info"]["fy"].as<float>();
-  cx              = config["camera_info"]["cx"].as<float>();
-  cy              = config["camera_info"]["cy"].as<float>();
-  auto depth_hfov = config["camera_info"]["depth_hfov"].as<float>() * DEGREE_TO_RAD;
-  auto depth_vfov = config["camera_info"]["depth_vfov"].as<float>() * DEGREE_TO_RAD;
+  img_width  = config["camera_info"]["img_width"].as<int>();
+  img_height = config["camera_info"]["img_height"].as<int>();
+  fx         = config["camera_info"]["fx"].as<float>();
+  fy         = config["camera_info"]["fy"].as<float>();
+  cx         = config["camera_info"]["cx"].as<float>();
+  cy         = config["camera_info"]["cy"].as<float>();
+  depth_hfov = config["camera_info"]["depth_hfov"].as<float>() * DEGREE_TO_RAD;
+  depth_vfov = config["camera_info"]["depth_vfov"].as<float>() * DEGREE_TO_RAD;
   // Load 3D map parameters
   metric     = config["multilayer_mapping"]["grid_map"]["metric"].as<std::string>();
   max_range  = config["multilayer_mapping"]["map_3D"]["max_range"].as<float>();
@@ -28,17 +26,10 @@ Mapper3D::Mapper3D(const std::string& config_path)
       config["multilayer_mapping"]["image_feature"]["hessian_threshold"].as<int>();
 
   // Set pointcloud feature parameters
-  downsample_f =
-      config["multilayer_mapping"]["cloud_feature"]["downsample_factor"].as<int>();
-  planes_th      = static_cast<float>(5.) * DEGREE_TO_RAD;
-  ground_th      = static_cast<float>(2.) * DEGREE_TO_RAD;
   max_iters      = 20;
   dist_threshold = 0.08;
-  edge_threshold = 0.05;
-
-  // Compute x and y angle resolution of depth image
-  angle_hres = depth_hfov / static_cast<float>(img_width);
-  angle_vres = depth_vfov / static_cast<float>(img_height);
+  init_downsample_f =
+      config["multilayer_mapping"]["cloud_feature"]["downsample_factor"].as<int>();
 
   // Threshold to consider correspondences
   correspondence_threshold = 0.02;
@@ -69,7 +60,7 @@ void Mapper3D::localSurfMap(const cv::Mat&             img,
 
     point out_pt;
     point in_pt(static_cast<float>(feature.u), static_cast<float>(feature.v), 0.);
-    pixel2world(in_pt, cam_pitch, m_depth, out_pt);
+    pixel2base(in_pt, m_depth, out_pt);
     // Get the RGB pixel values
     auto* p = img.ptr<cv::Point3_<uchar>>(feature.v, feature.u);
     //------------------------------------------------------------------------------
@@ -205,34 +196,65 @@ void Mapper3D::extractSurfFeatures(const cv::Mat&             in,
 // ---- 3D pointcloud feature map functions
 // -------------------------------------------------------------------------------
 
+void Mapper3D::reset()
+{
+  range_mat.resize(vertical_scans, horizontal_scans);
+  ground_mat.resize(vertical_scans, horizontal_scans);
+  label_mat.resize(vertical_scans, horizontal_scans);
+  range_mat.fill(-1);
+  ground_mat.setZero();
+  label_mat.setZero();
+
+  int cloud_size = vertical_scans * horizontal_scans;
+
+  seg_pcl.start_col_idx.assign(vertical_scans, 0);
+  seg_pcl.end_col_idx.assign(vertical_scans, 0);
+  seg_pcl.is_ground.assign(cloud_size, false);
+  seg_pcl.col_idx.assign(cloud_size, 0);
+  seg_pcl.range.assign(cloud_size, 0);
+}
+
 void Mapper3D::localPCLMap(const float*         depths,
                            std::vector<Corner>& out_corners,
                            Plane&               out_groundplane)
 {
+  // Set velodyne configuration parameters
+  sensor                  = "zed";
+  picked_num              = 2;
+  planes_th               = static_cast<float>(5.) * DEGREE_TO_RAD;
+  ground_th               = static_cast<float>(2.) * DEGREE_TO_RAD;
+  edge_threshold          = 0.05;
+  vertical_scans          = img_height;
+  horizontal_scans        = img_width;
+  ground_scan_idx         = static_cast<int>(img_height / 2. - 1.);
+  segment_valid_point_num = 5;
+  segment_valid_line_num  = 3;
+  ang_res_x               = depth_hfov / static_cast<float>(img_width);
+  ang_res_y               = depth_vfov / static_cast<float>(img_height);
+  downsample_f            = init_downsample_f;
+
   // Reset global variables and members
   reset();
 
-  std::vector<point> pts3D(img_width * img_height);
-  for (auto i = 0; i < img_width; i++) {
-    for (auto j = 0; j < img_height; j++) {
-      int idx = i + img_width * j;
+  std::vector<point> pts3D(horizontal_scans * vertical_scans);
+  for (auto j = 0; j < horizontal_scans; j++) {
+    for (auto i = 0; i < vertical_scans; i++) {
+      int idx = j + horizontal_scans * i;
 
       float m_depth = depths[idx];
 
       // Check validity of depth information
       if (!std::isfinite(m_depth) || m_depth > max_range) {
-        range_mat(i, j)          = -1;
-        pts3D[i + j * img_width] = point(-1, -1, -1);
+        range_mat(i, j) = -1;
         continue;
       }
 
       // Pixel to 3D point conversion
       point out_pt;
-      pixel2world(point(i, j), cam_pitch, m_depth, out_pt);
+      pixel2base(point(j, i), m_depth, out_pt);
       // Save point and range
-      pts3D[i + j * img_width] = out_pt;
-      range_mat(i, j) =
-          std::sqrt(out_pt.x * out_pt.x + out_pt.y * out_pt.y + out_pt.z * out_pt.z);
+      pts3D[idx]      = out_pt;
+      range_mat(i, j) = out_pt.norm3D();
     }
   }
 
@@ -242,6 +264,17 @@ void Mapper3D::localPCLMap(const float*         depths,
   // Filter outliers using RANSAC
   ransac(gplane_unfilt, out_groundplane);
 
+  // -------------------------------------------------------------------------------
+  // ----- Mark ground points
+  // -------------------------------------------------------------------------------
+  for (const auto& index : out_groundplane.indexes) {
+    int i = static_cast<int>(index.x);
+    int j = static_cast<int>(index.y);
+
+    ground_mat(i, j) = 1;
+    label_mat(i, j)  = -1;
+  }
+
   // - OTHER PLANES
   std::vector<PlanePoint> cloud_seg;
   cloudSegmentation(pts3D, cloud_seg);
@@ -250,9 +283,122 @@ void Mapper3D::localPCLMap(const float*         depths,
   extractCorners(cloud_seg, out_corners);
 }
 
-void Mapper3D::globalCornerMap(const std::vector<Corner>& corners,
-                               const pose&                robot_pose,
-                               OccupancyMap&              grid_map) const
+void Mapper3D::localPCLMap(const std::vector<point>& pcl,
+                           std::vector<Corner>&      out_corners,
+                           Plane&                    out_groundplane)
+{
+  std::vector<point> transformed_pcl;
+  // Set velodyne configuration parameters
+  sensor                  = "velodyne";
+  picked_num              = 20;
+  planes_th               = static_cast<float>(60.) * DEGREE_TO_RAD;
+  ground_th               = static_cast<float>(10.) * DEGREE_TO_RAD;
+  edge_threshold          = 0.1;
+  vertical_scans          = 16;
+  horizontal_scans        = 1800;
+  ground_scan_idx         = 7;
+  segment_valid_point_num = 5;
+  segment_valid_line_num  = 3;
+  vertical_angle_bottom   = static_cast<float>(15. + 0.1) * DEGREE_TO_RAD;
+  ang_res_x               = static_cast<float>(0.2) * DEGREE_TO_RAD;
+  ang_res_y               = static_cast<float>(2.) * DEGREE_TO_RAD;
+  downsample_f            = 1;
+
+  // Reset global variables and members
+  reset();
+
+  // Range image projection
+  const size_t cloud_size = pcl.size();
+  transformed_pcl.resize(vertical_scans * horizontal_scans);
+  for (size_t i = 0; i < cloud_size; ++i) {
+    point m_pt = pcl[i];
+
+    float range = m_pt.norm3D();
+
+    // find the row and column index in the image for this point
+    float vertical_angle =
+        std::atan2(m_pt.z, std::sqrt(m_pt.x * m_pt.x + m_pt.y * m_pt.y));
+
+    int row_idx =
+        static_cast<int>((vertical_angle + vertical_angle_bottom) / ang_res_y);
+    if (row_idx < 0 || row_idx >= vertical_scans) {
+      continue;
+    }
+
+    float horizon_angle = std::atan2(m_pt.x, m_pt.y);
+
+    int column_idx = static_cast<int>(-round((horizon_angle - M_PI_2) / ang_res_x) +
+                                      horizontal_scans / 2.);
+
+    if (column_idx >= horizontal_scans) {
+      column_idx -= horizontal_scans;
+    }
+
+    if (column_idx < 0 || column_idx >= horizontal_scans) {
+      continue;
+    }
+
+    if (range < 1.0 || range > 20.0) {
+      continue;
+    }
+
+    range_mat(row_idx, column_idx) = range;
+
+    size_t idx           = column_idx + row_idx * horizontal_scans;
+    transformed_pcl[idx] = m_pt;
+  }
+
+  // - GROUND PLANE
+  Plane gplane_unfilt;
+  groundRemoval(transformed_pcl, gplane_unfilt);
+  // Filter outliers using RANSAC
+  ransac(gplane_unfilt, out_groundplane);
+
+  // -------------------------------------------------------------------------------
+  // ----- Mark ground points
+  // -------------------------------------------------------------------------------
+  for (const auto& index : out_groundplane.indexes) {
+    int i = static_cast<int>(index.x);
+    int j = static_cast<int>(index.y);
+
+    ground_mat(i, j) = 1;
+    label_mat(i, j)  = -1;
+  }
+
+  // - OTHER PLANES
+  std::vector<PlanePoint> cloud_seg;
+  cloudSegmentation(transformed_pcl, cloud_seg);
+
+  //- Feature extraction and publication
+  extractCorners(cloud_seg, out_corners);
+
+  // Convert features to base_link referential frame
+  pose tf_pose;
+  TF   tf;
+
+  tf_pose = pose(vel2base_x,
+                 vel2base_y,
+                 vel2base_z,
+                 vel2base_roll,
+                 vel2base_pitch,
+                 vel2base_yaw);
+
+  std::array<float, 9> tf_rot{};
+  tf_pose.toRotMatrix(tf_rot);
+  tf = TF(tf_rot, std::array<float, 3>{vel2base_x, vel2base_y, vel2base_z});
+
+  for (auto& pt : out_groundplane.points) {
+    pt = pt * tf.inverse();
+  }
+  for (auto& corner : out_corners) {
+    corner.pos = corner.pos * tf.inverse();
+  }
+  // -------------------------------------------
+}
+
+void Mapper3D::globalCornerMap(const pose&          robot_pose,
+                               std::vector<Corner>& corners,
+                               OccupancyMap&        grid_map) const
 {
   // ------ Convert robot pose into homogeneous transformation
   std::array<float, 9> Rot{};
@@ -260,7 +406,7 @@ void Mapper3D::globalCornerMap(const std::vector<Corner>& corners,
   std::array<float, 3> trans = {robot_pose.x, robot_pose.y, robot_pose.z};
 
   // ------ Insert corner into the grid map
-  for (const auto& corner : corners) {
+  for (auto& corner : corners) {
     // - First convert them to map's referential using the robot pose
     point m_pt;
     m_pt.x = corner.pos.x * Rot[0] + corner.pos.y * Rot[1] + corner.pos.z * Rot[2] +
@@ -278,31 +424,33 @@ void Mapper3D::globalCornerMap(const std::vector<Corner>& corners,
       float dist_min = m_pt.distance(m_corner.pos);
 
       if (dist_min < best_correspondence) {
-        correspondence      = m_corner;
-        best_correspondence = dist_min;
-        found               = true;
+        corner.correspondence = m_corner.pos;
+        correspondence        = m_corner;
+        best_correspondence   = dist_min;
+        found                 = true;
       }
     }
 
+    found &= (best_correspondence < 0.02);
     // Only search in the adjacent cells if we do not find in the source cell
-    if (!found) {
-      std::vector<Cell> adjacents;
-      grid_map.getAdjacent(m_pt.x, m_pt.y, 2, adjacents);
-      for (const auto& m_cell : adjacents) {
-        for (const auto& m_corner : m_cell.corner_features) {
-          float dist_min = m_pt.distance(m_corner.pos);
-          if (dist_min < best_correspondence) {
-            correspondence      = m_corner;
-            best_correspondence = dist_min;
-            found               = true;
-          }
-        }
-      }
-    }
+    //    if (!found) {
+    //      std::vector<Cell> adjacents;
+    //      grid_map.getAdjacent(m_pt.x, m_pt.y, 2, adjacents);
+    //      for (const auto& m_cell : adjacents) {
+    //        for (const auto& m_corner : m_cell.corner_features) {
+    //          float dist_min = m_pt.distance(m_corner.pos);
+    //          if (dist_min < best_correspondence) {
+    //            correspondence      = m_corner;
+    //            best_correspondence = dist_min;
+    //            found               = true;
+    //          }
+    //        }
+    //      }
+    //    }
 
     // - Then, insert the corner into the grid map
     if (found) {
-      point  new_pt = (m_pt + correspondence.pos) / 2.;
+      point  new_pt = (m_pt + corner.correspondence) / 2.;
       Corner new_corner(new_pt, corner.which_plane);
       grid_map.update(correspondence, new_corner);
     } else {
@@ -312,45 +460,33 @@ void Mapper3D::globalCornerMap(const std::vector<Corner>& corners,
   }
 }
 
-void Mapper3D::reset()
-{
-  range_mat.resize(img_width, img_height);
-  ground_mat.resize(img_width, img_height);
-  label_mat.resize(img_width, img_height);
-  range_mat.setZero();
-  ground_mat.setZero();
-  label_mat.setZero();
-
-  int cloud_size = img_width * img_height;
-
-  seg_pcl.start_col_idx.assign(img_height, 0);
-  seg_pcl.end_col_idx.assign(img_height, 0);
-  seg_pcl.is_ground.assign(cloud_size, false);
-  seg_pcl.col_idx.assign(cloud_size, 0);
-  seg_pcl.range.assign(cloud_size, 0);
-}
-
 void Mapper3D::groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl)
 {
   // _ground_mat
   // -1, no valid info to check if ground of not
   //  0, initial value, after validation, means not ground
   //  1, ground
-  int xlim = img_width;
-  int ylim = img_height;
-  int ymin = img_height / 2;
-  for (int i = 0; i < xlim;) {
-    for (int j = ymin; j < ylim - 1;) {
-      int upper_idx = i + j * img_width;
-      int lower_idx = i + (j + 1) * img_width;
+  int ymin, ylim;
+  if (sensor == "zed") {
+    ymin = vertical_scans / 2;
+    ylim = vertical_scans - 1;
+  } else {
+    ymin = 0;
+    ylim = ground_scan_idx;
+  }
+
+  for (int j = 0; j < horizontal_scans;) {
+    for (int i = ymin; i < ylim;) {
+      int lower_idx = j + i * horizontal_scans;
+      int upper_idx = j + (i + 1) * horizontal_scans;
 
       point upper_pt = in_pts[upper_idx];
       point lower_pt = in_pts[lower_idx];
 
-      if (upper_pt.z == -1 || lower_pt.z == -1) {
+      if (range_mat(i, j) == -1 || range_mat(i + 1, j) == -1) {
         // no info to check, invalid points
         ground_mat(i, j) = -1;
-        j += downsample_f;
+        i += downsample_f;
         continue;
       }
 
@@ -360,22 +496,15 @@ void Mapper3D::groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl)
 
       float vertical_angle = std::atan2(dZ, std::sqrt(dX * dX + dY * dY + dZ * dZ));
 
-      if ((vertical_angle /* - cam_pitch*/) <= ground_th) {
-        ground_mat(i, j)     = 1;
-        ground_mat(i, j + 1) = 1;
-        label_mat(i, j)      = -1;
-        label_mat(i, j + 1)  = -1;
-
-        point m_lower_pt(lower_pt.x, lower_pt.y, lower_pt.z);
-        point m_upper_pt(upper_pt.x, upper_pt.y, upper_pt.z);
-
-        out_pcl.points.push_back(m_lower_pt);
-        out_pcl.points.push_back(m_upper_pt);
+      if (vertical_angle <= ground_th) {
+        out_pcl.points.push_back(lower_pt);
+        out_pcl.points.push_back(upper_pt);
+        out_pcl.indexes.emplace_back(i, j);
+        out_pcl.indexes.emplace_back(i + 1, j);
       }
-
-      j += downsample_f;
+      i += downsample_f;
     }
-    i += downsample_f;
+    j += downsample_f;
   }
 }
 
@@ -506,14 +635,11 @@ bool Mapper3D::ransac(const Plane& in_plane, Plane& out_plane) const
 void Mapper3D::cloudSegmentation(const std::vector<point>& in_pts,
                                  std::vector<PlanePoint>&  out_plane_pts)
 {
-  int xlim = img_width;
-  int ylim = img_height;
-
   // Segmentation process
   int label = 1;
-  for (int i = 0; i < xlim;) {
-    for (int j = 0; j < ylim - 1;) {
-      if (label_mat(i, j) == 0)
+  for (int i = 0; i < vertical_scans;) {
+    for (int j = 0; j < horizontal_scans;) {
+      if (label_mat(i, j) == 0 && range_mat(i, j) != -1)
         labelComponents(i, j, in_pts, label);
       j += downsample_f;
     }
@@ -522,12 +648,12 @@ void Mapper3D::cloudSegmentation(const std::vector<point>& in_pts,
 
   // Extract segmented cloud for visualization
   int seg_cloud_size = 0;
-  for (int j = 0; j < ylim - 1; j++) {
-    seg_pcl.start_col_idx[j] = seg_cloud_size - 1 + 5;
-    for (int i = 0; i < xlim; i++) {
+  for (int i = 0; i < vertical_scans; i++) {
+    seg_pcl.start_col_idx[i] = seg_cloud_size - 1 + 5;
+    for (int j = 0; j < horizontal_scans; j++) {
       if (label_mat(i, j) > 0 && label_mat(i, j) != 999999) {
         // Save segmented cloud into a pcl
-        point      pt = in_pts[i + j * img_width];
+        point      pt = in_pts[j + i * horizontal_scans];
         PlanePoint m_ppoint(pt, label_mat(i, j));
         out_plane_pts.push_back(m_ppoint);
         // ------------------------------------------
@@ -538,7 +664,7 @@ void Mapper3D::cloudSegmentation(const std::vector<point>& in_pts,
         // ------------------------------------------
       }
     }
-    seg_pcl.end_col_idx[j] = seg_cloud_size - 1 - 5;
+    seg_pcl.end_col_idx[i] = seg_cloud_size - 1 - 5;
   }
 }
 
@@ -547,14 +673,14 @@ void Mapper3D::labelComponents(const int&                row,
                                const std::vector<point>& in_pts,
                                int&                      label)
 {
-  float theta_threshold = std::tan(planes_th);
-
   using Coord2D = Eigen::Vector2i;
   std::deque<Coord2D> queue;
   std::deque<Coord2D> global_queue;
 
   queue.emplace_back(row, col);
   global_queue.emplace_back(row, col);
+
+  std::vector<bool> line_count_flag(vertical_scans, false);
 
   // - Define neighborhood
   const Coord2D neighbor_it[4] = {
@@ -568,13 +694,8 @@ void Mapper3D::labelComponents(const int&                row,
     // Mark popped point as belonging to the segment
     label_mat(from_idx.x(), from_idx.y()) = label;
 
-    // Compute point from disparity
-    point p1 = in_pts[from_idx.x() + img_width * from_idx.y()];
-    if (p1.z == -1)
-      continue;
-
-    // Compute point one range
-    float d1 = std::sqrt(p1.x * p1.x + p1.y * p1.y + p1.z * p1.z);
+    // Compute point from range image
+    float d1 = range_mat(from_idx.x(), from_idx.y());
 
     // Loop through all the neighboring grids of popped grid
     for (const auto& iter : neighbor_it) {
@@ -583,43 +704,66 @@ void Mapper3D::labelComponents(const int&                row,
       int c_idx_y = from_idx.y() + iter.y();
 
       // Check if index is within the boundary
-      if (c_idx_x < 0 || c_idx_y < 0 || c_idx_x >= img_width ||
-          c_idx_y >= img_height)
+      if (c_idx_x < 0 || c_idx_x >= vertical_scans)
         continue;
+      if (c_idx_y < 0)
+        c_idx_y = horizontal_scans - 1;
+      if (c_idx_y >= horizontal_scans)
+        c_idx_y = 0;
 
       // Prevent infinite loop (caused by put already examined point back)
       if (label_mat(c_idx_x, c_idx_y) != 0)
         continue;
 
-      // Compute point from disparity
-      point p2 = in_pts[c_idx_x + img_width * c_idx_y];
-      if (p2.z == -1)
-        continue;
+      // Compute point from range image
+      float d2 = range_mat(c_idx_x, c_idx_y);
 
-      auto  d2   = std::sqrt(p2.x * p2.x + p2.y * p2.y + p2.z * p2.z);
       float dmax = std::max(d1, d2);
       float dmin = std::min(d1, d2);
 
       // Compute angle between the two points
-      // NOTE: In a LiDAR/Laser case scenario, here we would use the angular
-      // resolution of the sensor
-      float alpha = (iter.y() == 0) ? angle_hres : angle_vres;
+      float alpha = (iter.x() == 0) ? ang_res_x : ang_res_y;
 
       // Compute beta and check if points belong to the same segment
-      auto beta = (dmin * std::sin(alpha)) / (dmax - dmin * std::cos(alpha));
-      if (beta > theta_threshold) {
+      auto beta =
+          std::atan2((dmin * std::sin(alpha)), (dmax - dmin * std::cos(alpha)));
+      if (beta > planes_th) {
         queue.emplace_back(c_idx_x, c_idx_y);
         global_queue.emplace_back(c_idx_x, c_idx_y);
 
         label_mat(c_idx_x, c_idx_y) = label;
+        line_count_flag[c_idx_x]    = true;
       }
     }
   }
 
-  if (global_queue.size() >= 30) {
-    label++;
+  // Check if this segment is valid
+  if (sensor == "velodyne") {
+    bool feasible_segment = false;
+    if (global_queue.size() >= 30) {
+      feasible_segment = true;
+    } else if (global_queue.size() >= segment_valid_point_num) {
+      int line_count = 0;
+      for (int i = 0; i < vertical_scans; i++) {
+        if (line_count_flag[i])
+          line_count++;
+      }
+
+      if (line_count >= segment_valid_line_num)
+        feasible_segment = true;
+    }
+
+    if (feasible_segment) {
+      label++;
+    } else {
+      for (auto& i : global_queue) label_mat(i.x(), i.y()) = 999999;
+    }
   } else {
-    for (auto& i : global_queue) label_mat(i.x(), i.y()) = 999999;
+    if (global_queue.size() >= 30) {
+      label++;
+    } else {
+      for (auto& i : global_queue) label_mat(i.x(), i.y()) = 999999;
+    }
   }
 }
 
@@ -629,10 +773,10 @@ void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,
   // -------------------------------------------------------------------------------
   // ----- Compute cloud smoothness
   // -------------------------------------------------------------------------------
-  int                       cloud_size = in_plane_pts.size();
-  std::vector<smoothness_t> cloud_smoothness(img_width * img_height);
-  std::vector<int>          neighbor_picked(img_width * img_height);
-  for (int i = 5; i < cloud_size; i++) {
+  int                       m_cloud_size = in_plane_pts.size();
+  std::vector<smoothness_t> cloud_smoothness(vertical_scans * horizontal_scans);
+  std::vector<int>          neighbor_picked(vertical_scans * horizontal_scans);
+  for (int i = 5; i < m_cloud_size - 5; i++) {
     // Compute smoothness and save it
     float diff_range =
         seg_pcl.range[i - 5] + seg_pcl.range[i - 4] + seg_pcl.range[i - 3] +
@@ -650,13 +794,13 @@ void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,
   // -------------------------------------------------------------------------------
   // ----- Extract features from the 3D cloud
   // -------------------------------------------------------------------------------
-  for (int j = 0; j < img_height; j++) {
+  for (int i = 0; i < vertical_scans; i++) {
     for (int k = 0; k < 6; k++) {
       // Compute start and end indexes of the sub-region
       int sp =
-          (seg_pcl.start_col_idx[j] * (6 - k) + (seg_pcl.end_col_idx[j] * k)) / 6;
+          (seg_pcl.start_col_idx[i] * (6 - k) + (seg_pcl.end_col_idx[i] * k)) / 6;
       int ep =
-          (seg_pcl.start_col_idx[j] * (5 - k) + (seg_pcl.end_col_idx[j] * (k + 1))) /
+          (seg_pcl.start_col_idx[i] * (5 - k) + (seg_pcl.end_col_idx[i] * (k + 1))) /
               6 -
           1;
 
@@ -677,15 +821,15 @@ void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,
         if (neighbor_picked[idx] == 0 &&
             cloud_smoothness[l].value > edge_threshold) {
           picked_counter++;
-          if (picked_counter > 2)
-            break;
-          else {
+          if (picked_counter <= picked_num) {
             Corner m_corner(in_plane_pts[idx].pos, in_plane_pts[idx].which_plane);
             out_corners.push_back(m_corner);
-            neighbor_picked[idx] = 1;
+          } else {
+            break;
           }
 
           // Mark neighbor points to reject as future features
+          neighbor_picked[idx] = 1;
           for (int m = 1; m <= 5; m++) {
             if (idx + m >= seg_pcl.col_idx.size())
               continue;
@@ -715,29 +859,39 @@ void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,
 
 // -------------------------------------------------------------------------------
 
-void Mapper3D::pixel2world(const point& in_pt,
-                           const float& pitch,
-                           const float& depth,
-                           point&       out_pt) const
+void Mapper3D::pixel2base(const point& in_pt,
+                          const float& depth,
+                          point&       out_pt) const
 {
   // Project 2D pixel into a 3D Point using the stereo depth information
   float x_cam = (in_pt.x - cx) * (depth / fx);
   float y_cam = (in_pt.y - cy) * (depth / fy);
   float z_cam = depth;
+  point pt_cam(x_cam, y_cam, z_cam);
 
   // Compute camera-world axis transformation matrix
-  // - NOTE: We compensate here the camera height and pitch (!)
-  pose transform(0., 0., cam_height, -M_PI / 2. - pitch, 0., -M_PI / 2.);
-  std::array<float, 9> c2w_rot = {0., 0., 0., 0., 0., 0., 0., 0., 0.};
-  transform.toRotMatrix(c2w_rot);
+  pose                 cam2world(0., 0., 0, -M_PI / 2., 0., -M_PI / 2.);
+  std::array<float, 9> c2w_rot{};
+  cam2world.toRotMatrix(c2w_rot);
+  TF cam2world_tf(c2w_rot, std::array<float, 3>{0., 0., 0.});
 
   // Align world and camera axis
-  out_pt.x =
-      c2w_rot[0] * x_cam + c2w_rot[1] * y_cam + c2w_rot[2] * z_cam + transform.x;
-  out_pt.y =
-      c2w_rot[3] * x_cam + c2w_rot[4] * y_cam + c2w_rot[5] * z_cam + transform.y;
-  out_pt.z =
-      c2w_rot[6] * x_cam + c2w_rot[7] * y_cam + c2w_rot[8] * z_cam + transform.z;
+  point wpoint = pt_cam * cam2world_tf;
+
+  // Compute camera-to-base transformation matrix
+  pose cam2base(cam2base_x,
+                cam2base_y,
+                cam2base_z,
+                cam2base_roll,
+                cam2base_pitch,
+                cam2base_yaw);
+
+  std::array<float, 9> c2b_rot{};
+  cam2base.toRotMatrix(c2b_rot);
+  TF cam2base_tf(c2b_rot, std::array<float, 3>{cam2base_x, cam2base_y, cam2base_z});
+
+  // Transform camera point to base_link
+  out_pt = wpoint * cam2base_tf.inverse();
 }
 
 } // namespace vineslam

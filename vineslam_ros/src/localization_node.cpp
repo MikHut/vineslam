@@ -33,7 +33,6 @@ LocalizationNode::LocalizationNode(int argc, char** argv)
   // Load camera info parameters
   img_width  = config["camera_info"]["img_width"].as<int>();
   img_height = config["camera_info"]["img_height"].as<int>();
-  cam_height = config["camera_info"]["cam_height"].as<float>();
   fx         = config["camera_info"]["fx"].as<float>();
   fy         = config["camera_info"]["fy"].as<float>();
   cx         = config["camera_info"]["cx"].as<float>();

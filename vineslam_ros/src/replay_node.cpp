@@ -1,8 +1,8 @@
-#include "../include/slam_node.hpp"
+#include "../include/replay_node.hpp"
 
 int main(int argc, char** argv)
 {
-  vineslam::SLAMNode vineslam_node(argc, argv);
+  vineslam::ReplayNode replay_node(argc, argv);
   return 0;
 }
 
@@ -13,11 +13,51 @@ namespace vineslam
 // ----- Constructor and destructor
 // --------------------------------------------------------------------------------
 
-SLAMNode::SLAMNode(int argc, char** argv)
+ReplayNode::ReplayNode(int argc, char** argv)
 {
   // Initialize ROS node
-  ros::init(argc, argv, "SLAMNode");
+  ros::init(argc, argv, "ReplayNode");
   ros::NodeHandle nh;
+
+  // Load params
+  if (!nh.getParam("/replay_node/ReplayNode/bagfile_name", bagfile_str)) {
+    ROS_ERROR("/bagfile_name parameter not found. Shutting down...");
+    return;
+  }
+  if (!nh.getParam("/replay_node/ReplayNode/odom_topic", odom_str)) {
+    ROS_ERROR("/odom_topic parameter not found. Shutting down...");
+    return;
+  }
+  if (!nh.getParam("/replay_node/ReplayNode/rs_odom_topic", rs_odom_str)) {
+    ROS_ERROR("/rs_odom_topic parameter not found. Shutting down...");
+    return;
+  }
+  if (!nh.getParam("/replay_node/ReplayNode/tf_topic", tf_str)) {
+    ROS_ERROR("/tf_topic parameter not found. Shutting down...");
+    return;
+  }
+  if (!nh.getParam("/replay_node/ReplayNode/fix_topic", fix_str)) {
+    ROS_ERROR("/fix_topic parameter not found. Shutting down...");
+    return;
+  }
+  if (!nh.getParam("/replay_node/ReplayNode/depth_img_topic", depth_img_str)) {
+    ROS_ERROR("/depth_img_topic parameter not found. Shutting down...");
+    return;
+  }
+  if (!nh.getParam("/replay_node/ReplayNode/left_img_topic", left_img_str)) {
+    ROS_ERROR("/left_img_topic parameter not found. Shutting down...");
+    return;
+  }
+  if (!nh.getParam("/replay_node/ReplayNode/pcl_topic", pcl_str)) {
+    ROS_ERROR("/pcl_topic parameter not found. Shutting down...");
+    return;
+  }
+
+  // Set node flags
+  nmessages = 0;
+
+  std::thread th(&ReplayNode::replayFct, this, nh);
+  th.detach();
 
   // Set initialization flags default values
   init             = true;
@@ -27,7 +67,7 @@ SLAMNode::SLAMNode(int argc, char** argv)
   estimate_heading = true;
 
   // Load param
-  if (!nh.getParam("/slam_node/SLAMNode/config_path", config_path)) {
+  if (!nh.getParam("/replay_node/ReplayNode/config_path", config_path)) {
     ROS_ERROR("/config_path parameter not found. Shutting down...");
     return;
   }
@@ -65,29 +105,6 @@ SLAMNode::SLAMNode(int argc, char** argv)
   polar2pose = nh.serviceClient<agrob_map_transform::GetPose>("polar_to_pose");
   set_datum  = nh.serviceClient<agrob_map_transform::SetDatum>("datum");
 
-  // Synchronize subscribers of both topics
-  message_filters::Subscriber<sensor_msgs::Image> left_image_sub(
-      nh, "/left_image", 1);
-  message_filters::Subscriber<sensor_msgs::Image> depth_image_sub(
-      nh, "/depth_image", 1);
-  message_filters::Subscriber<vision_msgs::Detection2DArray> detections_sub(
-      nh, "/detections", 1);
-  message_filters::TimeSynchronizer<sensor_msgs::Image,
-                                    sensor_msgs::Image,
-                                    vision_msgs::Detection2DArray>
-      sync(left_image_sub, depth_image_sub, detections_sub, 10);
-  sync.registerCallback(boost::bind(&SLAMNode::mainCallbackFct, this, _1, _2, _3));
-
-  // Scan subscription
-  ros::Subscriber scan_subscriber =
-      nh.subscribe("/scan_3D", 1, &SLAMNode::scanListener, this);
-  // Odometry subscription
-  ros::Subscriber odom_subscriber =
-      nh.subscribe("/odom", 1, &SLAMNode::odomListener, this);
-  // GPS subscription
-  ros::Subscriber gps_subscriber =
-      nh.subscribe("/fix", 1, &SLAMNode::gpsListener, this);
-
   // Publish maps and particle filter
   mapOCC_publisher =
       nh.advertise<nav_msgs::OccupancyGrid>("/vineslam/occupancyMap", 1);
@@ -111,12 +128,12 @@ SLAMNode::SLAMNode(int argc, char** argv)
   exec_boolean = nh.advertise<std_msgs::Bool>("/vineslam/execution_bool", 1);
 
   // ROS services
-  ros::ServiceServer start_reg_srv =
-      nh.advertiseService("start_registration", &SLAMNode::startRegistration, this);
+  ros::ServiceServer start_reg_srv = nh.advertiseService(
+      "start_registration", &ReplayNode::startRegistration, this);
   ros::ServiceServer stop_reg_srv =
-      nh.advertiseService("stop_registration", &SLAMNode::stopRegistration, this);
+      nh.advertiseService("stop_registration", &ReplayNode::stopRegistration, this);
   ros::ServiceServer stop_hed_srv = nh.advertiseService(
-      "stop_gps_heading_estimation", &SLAMNode::stopHeadingEstimation, this);
+      "stop_gps_heading_estimation", &ReplayNode::stopHeadingEstimation, this);
 
   // GNSS varibales
   if (use_gps) {
@@ -142,8 +159,8 @@ SLAMNode::SLAMNode(int argc, char** argv)
     mapper2D->setCamPitch(pitch);
 
     tf::Transform vel2base;
-    vel2base.setRotation(tf::Quaternion(-0.010, 0.002, -0.045, 0.999));
-    vel2base.setOrigin(tf::Vector3(0.286, 0.025, 0.920));
+    vel2base.setRotation(tf::Quaternion(0., 0., 0., 1.));
+    vel2base.setOrigin(tf::Vector3(0., 0., 0.920));
     vel2base = vel2base.inverse();
     t        = vel2base.getOrigin();
     vel2base.getBasis().getRPY(roll, pitch, yaw);
@@ -154,10 +171,135 @@ SLAMNode::SLAMNode(int argc, char** argv)
   ROS_INFO("Got the transforms! Initializing maps...");
 
   ros::spin();
-  ROS_INFO("ROS shutting down...");
 }
 
-SLAMNode::~SLAMNode()
+void ReplayNode::replayFct(ros::NodeHandle nh)
+{
+  ROS_INFO("Opening ROSBAG...");
+  rosbag::Bag bag;
+  bag.open(bagfile_str);
+
+  // -------------------------------------------------------------------------------
+  // ----- Set static TFs
+  // -------------------------------------------------------------------------------
+  tf::Transform unit_tf;
+  unit_tf.setRotation(tf::Quaternion(0., 0., 0., 1.));
+  unit_tf.setOrigin(tf::Vector3(0., 0., 0.));
+
+  // -------------------------------------------------------------------------------
+  // ----- Set rosbags topics of interest
+  // -------------------------------------------------------------------------------
+  ros::Publisher odom_pub      = nh.advertise<nav_msgs::Odometry>(odom_str, 1);
+  ros::Publisher rs_odom_pub   = nh.advertise<nav_msgs::Odometry>(rs_odom_str, 1);
+  ros::Publisher tf_pub        = nh.advertise<tf2_msgs::TFMessage>(tf_str, 1);
+  ros::Publisher fix_pub       = nh.advertise<sensor_msgs::NavSatFix>(fix_str, 1);
+  ros::Publisher depth_img_pub = nh.advertise<sensor_msgs::Image>(depth_img_str, 1);
+  ros::Publisher left_img_pub =
+      nh.advertise<sensor_msgs::CompressedImage>(left_img_str, 1);
+  ros::Publisher pcl_pub = nh.advertise<sensor_msgs::PointCloud2>(pcl_str, 1);
+
+  tf2_msgs::TFMessageConstPtr      tf_ptr;
+  nav_msgs::OdometryConstPtr       rs_odom_ptr;
+  nav_msgs::OdometryConstPtr       odom_ptr;
+  sensor_msgs::NavSatFixConstPtr   fix_ptr;
+  sensor_msgs::ImageConstPtr       depth_img_ptr;
+  cv::Mat                          left_img;
+  sensor_msgs::PointCloud2ConstPtr pcl_ptr;
+
+  ROS_INFO("Reading ROSBAG topics...");
+  bool tf_bool = false, rs_odom_bool = false, odom_bool = false, fix_bool = false,
+       depth_bool = false, left_bool = false, pcl_bool = false;
+  for (rosbag::MessageInstance const m : rosbag::View(bag)) {
+    // Publish static tfs
+    static tf::TransformBroadcaster br;
+    br.sendTransform(tf::StampedTransform(unit_tf, m.getTime(), "map", "odom"));
+    br.sendTransform(
+        tf::StampedTransform(unit_tf, m.getTime(), "odom", "base_link"));
+    br.sendTransform(tf::StampedTransform(unit_tf, m.getTime(), "base_link", "gps"));
+
+    // Publish rosbag topics of interest
+    const std::string& topic = m.getTopic();
+
+    if (topic == tf_str) {
+      tf_ptr = m.instantiate<tf2_msgs::TFMessage>();
+
+      if (tf_ptr != nullptr) {
+        tf_bool = 1;
+        tf_pub.publish(*tf_ptr);
+      }
+    } else if (topic == rs_odom_str) {
+      rs_odom_ptr = m.instantiate<nav_msgs::Odometry>();
+
+      if (rs_odom_ptr != nullptr) {
+        rs_odom_bool = 1;
+        rs_odom_pub.publish(*rs_odom_ptr);
+      }
+    } else if (topic == odom_str) {
+      odom_ptr = m.instantiate<nav_msgs::Odometry>();
+
+      if (odom_ptr != nullptr) {
+        odom_bool = 1;
+        odom_pub.publish(*odom_ptr);
+      }
+    } else if (topic == fix_str) {
+      fix_ptr = m.instantiate<sensor_msgs::NavSatFix>();
+
+      if (fix_ptr != nullptr) {
+        fix_bool = 1;
+        fix_pub.publish(*fix_ptr);
+      }
+    } else if (topic == depth_img_str) {
+      depth_img_ptr = m.instantiate<sensor_msgs::Image>();
+
+      if (depth_img_ptr != nullptr) {
+        depth_bool = 1;
+        depth_img_pub.publish(*depth_img_ptr);
+      }
+    } else if (topic == left_img_str) {
+      sensor_msgs::CompressedImageConstPtr left_img_comp_ptr =
+          m.instantiate<sensor_msgs::CompressedImage>();
+
+      if (left_img_comp_ptr != nullptr) {
+        left_bool = 1;
+        left_img_pub.publish(*left_img_comp_ptr);
+
+        // Decompress image
+        cv::Mat img_data(1, left_img_comp_ptr->data.size(), CV_8UC3);
+        img_data.data = const_cast<uchar*>(&left_img_comp_ptr->data[0]);
+        cv::InputArray data(img_data);
+        left_img = cv::imdecode(data, 1);
+      }
+    } else if (topic == pcl_str) {
+      pcl_ptr = m.instantiate<sensor_msgs::PointCloud2>();
+
+      if (pcl_ptr != nullptr) {
+        pcl_bool = 1;
+        pcl_pub.publish(*pcl_ptr);
+      }
+    }
+
+    nmessages = tf_bool + rs_odom_bool + odom_bool + fix_bool + depth_bool +
+                left_bool + pcl_bool;
+
+    if (nmessages == 7) {
+      scanListener(pcl_ptr);
+      odomListener(odom_ptr);
+      gpsListener(fix_ptr);
+      mainCallbackFct(left_img, depth_img_ptr);
+
+      tf_bool      = false;
+      rs_odom_bool = false;
+      odom_bool    = false;
+      fix_bool     = false;
+      depth_bool   = false;
+      left_bool    = false;
+      pcl_bool     = false;
+      nmessages    = 0;
+    }
+  }
+}
+
+ReplayNode::~ReplayNode()
 {
   // Save map data
   auto config   = YAML::LoadFile(config_path);
@@ -172,28 +314,27 @@ SLAMNode::~SLAMNode()
   // Save path data
   saveRobotPathKitti(gps_path, odom_path, robot_path);
 }
-
 // --------------------------------------------------------------------------------
 // ----- Callbacks and observation functions
 // --------------------------------------------------------------------------------
 
-bool SLAMNode::startRegistration(vineslam_ros::start_map_registration::Request&,
-                                 vineslam_ros::start_map_registration::Response&)
+bool ReplayNode::startRegistration(vineslam_ros::start_map_registration::Request&,
+                                   vineslam_ros::start_map_registration::Response&)
 {
   ROS_INFO("Activating map registration ...\n");
   register_map = true;
   return true;
 }
 
-bool SLAMNode::stopRegistration(vineslam_ros::stop_map_registration::Request&,
-                                vineslam_ros::stop_map_registration::Response&)
+bool ReplayNode::stopRegistration(vineslam_ros::stop_map_registration::Request&,
+                                  vineslam_ros::stop_map_registration::Response&)
 {
   ROS_INFO("Deactivating map registration ...\n");
   register_map = false;
   return true;
 }
 
-bool SLAMNode::stopHeadingEstimation(
+bool ReplayNode::stopHeadingEstimation(
     vineslam_ros::stop_gps_heading_estimation::Request&,
     vineslam_ros::stop_gps_heading_estimation::Response&)
 {
@@ -202,15 +343,10 @@ bool SLAMNode::stopHeadingEstimation(
   return true;
 }
 
-void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
-                               const sensor_msgs::ImageConstPtr& depth_image,
-                               const vision_msgs::Detection2DArrayConstPtr& dets)
+void ReplayNode::mainCallbackFct(const cv::Mat&                    left_image,
+                                 const sensor_msgs::ImageConstPtr& depth_image,
+                                 const vision_msgs::Detection2DArrayConstPtr& dets)
 {
-  // Set execution boolean to true
-  std_msgs::Bool is_executing;
-  is_executing.data = true;
-  exec_boolean.publish(is_executing);
-
   // Declaration of the arrays that will constitute the SLAM observations
   std::vector<int>   labels;
   std::vector<float> bearings;
@@ -220,29 +356,31 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
   // ---- Extract high-level semantic features
   // -------------------------------------------------------------------------------
   // Loop over all the bounding box detections
-  for (const auto& detection : (*dets).detections) {
-    // Load a single bounding box detection
-    vision_msgs::BoundingBox2D m_bbox = detection.bbox;
+  if (dets != nullptr) {
+    for (const auto& detection : (*dets).detections) {
+      // Load a single bounding box detection
+      vision_msgs::BoundingBox2D m_bbox = detection.bbox;
 
-    // Calculate the bearing and depth of the detected object
-    float depth;
-    float bearing;
-    computeObsv(*depth_image,
-                static_cast<int>(m_bbox.center.x - m_bbox.size_x / 2),
-                static_cast<int>(m_bbox.center.y - m_bbox.size_y / 2),
-                static_cast<int>(m_bbox.center.x + m_bbox.size_x / 2),
-                static_cast<int>(m_bbox.center.y + m_bbox.size_y / 2),
-                depth,
-                bearing);
+      // Calculate the bearing and depth of the detected object
+      float depth;
+      float bearing;
+      computeObsv(*depth_image,
+                  static_cast<int>(m_bbox.center.x - m_bbox.size_x / 2),
+                  static_cast<int>(m_bbox.center.y - m_bbox.size_y / 2),
+                  static_cast<int>(m_bbox.center.x + m_bbox.size_x / 2),
+                  static_cast<int>(m_bbox.center.y + m_bbox.size_y / 2),
+                  depth,
+                  bearing);
 
-    // Check if the calculated depth is valid
-    if (depth == -1)
-      continue;
+      // Check if the calculated depth is valid
+      if (depth == -1)
+        continue;
 
-    // Insert the measures in the observations arrays
-    labels.push_back(detection.results[0].id);
-    depths.push_back(depth);
-    bearings.push_back(bearing);
+      // Insert the measures in the observations arrays
+      labels.push_back(detection.results[0].id);
+      depths.push_back(depth);
+      bearings.push_back(bearing);
+    }
   }
 
   // -------------------------------------------------------------------------------
@@ -250,8 +388,6 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
   // -------------------------------------------------------------------------------
 
   // - Data needed to compute the maps
-  cv::Mat img =
-      cv_bridge::toCvShare(left_image, sensor_msgs::image_encodings::BGR8)->image;
   auto* raw_depths = (float*)(&(*depth_image).data[0]);
 
   std::vector<ImageFeature> m_imgfeatures;
@@ -273,7 +409,7 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
       mapper3D->globalCornerMap(robot_pose, m_corners, *grid_map);
       // - 3D image feature map estimation
       std::vector<ImageFeature> m_surf_features;
-      mapper3D->localSurfMap(img, raw_depths, m_surf_features);
+      mapper3D->localSurfMap(left_image, raw_depths, m_surf_features);
       mapper3D->globalSurfMap(m_surf_features, robot_pose, *grid_map);
     }
 
@@ -308,13 +444,13 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
     mapper3D->localPCLMap(raw_depths, m_corners_zed, m_ground_plane_zed);
     // - Compute 3D image features on robot's referential frame
     std::vector<ImageFeature> m_surf_features;
-    mapper3D->localSurfMap(img, raw_depths, m_surf_features);
+    mapper3D->localSurfMap(left_image, raw_depths, m_surf_features);
 
     // ------- Build observation structure to use in the localization
     Observation obsv;
     if (use_landmarks)
       obsv.landmarks = m_landmarks;
-    obsv.corners      = m_corners_zed;
+    obsv.corners      = m_corners_vel;
     obsv.ground_plane = m_ground_plane_vel;
     if (has_converged && use_gps)
       obsv.gps_pose = gps_pose;
@@ -331,7 +467,7 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
       // - 2D high-level semantic map estimation
       mapper2D->process(robot_pose, m_landmarks, labels, *grid_map);
       // - 3D PCL corner map estimation
-      mapper3D->globalCornerMap(robot_pose, m_corners_zed, *grid_map);
+      mapper3D->globalCornerMap(robot_pose, m_corners_vel, *grid_map);
       // - 3D image feature map estimation
       mapper3D->globalSurfMap(m_surf_features, robot_pose, *grid_map);
       // ---------------------------------------- //
@@ -394,7 +530,7 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
     publish2DMap(depth_image->header, robot_pose, bearings, depths);
     // Publish 3D maps
     publish3DMap();
-    publish3DMap(m_corners_zed, corners_local_publisher);
+    publish3DMap(m_corners_vel, corners_local_publisher);
     // ------------------------------------------------ //
 
     if (debug) {
@@ -456,12 +592,12 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
       publish3DMap(m_plane, map3D_planes_publisher);
 
       // - Debug visualization tools
-      cornersDebug(m_corners_zed);
+      cornersDebug(m_corners_vel);
     }
   }
 }
 
-void SLAMNode::scanListener(const sensor_msgs::PointCloud2ConstPtr& msg)
+void ReplayNode::scanListener(const sensor_msgs::PointCloud2ConstPtr& msg)
 {
   pcl::PointCloud<pcl::PointXYZI>::Ptr velodyne_pcl(
       new pcl::PointCloud<pcl::PointXYZI>);
@@ -477,7 +613,7 @@ void SLAMNode::scanListener(const sensor_msgs::PointCloud2ConstPtr& msg)
   }
 }
 
-void SLAMNode::odomListener(const nav_msgs::OdometryConstPtr& msg)
+void ReplayNode::odomListener(const nav_msgs::OdometryConstPtr& msg)
 {
   // Convert odometry msg to pose msg
   tf::Pose            pose;
@@ -514,7 +650,7 @@ void SLAMNode::odomListener(const nav_msgs::OdometryConstPtr& msg)
   p_odom.yaw = yaw;
 }
 
-void SLAMNode::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
+void ReplayNode::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
 {
   if (!use_gps)
     return;
@@ -592,7 +728,7 @@ void SLAMNode::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
   }
 }
 
-bool SLAMNode::getGNSSHeading(const pose& gps_odom, const std_msgs::Header& header)
+bool ReplayNode::getGNSSHeading(const pose& gps_odom, const std_msgs::Header& header)
 {
   float weight_max = 0.;
   if (datum_autocorrection_stage == 0) {
@@ -674,13 +810,13 @@ bool SLAMNode::getGNSSHeading(const pose& gps_odom, const std_msgs::Header& head
   return weight_max > 0.6;
 }
 
-void SLAMNode::computeObsv(const sensor_msgs::Image& depth_img,
-                           const int&                xmin,
-                           const int&                ymin,
-                           const int&                xmax,
-                           const int&                ymax,
-                           float&                    depth,
-                           float&                    bearing) const
+void ReplayNode::computeObsv(const sensor_msgs::Image& depth_img,
+                             const int&                xmin,
+                             const int&                ymin,
+                             const int&                xmax,
+                             const int&                ymax,
+                             float&                    depth,
+                             float&                    bearing) const
 {
   // Declare array with all the disparities computed
   auto* depths = (float*)(&(depth_img).data[0]);
@@ -720,7 +856,7 @@ void SLAMNode::computeObsv(const sensor_msgs::Image& depth_img,
 // ----- Visualization
 // --------------------------------------------------------------------------------
 
-void SLAMNode::publishGridMap(const std_msgs::Header& header)
+void ReplayNode::publishGridMap(const std_msgs::Header& header)
 {
   // Define ROS occupancy grid map
   nav_msgs::OccupancyGrid occ_map;
@@ -766,10 +902,10 @@ void SLAMNode::publishGridMap(const std_msgs::Header& header)
   mapOCC_publisher.publish(occ_map);
 }
 
-void SLAMNode::publish2DMap(const std_msgs::Header&   header,
-                            const pose&               pose,
-                            const std::vector<float>& bearings,
-                            const std::vector<float>& depths)
+void ReplayNode::publish2DMap(const std_msgs::Header&   header,
+                              const pose&               pose,
+                              const std::vector<float>& bearings,
+                              const std::vector<float>& depths)
 {
   visualization_msgs::MarkerArray marker_array;
   visualization_msgs::Marker      marker;
@@ -869,7 +1005,7 @@ void SLAMNode::publish2DMap(const std_msgs::Header&   header,
   map2D_publisher.publish(ellipse_array);
 }
 
-void SLAMNode::publish3DMap()
+void ReplayNode::publish3DMap()
 {
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr feature_cloud(
       new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -902,7 +1038,7 @@ void SLAMNode::publish3DMap()
   map3D_corners_publisher.publish(corner_cloud);
 }
 
-void SLAMNode::publish3DMap(const Plane& plane, const ros::Publisher& pub)
+void ReplayNode::publish3DMap(const Plane& plane, const ros::Publisher& pub)
 {
   pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(
       new pcl::PointCloud<pcl::PointXYZI>);
@@ -921,8 +1057,8 @@ void SLAMNode::publish3DMap(const Plane& plane, const ros::Publisher& pub)
   pub.publish(cloud_out);
 }
 
-void SLAMNode::publish3DMap(const std::vector<Corner>& corners,
-                            const ros::Publisher&      pub)
+void ReplayNode::publish3DMap(const std::vector<Corner>& corners,
+                              const ros::Publisher&      pub)
 {
   pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(
       new pcl::PointCloud<pcl::PointXYZI>);
@@ -949,7 +1085,7 @@ void SLAMNode::publish3DMap(const std::vector<Corner>& corners,
   pub.publish(cloud_out);
 }
 
-void SLAMNode::cornersDebug(const std::vector<Corner>& corners)
+void ReplayNode::cornersDebug(const std::vector<Corner>& corners)
 {
   int                             i = 0;
   visualization_msgs::MarkerArray markers;

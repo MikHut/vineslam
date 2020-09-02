@@ -3,9 +3,6 @@ project(vineslam_ros)
 
 add_compile_options(-std=c++11)
 
-# System flags
-add_definitions(-DDEBUG)
-
 find_package(catkin REQUIRED
         vineslam
         agrob_map_transform
@@ -29,7 +26,8 @@ find_package(yaml-cpp REQUIRED)
 
 add_service_files(FILES
         start_map_registration.srv
-        stop_map_registration.srv)
+        stop_map_registration.srv
+        stop_gps_heading_estimation.srv)
 
 generate_messages(
         DEPENDENCIES
@@ -47,6 +45,13 @@ add_executable(slam_node src/slam_node.cpp)
 add_dependencies(slam_node ${${PROJECT_NAME}_EXPORTED_TARGETS}
         ${catkin_EXPORTED_TARGETS})
 target_link_libraries(slam_node
+        ${catkin_LIBRARIES}
+        yaml-cpp)
+
+add_executable(replay_node src/replay_node.cpp)
+add_dependencies(replay_node ${${PROJECT_NAME}_EXPORTED_TARGETS}
+        ${catkin_EXPORTED_TARGETS})
+target_link_libraries(replay_node
         ${catkin_LIBRARIES}
         yaml-cpp)
 

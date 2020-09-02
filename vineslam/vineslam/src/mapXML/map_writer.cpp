@@ -7,7 +7,11 @@ MapWriter::MapWriter(const std::string& config_file)
 {
   // Read input parameters
   YAML::Node config = YAML::LoadFile(config_file);
-  file_path         = config["grid_map"]["output_file"].as<std::string>();
+  file_path =
+      config["multilayer_mapping"]["grid_map"]["output_folder"].as<std::string>();
+
+  std::time_t t = std::time(0);
+  file_path += "map_" + std::to_string(t) + ".xml";
 }
 
 void MapWriter::writeToFile(OccupancyMap grid_map)

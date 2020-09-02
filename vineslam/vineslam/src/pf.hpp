@@ -123,7 +123,6 @@ private:
   bool  use_icp;
   bool  use_gps;
   int   n_particles;
-  float cam_pitch;
   // - Innovation parameters
   float srr;
   float str;

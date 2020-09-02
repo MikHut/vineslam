@@ -8,11 +8,10 @@ Mapper2D::Mapper2D(const std::string& config_path)
 {
   YAML::Node config = YAML::LoadFile(config_path);
   fx                = config["camera_info"]["fx"].as<float>();
-  cam_pitch         = config["camera_info"]["cam_pitch"].as<float>() * DEGREE_TO_RAD;
-  baseline          = config["camera_info"]["baseline"].as<float>();
+  baseline  = config["camera_info"]["baseline"].as<float>();
 
-  filter_frequency  = 5;
-  stdev_threshold   = 0.2;
+  filter_frequency = 5;
+  stdev_threshold  = 0.2;
 
   // Initialize iterator
   it = 0;
@@ -101,7 +100,7 @@ std::vector<point> Mapper2D::base2map(const pose&                         pose,
   pose.toRotMatrix(Rot);
 
   std::vector<point> landmarks_;
-  for (const auto & landmark : landmarks) {
+  for (const auto& landmark : landmarks) {
     point X_cam(landmark.pos.x, landmark.pos.y, 0.);
 
     // Convert landmark to map's referential frame
@@ -224,7 +223,7 @@ void Mapper2D::localMap(const std::vector<float>&     bearings,
                         const std::vector<float>&     depths,
                         std::vector<SemanticFeature>& landmarks) const
 {
-  pose                 pitch_comp(0., 0., 0., 0., cam_pitch, 0.);
+  pose                 pitch_comp(0., 0., 0., 0., -cam_pitch, 0.);
   std::array<float, 9> Rot{};
   pitch_comp.toRotMatrix(Rot);
 

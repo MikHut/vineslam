@@ -395,7 +395,7 @@ void ReplayNode::mainCallbackFct(const cv::Mat&                    left_image,
   if (init && !init_odom && (!init_gps || !use_gps) &&
       (bearings.size() > 1 || !use_landmarks)) {
     // Initialize the localizer and get first particles distribution
-    localizer->init(pose(0, 0, 0, 0, 0, odom.yaw));
+    localizer->init(pose(0, 0, 0, 0, 0, 0.));
     robot_pose = localizer->getPose();
 
     if (register_map) {
@@ -459,7 +459,7 @@ void ReplayNode::mainCallbackFct(const cv::Mat&                    left_image,
     obsv.surf_features = m_surf_features;
 
     // ------- LOCALIZATION PROCEDURE ---------- //
-    localizer->process(odom, obsv, *grid_map);
+    localizer->process(odom, obsv, grid_map);
     robot_pose = localizer->getPose();
 
     if (register_map) {

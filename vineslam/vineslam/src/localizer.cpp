@@ -22,9 +22,9 @@ void Localizer::init(const pose& initial_pose)
   average_pose = pose(poses);
 }
 
-void Localizer::process(const pose&         odom,
-                        const Observation&  obsv,
-                        const OccupancyMap& grid_map)
+void Localizer::process(const pose&        odom,
+                        const Observation& obsv,
+                        OccupancyMap*      grid_map)
 {
   auto before = std::chrono::high_resolution_clock::now();
   // Reset weights sum

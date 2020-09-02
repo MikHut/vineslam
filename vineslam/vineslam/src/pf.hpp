@@ -20,7 +20,7 @@
 namespace vineslam
 {
 
-enum MOTION_STATE {FORWARD, ROTATING, STOPED};
+enum MOTION_STATE { FORWARD, ROTATING, STOPED };
 
 // Struct that represents a single particle with
 // - identification number
@@ -63,7 +63,7 @@ public:
               const Plane&                        ground_plane,
               const std::vector<ImageFeature>&    surf_features,
               const pose&                         gps_pose,
-              const OccupancyMap&                 grid_map);
+              OccupancyMap*                       grid_map);
   // Normalize particles weights
   void normalizeWeights();
   // Resample particles
@@ -82,23 +82,23 @@ private:
   // Update functions
   // - High level semantic features layer
   void highLevel(const std::vector<SemanticFeature>& landmarks,
-                 OccupancyMap                        grid_map,
+                 OccupancyMap*                       grid_map,
                  std::vector<float>&                 ws);
   // - Medium level corner features layer
   void mediumLevelCorners(const std::vector<Corner>& corners,
-                          OccupancyMap               grid_map,
+                          OccupancyMap*              grid_map,
                           std::vector<float>&        ws);
   // - Medium level ground plane layer
   void mediumLevelGround(const Plane& ground_plane, std::vector<float>& ws);
   // - Low level image features layer
   void lowLevel(const std::vector<ImageFeature>& surf_features,
-                const OccupancyMap&              grid_map,
+                OccupancyMap*                    grid_map,
                 std::vector<float>&              ws);
   // -------- (Low level) K-means based particle clustering
   void cluster(std::map<int, Gaussian<pose, pose>>& gauss_map);
   // -------- (Low level) Scan match on clustered particles
   void scanMatch(const std::vector<ImageFeature>&     features,
-                 const OccupancyMap&                  grid_map,
+                 OccupancyMap*                        grid_map,
                  std::map<int, Gaussian<pose, pose>>& gauss_map,
                  std::vector<float>&                  ws);
   // - GPS
@@ -117,12 +117,12 @@ private:
   std::string config_path;
   // Input numeric parameters
   // - General parameters
-  bool  use_landmarks;
-  bool  use_corners;
-  bool  use_ground_plane;
-  bool  use_icp;
-  bool  use_gps;
-  int   n_particles;
+  bool use_landmarks;
+  bool use_corners;
+  bool use_ground_plane;
+  bool use_icp;
+  bool use_gps;
+  int  n_particles;
   // - Innovation parameters
   float srr;
   float str;

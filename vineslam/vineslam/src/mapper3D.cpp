@@ -338,7 +338,7 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
       continue;
     }
 
-    if (range < 1.0 || range > 20.0) {
+    if (range < 1.0 || range > 50.0) {
       continue;
     }
 

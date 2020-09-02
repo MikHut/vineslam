@@ -28,7 +28,7 @@ Mapper3D::Mapper3D(const std::string& config_path)
   // Set pointcloud feature parameters
   max_iters      = 20;
   dist_threshold = 0.08;
-  downsample_f =
+  init_downsample_f =
       config["multilayer_mapping"]["cloud_feature"]["downsample_factor"].as<int>();
 
   // Threshold to consider correspondences
@@ -231,7 +231,7 @@ void Mapper3D::localPCLMap(const float*         depths,
   segment_valid_line_num  = 3;
   ang_res_x               = depth_hfov / static_cast<float>(img_width);
   ang_res_y               = depth_vfov / static_cast<float>(img_height);
-  downsample_f            = 15;
+  downsample_f            = init_downsample_f;
 
   // Reset global variables and members
   reset();
@@ -338,7 +338,7 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
       continue;
     }
 
-    if (range < 1.0) {
+    if (range < 1.0 || range > 20.0) {
       continue;
     }
 
@@ -396,9 +396,9 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
   // -------------------------------------------
 }
 
-void Mapper3D::globalCornerMap(const std::vector<Corner>& corners,
-                               const pose&                robot_pose,
-                               OccupancyMap&              grid_map) const
+void Mapper3D::globalCornerMap(const pose&          robot_pose,
+                               std::vector<Corner>& corners,
+                               OccupancyMap&        grid_map) const
 {
   // ------ Convert robot pose into homogeneous transformation
   std::array<float, 9> Rot{};
@@ -406,7 +406,7 @@ void Mapper3D::globalCornerMap(const std::vector<Corner>& corners,
   std::array<float, 3> trans = {robot_pose.x, robot_pose.y, robot_pose.z};
 
   // ------ Insert corner into the grid map
-  for (const auto& corner : corners) {
+  for (auto& corner : corners) {
     // - First convert them to map's referential using the robot pose
     point m_pt;
     m_pt.x = corner.pos.x * Rot[0] + corner.pos.y * Rot[1] + corner.pos.z * Rot[2] +
@@ -424,31 +424,33 @@ void Mapper3D::globalCornerMap(const std::vector<Corner>& corners,
       float dist_min = m_pt.distance(m_corner.pos);
 
       if (dist_min < best_correspondence) {
-        correspondence      = m_corner;
-        best_correspondence = dist_min;
-        found               = true;
+        corner.correspondence = m_corner.pos;
+        correspondence        = m_corner;
+        best_correspondence   = dist_min;
+        found                 = true;
       }
     }
 
+    found &= (best_correspondence < 0.02);
     // Only search in the adjacent cells if we do not find in the source cell
-    if (!found) {
-      std::vector<Cell> adjacents;
-      grid_map.getAdjacent(m_pt.x, m_pt.y, 2, adjacents);
-      for (const auto& m_cell : adjacents) {
-        for (const auto& m_corner : m_cell.corner_features) {
-          float dist_min = m_pt.distance(m_corner.pos);
-          if (dist_min < best_correspondence) {
-            correspondence      = m_corner;
-            best_correspondence = dist_min;
-            found               = true;
-          }
-        }
-      }
-    }
+    //    if (!found) {
+    //      std::vector<Cell> adjacents;
+    //      grid_map.getAdjacent(m_pt.x, m_pt.y, 2, adjacents);
+    //      for (const auto& m_cell : adjacents) {
+    //        for (const auto& m_corner : m_cell.corner_features) {
+    //          float dist_min = m_pt.distance(m_corner.pos);
+    //          if (dist_min < best_correspondence) {
+    //            correspondence      = m_corner;
+    //            best_correspondence = dist_min;
+    //            found               = true;
+    //          }
+    //        }
+    //      }
+    //    }
 
     // - Then, insert the corner into the grid map
     if (found) {
-      point  new_pt = (m_pt + correspondence.pos) / 2.;
+      point  new_pt = (m_pt + corner.correspondence) / 2.;
       Corner new_corner(new_pt, corner.which_plane);
       grid_map.update(correspondence, new_corner);
     } else {

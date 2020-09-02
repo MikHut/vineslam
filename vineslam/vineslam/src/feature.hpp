@@ -168,7 +168,15 @@ struct Corner : public Feature {
     which_plane = m_which_plane;
   }
 
-  int which_plane{}; // sets the plane where the corner belongs
+  Corner(const point& m_pt, const int& m_which_plane, const point& m_correspondece)
+  {
+    pos            = m_pt;
+    which_plane    = m_which_plane;
+    correspondence = m_correspondece;
+  }
+
+  int   which_plane{};    // sets the plane where the corner belongs
+  point correspondence{}; // debug: correspondence point in other map
 };
 
 // Dummy struct to represent a plane point, before corner extraction
@@ -203,8 +211,8 @@ struct Plane {
     points = m_points;
   }
 
-  vector3D           normal; // plane normal vector
-  std::vector<point> points; // set of points that belong to the plane
+  vector3D           normal;  // plane normal vector
+  std::vector<point> points;  // set of points that belong to the plane
   std::vector<point> indexes; // indexes of points projected into the range image
 };
 

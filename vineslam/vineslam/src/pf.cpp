@@ -343,22 +343,22 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
       }
 
       // NOTE (André Aguiar): with this, the filter becomes to slow ...
-      // found &= (best_correspondence < 0.05);
+      found &= (best_correspondence < 0.02);
       // Only search in the adjacent cells if we do not find in the source cell
-      if (!found) {
-        std::vector<Cell> adjacents;
-        grid_map.getAdjacent(X.x, X.y, 1, adjacents);
-        for (const auto& m_cell : adjacents) {
-          for (const auto& m_corner : m_cell.corner_features) {
-            float dist_min = X.distance(m_corner.pos);
-            if (dist_min < best_correspondence) {
-              dpos                = m_corner.pos;
-              best_correspondence = dist_min;
-              found               = true;
-            }
-          }
-        }
-      }
+      //      if (!found) {
+      //        std::vector<Cell> adjacents;
+      //        grid_map.getAdjacent(X.x, X.y, 1, adjacents);
+      //        for (const auto& m_cell : adjacents) {
+      //          for (const auto& m_corner : m_cell.corner_features) {
+      //            float dist_min = X.distance(m_corner.pos);
+      //            if (dist_min < best_correspondence) {
+      //              dpos                = m_corner.pos;
+      //              best_correspondence = dist_min;
+      //              found               = true;
+      //            }
+      //          }
+      //        }
+      //      }
 
       // Save distance if a correspondence was found
       if (!found)
@@ -387,13 +387,13 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
 void PF::mediumLevelGround(const Plane& ground_plane, std::vector<float>& ws)
 {
   // -------------------------------------------------------------------------------
-  // --- 3D ground plane [roll, pitch, z] estimation - only done once
+  // --- 3D ground plane [roll, pitch, z] estimation
   // -------------------------------------------------------------------------------
   pose                   pose_from_ground;
   Gaussian<float, float> ground_plane_gauss{};
   if (ground_plane.points.size() > 1) {
     // - Compute rotation matrix that transform the normal vector into a vector
-    // perpendicular to the plane z = 0
+    // parelel to the plane z = 0
     // ---- in other words, the rotation matrix that aligns the ground plane with
     // the plane z = 0
     // ---- this matrix will encode the absolute roll and pitch of the robot
@@ -410,31 +410,7 @@ void PF::mediumLevelGround(const Plane& ground_plane, std::vector<float>& ws)
     R[7]       = m_normal.y;
     R[8]       = m_normal.z;
 
-    // - Compute the local ground plane altimetry as well as a gaussian
-    // representing the validity of the ground plane estimation
-    // ---- the higher the standard deviation of the z distances, the lower the
-    // precision of the estimation, since both planes should be paralel
-    // Mean
-    float              z_mean = 0.;
-    std::vector<float> zs;
-    std::vector<point> z_null_plane;
-    for (const auto& pt : ground_plane.points) {
-      float z = (pt.x * R[6] + pt.y * R[7] + pt.z * R[8]);
-      z_mean += z;
-      zs.push_back(z);
-    }
-    z_mean /= static_cast<float>(zs.size());
-
-    // Standard deviation
-    float z_std = 0.;
-    for (const auto& m_z : zs) z_std += (m_z - z_mean) * (m_z - z_mean);
-    z_std = std::sqrt(z_std / static_cast<float>(zs.size()));
-    // Save as gaussian
-    ground_plane_gauss = Gaussian<float, float>(z_mean, z_std);
-
-    // - Compute the componenets of interest and save as pose
-    std::array<float, 3> altimetry = {0., 0., z_mean};
-    pose_from_ground               = pose(R, altimetry);
+    pose_from_ground = pose(R, std::array<float, 3>{0., 0., 0});
   } else {
     ground_plane_gauss = Gaussian<float, float>(0., 0.);
   }

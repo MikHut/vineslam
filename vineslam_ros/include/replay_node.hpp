@@ -15,6 +15,8 @@
 
 // std
 #include <iostream>
+#include <ctime>
+#include <thread>
 
 // ROS
 #include <cv_bridge/cv_bridge.h>
@@ -38,6 +40,8 @@
 #include <pcl_ros/point_cloud.h>
 #include <pcl/filters/filter.h>
 #include <yaml-cpp/yaml.h>
+#include <rosbag/bag.h>
+#include <rosbag/view.h>
 #include <vineslam_ros/start_map_registration.h>
 #include <vineslam_ros/stop_map_registration.h>
 #include <vineslam_ros/stop_gps_heading_estimation.h>
@@ -48,22 +52,22 @@
 
 namespace vineslam
 {
-class SLAMNode
+class ReplayNode
 {
 public:
   // Class constructor that
   // - Initializes the ROS node
   // - Defines the publish and subscribe topics
-  SLAMNode(int argc, char** argv);
+  ReplayNode(int argc, char** argv);
 
   // Class destructor - saves the map to an output xml file
-  ~SLAMNode();
+  ~ReplayNode();
 
   // Callback function that subscribes a rgb image, a  disparity image,
   // and the bounding boxes that locate the objects on the image
-  void mainCallbackFct(const sensor_msgs::ImageConstPtr&            left_image,
+  void mainCallbackFct(const cv::Mat&                               left_image,
                        const sensor_msgs::ImageConstPtr&            depth_image,
-                       const vision_msgs::Detection2DArrayConstPtr& dets);
+                       const vision_msgs::Detection2DArrayConstPtr& dets = nullptr);
   // Scan callback function
   void scanListener(const sensor_msgs::PointCloud2ConstPtr& msg);
   // Odometry callback function
@@ -79,6 +83,8 @@ public:
                              vineslam_ros::stop_gps_heading_estimation::Response&);
 
 private:
+  // Bag file iterator function - for offline mode
+  void replayFct(ros::NodeHandle nh);
   // Publish 2D semantic features map
   void publish2DMap(const std_msgs::Header&   header,
                     const pose&               pose,
@@ -185,6 +191,19 @@ private:
   bool init;
   bool init_gps;
   bool init_odom;
+
+  // Topic and rosbag names
+  std::string bagfile_str;
+  std::string odom_str;
+  std::string rs_odom_str;
+  std::string tf_str;
+  std::string fix_str;
+  std::string depth_img_str;
+  std::string left_img_str;
+  std::string pcl_str;
+
+  // Node flags
+  int nmessages;
 };
 
-}; // namespace vineslam
+} // namespace vineslam

@@ -85,9 +85,9 @@ public:
                    Plane&               out_groundplane);
 
   // Adds the corner features to the global map
-  void globalCornerMap(const std::vector<Corner>& corners,
-                       const pose&                robot_pose,
-                       OccupancyMap&              grid_map) const;
+  void globalCornerMap(const pose&          robot_pose,
+                       std::vector<Corner>& corners,
+                       OccupancyMap&        grid_map) const;
   // -------------------------------------------------------------------------------
 
   // Setter functions
@@ -178,6 +178,7 @@ private:
   // 3D cloud feature parameters
   float correspondence_threshold;
   int   downsample_f;
+  int   init_downsample_f;
   int   max_iters;
   float dist_threshold;
   float planes_th{};

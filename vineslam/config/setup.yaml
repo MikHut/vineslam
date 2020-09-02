@@ -2,24 +2,29 @@
 ---
 # General system settings
 system:
-  # - Define system inputs
-  use_ground_plane: True
-  use_landmarks: True
+  # - System flags
+  # ---------------------
+  debug: True
+  # ---- Define system inputs
+  use_ground_plane: False
+  use_landmarks: False
   use_corners: True
   use_icp: True
-  use_gps: True
+  use_gps: False
   # ---------------------
+  # GPS datum
   gps_datum:
-    lat: 41.2054771667 # initial gps latitude (larger)
-    #    lat: 41.205517 # initial gps latitude (medium)
-    long: -8.3073805 # initial gps longiture (larger)
-#    long: -8.3073515 # initial gps longiture (medium)
+    lat: 41.6520631667 # estufa
+#    lat: 41.2050211667 # initial gps latitude
+#    lat: 41.205517 # initial gps latitude (larger)
+    long: -8.7052965
+#    long: -8.30753416667 # initial gps longiture (larger)
+#    long: -8.3073515 # initial gps longiture (larger)
+  # ---------------------
 
 # Camera calibration info
 camera_info:
   baseline: 0.12       # meters
-  cam_pitch: 11.3      # camera inclination in degrees
-  cam_height: 0.95     # camera height in meters
   depth_hfov: 90.0     # degrees - depth image horizontal field of view
   depth_vfov: 60.0     # degrees - depth image vertical field of view
   img_width: 1280      # pixels
@@ -35,24 +40,24 @@ multilayer_mapping:
   grid_map:
     origin:
       x: -75
-      y: -25
+      y: -75
     width: 150
-    height: 50
+    height: 150
     resolution: 0.25 # meters
     metric: "euclidean"
-    save_map: True
-    output_file: "/home/andre-criis/map.xml"
+    save_map: False
+    output_folder: "/home/andre-criis/Source/vineslam_data/raw_data/maps/"
     input_file: "/home/andre-criis/map.xml"
   # Feature extractor and descriptor settings
   image_feature:
     hessian_threshold: 3500 # SURF threshold: the higher the value, the lesser the number of features computed
   # 3D cloud feature extraction settings
   cloud_feature:
-    downsample_factor: 10  # constant to downscale dense disparity image
+    downsample_factor: 1  # constant to downscale dense disparity image
   # 3D map definitions
   map_3D:
     max_range: 5.0 # meters
-    max_height: 2.0 # meters
+    max_height: 4.5 # meters
   # ICP definitions
   ICP:
     max_iters: 20
@@ -63,23 +68,23 @@ multilayer_mapping:
 pf:
   n_particles: 500
 
-  srr: 0.001 # rotation - rotation (rad / rad)
-  srt: 0.040 # rotation - translation (rad / meter)
+  srr: 0.010 # rotation - rotation (rad / rad)
+  srt: 0.080 # rotation - translation (rad / meter)
   str: 0.008 # translation - rotation (meter / rad)
-  stt: 0.090 # translation - translation (meter / meter)
+  stt: 0.100 # translation - translation (meter / meter)
 
   sigma_xy: 0.15 # meters (just for initialization)
   sigma_yaw: 1.0 # degrees (just for initialization)
-  sigma_z: 0.08 # meters
-  sigma_roll: 1.0 # degrees
-  sigma_pitch: 1.0 # degrees
+  sigma_z: 0.01 # meters
+  sigma_roll: 0.01 # degrees
+  sigma_pitch: 0.1 # degrees
 
   ## --- PARTICLES UPDATE -- #
   sigma_landmark_matching: 0.01 # meters
   sigma_feature_matching: 0.05 # meters
-  sigma_corner_matching: 0.005 # meters
-  sigma_ground_rp: 3.0 # degrees
+  sigma_corner_matching: 0.05 # meters
+  sigma_ground_rp: 1.0 # degrees
   sigma_gps: 0.08 # meters
 
-  k_clusters: 5
+  k_clusters: 3
 ...

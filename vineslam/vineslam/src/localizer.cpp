@@ -22,9 +22,9 @@ void Localizer::init(const pose& initial_pose)
   average_pose = pose(poses);
 }
 
-void Localizer::process(const pose&         odom,
-                        const Observation&  obsv,
-                        const OccupancyMap& grid_map)
+void Localizer::process(const pose&        odom,
+                        const Observation& obsv,
+                        OccupancyMap*      grid_map)
 {
   auto before = std::chrono::high_resolution_clock::now();
   // Reset weights sum
@@ -58,19 +58,13 @@ void Localizer::process(const pose&         odom,
   std::vector<pose> poses;
   for (const auto& particle : pf->particles) poses.push_back(particle.p);
   average_pose = pose(poses);
-  //  float w_max = 0.;
-  //  for (const auto& particle : pf->particles) {
-  //    if (particle.w > w_max) {
-  //      average_pose = particle.p;
-  //      w_max        = particle.w;
-  //    }
-  //  }
 
   // - Save current control to use in the next iteration
   pf->p_odom = odom;
   auto after = std::chrono::high_resolution_clock::now();
   std::chrono::duration<float, std::milli> duration = after - before;
-  std::cout << "Time elapsed on PF (msecs): " << duration.count() << std::endl;
+  std::cout << "Time elapsed on PF (msecs): " << duration.count() << std::endl
+            << std::endl;
 }
 
 pose Localizer::getPose() const { return average_pose; }

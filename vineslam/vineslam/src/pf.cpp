@@ -1,6 +1,6 @@
 #include "pf.hpp"
 
-#include <cmath>
+#include <utils/save_data.hpp>
 
 namespace vineslam
 {
@@ -17,7 +17,6 @@ PF::PF(const std::string& config_path, const pose& initial_pose)
   use_icp          = config["system"]["use_icp"].as<bool>();
   use_gps          = config["system"]["use_gps"].as<bool>();
   n_particles      = config["pf"]["n_particles"].as<int>();
-  cam_pitch        = config["camera_info"]["cam_pitch"].as<float>() * DEGREE_TO_RAD;
   // - Motion model parameters
   srr = config["pf"]["srr"].as<float>();
   str = config["pf"]["str"].as<float>();
@@ -41,8 +40,9 @@ PF::PF(const std::string& config_path, const pose& initial_pose)
 
   // Initialize and set ICP parameters
   auto icp_max_iters = config["multilayer_mapping"]["ICP"]["max_iters"].as<float>();
-  auto dthreshold    = config["multilayer_mapping"]["ICP"]["distance_threshold"].as<float>();
-  icp                = new ICP(config_path);
+  auto dthreshold =
+      config["multilayer_mapping"]["ICP"]["distance_threshold"].as<float>();
+  icp = new ICP(config_path);
   icp->setMaxIterations(static_cast<int>(icp_max_iters));
   icp->setThreshold(dthreshold);
   // ---------------------------------
@@ -140,7 +140,7 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
                 const Plane&                        ground_plane,
                 const std::vector<ImageFeature>&    surf_features,
                 const pose&                         gps_pose,
-                const OccupancyMap&                 grid_map)
+                OccupancyMap*                 grid_map)
 {
   std::vector<float> semantic_weights(n_particles, 0.);
   std::vector<float> corner_weights(n_particles, 0.);
@@ -148,16 +148,40 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
   std::vector<float> surf_weights(n_particles, 0.);
   std::vector<float> gps_weights(n_particles, 0.);
 
+  auto before = std::chrono::high_resolution_clock::now();
   if (use_landmarks && !(motion_state == ROTATING))
     highLevel(landmarks, grid_map, semantic_weights);
+  auto after = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<float, std::milli> duration = after - before;
+  std::cout << "Time elapsed on PF - high-level features (msecs): "
+            << duration.count() << std::endl;
+  before = std::chrono::high_resolution_clock::now();
   if (use_corners)
     mediumLevelCorners(corners, grid_map, corner_weights);
+  after    = std::chrono::high_resolution_clock::now();
+  duration = after - before;
+  std::cout << "Time elapsed on PF - corner features (msecs): " << duration.count()
+            << " (" << corners.size() << ", " << grid_map->n_corner_features << ")"
+            << std::endl;
+  before = std::chrono::high_resolution_clock::now();
   if (use_ground_plane)
     mediumLevelGround(ground_plane, ground_weights);
+  after    = std::chrono::high_resolution_clock::now();
+  duration = after - before;
+  std::cout << "Time elapsed on PF - ground (msecs): " << duration.count()
+            << std::endl;
+  before = std::chrono::high_resolution_clock::now();
   if (use_icp)
     lowLevel(surf_features, grid_map, surf_weights);
+  after    = std::chrono::high_resolution_clock::now();
+  duration = after - before;
+  std::cout << "Time elapsed on PF - icp (msecs): " << duration.count() << std::endl;
+  before = std::chrono::high_resolution_clock::now();
   if (use_gps)
     gps(gps_pose, gps_weights);
+  after    = std::chrono::high_resolution_clock::now();
+  duration = after - before;
+  std::cout << "Time elapsed on PF - gps (msecs): " << duration.count() << std::endl;
 
   // Multi-modal weights normalization
   float semantic_max =
@@ -179,12 +203,11 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
     float m_gpsw =
         (gps_max > 0.) ? gps_weights[particle.id] : static_cast<float>(1.);
 
-    std::cout << "LANDMARKS: " << m_lw << ", CORNERS: " << m_cw
-              << ", GROUND: " << m_gw << ", ICP: " << m_sw << ", GPS: " << m_gpsw
-              << std::endl;
     particle.w = m_lw * m_cw * m_gw * m_sw * m_gpsw;
     w_sum += particle.w;
   }
+
+  n_it++;
 }
 
 void PF::gps(const pose& gps_pose, std::vector<float>& ws)
@@ -202,7 +225,7 @@ void PF::gps(const pose& gps_pose, std::vector<float>& ws)
 }
 
 void PF::highLevel(const std::vector<SemanticFeature>& landmarks,
-                   OccupancyMap                        grid_map,
+                   OccupancyMap*                        grid_map,
                    std::vector<float>&                 ws)
 {
   float normalizer_landmark =
@@ -234,7 +257,7 @@ void PF::highLevel(const std::vector<SemanticFeature>& landmarks,
       // Search for a correspondence in the current cell first
       float best_correspondence = std::numeric_limits<float>::max();
       bool  found               = false;
-      for (const auto& m_landmark : grid_map(X.x, X.y).landmarks) {
+      for (const auto& m_landmark : (*grid_map)(X.x, X.y).landmarks) {
         float dist_min = X.distanceXY(m_landmark.second.pos);
 
         if (dist_min < best_correspondence) {
@@ -246,7 +269,7 @@ void PF::highLevel(const std::vector<SemanticFeature>& landmarks,
       // Only search in the adjacent cells if we do not find in the source cell
       if (!found) {
         std::vector<Cell> adjacents;
-        grid_map.getAdjacent(X.x, X.y, 2, adjacents);
+        grid_map->getAdjacent(X.x, X.y, 2, adjacents);
         for (const auto& m_cell : adjacents) {
           for (const auto& m_landmark : m_cell.landmarks) {
             float dist_min = X.distanceXY(m_landmark.second.pos);
@@ -281,7 +304,7 @@ void PF::highLevel(const std::vector<SemanticFeature>& landmarks,
 }
 
 void PF::mediumLevelCorners(const std::vector<Corner>& corners,
-                            OccupancyMap               grid_map,
+                            OccupancyMap*               grid_map,
                             std::vector<float>&        ws)
 {
   float normalizer_corner =
@@ -309,7 +332,7 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
       point dpos;
       float best_correspondence = std::numeric_limits<float>::max();
       bool  found               = false;
-      for (const auto& m_corner : grid_map(X.x, X.y).corner_features) {
+      for (const auto& m_corner : (*grid_map)(X.x, X.y).corner_features) {
         float dist_min = X.distance(m_corner.pos);
 
         if (dist_min < best_correspondence) {
@@ -320,22 +343,22 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
       }
 
       // NOTE (André Aguiar): with this, the filter becomes to slow ...
-      // found &= (best_correspondence < 0.05);
+      found &= (best_correspondence < 0.02);
       // Only search in the adjacent cells if we do not find in the source cell
-      if (!found) {
-        std::vector<Cell> adjacents;
-        grid_map.getAdjacent(X.x, X.y, 1, adjacents);
-        for (const auto& m_cell : adjacents) {
-          for (const auto& m_corner : m_cell.corner_features) {
-            float dist_min = X.distance(m_corner.pos);
-            if (dist_min < best_correspondence) {
-              dpos                = m_corner.pos;
-              best_correspondence = dist_min;
-              found               = true;
-            }
-          }
-        }
-      }
+      //  if (!found) {
+      //    std::vector<Cell> adjacents;
+      //    grid_map.getAdjacent(X.x, X.y, 1, adjacents);
+      //    for (const auto& m_cell : adjacents) {
+      //      for (const auto& m_corner : m_cell.corner_features) {
+      //        float dist_min = X.distance(m_corner.pos);
+      //        if (dist_min < best_correspondence) {
+      //          dpos                = m_corner.pos;
+      //          best_correspondence = dist_min;
+      //          found               = true;
+      //        }
+      //      }
+      //    }
+      //  }
 
       // Save distance if a correspondence was found
       if (!found)
@@ -364,13 +387,13 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
 void PF::mediumLevelGround(const Plane& ground_plane, std::vector<float>& ws)
 {
   // -------------------------------------------------------------------------------
-  // --- 3D ground plane [roll, pitch, z] estimation - only done once
+  // --- 3D ground plane [roll, pitch, z] estimation
   // -------------------------------------------------------------------------------
   pose                   pose_from_ground;
   Gaussian<float, float> ground_plane_gauss{};
   if (ground_plane.points.size() > 1) {
     // - Compute rotation matrix that transform the normal vector into a vector
-    // perpendicular to the plane z = 0
+    // parelel to the plane z = 0
     // ---- in other words, the rotation matrix that aligns the ground plane with
     // the plane z = 0
     // ---- this matrix will encode the absolute roll and pitch of the robot
@@ -387,31 +410,7 @@ void PF::mediumLevelGround(const Plane& ground_plane, std::vector<float>& ws)
     R[7]       = m_normal.y;
     R[8]       = m_normal.z;
 
-    // - Compute the local ground plane altimetry as well as a gaussian
-    // representing the validity of the ground plane estimation
-    // ---- the higher the standard deviation of the z distances, the lower the
-    // precision of the estimation, since both planes should be paralel
-    // Mean
-    float              z_mean = 0.;
-    std::vector<float> zs;
-    std::vector<point> z_null_plane;
-    for (const auto& pt : ground_plane.points) {
-      float z = (pt.x * R[6] + pt.y * R[7] + pt.z * R[8]);
-      z_mean += z;
-      zs.push_back(z);
-    }
-    z_mean /= static_cast<float>(zs.size());
-
-    // Standard deviation
-    float z_std = 0.;
-    for (const auto& m_z : zs) z_std += (m_z - z_mean) * (m_z - z_mean);
-    z_std = std::sqrt(z_std / static_cast<float>(zs.size()));
-    // Save as gaussian
-    ground_plane_gauss = Gaussian<float, float>(z_mean, z_std);
-
-    // - Compute the componenets of interest and save as pose
-    std::array<float, 3> altimetry = {0., 0., z_mean};
-    pose_from_ground               = pose(R, altimetry);
+    pose_from_ground = pose(R, std::array<float, 3>{0., 0., 0});
   } else {
     ground_plane_gauss = Gaussian<float, float>(0., 0.);
   }
@@ -440,7 +439,7 @@ void PF::mediumLevelGround(const Plane& ground_plane, std::vector<float>& ws)
 }
 
 void PF::lowLevel(const std::vector<ImageFeature>& surf_features,
-                  const OccupancyMap&              grid_map,
+                  OccupancyMap*              grid_map,
                   std::vector<float>&              ws)
 {
   // ------------------------------------------------------------------------------
@@ -453,6 +452,8 @@ void PF::lowLevel(const std::vector<ImageFeature>& surf_features,
   // ---------------- Scan match
   // ------------------------------------------------------------------------------
   scanMatch(surf_features, grid_map, gauss_map, ws);
+
+  /* saveParticleClusters(gauss_map, particles, k_clusters, n_it); */
 }
 
 void PF::cluster(std::map<int, Gaussian<pose, pose>>& gauss_map)
@@ -553,7 +554,7 @@ void PF::cluster(std::map<int, Gaussian<pose, pose>>& gauss_map)
       if (which_cluster != particle.which_cluster) {
         auto it = swap.find(particle.which_cluster);
         if (num_per_cluster[particle.which_cluster] >
-            static_cast<float>(n_particles / k_clusters) * 0.3) {
+            static_cast<float>(n_particles / k_clusters) * 1.0) {
           num_per_cluster[which_cluster]++;
           num_per_cluster[particle.which_cluster]--;
           particle.which_cluster = which_cluster;
@@ -679,7 +680,7 @@ void PF::cluster(std::map<int, Gaussian<pose, pose>>& gauss_map)
 }
 
 void PF::scanMatch(const std::vector<ImageFeature>&     features,
-                   const OccupancyMap&                  grid_map,
+                   OccupancyMap*                  grid_map,
                    std::map<int, Gaussian<pose, pose>>& gauss_map,
                    std::vector<float>&                  ws)
 {

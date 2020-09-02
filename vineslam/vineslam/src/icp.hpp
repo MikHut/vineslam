@@ -36,9 +36,9 @@ public:
   void setThreshold(const float& m_threshold) { dist_threshold = m_threshold; }
 
   // Methods to receive the source and target point clouds
-  void setInputTarget(const OccupancyMap& m_target)
+  void setInputTarget(OccupancyMap* m_target)
   {
-    target = new OccupancyMap(m_target);
+    target = m_target;
   }
   void setInputSource(const std::vector<ImageFeature>& m_source)
   {

@@ -7,7 +7,8 @@ MapParser::MapParser(const std::string& config_file)
 {
   // Read input parameters
   YAML::Node config = YAML::LoadFile(config_file);
-  file_path         = config["grid_map"]["input_file"].as<std::string>();
+  file_path =
+      config["multilayer_mapping"]["grid_map"]["input_file"].as<std::string>();
 }
 
 void MapParser::parseFile(OccupancyMap& grid_map)

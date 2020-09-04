@@ -216,4 +216,4 @@ struct Plane {
   std::vector<point> indexes; // indexes of points projected into the range image
 };
 
-}; // namespace vineslam
+} // namespace vineslam

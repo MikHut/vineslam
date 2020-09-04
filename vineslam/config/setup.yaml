@@ -17,7 +17,7 @@ system:
     lat: 41.6520631667 # estufa
 #    lat: 41.2050211667 # initial gps latitude
 #    lat: 41.205517 # initial gps latitude (larger)
-    long: -8.7052965
+    long: -8.7052965 # estufa
 #    long: -8.30753416667 # initial gps longiture (larger)
 #    long: -8.3073515 # initial gps longiture (larger)
   # ---------------------
@@ -69,7 +69,7 @@ pf:
   n_particles: 500
 
   srr: 0.010 # rotation - rotation (rad / rad)
-  srt: 0.080 # rotation - translation (rad / meter)
+  srt: 0.500 # rotation - translation (rad / meter)
   str: 0.008 # translation - rotation (meter / rad)
   stt: 0.100 # translation - translation (meter / meter)
 

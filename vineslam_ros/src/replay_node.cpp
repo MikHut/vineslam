@@ -115,9 +115,9 @@ ReplayNode::ReplayNode(int argc, char** argv)
   map3D_corners_publisher =
       nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners", 1);
   map3D_planes_publisher =
-      nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/ground", 1);
+      nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planes", 1);
   pose_publisher  = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/pose", 1);
-  gps_publisher   = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/gps", 1);
+  gps_publisher   = nh.advertise<nav_msgs::Path>("/vineslam/gps", 1);
   path_publisher  = nh.advertise<nav_msgs::Path>("/vineslam/path", 1);
   poses_publisher = nh.advertise<geometry_msgs::PoseArray>("/vineslam/poses", 1);
   // Debug publishers
@@ -224,35 +224,35 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
       tf_ptr = m.instantiate<tf2_msgs::TFMessage>();
 
       if (tf_ptr != nullptr) {
-        tf_bool = 1;
+        tf_bool = true;
         tf_pub.publish(*tf_ptr);
       }
     } else if (topic == rs_odom_str) {
       rs_odom_ptr = m.instantiate<nav_msgs::Odometry>();
 
       if (rs_odom_ptr != nullptr) {
-        rs_odom_bool = 1;
+        rs_odom_bool = true;
         rs_odom_pub.publish(*rs_odom_ptr);
       }
     } else if (topic == odom_str) {
       odom_ptr = m.instantiate<nav_msgs::Odometry>();
 
       if (odom_ptr != nullptr) {
-        odom_bool = 1;
+        odom_bool = true;
         odom_pub.publish(*odom_ptr);
       }
     } else if (topic == fix_str) {
       fix_ptr = m.instantiate<sensor_msgs::NavSatFix>();
 
       if (fix_ptr != nullptr) {
-        fix_bool = 1;
+        fix_bool = true;
         fix_pub.publish(*fix_ptr);
       }
     } else if (topic == depth_img_str) {
       depth_img_ptr = m.instantiate<sensor_msgs::Image>();
 
       if (depth_img_ptr != nullptr) {
-        depth_bool = 1;
+        depth_bool = true;
         depth_img_pub.publish(*depth_img_ptr);
       }
     } else if (topic == left_img_str) {
@@ -260,7 +260,7 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
           m.instantiate<sensor_msgs::CompressedImage>();
 
       if (left_img_comp_ptr != nullptr) {
-        left_bool = 1;
+        left_bool = true;
         left_img_pub.publish(*left_img_comp_ptr);
 
         // Decompress image
@@ -273,7 +273,7 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
       pcl_ptr = m.instantiate<sensor_msgs::PointCloud2>();
 
       if (pcl_ptr != nullptr) {
-        pcl_bool = 1;
+        pcl_bool = true;
         pcl_pub.publish(*pcl_ptr);
       }
     }
@@ -395,7 +395,7 @@ void ReplayNode::mainCallbackFct(const cv::Mat&                    left_image,
   if (init && !init_odom && (!init_gps || !use_gps) &&
       (bearings.size() > 1 || !use_landmarks)) {
     // Initialize the localizer and get first particles distribution
-    localizer->init(pose(0, 0, 0, 0, 0, 0.));
+    localizer->init(pose(0, 0, 0, 0, 0, odom.yaw));
     robot_pose = localizer->getPose();
 
     if (register_map) {
@@ -403,9 +403,10 @@ void ReplayNode::mainCallbackFct(const cv::Mat&                    left_image,
       // - 2D semantic feature map
       mapper2D->init(robot_pose, bearings, depths, labels, *grid_map);
       // - 3D PCL corner map estimation
-      std::vector<Corner> m_corners;
-      Plane               m_ground_plane;
-      mapper3D->localPCLMap(raw_depths, m_corners, m_ground_plane);
+      std::vector<Corner>     m_corners;
+      std::vector<PlanePoint> m_cloud_seg;
+      Plane                   m_ground_plane;
+      mapper3D->localPCLMap(scan_pts, m_corners, m_cloud_seg, m_ground_plane);
       mapper3D->globalCornerMap(robot_pose, m_corners, *grid_map);
       // - 3D image feature map estimation
       std::vector<ImageFeature> m_surf_features;
@@ -436,12 +437,10 @@ void ReplayNode::mainCallbackFct(const cv::Mat&                    left_image,
     std::vector<SemanticFeature> m_landmarks;
     mapper2D->localMap(bearings, depths, m_landmarks);
     // - Compute 3D PCL corners and ground plane on robot's referential frame
-    std::vector<Corner> m_corners_zed;
-    std::vector<Corner> m_corners_vel;
-    Plane               m_ground_plane_zed;
-    Plane               m_ground_plane_vel;
-    mapper3D->localPCLMap(scan_pts, m_corners_vel, m_ground_plane_vel);
-    mapper3D->localPCLMap(raw_depths, m_corners_zed, m_ground_plane_zed);
+    std::vector<Corner>     m_corners_vel;
+    std::vector<PlanePoint> m_cloud_seg;
+    Plane                   m_ground_plane_vel;
+    mapper3D->localPCLMap(scan_pts, m_corners_vel, m_cloud_seg, m_ground_plane_vel);
     // - Compute 3D image features on robot's referential frame
     std::vector<ImageFeature> m_surf_features;
     mapper3D->localSurfMap(left_image, raw_depths, m_surf_features);
@@ -531,6 +530,7 @@ void ReplayNode::mainCallbackFct(const cv::Mat&                    left_image,
     // Publish 3D maps
     publish3DMap();
     publish3DMap(m_corners_vel, corners_local_publisher);
+    publish3DMap(m_cloud_seg, map3D_planes_publisher);
     // ------------------------------------------------ //
 
     if (debug) {
@@ -589,10 +589,99 @@ void ReplayNode::mainCallbackFct(const cv::Mat&                    left_image,
 
         m_plane.points.push_back(pt);
       }
-      publish3DMap(m_plane, map3D_planes_publisher);
+      //      publish3DMap(m_plane, map3D_planes_publisher);
 
-      // - Debug visualization tools
-      cornersDebug(m_corners_vel);
+      // - Publish associations between corners
+      visualization_msgs::MarkerArray markers;
+//      cornersDebug(m_corners_vel, markers);
+
+      // - Fit vegetation planes in two lines using a linear regression
+      // - Publish lines for debug
+      float sumX_a = 0., sumX2_a, sumY_a = 0., sumXY_a = 0.;
+      float sumX_b = 0., sumX2_b, sumY_b = 0., sumXY_b = 0.;
+      float n_a = 0, n_b = 0;
+      float x_mean_a = 0., x_max_a = 0., x_mean_b = 0., x_max_b = 0.;
+      for (const auto& plane_pt : m_cloud_seg) {
+        if (plane_pt.which_plane == 0) {
+          sumX_a += plane_pt.pos.x;
+          sumX2_a += plane_pt.pos.x * plane_pt.pos.x;
+          sumY_a += plane_pt.pos.y;
+          sumXY_a += plane_pt.pos.x * plane_pt.pos.y;
+
+          x_mean_a += plane_pt.pos.x;
+          x_max_a = (plane_pt.pos.x > x_max_a) ? plane_pt.pos.x : x_max_a;
+          n_a += 1;
+        } else {
+          sumX_b += plane_pt.pos.x;
+          sumX2_b += plane_pt.pos.x * plane_pt.pos.x;
+          sumY_b += plane_pt.pos.y;
+          sumXY_b += plane_pt.pos.x * plane_pt.pos.y;
+
+          x_mean_b += plane_pt.pos.x;
+          x_max_b = (plane_pt.pos.x > x_max_b) ? plane_pt.pos.x : x_max_b;
+          n_b += 1;
+        }
+      }
+
+      float beta_a =
+          (n_a * sumXY_a - sumX_a * sumY_a) / (n_a * sumX2_a - sumX_a * sumX_a);
+      float alpha_a = (sumY_a - beta_a * sumX_a) / n_a;
+      float beta_b =
+          (n_b * sumXY_b - sumX_b * sumY_b) / (n_b * sumX2_b - sumX_b * sumX_b);
+      float alpha_b = (sumY_b - beta_b * sumX_b) / n_b;
+
+      geometry_msgs::Point P1_a, P2_a, P1_b, P2_b;
+      x_mean_a /= n_a;
+      x_mean_b /= n_b;
+      P1_a.x = x_mean_a;
+      P1_a.y = x_mean_a * beta_a + alpha_a;
+      P1_a.z = 0;
+      P2_a.x = x_max_a;
+      P2_a.y = x_max_a * beta_a + alpha_a;
+      P2_a.z = 0;
+      P1_b.x = x_mean_b;
+      P1_b.y = x_mean_b * beta_b + alpha_b;
+      P1_b.z = 0;
+      P2_b.x = x_max_b;
+      P2_b.y = x_max_b * beta_b + alpha_b;
+      P2_b.z = 0;
+
+      visualization_msgs::Marker marker_a;
+      marker_a.header.frame_id = "map";
+      marker_a.header.stamp    = ros::Time();
+      marker_a.ns              = "line_a";
+      marker_a.id              = 0;
+      marker_a.type            = visualization_msgs::Marker::LINE_STRIP;
+      marker_a.action          = visualization_msgs::Marker::ADD;
+      marker_a.points.push_back(P1_a);
+      marker_a.points.push_back(P2_a);
+      marker_a.color.a = 1;
+      marker_a.color.r = 1;
+      marker_a.color.b = 0;
+      marker_a.color.g = 0;
+      marker_a.scale.x = 0.1;
+      marker_a.scale.y = 0.1;
+      marker_a.scale.z = 0.1;
+      visualization_msgs::Marker marker_b;
+      marker_b.header.frame_id = "map";
+      marker_b.header.stamp    = ros::Time();
+      marker_b.ns              = "line_b";
+      marker_b.id              = 0;
+      marker_b.type            = visualization_msgs::Marker::LINE_STRIP;
+      marker_b.action          = visualization_msgs::Marker::ADD;
+      marker_b.points.push_back(P1_b);
+      marker_b.points.push_back(P2_b);
+      marker_b.color.a = 1;
+      marker_b.color.r = 1;
+      marker_b.color.b = 0;
+      marker_b.color.g = 0;
+      marker_b.scale.x = 0.1;
+      marker_b.scale.y = 0.1;
+      marker_b.scale.z = 0.1;
+      markers.markers.push_back(marker_a);
+      markers.markers.push_back(marker_b);
+
+      debug_markers.publish(markers);
     }
   }
 }
@@ -652,9 +741,9 @@ void ReplayNode::odomListener(const nav_msgs::OdometryConstPtr& msg)
 
 void ReplayNode::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
 {
-  if (!use_gps)
-    return;
-
+  //  if (!use_gps)
+  //    return;
+  //
   if (init_gps) {
     has_converged = false;
 
@@ -667,6 +756,7 @@ void ReplayNode::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
     quat.setRPY(0.0, 0.0, 0.0);
     tf::quaternionTFToMsg(quat, srv.request.geo_pose.orientation);
 
+    ROS_INFO("Setting GNSS datum...");
     set_datum.call(srv);
 
     init_gps = false;
@@ -707,7 +797,9 @@ void ReplayNode::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
     gnss_pose.pose.orientation.w = 1.;
     gnss_pose.header             = msg->header;
     gnss_pose.header.frame_id    = "enu";
-    gps_publisher.publish(gnss_pose);
+
+    gps_poses.push_back(gnss_pose);
+    gps_publisher.publish(gps_poses);
 
     // Transform locally the gps pose from enu to map to use in localization
     tf::Matrix3x3 Rot = ned2map.getBasis().inverse();
@@ -1023,7 +1115,7 @@ void ReplayNode::publish3DMap()
     }
 
     for (const auto& corner : it.corner_features) {
-      pcl::PointXYZI m_pt(corner.which_plane);
+      pcl::PointXYZI m_pt(static_cast<float>(corner.which_plane));
       m_pt.x = corner.pos.x;
       m_pt.y = corner.pos.y;
       m_pt.z = corner.pos.z;
@@ -1049,6 +1141,28 @@ void ReplayNode::publish3DMap(const Plane& plane, const ros::Publisher& pub)
     m_pt.x = pt.x;
     m_pt.y = pt.y;
     m_pt.z = pt.z;
+
+    cloud_out->points.push_back(m_pt);
+  }
+
+  cloud_out->header.frame_id = "map";
+  pub.publish(cloud_out);
+}
+
+void ReplayNode::publish3DMap(const std::vector<PlanePoint>& cloud_seg,
+                              const ros::Publisher&          pub)
+{
+  pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(
+      new pcl::PointCloud<pcl::PointXYZI>);
+
+  for (const auto& plane_pt : cloud_seg) {
+    pcl::PointXYZI m_pt(0);
+
+    m_pt.x = plane_pt.pos.x;
+    m_pt.y = plane_pt.pos.y;
+    m_pt.z = plane_pt.pos.z;
+
+    m_pt.intensity = plane_pt.which_plane;
 
     cloud_out->points.push_back(m_pt);
   }
@@ -1085,10 +1199,10 @@ void ReplayNode::publish3DMap(const std::vector<Corner>& corners,
   pub.publish(cloud_out);
 }
 
-void ReplayNode::cornersDebug(const std::vector<Corner>& corners)
+void ReplayNode::cornersDebug(const std::vector<Corner>&       corners,
+                              visualization_msgs::MarkerArray& markers)
 {
-  int                             i = 0;
-  visualization_msgs::MarkerArray markers;
+  int i = 0;
 
   for (const auto& corner : corners) {
     point tf_corner;
@@ -1138,8 +1252,6 @@ void ReplayNode::cornersDebug(const std::vector<Corner>& corners)
 
     markers.markers.push_back(marker);
   }
-
-  debug_markers.publish(markers);
 }
 
 } // namespace vineslam

@@ -214,9 +214,10 @@ void Mapper3D::reset()
   seg_pcl.range.assign(cloud_size, 0);
 }
 
-void Mapper3D::localPCLMap(const float*         depths,
-                           std::vector<Corner>& out_corners,
-                           Plane&               out_groundplane)
+void Mapper3D::localPCLMap(const float*             depths,
+                           std::vector<Corner>&     out_corners,
+                           std::vector<PlanePoint>& out_cloud_seg,
+                           Plane&                   out_groundplane)
 {
   // Set velodyne configuration parameters
   sensor                  = "zed";
@@ -276,15 +277,15 @@ void Mapper3D::localPCLMap(const float*         depths,
   }
 
   // - OTHER PLANES
-  std::vector<PlanePoint> cloud_seg;
-  cloudSegmentation(pts3D, cloud_seg);
+  cloudSegmentation(pts3D, out_cloud_seg);
 
   //- Feature extraction and publication
-  extractCorners(cloud_seg, out_corners);
+  extractCorners(out_cloud_seg, out_corners);
 }
 
 void Mapper3D::localPCLMap(const std::vector<point>& pcl,
                            std::vector<Corner>&      out_corners,
+                           std::vector<PlanePoint>&  out_cloud_seg,
                            Plane&                    out_groundplane)
 {
   std::vector<point> transformed_pcl;
@@ -365,9 +366,12 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
     label_mat(i, j)  = -1;
   }
 
-  // - OTHER PLANES
+  // - Planes that are not the ground
   std::vector<PlanePoint> cloud_seg;
   cloudSegmentation(transformed_pcl, cloud_seg);
+
+  // - Vegetation 2 planes
+  extractVegetationPlanes(cloud_seg, out_cloud_seg);
 
   //- Feature extraction and publication
   extractCorners(cloud_seg, out_corners);
@@ -764,6 +768,51 @@ void Mapper3D::labelComponents(const int&                row,
     } else {
       for (auto& i : global_queue) label_mat(i.x(), i.y()) = 999999;
     }
+  }
+}
+
+void Mapper3D::extractVegetationPlanes(const std::vector<PlanePoint>& in_plane_pts,
+                                       std::vector<PlanePoint>&       out_planes)
+{
+  // -------------------------------------------------------------------------------
+  // ----- Segment plane points in two different sets
+  // -------------------------------------------------------------------------------
+  // - Start by computing the average of the y component of all points
+  float y_mean = 0.;
+  for (auto const& plane_pt : in_plane_pts) y_mean += plane_pt.pos.y;
+  y_mean /= static_cast<float>(in_plane_pts.size());
+
+  // - Cluster points using the y mean threshold
+  Plane side_plane_a, side_plane_b;
+  for (auto const& plane_pt : in_plane_pts) {
+    PlanePoint m_plane_pt = plane_pt;
+
+    m_plane_pt.which_plane = (m_plane_pt.pos.y < y_mean) ? 0 : 1;
+
+    if (m_plane_pt.which_plane == 0) {
+      side_plane_a.points.push_back(m_plane_pt.pos);
+    } else {
+      side_plane_b.points.push_back(m_plane_pt.pos);
+    }
+  }
+
+  Plane side_plane_a_filtered, side_plane_b_filtered;
+  ransac(side_plane_a, side_plane_a_filtered);
+  ransac(side_plane_b, side_plane_b_filtered);
+
+  for (const auto& pt : side_plane_a_filtered.points) {
+    PlanePoint plane_pt;
+    plane_pt.pos         = pt;
+    plane_pt.which_plane = 0;
+
+    out_planes.push_back(plane_pt);
+  }
+  for (const auto& pt : side_plane_b_filtered.points) {
+    PlanePoint plane_pt;
+    plane_pt.pos         = pt;
+    plane_pt.which_plane = 1;
+
+    out_planes.push_back(plane_pt);
   }
 }
 

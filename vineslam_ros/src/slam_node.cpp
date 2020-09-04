@@ -267,9 +267,10 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
       // - 2D semantic feature map
       mapper2D->init(robot_pose, bearings, depths, labels, *grid_map);
       // - 3D PCL corner map estimation
-      std::vector<Corner> m_corners;
-      Plane               m_ground_plane;
-      mapper3D->localPCLMap(raw_depths, m_corners, m_ground_plane);
+      std::vector<Corner>     m_corners;
+      std::vector<PlanePoint> m_cloud_seg;
+      Plane                   m_ground_plane;
+      mapper3D->localPCLMap(scan_pts, m_corners, m_cloud_seg, m_ground_plane);
       mapper3D->globalCornerMap(robot_pose, m_corners, *grid_map);
       // - 3D image feature map estimation
       std::vector<ImageFeature> m_surf_features;
@@ -300,12 +301,10 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
     std::vector<SemanticFeature> m_landmarks;
     mapper2D->localMap(bearings, depths, m_landmarks);
     // - Compute 3D PCL corners and ground plane on robot's referential frame
-    std::vector<Corner> m_corners_zed;
-    std::vector<Corner> m_corners_vel;
-    Plane               m_ground_plane_zed;
-    Plane               m_ground_plane_vel;
-    mapper3D->localPCLMap(scan_pts, m_corners_vel, m_ground_plane_vel);
-    mapper3D->localPCLMap(raw_depths, m_corners_zed, m_ground_plane_zed);
+    std::vector<Corner>     m_corners_vel;
+    std::vector<PlanePoint> m_cloud_seg;
+    Plane                   m_ground_plane_vel;
+    mapper3D->localPCLMap(scan_pts, m_corners_vel, m_cloud_seg, m_ground_plane_vel);
     // - Compute 3D image features on robot's referential frame
     std::vector<ImageFeature> m_surf_features;
     mapper3D->localSurfMap(img, raw_depths, m_surf_features);
@@ -314,7 +313,7 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
     Observation obsv;
     if (use_landmarks)
       obsv.landmarks = m_landmarks;
-    obsv.corners      = m_corners_zed;
+    obsv.corners      = m_corners_vel;
     obsv.ground_plane = m_ground_plane_vel;
     if (has_converged && use_gps)
       obsv.gps_pose = gps_pose;
@@ -331,7 +330,7 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
       // - 2D high-level semantic map estimation
       mapper2D->process(robot_pose, m_landmarks, labels, *grid_map);
       // - 3D PCL corner map estimation
-      mapper3D->globalCornerMap(robot_pose, m_corners_zed, *grid_map);
+      mapper3D->globalCornerMap(robot_pose, m_corners_vel, *grid_map);
       // - 3D image feature map estimation
       mapper3D->globalSurfMap(m_surf_features, robot_pose, *grid_map);
       // ---------------------------------------- //
@@ -394,7 +393,7 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
     publish2DMap(depth_image->header, robot_pose, bearings, depths);
     // Publish 3D maps
     publish3DMap();
-    publish3DMap(m_corners_zed, corners_local_publisher);
+    publish3DMap(m_corners_vel, corners_local_publisher);
     // ------------------------------------------------ //
 
     if (debug) {
@@ -456,7 +455,7 @@ void SLAMNode::mainCallbackFct(const sensor_msgs::ImageConstPtr& left_image,
       publish3DMap(m_plane, map3D_planes_publisher);
 
       // - Debug visualization tools
-      cornersDebug(m_corners_zed);
+      cornersDebug(m_corners_vel);
     }
   }
 }

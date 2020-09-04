@@ -11,10 +11,11 @@ const std::string folder = "/home/andre-criis/Source/vineslam_data/"
 namespace vineslam
 {
 
-void saveParticleClusters(const std::map<int, Gaussian<pose, pose>>& gauss_map,
-                          const std::vector<Particle>&               particles,
-                          const int&                                 n_clusters,
-                          const int&                                 it)
+static void
+saveParticleClusters(const std::map<int, Gaussian<pose, pose>>& gauss_map,
+                     const std::vector<Particle>&               particles,
+                     const int&                                 n_clusters,
+                     const int&                                 it)
 {
   std::ofstream file;
   file.open(folder + "/clusters/" + "clusters_" + std::to_string(it) + ".txt");
@@ -33,10 +34,10 @@ void saveParticleClusters(const std::map<int, Gaussian<pose, pose>>& gauss_map,
   file.close();
 }
 
-void saveRobotPathTUM(const std::vector<int>&                  timestamps,
-                      const std::vector<std::array<float, 7>>& gps_path,
-                      const std::vector<std::array<float, 7>>& odom_path,
-                      const std::vector<std::array<float, 7>>& robot_path)
+static void saveRobotPathTUM(const std::vector<int>&                  timestamps,
+                             const std::vector<std::array<float, 7>>& gps_path,
+                             const std::vector<std::array<float, 7>>& odom_path,
+                             const std::vector<std::array<float, 7>>& robot_path)
 {
   std::time_t   t = std::time(0);
   std::ofstream file;
@@ -67,9 +68,9 @@ void saveRobotPathTUM(const std::vector<int>&                  timestamps,
   file.close();
 }
 
-void saveRobotPathKitti(const std::vector<TF>& gps_path,
-                        const std::vector<TF>& odom_path,
-                        const std::vector<TF>& robot_path)
+static void saveRobotPathKitti(const std::vector<TF>& gps_path,
+                               const std::vector<TF>& odom_path,
+                               const std::vector<TF>& robot_path)
 {
   std::time_t   t = std::time(0);
   std::ofstream file;

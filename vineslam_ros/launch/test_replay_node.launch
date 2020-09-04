@@ -20,7 +20,7 @@
   <!-- replay node -->
   <node pkg="vineslam_ros" type="replay_node" name="replay_node" output="screen">
     <param name="/ReplayNode/bagfile_name"
-      value="/home/andreaguiar/Documents/rosbags/estufa/tomates_2020-08-06-11-23-35.bag" />
+      value="/home/andre-criis/Documents/bagfiles/Estufa/tomates_2020-08-06-11-23-35.bag" />
     <param name="/ReplayNode/odom_topic"         value="/husky_velocity_controller/odom" />
     <param name="/ReplayNode/rs_odom_topic"      value="/camerat265/odom/sample" />
     <param name="/ReplayNode/fix_topic"          value="/fix" />

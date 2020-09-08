@@ -102,10 +102,10 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
       // - 2D semantic feature map
       mapper2D->init(robot_pose, bearings, depths, labels, *grid_map);
       // - 3D PCL corner map estimation
-      std::vector<Corner>     m_corners;
-      std::vector<PlanePoint> m_cloud_seg;
-      Plane                   m_ground_plane;
-      mapper3D->localPCLMap(scan_pts, m_corners, m_cloud_seg, m_ground_plane);
+      std::vector<Corner> m_corners;
+      std::vector<Line>   m_vegetation_lines;
+      Plane               m_ground_plane;
+      mapper3D->localPCLMap(scan_pts, m_corners, m_vegetation_lines, m_ground_plane);
       mapper3D->globalCornerMap(robot_pose, m_corners, *grid_map);
       // - 3D image feature map estimation
       std::vector<ImageFeature> m_surf_features;
@@ -136,10 +136,11 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     std::vector<SemanticFeature> m_landmarks;
     mapper2D->localMap(bearings, depths, m_landmarks);
     // - Compute 3D PCL corners and ground plane on robot's referential frame
-    std::vector<Corner>     m_corners_vel;
-    std::vector<PlanePoint> m_cloud_seg;
-    Plane                   m_ground_plane_vel;
-    mapper3D->localPCLMap(scan_pts, m_corners_vel, m_cloud_seg, m_ground_plane_vel);
+    std::vector<Corner> m_corners_vel;
+    std::vector<Line>   m_vegetation_lines;
+    Plane               m_ground_plane_vel;
+    mapper3D->localPCLMap(
+        scan_pts, m_corners_vel, m_vegetation_lines, m_ground_plane_vel);
     // - Compute 3D image features on robot's referential frame
     std::vector<ImageFeature> m_surf_features;
     mapper3D->localSurfMap(left_image, raw_depths, m_surf_features);
@@ -148,8 +149,9 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     Observation obsv;
     if (use_landmarks)
       obsv.landmarks = m_landmarks;
-    obsv.corners      = m_corners_vel;
-    obsv.ground_plane = m_ground_plane_vel;
+    obsv.corners          = m_corners_vel;
+    obsv.vegetation_lines = m_vegetation_lines;
+    obsv.ground_plane     = m_ground_plane_vel;
     if (has_converged && use_gps)
       obsv.gps_pose = gps_pose;
     else
@@ -229,7 +231,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // Publish 3D maps
     publish3DMap();
     publish3DMap(m_corners_vel, corners_local_publisher);
-    publish3DMap(m_cloud_seg, map3D_planes_publisher);
+    publish3DMap(m_vegetation_lines, map3D_planes_publisher);
     // ------------------------------------------------ //
 
     if (debug) {
@@ -294,92 +296,63 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
       visualization_msgs::MarkerArray markers;
       //      cornersDebug(m_corners_vel, markers);
 
-      // - Fit vegetation planes in two lines using a linear regression
-      // - Publish lines for debug
-      float sumX_a = 0., sumX2_a, sumY_a = 0., sumXY_a = 0.;
-      float sumX_b = 0., sumX2_b, sumY_b = 0., sumXY_b = 0.;
-      float n_a = 0, n_b = 0;
-      float x_mean_a = 0., x_max_a = 0., x_mean_b = 0., x_max_b = 0.;
-      for (const auto& plane_pt : m_cloud_seg) {
-        if (plane_pt.which_plane == 0) {
-          sumX_a += plane_pt.pos.x;
-          sumX2_a += plane_pt.pos.x * plane_pt.pos.x;
-          sumY_a += plane_pt.pos.y;
-          sumXY_a += plane_pt.pos.x * plane_pt.pos.y;
+      // - Publish vegetation lines for debug
+      if (m_vegetation_lines.size() == 2) {
+        geometry_msgs::Point P1_a, P2_a, P1_b, P2_b;
+        float                x_min_a = m_vegetation_lines[0].pts[0].x;
+        float                x_max_a =
+            m_vegetation_lines[0].pts[m_vegetation_lines[0].pts.size() - 1].x;
+        float                x_min_b = m_vegetation_lines[1].pts[0].x;
+        float                x_max_b =
+            m_vegetation_lines[1].pts[m_vegetation_lines[1].pts.size() - 1].x;
+        P1_a.x = x_min_a;
+        P1_a.y = x_min_a * m_vegetation_lines[0].m + m_vegetation_lines[0].b;
+        P1_a.z = 0;
+        P2_a.x = x_max_a;
+        P2_a.y = x_max_a * m_vegetation_lines[0].m + m_vegetation_lines[0].b;
+        P2_a.z = 0;
+        P1_b.x = x_min_b;
+        P1_b.y = x_min_b * m_vegetation_lines[1].m + m_vegetation_lines[1].b;
+        P1_b.z = 0;
+        P2_b.x = x_max_b;
+        P2_b.y = x_max_b * m_vegetation_lines[1].m + m_vegetation_lines[1].b;
+        P2_b.z = 0;
 
-          x_mean_a += plane_pt.pos.x;
-          x_max_a = (plane_pt.pos.x > x_max_a) ? plane_pt.pos.x : x_max_a;
-          n_a += 1;
-        } else {
-          sumX_b += plane_pt.pos.x;
-          sumX2_b += plane_pt.pos.x * plane_pt.pos.x;
-          sumY_b += plane_pt.pos.y;
-          sumXY_b += plane_pt.pos.x * plane_pt.pos.y;
-
-          x_mean_b += plane_pt.pos.x;
-          x_max_b = (plane_pt.pos.x > x_max_b) ? plane_pt.pos.x : x_max_b;
-          n_b += 1;
-        }
+        visualization_msgs::Marker marker_a;
+        marker_a.header.frame_id = "map";
+        marker_a.header.stamp    = ros::Time();
+        marker_a.ns              = "line_a";
+        marker_a.id              = 0;
+        marker_a.type            = visualization_msgs::Marker::LINE_STRIP;
+        marker_a.action          = visualization_msgs::Marker::ADD;
+        marker_a.points.push_back(P1_a);
+        marker_a.points.push_back(P2_a);
+        marker_a.color.a = 1;
+        marker_a.color.r = 1;
+        marker_a.color.b = 0;
+        marker_a.color.g = 0;
+        marker_a.scale.x = 0.1;
+        marker_a.scale.y = 0.1;
+        marker_a.scale.z = 0.1;
+        visualization_msgs::Marker marker_b;
+        marker_b.header.frame_id = "map";
+        marker_b.header.stamp    = ros::Time();
+        marker_b.ns              = "line_b";
+        marker_b.id              = 0;
+        marker_b.type            = visualization_msgs::Marker::LINE_STRIP;
+        marker_b.action          = visualization_msgs::Marker::ADD;
+        marker_b.points.push_back(P1_b);
+        marker_b.points.push_back(P2_b);
+        marker_b.color.a = 1;
+        marker_b.color.r = 0;
+        marker_b.color.b = 1;
+        marker_b.color.g = 0;
+        marker_b.scale.x = 0.1;
+        marker_b.scale.y = 0.1;
+        marker_b.scale.z = 0.1;
+        markers.markers.push_back(marker_a);
+        markers.markers.push_back(marker_b);
       }
-
-      float beta_a =
-          (n_a * sumXY_a - sumX_a * sumY_a) / (n_a * sumX2_a - sumX_a * sumX_a);
-      float alpha_a = (sumY_a - beta_a * sumX_a) / n_a;
-      float beta_b =
-          (n_b * sumXY_b - sumX_b * sumY_b) / (n_b * sumX2_b - sumX_b * sumX_b);
-      float alpha_b = (sumY_b - beta_b * sumX_b) / n_b;
-
-      geometry_msgs::Point P1_a, P2_a, P1_b, P2_b;
-      x_mean_a /= n_a;
-      x_mean_b /= n_b;
-      P1_a.x = x_mean_a;
-      P1_a.y = x_mean_a * beta_a + alpha_a;
-      P1_a.z = 0;
-      P2_a.x = x_max_a;
-      P2_a.y = x_max_a * beta_a + alpha_a;
-      P2_a.z = 0;
-      P1_b.x = x_mean_b;
-      P1_b.y = x_mean_b * beta_b + alpha_b;
-      P1_b.z = 0;
-      P2_b.x = x_max_b;
-      P2_b.y = x_max_b * beta_b + alpha_b;
-      P2_b.z = 0;
-
-      visualization_msgs::Marker marker_a;
-      marker_a.header.frame_id = "map";
-      marker_a.header.stamp    = ros::Time();
-      marker_a.ns              = "line_a";
-      marker_a.id              = 0;
-      marker_a.type            = visualization_msgs::Marker::LINE_STRIP;
-      marker_a.action          = visualization_msgs::Marker::ADD;
-      marker_a.points.push_back(P1_a);
-      marker_a.points.push_back(P2_a);
-      marker_a.color.a = 1;
-      marker_a.color.r = 1;
-      marker_a.color.b = 0;
-      marker_a.color.g = 0;
-      marker_a.scale.x = 0.1;
-      marker_a.scale.y = 0.1;
-      marker_a.scale.z = 0.1;
-      visualization_msgs::Marker marker_b;
-      marker_b.header.frame_id = "map";
-      marker_b.header.stamp    = ros::Time();
-      marker_b.ns              = "line_b";
-      marker_b.id              = 0;
-      marker_b.type            = visualization_msgs::Marker::LINE_STRIP;
-      marker_b.action          = visualization_msgs::Marker::ADD;
-      marker_b.points.push_back(P1_b);
-      marker_b.points.push_back(P2_b);
-      marker_b.color.a = 1;
-      marker_b.color.r = 0;
-      marker_b.color.b = 1;
-      marker_b.color.g = 0;
-      marker_b.scale.x = 0.1;
-      marker_b.scale.y = 0.1;
-      marker_b.scale.z = 0.1;
-      markers.markers.push_back(marker_a);
-      markers.markers.push_back(marker_b);
-
       debug_markers.publish(markers);
     }
   }
@@ -849,22 +822,26 @@ void VineSLAM_ros::publish3DMap(const Plane& plane, const ros::Publisher& pub)
   pub.publish(cloud_out);
 }
 
-void VineSLAM_ros::publish3DMap(const std::vector<PlanePoint>& cloud_seg,
-                                const ros::Publisher&          pub)
+void VineSLAM_ros::publish3DMap(const std::vector<Line>& vegetation_lines,
+                                const ros::Publisher&    pub)
 {
   pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(
       new pcl::PointCloud<pcl::PointXYZI>);
 
-  for (const auto& plane_pt : cloud_seg) {
-    pcl::PointXYZI m_pt(0);
+  int i = 0;
+  for (const auto& line : vegetation_lines) {
+    for (const auto& pt : line.pts) {
+      pcl::PointXYZI m_pt(i);
 
-    m_pt.x = plane_pt.pos.x;
-    m_pt.y = plane_pt.pos.y;
-    m_pt.z = plane_pt.pos.z;
+      m_pt.x = pt.x;
+      m_pt.y = pt.y;
+      m_pt.z = pt.z;
 
-    m_pt.intensity = plane_pt.which_plane;
+      m_pt.intensity = i;
 
-    cloud_out->points.push_back(m_pt);
+      cloud_out->points.push_back(m_pt);
+    }
+    i++;
   }
 
   cloud_out->header.frame_id = "map";

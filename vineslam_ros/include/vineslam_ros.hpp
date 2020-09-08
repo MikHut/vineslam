@@ -93,8 +93,8 @@ public:
   // Publish the 3D PCL ground plane
   static void publish3DMap(const Plane& plane, const ros::Publisher& pub);
   // Publish the 3D PCL planes map
-  static void publish3DMap(const std::vector<PlanePoint>& cloud_seg,
-                           const ros::Publisher&          pub);
+  static void publish3DMap(const std::vector<Line>& vegetation_lines,
+                           const ros::Publisher&    pub);
   // Publish a 3D PCL corners map
   void publish3DMap(const std::vector<Corner>& corners, const ros::Publisher& pub);
   // Publish the grid map that contains all the maps

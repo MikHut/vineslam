@@ -232,8 +232,32 @@ struct Line {
     pts = m_pts;
   }
 
-  float m; // slope
-  float b; // zero intercept
+  // - This constructor fits a line in a set of points using a linear regression
+  Line(const std::vector<point>& m_pts)
+  {
+    float sumX = 0., sumX2, sumY = 0., sumXY = 0.;
+    float n      = 0;
+    float x_mean = 0., x_max = 0.;
+    for (const auto& pt : m_pts) {
+      sumX += pt.x;
+      sumX2 += pt.x * pt.x;
+      sumY += pt.y;
+      sumXY += pt.x * pt.y;
+
+      x_mean += pt.x;
+      x_max = (pt.x > x_max) ? pt.x : x_max;
+      n++;
+    }
+
+    m = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+    b = (sumY - m * sumX) / n;
+
+    pts.clear();
+    pts = m_pts;
+  }
+
+  float m{}; // slope
+  float b{}; // zero intercept
 
   std::vector<point> pts; // points on line
 };

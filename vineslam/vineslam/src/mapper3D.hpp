@@ -78,13 +78,8 @@ public:
   // Builds local map given the current 3D point cloud - for velodyne
   void localPCLMap(const std::vector<point>& pcl,
                    std::vector<Corner>&      out_corners,
-                   std::vector<PlanePoint>&  out_cloud_seg,
+                   std::vector<Line>&        out_vegetation_lines,
                    Plane&                    out_groundplane);
-  // Builds local map given the current 3D point cloud - for ZED
-  void localPCLMap(const float*             depths,
-                   std::vector<Corner>&     out_corners,
-                   std::vector<PlanePoint>& out_cloud_seg,
-                   Plane&                   out_groundplane);
 
   // Adds the corner features to the global map
   void globalCornerMap(const pose&          robot_pose,
@@ -153,7 +148,7 @@ private:
 
   // Extract the couple of vegetation side planes
   void extractVegetationPlanes(const std::vector<PlanePoint>& in_plane_pts,
-                               std::vector<PlanePoint>&       out_planes);
+                               std::vector<Line>&             out_vegetation_lines);
 
   // 3D feature extraction from a point cloud
   void extractCorners(const std::vector<PlanePoint>& in_plane_pts,

@@ -4,10 +4,7 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
-        - /Global Options1
-        - /Status1
         - /TF1/Frames1
-        - /RealSense Odometry1/Shape1
       Splitter Ratio: 0.5018050670623779
     Tree Height: 806
   - Class: rviz/Selection
@@ -56,7 +53,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /detection_left/image_raw
+      Image Topic: /zed/zed_node/left/image_rect_color
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -126,6 +123,40 @@ Visualization Manager:
       Topic: /husky_velocity_controller/odom
       Unreliable: true
       Value: true
+    - Angle Tolerance: 0.10000000149011612
+      Class: rviz/Odometry
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: true
+        Position:
+          Alpha: 0.30000001192092896
+          Color: 204; 51; 204
+          Scale: 1
+          Value: true
+        Value: false
+      Enabled: true
+      Keep: 1000000
+      Name: RealSense Odometry
+      Position Tolerance: 0.10000000149011612
+      Shape:
+        Alpha: 1
+        Axes Length: 1
+        Axes Radius: 0.10000000149011612
+        Color: 206; 92; 0
+        Head Length: 0.30000001192092896
+        Head Radius: 0.10000000149011612
+        Shaft Length: 0.5
+        Shaft Radius: 0.05000000074505806
+        Value: Arrow
+      Topic: /camerat265/odom/sample
+      Unreliable: false
+      Value: true
     - Alpha: 1
       Axes Length: 1
       Axes Radius: 0.10000000149011612
@@ -193,40 +224,10 @@ Visualization Manager:
     - Class: rviz/MarkerArray
       Enabled: false
       Marker Topic: /vineslam/map2D
-      Name: Semantic Map
+      Name: MAP 1 - Semantic
       Namespaces:
         {}
       Queue Size: 10000
-      Value: false
-    - Alpha: 1
-      Autocompute Intensity Bounds: true
-      Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
-      Axis: Z
-      Channel Name: intensity
-      Class: rviz/PointCloud2
-      Color: 255; 255; 255
-      Color Transformer: RGB8
-      Decay Time: 0
-      Enabled: false
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Max Intensity: 4096
-      Min Color: 0; 0; 0
-      Min Intensity: 0
-      Name: SURF
-      Position Transformer: XYZ
-      Queue Size: 10
-      Selectable: true
-      Size (Pixels): 3
-      Size (m): 0.019999999552965164
-      Style: Flat Squares
-      Topic: /vineslam/map3D/SURF
-      Unreliable: false
-      Use Fixed Frame: true
-      Use rainbow: true
       Value: false
     - Alpha: 0.800000011920929
       Autocompute Intensity Bounds: true
@@ -240,13 +241,13 @@ Visualization Manager:
       Color: 237; 212; 0
       Color Transformer: FlatColor
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 0
       Min Color: 0; 0; 0
       Min Intensity: 0
-      Name: Corners (yellow)
+      Name: MAP 2 - Corners
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
@@ -257,7 +258,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -276,7 +277,7 @@ Visualization Manager:
       Max Intensity: 1
       Min Color: 0; 0; 0
       Min Intensity: 0
-      Name: Ground Plane (blue)
+      Name: Map 3 - Planes
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
@@ -288,230 +289,45 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
-    - Angle Tolerance: 0.10000000149011612
-      Class: rviz/Odometry
-      Covariance:
-        Orientation:
-          Alpha: 0.5
-          Color: 255; 255; 127
-          Color Style: Unique
-          Frame: Local
-          Offset: 1
-          Scale: 1
-          Value: true
-        Position:
-          Alpha: 0.30000001192092896
-          Color: 204; 51; 204
-          Scale: 1
-          Value: true
-        Value: false
-      Enabled: true
-      Keep: 1000000
-      Name: RealSense Odometry
-      Position Tolerance: 0.10000000149011612
-      Shape:
-        Alpha: 1
-        Axes Length: 1
-        Axes Radius: 0.10000000149011612
-        Color: 206; 92; 0
-        Head Length: 0.30000001192092896
-        Head Radius: 0.10000000149011612
-        Shaft Length: 0.5
-        Shaft Radius: 0.05000000074505806
-        Value: Arrow
-      Topic: /camerat265/odom/sample
-      Unreliable: false
-      Value: true
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /vineslam/debug_markers
-      Name: DEBUG - Corners Correspondences
+      Name: MAP 4 - Lines
       Namespaces:
-        correspondence_0: true
-        correspondence_1: true
-        correspondence_10: true
-        correspondence_100: true
-        correspondence_101: true
-        correspondence_102: true
-        correspondence_103: true
-        correspondence_104: true
-        correspondence_105: true
-        correspondence_106: true
-        correspondence_107: true
-        correspondence_108: true
-        correspondence_109: true
-        correspondence_11: true
-        correspondence_110: true
-        correspondence_111: true
-        correspondence_112: true
-        correspondence_113: true
-        correspondence_114: true
-        correspondence_115: true
-        correspondence_116: true
-        correspondence_117: true
-        correspondence_118: true
-        correspondence_119: true
-        correspondence_12: true
-        correspondence_120: true
-        correspondence_121: true
-        correspondence_122: true
-        correspondence_123: true
-        correspondence_124: true
-        correspondence_125: true
-        correspondence_126: true
-        correspondence_127: true
-        correspondence_128: true
-        correspondence_129: true
-        correspondence_13: true
-        correspondence_130: true
-        correspondence_131: true
-        correspondence_132: true
-        correspondence_133: true
-        correspondence_134: true
-        correspondence_135: true
-        correspondence_136: true
-        correspondence_137: true
-        correspondence_138: true
-        correspondence_139: true
-        correspondence_14: true
-        correspondence_140: true
-        correspondence_141: true
-        correspondence_142: true
-        correspondence_143: true
-        correspondence_144: true
-        correspondence_145: true
-        correspondence_146: true
-        correspondence_147: true
-        correspondence_148: true
-        correspondence_149: true
-        correspondence_15: true
-        correspondence_150: true
-        correspondence_151: true
-        correspondence_152: true
-        correspondence_153: true
-        correspondence_154: true
-        correspondence_155: true
-        correspondence_156: true
-        correspondence_157: true
-        correspondence_158: true
-        correspondence_159: true
-        correspondence_16: true
-        correspondence_160: true
-        correspondence_161: true
-        correspondence_162: true
-        correspondence_163: true
-        correspondence_164: true
-        correspondence_165: true
-        correspondence_166: true
-        correspondence_167: true
-        correspondence_168: true
-        correspondence_169: true
-        correspondence_17: true
-        correspondence_170: true
-        correspondence_171: true
-        correspondence_172: true
-        correspondence_173: true
-        correspondence_174: true
-        correspondence_175: true
-        correspondence_176: true
-        correspondence_177: true
-        correspondence_178: true
-        correspondence_179: true
-        correspondence_18: true
-        correspondence_180: true
-        correspondence_19: true
-        correspondence_2: true
-        correspondence_20: true
-        correspondence_21: true
-        correspondence_22: true
-        correspondence_23: true
-        correspondence_24: true
-        correspondence_25: true
-        correspondence_26: true
-        correspondence_27: true
-        correspondence_28: true
-        correspondence_29: true
-        correspondence_3: true
-        correspondence_30: true
-        correspondence_31: true
-        correspondence_32: true
-        correspondence_33: true
-        correspondence_34: true
-        correspondence_35: true
-        correspondence_36: true
-        correspondence_37: true
-        correspondence_38: true
-        correspondence_39: true
-        correspondence_4: true
-        correspondence_40: true
-        correspondence_41: true
-        correspondence_42: true
-        correspondence_43: true
-        correspondence_44: true
-        correspondence_45: true
-        correspondence_46: true
-        correspondence_47: true
-        correspondence_48: true
-        correspondence_49: true
-        correspondence_5: true
-        correspondence_50: true
-        correspondence_51: true
-        correspondence_52: true
-        correspondence_53: true
-        correspondence_54: true
-        correspondence_55: true
-        correspondence_56: true
-        correspondence_57: true
-        correspondence_58: true
-        correspondence_59: true
-        correspondence_6: true
-        correspondence_60: true
-        correspondence_61: true
-        correspondence_62: true
-        correspondence_63: true
-        correspondence_64: true
-        correspondence_65: true
-        correspondence_66: true
-        correspondence_67: true
-        correspondence_68: true
-        correspondence_69: true
-        correspondence_7: true
-        correspondence_70: true
-        correspondence_71: true
-        correspondence_72: true
-        correspondence_73: true
-        correspondence_74: true
-        correspondence_75: true
-        correspondence_76: true
-        correspondence_77: true
-        correspondence_78: true
-        correspondence_79: true
-        correspondence_8: true
-        correspondence_80: true
-        correspondence_81: true
-        correspondence_82: true
-        correspondence_83: true
-        correspondence_84: true
-        correspondence_85: true
-        correspondence_86: true
-        correspondence_87: true
-        correspondence_88: true
-        correspondence_89: true
-        correspondence_9: true
-        correspondence_90: true
-        correspondence_91: true
-        correspondence_92: true
-        correspondence_93: true
-        correspondence_94: true
-        correspondence_95: true
-        correspondence_96: true
-        correspondence_97: true
-        correspondence_98: true
-        correspondence_99: true
         line_a: true
         line_b: true
       Queue Size: 100
       Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: RGB8
+      Decay Time: 0
+      Enabled: false
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: Map 5 - SURF
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.019999999552965164
+      Style: Flat Squares
+      Topic: /vineslam/map3D/SURF
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -570,15 +386,15 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 33.455787658691406
+      Distance: 42.24819564819336
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.8980151414871216
-        Y: 0.9110195636749268
+        X: 0.5716805458068848
+        Y: -2.0805931091308594
         Z: -9.375613444717601e-6
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
@@ -588,7 +404,7 @@ Visualization Manager:
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
       Value: XYOrbit (rviz)
-      Yaw: 3.1546013355255127
+      Yaw: 3.1396195888519287
     Saved: ~
 Window Geometry:
   Displays:

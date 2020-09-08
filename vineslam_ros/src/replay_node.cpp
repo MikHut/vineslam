@@ -166,7 +166,7 @@ ReplayNode::ReplayNode(int argc, char** argv)
 
     tf::Transform vel2base;
     vel2base.setRotation(tf::Quaternion(0., 0., 0., 1.));
-    vel2base.setOrigin(tf::Vector3(0., 0., 0.920));
+    vel2base.setOrigin(tf::Vector3(0., 0., 0.942));
     vel2base = vel2base.inverse();
     t        = vel2base.getOrigin();
     vel2base.getBasis().getRPY(roll, pitch, yaw);
@@ -284,10 +284,10 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
       }
     }
 
-    nmessages = tf_bool + rs_odom_bool + odom_bool + fix_bool + depth_bool +
+    nmessages = tf_bool + odom_bool + fix_bool + depth_bool +
                 left_bool + pcl_bool;
 
-    if (nmessages == 7) {
+    if (nmessages == 6) {
       scanListener(pcl_ptr);
       odomListener(odom_ptr);
       gpsListener(fix_ptr);

@@ -338,7 +338,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
         marker_b.header.frame_id = "map";
         marker_b.header.stamp    = ros::Time();
         marker_b.ns              = "line_b";
-        marker_b.id              = 0;
+        marker_b.id              = 1;
         marker_b.type            = visualization_msgs::Marker::LINE_STRIP;
         marker_b.action          = visualization_msgs::Marker::ADD;
         marker_b.points.push_back(P1_b);

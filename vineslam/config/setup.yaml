@@ -6,6 +6,7 @@ system:
   # ---------------------
   debug: True
   # ---- Define system inputs
+  use_vegetation_lines: True
   use_ground_plane: False
   use_landmarks: False
   use_corners: True
@@ -45,7 +46,7 @@ multilayer_mapping:
     height: 150
     resolution: 0.25 # meters
     metric: "euclidean"
-    save_map: False
+    save_map: True
     output_folder: "/home/andre-criis/Source/vineslam_data/raw_data/maps/"
     input_file: "/home/andre-criis/map.xml"
   # Feature extractor and descriptor settings
@@ -73,6 +74,7 @@ pf:
   str: 0.008 # translation - rotation (meter / rad)
   stt: 0.100 # translation - translation (meter / meter)
 
+  ## --- PARTICLES INNOVATION -- #
   sigma_xy: 0.15 # meters (just for initialization)
   sigma_yaw: 1.0 # degrees (just for initialization)
   sigma_z: 0.01 # meters
@@ -83,6 +85,7 @@ pf:
   sigma_landmark_matching: 0.01 # meters
   sigma_feature_matching: 0.05 # meters
   sigma_corner_matching: 0.05 # meters
+  sigma_vegetation_lines_yaw: 1.0 # degrees
   sigma_ground_rp: 1.0 # degrees
   sigma_gps: 0.08 # meters
 

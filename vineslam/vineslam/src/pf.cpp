@@ -1,5 +1,6 @@
 #include "pf.hpp"
 
+#include <cmath>
 #include <utils/save_data.hpp>
 
 namespace vineslam
@@ -11,12 +12,13 @@ PF::PF(const std::string& config_path, const pose& initial_pose)
   // Read input parameters
   YAML::Node config = YAML::LoadFile(config_path);
   // - General parameters
-  use_landmarks    = config["system"]["use_landmarks"].as<bool>();
-  use_corners      = config["system"]["use_corners"].as<bool>();
-  use_ground_plane = config["system"]["use_ground_plane"].as<bool>();
-  use_icp          = config["system"]["use_icp"].as<bool>();
-  use_gps          = config["system"]["use_gps"].as<bool>();
-  n_particles      = config["pf"]["n_particles"].as<int>();
+  use_landmarks        = config["system"]["use_landmarks"].as<bool>();
+  use_corners          = config["system"]["use_corners"].as<bool>();
+  use_vegetation_lines = config["system"]["use_vegetation_lines"].as<bool>();
+  use_ground_plane     = config["system"]["use_ground_plane"].as<bool>();
+  use_icp              = config["system"]["use_icp"].as<bool>();
+  use_gps              = config["system"]["use_gps"].as<bool>();
+  n_particles          = config["pf"]["n_particles"].as<int>();
   // - Motion model parameters
   srr = config["pf"]["srr"].as<float>();
   str = config["pf"]["str"].as<float>();
@@ -32,6 +34,8 @@ PF::PF(const std::string& config_path, const pose& initial_pose)
   sigma_landmark_matching = config["pf"]["sigma_landmark_matching"].as<float>();
   sigma_feature_matching  = config["pf"]["sigma_feature_matching"].as<float>();
   sigma_corner_matching   = config["pf"]["sigma_corner_matching"].as<float>();
+  sigma_vegetation_lines_yaw =
+      config["pf"]["sigma_vegetation_lines_yaw"].as<float>() * DEGREE_TO_RAD;
   sigma_ground_rp = config["pf"]["sigma_ground_rp"].as<float>() * DEGREE_TO_RAD;
   sigma_gps       = config["pf"]["sigma_gps"].as<float>();
   // - Set clustering parameters
@@ -137,13 +141,15 @@ void PF::motionModel(const pose& odom)
 
 void PF::update(const std::vector<SemanticFeature>& landmarks,
                 const std::vector<Corner>&          corners,
+                const std::vector<Line>&            vegetation_lines,
                 const Plane&                        ground_plane,
                 const std::vector<ImageFeature>&    surf_features,
                 const pose&                         gps_pose,
-                OccupancyMap*                 grid_map)
+                OccupancyMap*                       grid_map)
 {
   std::vector<float> semantic_weights(n_particles, 0.);
   std::vector<float> corner_weights(n_particles, 0.);
+  std::vector<float> vegetation_lines_weights(n_particles, 0.);
   std::vector<float> ground_weights(n_particles, 0.);
   std::vector<float> surf_weights(n_particles, 0.);
   std::vector<float> gps_weights(n_particles, 0.);
@@ -162,6 +168,13 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
   duration = after - before;
   std::cout << "Time elapsed on PF - corner features (msecs): " << duration.count()
             << " (" << corners.size() << ", " << grid_map->n_corner_features << ")"
+            << std::endl;
+  before = std::chrono::high_resolution_clock::now();
+  if (use_vegetation_lines)
+    mediumLevelLines(vegetation_lines, vegetation_lines_weights);
+  after    = std::chrono::high_resolution_clock::now();
+  duration = after - before;
+  std::cout << "Time elapsed on PF - vegetation lines (msecs): " << duration.count()
             << std::endl;
   before = std::chrono::high_resolution_clock::now();
   if (use_ground_plane)
@@ -188,6 +201,8 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
       *std::max_element(semantic_weights.begin(), semantic_weights.end());
   float corners_max =
       *std::max_element(corner_weights.begin(), corner_weights.end());
+  float veg_lines_max = *std::max_element(vegetation_lines_weights.begin(),
+                                          vegetation_lines_weights.end());
   float ground_max = *std::max_element(ground_weights.begin(), ground_weights.end());
   float surf_max   = *std::max_element(surf_weights.begin(), surf_weights.end());
   float gps_max    = *std::max_element(gps_weights.begin(), gps_weights.end());
@@ -196,6 +211,8 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
         (semantic_max > 0.) ? semantic_weights[particle.id] : static_cast<float>(1.);
     float m_cw =
         (corners_max > 0.) ? corner_weights[particle.id] : static_cast<float>(1.);
+    float m_vw = (veg_lines_max > 0.) ? vegetation_lines_weights[particle.id]
+                                      : static_cast<float>(1.);
     float m_gw =
         (ground_max > 0.) ? ground_weights[particle.id] : static_cast<float>(1.);
     float m_sw =
@@ -203,7 +220,7 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
     float m_gpsw =
         (gps_max > 0.) ? gps_weights[particle.id] : static_cast<float>(1.);
 
-    particle.w = m_lw * m_cw * m_gw * m_sw * m_gpsw;
+    particle.w = m_lw * m_cw * m_vw * m_gw * m_sw * m_gpsw;
     w_sum += particle.w;
   }
 
@@ -225,7 +242,7 @@ void PF::gps(const pose& gps_pose, std::vector<float>& ws)
 }
 
 void PF::highLevel(const std::vector<SemanticFeature>& landmarks,
-                   OccupancyMap*                        grid_map,
+                   OccupancyMap*                       grid_map,
                    std::vector<float>&                 ws)
 {
   float normalizer_landmark =
@@ -304,7 +321,7 @@ void PF::highLevel(const std::vector<SemanticFeature>& landmarks,
 }
 
 void PF::mediumLevelCorners(const std::vector<Corner>& corners,
-                            OccupancyMap*               grid_map,
+                            OccupancyMap*              grid_map,
                             std::vector<float>&        ws)
 {
   float normalizer_corner =
@@ -419,7 +436,7 @@ void PF::mediumLevelGround(const Plane& ground_plane, std::vector<float>& ws)
   float normalizer_ground_rp =
       static_cast<float>(1.) / (sigma_ground_rp * std::sqrt(M_2PI));
 
-  for (auto& particle : particles) {
+  for (const auto& particle : particles) {
     // - Ground plane [roll, pitch] weight
     float w_ground = 0.;
     if (ground_plane_gauss.mean != 0. && ground_plane_gauss.stdev != 0.) {
@@ -438,8 +455,47 @@ void PF::mediumLevelGround(const Plane& ground_plane, std::vector<float>& ws)
   }
 }
 
+void PF::mediumLevelLines(const std::vector<Line>& vegetation_lines,
+                          std::vector<float>&      ws)
+{
+  bool c1 = vegetation_lines.size() == 2;
+  bool c2 = false;
+
+  if (c1) {
+    float theta_left  = std::atan(vegetation_lines[0].m);
+    float theta_right = std::atan(vegetation_lines[1].m);
+
+    // Check if current vineyard lines are approximately paralell
+    c2 = std::fabs(theta_left - theta_right) < (3. * DEGREE_TO_RAD);
+
+    // Compute static vars to use in the PF loop
+    const float normalizer_veg_lines =
+        static_cast<float>(1.) / (sigma_vegetation_lines_yaw * std::sqrt(M_2PI));
+
+    for (const auto& particle : particles) {
+      // Vegetation lines yaw orientation weight
+      float w_veg_lines = 0.;
+      if (c2) {
+        float error = std::fabs((theta_left + particle.p.yaw) +
+                                (theta_right + particle.p.yaw)) /
+                      static_cast<float>(2.);
+        w_veg_lines =
+            (normalizer_veg_lines *
+             static_cast<float>(std::exp(-1. / sigma_vegetation_lines_yaw * error)));
+
+        //        std::cout << "error = (" << (theta_left - particle.p.yaw) *
+        //        RAD_TO_DEGREE << "," << (theta_right - particle.p.yaw) *
+        //        RAD_TO_DEGREE << ") " << error * RAD_TO_DEGREE << ", w = " <<
+        //        w_veg_lines << std::endl;
+      }
+
+      ws[particle.id] = w_veg_lines;
+    }
+  }
+}
+
 void PF::lowLevel(const std::vector<ImageFeature>& surf_features,
-                  OccupancyMap*              grid_map,
+                  OccupancyMap*                    grid_map,
                   std::vector<float>&              ws)
 {
   // ------------------------------------------------------------------------------
@@ -680,7 +736,7 @@ void PF::cluster(std::map<int, Gaussian<pose, pose>>& gauss_map)
 }
 
 void PF::scanMatch(const std::vector<ImageFeature>&     features,
-                   OccupancyMap*                  grid_map,
+                   OccupancyMap*                        grid_map,
                    std::map<int, Gaussian<pose, pose>>& gauss_map,
                    std::vector<float>&                  ws)
 {

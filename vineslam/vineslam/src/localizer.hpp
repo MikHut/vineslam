@@ -22,6 +22,7 @@ struct Observation {
   std::vector<SemanticFeature> landmarks;
   std::vector<Corner>          corners;
   std::vector<ImageFeature>    surf_features;
+  std::vector<Line>            vegetation_lines;
   Plane                        ground_plane;
   pose                         gps_pose;
 };
@@ -30,7 +31,7 @@ class Localizer
 {
 public:
   // Class constructor
-  explicit Localizer(std::string  config_path);
+  explicit Localizer(std::string config_path);
 
   // Initializes the particle filter with the number of particles
   // and the first odometry pose
@@ -41,8 +42,7 @@ public:
   // - odom:      wheel odometry pose
   // - obsv:      current multi-layer mapping observation
   // - grid_map:  occupancy grid map that encodes the multi-layer map information
-  void
-  process(const pose& odom, const Observation& obsv, OccupancyMap* grid_map);
+  void process(const pose& odom, const Observation& obsv, OccupancyMap* grid_map);
 
   // Export the final pose resultant from the localization procedure
   pose getPose() const;
@@ -58,4 +58,5 @@ private:
   // Input parameters file name
   std::string config_path;
 };
-}; // namespace vineslam
+
+} // namespace vineslam

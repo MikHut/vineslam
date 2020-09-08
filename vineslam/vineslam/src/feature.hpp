@@ -216,4 +216,26 @@ struct Plane {
   std::vector<point> indexes; // indexes of points projected into the range image
 };
 
+// ---------------------------------------------------------------------------------
+// ----- Point cloud medium-level line feature
+// ---------------------------------------------------------------------------------
+
+struct Line {
+  Line() = default;
+
+  Line(const float& m_m, const float& m_b, const std::vector<point>& m_pts)
+  {
+    m = m_m;
+    b = m_b;
+
+    pts.clear();
+    pts = m_pts;
+  }
+
+  float m; // slope
+  float b; // zero intercept
+
+  std::vector<point> pts; // points on line
+};
+
 } // namespace vineslam

@@ -371,8 +371,8 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
       marker_b.points.push_back(P1_b);
       marker_b.points.push_back(P2_b);
       marker_b.color.a = 1;
-      marker_b.color.r = 1;
-      marker_b.color.b = 0;
+      marker_b.color.r = 0;
+      marker_b.color.b = 1;
       marker_b.color.g = 0;
       marker_b.scale.x = 0.1;
       marker_b.scale.y = 0.1;

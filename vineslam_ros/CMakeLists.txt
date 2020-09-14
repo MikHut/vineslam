@@ -41,21 +41,21 @@ include_directories(
         ${catkin_INCLUDE_DIRS}
         ${vineslam_INCLUDE_DIRS})
 
-add_executable(slam_node src/slam_node.cpp)
+add_executable(slam_node src/slam_node.cpp src/vineslam_ros.cpp)
 add_dependencies(slam_node ${${PROJECT_NAME}_EXPORTED_TARGETS}
         ${catkin_EXPORTED_TARGETS})
 target_link_libraries(slam_node
         ${catkin_LIBRARIES}
         yaml-cpp)
 
-add_executable(replay_node src/replay_node.cpp)
+add_executable(replay_node src/replay_node.cpp src/vineslam_ros.cpp)
 add_dependencies(replay_node ${${PROJECT_NAME}_EXPORTED_TARGETS}
         ${catkin_EXPORTED_TARGETS})
 target_link_libraries(replay_node
         ${catkin_LIBRARIES}
         yaml-cpp)
 
-add_executable(localization_node src/localization_node.cpp)
+add_executable(localization_node src/localization_node.cpp src/vineslam_ros.cpp)
 add_dependencies(localization_node ${${PROJECT_NAME}_EXPORTED_TARGETS}
         ${catkin_EXPORTED_TARGETS})
 target_link_libraries(localization_node

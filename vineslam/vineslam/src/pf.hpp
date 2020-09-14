@@ -60,6 +60,7 @@ public:
   // Update particles weights using the multi-layer map
   void update(const std::vector<SemanticFeature>& landmarks,
               const std::vector<Corner>&          corners,
+              const std::vector<Line>&            vegetation_lines,
               const Plane&                        ground_plane,
               const std::vector<ImageFeature>&    surf_features,
               const pose&                         gps_pose,
@@ -90,6 +91,9 @@ private:
                           std::vector<float>&        ws);
   // - Medium level ground plane layer
   void mediumLevelGround(const Plane& ground_plane, std::vector<float>& ws);
+  // - Medium level vegetation lines layer
+  void mediumLevelLines(const std::vector<Line>& vegetation_lines,
+                        std::vector<float>&      ws);
   // - Low level image features layer
   void lowLevel(const std::vector<ImageFeature>& surf_features,
                 OccupancyMap*                    grid_map,
@@ -119,6 +123,7 @@ private:
   // - General parameters
   bool use_landmarks;
   bool use_corners;
+  bool use_vegetation_lines;
   bool use_ground_plane;
   bool use_icp;
   bool use_gps;
@@ -137,6 +142,7 @@ private:
   float sigma_landmark_matching;
   float sigma_feature_matching;
   float sigma_corner_matching;
+  float sigma_vegetation_lines_yaw;
   float sigma_ground_rp;
   float sigma_gps;
   // - Clustering parameters

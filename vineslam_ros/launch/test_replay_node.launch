@@ -7,7 +7,7 @@
 
   <!-- agrob_map_transform gps node -->
   <node pkg="agrob_map_transform" type="agrob_gnss_transform_node" name="agrob_gnss_transform_node" clear_params="true" output="screen">
-    <rosparam command="load" file="$(find agrob_map_transform)/params/vineslam_configs.yaml" />
+    <rosparam command="load" file="$(find agrob_map_transform)/params/navsat_transform_template.yaml" />
 
       <remap from="imu/data" to="/Dummy/IMU"/>
       <remap from="odometry/filtered" to="/vineslam/odom"/>
@@ -15,18 +15,21 @@
   </node>
 
   <node name="republish" type="republish" pkg="image_transport" output="screen"
-    args="compressed in:=/zed/zed_node/left_raw/image_raw_color out:=/zed/zed_node/left/image_rect_color" />
+    args="compressed in:=/zed/zed_node/left/image out:=/zed/zed_node/left/image_rect_color" />
+<!--     args="compressed in:=/zed/zed_node/left_raw/image_raw_color out:=/zed/zed_node/left/image_rect_color" /> -->
 
   <!-- replay node -->
   <node pkg="vineslam_ros" type="replay_node" name="replay_node" output="screen">
     <param name="/ReplayNode/bagfile_name"
-      value="/home/andre-criis/Documents/bagfiles/Estufa/tomates_2020-08-06-11-23-35.bag" />
+      value="/home/andre-criis/Documents/bagfiles/Bags_Aveleda_24-06-2020/aveleda_2020-06-25-12-18-24.bag" />
+<!--       value="/home/andre-criis/Documents/bagfiles/Estufa/tomates_2020-08-06-11-23-35.bag" /> -->
     <param name="/ReplayNode/odom_topic"         value="/husky_velocity_controller/odom" />
     <param name="/ReplayNode/rs_odom_topic"      value="/camerat265/odom/sample" />
     <param name="/ReplayNode/fix_topic"          value="/fix" />
     <param name="/ReplayNode/tf_topic"           value="/tf" />
     <param name="/ReplayNode/depth_img_topic"    value="/zed/zed_node/depth/depth_registered" />
-    <param name="/ReplayNode/left_img_topic"     value="/zed/zed_node/left_raw/image_raw_color/compressed" />
+    <param name="/ReplayNode/left_img_topic"     value="/zed/zed_node/left/image/compressed" />
+<!--     <param name="/ReplayNode/left_img_topic"     value="/zed/zed_node/left_raw/image_raw_color/compressed" /> -->
     <param name="/ReplayNode/pcl_topic"          value="/velodyne_points" />
     <param name="/ReplayNode/config_path"        value="$(find vineslam)/config/setup.yaml" />
   </node>

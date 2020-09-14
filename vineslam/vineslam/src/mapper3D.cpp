@@ -214,77 +214,9 @@ void Mapper3D::reset()
   seg_pcl.range.assign(cloud_size, 0);
 }
 
-void Mapper3D::localPCLMap(const float*         depths,
-                           std::vector<Corner>& out_corners,
-                           Plane&               out_groundplane)
-{
-  // Set velodyne configuration parameters
-  sensor                  = "zed";
-  picked_num              = 2;
-  planes_th               = static_cast<float>(5.) * DEGREE_TO_RAD;
-  ground_th               = static_cast<float>(2.) * DEGREE_TO_RAD;
-  edge_threshold          = 0.05;
-  vertical_scans          = img_height;
-  horizontal_scans        = img_width;
-  ground_scan_idx         = static_cast<int>(img_height / 2. - 1.);
-  segment_valid_point_num = 5;
-  segment_valid_line_num  = 3;
-  ang_res_x               = depth_hfov / static_cast<float>(img_width);
-  ang_res_y               = depth_vfov / static_cast<float>(img_height);
-  downsample_f            = init_downsample_f;
-
-  // Reset global variables and members
-  reset();
-
-  std::vector<point> pts3D(horizontal_scans * vertical_scans);
-  for (auto j = 0; j < horizontal_scans; j++) {
-    for (auto i = 0; i < vertical_scans; i++) {
-      int idx = j + horizontal_scans * i;
-
-      float m_depth = depths[idx];
-
-      // Check validity of depth information
-      if (!std::isfinite(m_depth) || m_depth > max_range) {
-        range_mat(i, j) = -1;
-        continue;
-      }
-
-      // Pixel to 3D point conversion
-      point out_pt;
-      pixel2base(point(j, i), m_depth, out_pt);
-      // Save point and range
-      pts3D[idx]      = out_pt;
-      range_mat(i, j) = out_pt.norm3D();
-    }
-  }
-
-  // - GROUND PLANE
-  Plane gplane_unfilt;
-  groundRemoval(pts3D, gplane_unfilt);
-  // Filter outliers using RANSAC
-  ransac(gplane_unfilt, out_groundplane);
-
-  // -------------------------------------------------------------------------------
-  // ----- Mark ground points
-  // -------------------------------------------------------------------------------
-  for (const auto& index : out_groundplane.indexes) {
-    int i = static_cast<int>(index.x);
-    int j = static_cast<int>(index.y);
-
-    ground_mat(i, j) = 1;
-    label_mat(i, j)  = -1;
-  }
-
-  // - OTHER PLANES
-  std::vector<PlanePoint> cloud_seg;
-  cloudSegmentation(pts3D, cloud_seg);
-
-  //- Feature extraction and publication
-  extractCorners(cloud_seg, out_corners);
-}
-
 void Mapper3D::localPCLMap(const std::vector<point>& pcl,
                            std::vector<Corner>&      out_corners,
+                           std::vector<Line>&        out_vegetation_lines,
                            Plane&                    out_groundplane)
 {
   std::vector<point> transformed_pcl;
@@ -365,9 +297,12 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
     label_mat(i, j)  = -1;
   }
 
-  // - OTHER PLANES
+  // - Planes that are not the ground
   std::vector<PlanePoint> cloud_seg;
   cloudSegmentation(transformed_pcl, cloud_seg);
+
+  // - Vegetation 2 planes
+  extractVegetationPlanes(cloud_seg, out_vegetation_lines);
 
   //- Feature extraction and publication
   extractCorners(cloud_seg, out_corners);
@@ -765,6 +700,46 @@ void Mapper3D::labelComponents(const int&                row,
       for (auto& i : global_queue) label_mat(i.x(), i.y()) = 999999;
     }
   }
+}
+
+void Mapper3D::extractVegetationPlanes(const std::vector<PlanePoint>& in_plane_pts,
+                                       std::vector<Line>& out_vegetation_lines)
+{
+  // -------------------------------------------------------------------------------
+  // ----- Segment plane points in two different sets
+  // -------------------------------------------------------------------------------
+  // - Start by computing the average of the y component of all points
+  float y_mean = 0.;
+  for (auto const& plane_pt : in_plane_pts) y_mean += plane_pt.pos.y;
+  y_mean /= static_cast<float>(in_plane_pts.size());
+
+  // - Cluster points using the y mean threshold
+  Plane side_plane_a, side_plane_b;
+  for (auto const& plane_pt : in_plane_pts) {
+    PlanePoint m_plane_pt = plane_pt;
+
+    m_plane_pt.which_plane = (m_plane_pt.pos.y < y_mean) ? 0 : 1;
+
+    if (m_plane_pt.which_plane == 0) {
+      side_plane_a.points.push_back(m_plane_pt.pos);
+    } else {
+      side_plane_b.points.push_back(m_plane_pt.pos);
+    }
+  }
+
+  // - Remove outliers using RANSAC
+  Plane side_plane_a_filtered, side_plane_b_filtered;
+  ransac(side_plane_a, side_plane_a_filtered);
+  ransac(side_plane_b, side_plane_b_filtered);
+
+  // -------------------------------------------------------------------------------
+  // ----- Fit both plane points by two lines
+  // -------------------------------------------------------------------------------
+  Line line_a(side_plane_a_filtered.points);
+  Line line_b(side_plane_b_filtered.points);
+
+  out_vegetation_lines.clear();
+  out_vegetation_lines = {line_a, line_b};
 }
 
 void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,

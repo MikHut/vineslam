@@ -3,10 +3,10 @@
 // std & yaml & eigen
 #include <iostream>
 #include <deque>
-#include <yaml-cpp/yaml.h>
 #include <eigen3/Eigen/Dense>
 
 // Objects
+#include <params.hpp>
 #include <occupancy_map.hpp>
 #include <math/point.hpp>
 #include <math/pose.hpp>
@@ -57,7 +57,7 @@ class Mapper3D
 public:
   // Class constructor - receives and saves the system
   // parameters
-  explicit Mapper3D(const std::string& config_path);
+  explicit Mapper3D(const Parameters& params);
 
   // -------------------------------------------------------------------------------
   // ---- 3D image feature map

@@ -20,38 +20,8 @@ ReplayNode::ReplayNode(int argc, char** argv)
   ros::NodeHandle nh;
 
   // Load params
-  if (!nh.getParam("/replay_node/ReplayNode/bagfile_name", bagfile_str)) {
-    ROS_ERROR("/bagfile_name parameter not found. Shutting down...");
-    return;
-  }
-  if (!nh.getParam("/replay_node/ReplayNode/odom_topic", odom_str)) {
-    ROS_ERROR("/odom_topic parameter not found. Shutting down...");
-    return;
-  }
-  if (!nh.getParam("/replay_node/ReplayNode/rs_odom_topic", rs_odom_str)) {
-    ROS_ERROR("/rs_odom_topic parameter not found. Shutting down...");
-    return;
-  }
-  if (!nh.getParam("/replay_node/ReplayNode/tf_topic", tf_str)) {
-    ROS_ERROR("/tf_topic parameter not found. Shutting down...");
-    return;
-  }
-  if (!nh.getParam("/replay_node/ReplayNode/fix_topic", fix_str)) {
-    ROS_ERROR("/fix_topic parameter not found. Shutting down...");
-    return;
-  }
-  if (!nh.getParam("/replay_node/ReplayNode/depth_img_topic", depth_img_str)) {
-    ROS_ERROR("/depth_img_topic parameter not found. Shutting down...");
-    return;
-  }
-  if (!nh.getParam("/replay_node/ReplayNode/left_img_topic", left_img_str)) {
-    ROS_ERROR("/left_img_topic parameter not found. Shutting down...");
-    return;
-  }
-  if (!nh.getParam("/replay_node/ReplayNode/pcl_topic", pcl_str)) {
-    ROS_ERROR("/pcl_topic parameter not found. Shutting down...");
-    return;
-  }
+  loadParameters(nh, "/replay_node", params);
+  printParameters(params);
 
   // Set node flags
   nmessages = 0;
@@ -66,40 +36,12 @@ ReplayNode::ReplayNode(int argc, char** argv)
   register_map     = true;
   estimate_heading = true;
 
-  // Load param
-  if (!nh.getParam("/replay_node/ReplayNode/config_path", config_path)) {
-    ROS_ERROR("/config_path parameter not found. Shutting down...");
-    return;
-  }
-
-  // Load config file
-  auto config = YAML::LoadFile(config_path);
-  // System flags
-  debug = config["system"]["debug"].as<bool>();
-  // Load camera info parameters
-  img_width  = config["camera_info"]["img_width"].as<int>();
-  img_height = config["camera_info"]["img_height"].as<int>();
-  fx         = config["camera_info"]["fx"].as<float>();
-  fy         = config["camera_info"]["fy"].as<float>();
-  cx         = config["camera_info"]["cx"].as<float>();
-  cy         = config["camera_info"]["cy"].as<float>();
-  // Load occupancy grid map parameters
-  occ_origin.x = config["multilayer_mapping"]["grid_map"]["origin"]["x"].as<float>();
-  occ_origin.y = config["multilayer_mapping"]["grid_map"]["origin"]["y"].as<float>();
-  occ_resolution =
-      config["multilayer_mapping"]["grid_map"]["resolution"].as<float>();
-  occ_width     = config["multilayer_mapping"]["grid_map"]["width"].as<float>();
-  occ_height    = config["multilayer_mapping"]["grid_map"]["height"].as<float>();
-  use_landmarks = config["system"]["use_landmarks"].as<bool>();
-  use_gps       = config["system"]["use_gps"].as<bool>();
-  gps_init_lat  = config["system"]["gps_datum"]["lat"].as<float>();
-  gps_init_long = config["system"]["gps_datum"]["long"].as<float>();
 
   // Declare the Mappers and Localizer objects
-  localizer = new Localizer(config_path);
-  grid_map  = new OccupancyMap(config_path);
-  mapper2D  = new Mapper2D(config_path);
-  mapper3D  = new Mapper3D(config_path);
+  localizer = new Localizer(params);
+  grid_map  = new OccupancyMap(params);
+  mapper2D  = new Mapper2D(params);
+  mapper3D  = new Mapper3D(params);
 
   // Services
   polar2pose = nh.serviceClient<agrob_map_transform::GetPose>("polar_to_pose");
@@ -142,7 +84,7 @@ ReplayNode::ReplayNode(int argc, char** argv)
                           dynamic_cast<VineSLAM_ros*>(this));
 
   // GNSS varibales
-  if (use_gps) {
+  if (params.use_gps) {
     datum_autocorrection_stage = 0;
     global_counter             = 0;
   }
@@ -183,7 +125,7 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
 {
   ROS_INFO("Opening ROSBAG...");
   rosbag::Bag bag;
-  bag.open(bagfile_str);
+  bag.open(params.bagfile_name);
 
   // -------------------------------------------------------------------------------
   // ----- Set static TFs
@@ -195,14 +137,18 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
   // -------------------------------------------------------------------------------
   // ----- Set rosbags topics of interest
   // -------------------------------------------------------------------------------
-  ros::Publisher odom_pub      = nh.advertise<nav_msgs::Odometry>(odom_str, 1);
-  ros::Publisher rs_odom_pub   = nh.advertise<nav_msgs::Odometry>(rs_odom_str, 1);
-  ros::Publisher tf_pub        = nh.advertise<tf2_msgs::TFMessage>(tf_str, 1);
-  ros::Publisher fix_pub       = nh.advertise<sensor_msgs::NavSatFix>(fix_str, 1);
-  ros::Publisher depth_img_pub = nh.advertise<sensor_msgs::Image>(depth_img_str, 1);
+  ros::Publisher odom_pub = nh.advertise<nav_msgs::Odometry>(params.odom_topic, 1);
+  ros::Publisher rs_odom_pub =
+      nh.advertise<nav_msgs::Odometry>(params.rs_odom_topic, 1);
+  ros::Publisher tf_pub = nh.advertise<tf2_msgs::TFMessage>(params.tf_topic, 1);
+  ros::Publisher fix_pub =
+      nh.advertise<sensor_msgs::NavSatFix>(params.fix_topic, 1);
+  ros::Publisher depth_img_pub =
+      nh.advertise<sensor_msgs::Image>(params.depth_img_topic, 1);
   ros::Publisher left_img_pub =
-      nh.advertise<sensor_msgs::CompressedImage>(left_img_str, 1);
-  ros::Publisher pcl_pub = nh.advertise<sensor_msgs::PointCloud2>(pcl_str, 1);
+      nh.advertise<sensor_msgs::CompressedImage>(params.left_img_topic, 1);
+  ros::Publisher pcl_pub =
+      nh.advertise<sensor_msgs::PointCloud2>(params.pcl_topic, 1);
 
   tf2_msgs::TFMessageConstPtr      tf_ptr;
   nav_msgs::OdometryConstPtr       rs_odom_ptr;
@@ -226,42 +172,42 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
     // Publish rosbag topics of interest
     const std::string& topic = m.getTopic();
 
-    if (topic == tf_str) {
+    if (topic == params.tf_topic) {
       tf_ptr = m.instantiate<tf2_msgs::TFMessage>();
 
       if (tf_ptr != nullptr) {
         tf_bool = true;
         tf_pub.publish(*tf_ptr);
       }
-    } else if (topic == rs_odom_str) {
+    } else if (topic == params.rs_odom_topic) {
       rs_odom_ptr = m.instantiate<nav_msgs::Odometry>();
 
       if (rs_odom_ptr != nullptr) {
         rs_odom_bool = true;
         rs_odom_pub.publish(*rs_odom_ptr);
       }
-    } else if (topic == odom_str) {
+    } else if (topic == params.odom_topic) {
       odom_ptr = m.instantiate<nav_msgs::Odometry>();
 
       if (odom_ptr != nullptr) {
         odom_bool = true;
         odom_pub.publish(*odom_ptr);
       }
-    } else if (topic == fix_str) {
+    } else if (topic == params.fix_topic) {
       fix_ptr = m.instantiate<sensor_msgs::NavSatFix>();
 
       if (fix_ptr != nullptr) {
         fix_bool = true;
         fix_pub.publish(*fix_ptr);
       }
-    } else if (topic == depth_img_str) {
+    } else if (topic == params.depth_img_topic) {
       depth_img_ptr = m.instantiate<sensor_msgs::Image>();
 
       if (depth_img_ptr != nullptr) {
         depth_bool = true;
         depth_img_pub.publish(*depth_img_ptr);
       }
-    } else if (topic == left_img_str) {
+    } else if (topic == params.left_img_topic) {
       sensor_msgs::CompressedImageConstPtr left_img_comp_ptr =
           m.instantiate<sensor_msgs::CompressedImage>();
 
@@ -275,7 +221,7 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
         cv::InputArray data(img_data);
         left_img = cv::imdecode(data, 1);
       }
-    } else if (topic == pcl_str) {
+    } else if (topic == params.pcl_topic) {
       pcl_ptr = m.instantiate<sensor_msgs::PointCloud2>();
 
       if (pcl_ptr != nullptr) {
@@ -284,8 +230,7 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
       }
     }
 
-    nmessages = tf_bool + odom_bool + fix_bool + depth_bool +
-                left_bool + pcl_bool;
+    nmessages = tf_bool + odom_bool + fix_bool + depth_bool + left_bool + pcl_bool;
 
     if (nmessages == 6) {
       scanListener(pcl_ptr);
@@ -308,12 +253,11 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
 ReplayNode::~ReplayNode()
 {
   // Save map data
-  auto config   = YAML::LoadFile(config_path);
-  bool save_map = config["multilayer_mapping"]["grid_map"]["save_map"].as<bool>();
+  bool save_map = params.save_map;
 
   if (save_map) {
     std::cout << "Writing map to file ..." << std::endl;
-    MapWriter mw(config_path);
+    MapWriter mw(params);
     mw.writeToFile(*grid_map);
   }
 

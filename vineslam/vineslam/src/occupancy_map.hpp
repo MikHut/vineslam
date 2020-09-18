@@ -1,12 +1,13 @@
 #pragma once
 
+#include <params.hpp>
 #include <math/point.hpp>
 #include <feature.hpp>
 
 #include <iostream>
 #include <iomanip>
 #include <vector>
-#include <yaml-cpp/yaml.h>
+#include <map>
 
 namespace vineslam
 {
@@ -42,7 +43,7 @@ class OccupancyMap
 public:
   // Class constructor
   // - initializes the grid map given the input parameters
-  explicit OccupancyMap(const std::string& config_path);
+  explicit OccupancyMap(const Parameters& params);
 
   // Copy contructor
   OccupancyMap(const OccupancyMap& grid_map);

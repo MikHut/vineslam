@@ -2,19 +2,17 @@
 
 namespace vineslam
 {
-KF::KF(const VectorXf&    X0,
+KF::KF(const Parameters&  params,
+       const VectorXf&    X0,
        const VectorXf&    s,
        const VectorXf&    g,
-       const VectorXf&    z,
-       const std::string& config_path)
+       const VectorXf&    z)
     : X0(X0)
     , X(X0)
 {
-  // Load input parameters
-  YAML::Node config = YAML::LoadFile(config_path);
-  fx                = config["camera_info"]["fx"].as<float>();
-  baseline          = config["camera_info"]["baseline"].as<float>();
-  delta_d           = 0.1;
+  fx       = params.fx;
+  baseline = params.baseline;
+  delta_d  = 0.1;
 
   // Initialize the process covariance P
   computeR(s, g, z);

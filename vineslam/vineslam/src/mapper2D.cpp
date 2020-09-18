@@ -3,12 +3,11 @@
 namespace vineslam
 {
 
-Mapper2D::Mapper2D(const std::string& config_path)
-    : config_path(config_path)
+Mapper2D::Mapper2D(Parameters params)
+    : params(std::move(params))
 {
-  YAML::Node config = YAML::LoadFile(config_path);
-  fx                = config["camera_info"]["fx"].as<float>();
-  baseline  = config["camera_info"]["baseline"].as<float>();
+  fx       = params.fx;
+  baseline = params.baseline;
 
   filter_frequency = 5;
   stdev_threshold  = 0.2;
@@ -51,7 +50,7 @@ void Mapper2D::init(const pose&               pose,
     X.z = 0.;
 
     // Push back a Kalman Filter object for the respective landmark
-    KF kf(X.toEig2D(), pose.toEig2D(), robot_gauss.stdev.toEig2D(), z, config_path);
+    KF kf(params, X.toEig2D(), pose.toEig2D(), robot_gauss.stdev.toEig2D(), z);
     filters.push_back(kf);
 
     // Insert the landmark on the map, with a single observation
@@ -155,7 +154,7 @@ void Mapper2D::predict(const pose&               pose,
 
       // Initialize the Kalman Filter
       KF kf(
-          X.toEig2D(), pose.toEig2D(), robot_gauss.stdev.toEig2D(), z, config_path);
+          params, X.toEig2D(), pose.toEig2D(), robot_gauss.stdev.toEig2D(), z);
       filters.push_back(kf);
 
       // Insert the landmark on the map, with a single observation

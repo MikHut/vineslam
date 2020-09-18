@@ -5,17 +5,14 @@
 namespace vineslam
 {
 
-ICP::ICP(const std::string& config_path)
+ICP::ICP(const Parameters& params)
 {
-  // Read input parameters
-  YAML::Node config = YAML::LoadFile(config_path);
-  reject_outliers   = config["multilayer_mapping"]["ICP"]["reject_outliers"].as<bool>();
-
   // Set the default stop criteria parameters
   // - they can (and should) be overwritten from the outside call (!)
-  max_iters      = 20;
-  tolerance      = 1e-3;
-  dist_threshold = 0.02;
+  max_iters       = params.icp_max_iters;
+  tolerance       = 1e-3;
+  dist_threshold  = params.icp_distance_threshold;
+  reject_outliers = params.icp_reject_outliers;
 
   // Initialize homogeneous transformation
   R = {1., 0., 0., 0., 1., 0., 0., 0., 1.};

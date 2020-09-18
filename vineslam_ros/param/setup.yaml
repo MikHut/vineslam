@@ -1,5 +1,16 @@
-# File where major input definitions and values are set
----
+# ROS topic and bagfile names
+bagfile_name: $(arg bagfile_name)
+odom_topic: /husky_velocity_controller/odom
+rs_odom_topic: /camerat265/odom/sample
+fix_topic: /fix
+tf_topic: /tf
+depth_img_topic: /zed/zed_node/depth/depth_registered
+#left_img_topic: /zed/zed_node/left_raw/image_raw_color/compressed
+left_img_topic: /zed/zed_node/left/image
+detections_topic: /tpu/detections
+pcl_topic: /velodyne_points
+
+
 # General system settings
 system:
   # - System flags
@@ -15,12 +26,8 @@ system:
   # ---------------------
   # GPS datum
   gps_datum:
-    lat: 41.6520631667 # estufa
-#    lat: 41.2050211667 # initial gps latitude
-#    lat: 41.205517 # initial gps latitude (larger)
-    long: -8.7052965 # estufa
-#    long: -8.30753416667 # initial gps longiture (larger)
-#    long: -8.3073515 # initial gps longiture (larger)
+    lat: 41.6520631667
+    long: -8.7052965
   # ---------------------
 
 # Camera calibration info
@@ -76,10 +83,10 @@ pf:
 
   ## --- PARTICLES INNOVATION -- #
   sigma_xy: 0.15 # meters (just for initialization)
-  sigma_yaw: 1.0 # degrees (just for initialization)
   sigma_z: 0.01 # meters
   sigma_roll: 0.01 # degrees
   sigma_pitch: 0.1 # degrees
+  sigma_yaw: 1.0 # degrees (just for initialization)
 
   ## --- PARTICLES UPDATE -- #
   sigma_landmark_matching: 0.01 # meters
@@ -90,4 +97,3 @@ pf:
   sigma_gps: 0.08 # meters
 
   k_clusters: 3
-...

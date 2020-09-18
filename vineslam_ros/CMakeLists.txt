@@ -22,8 +22,6 @@ find_package(catkin REQUIRED
         image_transport
         pcl_ros)
 
-find_package(yaml-cpp REQUIRED)
-
 add_service_files(FILES
         start_map_registration.srv
         stop_map_registration.srv
@@ -45,19 +43,16 @@ add_executable(slam_node src/slam_node.cpp src/vineslam_ros.cpp)
 add_dependencies(slam_node ${${PROJECT_NAME}_EXPORTED_TARGETS}
         ${catkin_EXPORTED_TARGETS})
 target_link_libraries(slam_node
-        ${catkin_LIBRARIES}
-        yaml-cpp)
+        ${catkin_LIBRARIES})
 
 add_executable(replay_node src/replay_node.cpp src/vineslam_ros.cpp)
 add_dependencies(replay_node ${${PROJECT_NAME}_EXPORTED_TARGETS}
         ${catkin_EXPORTED_TARGETS})
 target_link_libraries(replay_node
-        ${catkin_LIBRARIES}
-        yaml-cpp)
+        ${catkin_LIBRARIES})
 
 add_executable(localization_node src/localization_node.cpp src/vineslam_ros.cpp)
 add_dependencies(localization_node ${${PROJECT_NAME}_EXPORTED_TARGETS}
         ${catkin_EXPORTED_TARGETS})
 target_link_libraries(localization_node
-        ${catkin_LIBRARIES}
-        yaml-cpp)
+        ${catkin_LIBRARIES})

@@ -10,7 +10,7 @@
   <node pkg="tf" type="static_transform_publisher" name="base_to_velodyne"  args="0.286 0.025 0.920 -0.010 0.002 -0.045 0.999 /base_link /velodyne 10" />
 
   <!-- rviz -->
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find vineslam)/config/config.rviz" required="false"/>
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find vineslam_ros)/param/config.rviz" required="false"/>
 
   <!-- agrob_map_transform gps node -->
   <node pkg="agrob_map_transform" type="agrob_gnss_transform_node" name="agrob_gnss_transform_node" clear_params="true" output="screen">
@@ -24,24 +24,17 @@
 
   <!-- image republish -->
   <node name="republish1" type="republish" pkg="image_transport" output="screen"
-        args="compressed in:=/zed/zed_node/left_raw/image_raw_color out:=/zed/zed_node/left/image_rect_color" />
-<!--    args="compressed in:=/zed/zed_node/left_raw/image_raw_color out:=/zed/zed_node/left/image_rect_color" />-->
+        args="compressed in:=/zed/zed_node/left_raw/image_raw_color out:=/zed/zed_node/left/image" />
 
   <!-- slam node -->
+  <arg name="bagfile_name" default="/home/andreaguiar/Documents/rosbags/estufa/tomates_2020-08-06-11-23-35.bag"/>
   <node pkg="vineslam_ros" type="slam_node" name="slam_node" output="screen">
-    <remap from="/left_image"  to="/zed/zed_node/left/image_rect_color"/>
-    <remap from="/depth_image" to="/zed/zed_node/depth/depth_registered" />
-    <remap from="/scan_3D"     to="/velodyne_points" />
-    <remap from="/detections"  to="/detections" />
-    <remap from="/odom"        to="/husky_velocity_controller/odom" />
-    <remap from="/fix"         to="/fix" />
-
-    <param name="/SLAMNode/config_path" value="$(find vineslam)/config/setup.yaml" />
+    <rosparam command="load" subst_value="True" file="$(find vineslam_ros)/param/setup.yaml"/>
   </node>
 
   <!-- Coral edgetpu trunk detection node -->
   <node pkg="detector" type="detector_node" name="detector" output="screen">
-    <param name="image_left"  value="/zed/zed_node/left/image_rect_color"/>
+    <param name="image_left"  value="/zed/zed_node/left/image"/>
     <param name="image_depth" value="/zed/zed_node/depth/depth_registered"/>
 
     <param name="model_path"  value="$(find edgetpu_cpp)/model/output_tflite_graph_edgetpu.tflite"/>

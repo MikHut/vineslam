@@ -3,6 +3,7 @@
 #include <iostream>
 #include <eigen3/Eigen/Dense>
 
+#include <params.hpp>
 #include <math/point.hpp>
 #include <math/pose.hpp>
 #include <math/stat.hpp>
@@ -18,7 +19,7 @@ class ICP
 public:
   // Class contructor:
   // - sets the default stop criteria parameters
-  explicit ICP(const std::string& config_path);
+  explicit ICP(const Parameters& params);
 
   // ICP main routine - aligns two point clouds
   bool align(TF tf, float& rms_error, std::vector<ImageFeature>& aligned);

@@ -3,12 +3,10 @@
 namespace vineslam
 {
 
-MapParser::MapParser(const std::string& config_file)
+MapParser::MapParser(const Parameters& params)
 {
   // Read input parameters
-  YAML::Node config = YAML::LoadFile(config_file);
-  file_path =
-      config["multilayer_mapping"]["grid_map"]["input_file"].as<std::string>();
+  file_path = params.map_input_file;
 }
 
 void MapParser::parseFile(OccupancyMap& grid_map)

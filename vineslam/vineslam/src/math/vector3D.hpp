@@ -25,7 +25,7 @@ public:
   }
 
   // A vector resulting from two points: v = p2 - p1
-  vector3D(point pt2, point pt1)
+  vector3D(const point& pt2, const point& pt1)
   {
     x = pt2.x - pt1.x;
     y = pt2.y - pt1.y;
@@ -59,7 +59,7 @@ public:
   }
 
   // Norm of a vector
-  float norm() { return sqrt(x * x + y * y + z * z); }
+  float norm() { return std::sqrt(x * x + y * y + z * z); }
 
 private:
 };

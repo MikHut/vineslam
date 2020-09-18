@@ -14,7 +14,7 @@ class MapParser
 {
 public:
   // Class constructor - loads the file name
-  explicit MapParser(const std::string& config_file);
+  explicit MapParser(const Parameters& params);
 
   // Receives the occupancy grid map and writes it to a xml file
   void parseFile(OccupancyMap& grid_map);

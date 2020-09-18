@@ -1,6 +1,7 @@
 #pragma once
 
 // Classes
+#include <params.hpp>
 #include <kf.hpp>
 #include <feature.hpp>
 #include <occupancy_map.hpp>
@@ -15,7 +16,6 @@
 #include <iostream>
 #include <map>
 #include <numeric>
-#include <yaml-cpp/yaml.h>
 
 namespace vineslam
 {
@@ -25,7 +25,7 @@ class Mapper2D
 public:
   // Class constructor
   // - Loads the parameters
-  explicit Mapper2D(const std::string& config_path);
+  explicit Mapper2D(Parameters params);
 
   // Global function that handles all the mapping process
   void process(const pose&                         pose,
@@ -52,12 +52,12 @@ public:
 
 private:
   // Input parameters
-  int         filter_frequency;
-  float       stdev_threshold;
-  float       baseline;
-  float       cam_pitch{};
-  float       fx;
-  std::string config_path;
+  int        filter_frequency;
+  float      stdev_threshold;
+  float      baseline;
+  float      cam_pitch{};
+  float      fx;
+  Parameters params;
 
   // Semantic Feature identifier
   int id{};

@@ -1,6 +1,7 @@
 #pragma once
 
 // Class objects
+#include <params.hpp>
 #include <feature.hpp>
 #include <occupancy_map.hpp>
 #include <pf.hpp>
@@ -12,7 +13,6 @@
 #include <iostream>
 #include <thread>
 #include <map>
-#include <yaml-cpp/yaml.h>
 
 namespace vineslam
 {
@@ -31,7 +31,7 @@ class Localizer
 {
 public:
   // Class constructor
-  explicit Localizer(std::string config_path);
+  explicit Localizer(Parameters  params);
 
   // Initializes the particle filter with the number of particles
   // and the first odometry pose
@@ -55,8 +55,8 @@ private:
   // Particle filter object
   PF* pf{};
 
-  // Input parameters file name
-  std::string config_path;
+  // Input parameters
+  Parameters params;
 };
 
 } // namespace vineslam

@@ -6,50 +6,40 @@
 namespace vineslam
 {
 
-PF::PF(const std::string& config_path, const pose& initial_pose)
-    : config_path(config_path)
+PF::PF(const Parameters& params, const pose& initial_pose)
 {
-  // Read input parameters
-  YAML::Node config = YAML::LoadFile(config_path);
   // - General parameters
-  use_landmarks        = config["system"]["use_landmarks"].as<bool>();
-  use_corners          = config["system"]["use_corners"].as<bool>();
-  use_vegetation_lines = config["system"]["use_vegetation_lines"].as<bool>();
-  use_ground_plane     = config["system"]["use_ground_plane"].as<bool>();
-  use_icp              = config["system"]["use_icp"].as<bool>();
-  use_gps              = config["system"]["use_gps"].as<bool>();
-  n_particles          = config["pf"]["n_particles"].as<int>();
+  use_landmarks        = params.use_landmarks;
+  use_corners          = params.use_corners;
+  use_vegetation_lines = params.use_vegetation_lines;
+  use_ground_plane     = params.use_ground_plane;
+  use_icp              = params.use_icp;
+  use_gps              = params.use_gps;
+  n_particles          = params.number_particles;
   // - Motion model parameters
-  srr = config["pf"]["srr"].as<float>();
-  str = config["pf"]["str"].as<float>();
-  stt = config["pf"]["stt"].as<float>();
-  srt = config["pf"]["srt"].as<float>();
+  srr = params.srr;
+  str = params.str;
+  stt = params.stt;
+  srt = params.srt;
   // - Innovation parameters
-  sigma_xy    = config["pf"]["sigma_xy"].as<float>();
-  sigma_z     = config["pf"]["sigma_z"].as<float>();
-  sigma_roll  = config["pf"]["sigma_roll"].as<float>() * DEGREE_TO_RAD;
-  sigma_pitch = config["pf"]["sigma_pitch"].as<float>() * DEGREE_TO_RAD;
-  sigma_yaw   = config["pf"]["sigma_yaw"].as<float>() * DEGREE_TO_RAD;
+  sigma_xy    = params.sigma_xy;
+  sigma_z     = params.sigma_z;
+  sigma_roll  = params.sigma_roll;
+  sigma_pitch = params.sigma_pitch;
+  sigma_yaw   = params.sigma_yaw;
   // - Update standard deviations of each layer
-  sigma_landmark_matching = config["pf"]["sigma_landmark_matching"].as<float>();
-  sigma_feature_matching  = config["pf"]["sigma_feature_matching"].as<float>();
-  sigma_corner_matching   = config["pf"]["sigma_corner_matching"].as<float>();
-  sigma_vegetation_lines_yaw =
-      config["pf"]["sigma_vegetation_lines_yaw"].as<float>() * DEGREE_TO_RAD;
-  sigma_ground_rp = config["pf"]["sigma_ground_rp"].as<float>() * DEGREE_TO_RAD;
-  sigma_gps       = config["pf"]["sigma_gps"].as<float>();
+  sigma_landmark_matching    = params.sigma_landmark_matching;
+  sigma_feature_matching     = params.sigma_feature_matching;
+  sigma_corner_matching      = params.sigma_corner_matching;
+  sigma_vegetation_lines_yaw = params.sigma_vegetation_lines_yaw;
+  sigma_ground_rp            = params.sigma_ground_rp * DEGREE_TO_RAD;
+  sigma_gps                  = params.sigma_gps;
   // - Set clustering parameters
-  k_clusters   = config["pf"]["k_clusters"].as<int>();
+  k_clusters   = params.number_clusters;
   k_iterations = 20;
 
   // Initialize and set ICP parameters
-  auto icp_max_iters = config["multilayer_mapping"]["ICP"]["max_iters"].as<float>();
-  auto dthreshold =
-      config["multilayer_mapping"]["ICP"]["distance_threshold"].as<float>();
-  icp = new ICP(config_path);
-  icp->setMaxIterations(static_cast<int>(icp_max_iters));
-  icp->setThreshold(dthreshold);
-  // ---------------------------------
+  icp = new ICP(params);
 
   // Initialize normal distributions
   particles.resize(n_particles);
@@ -102,9 +92,9 @@ void PF::motionModel(const pose& odom)
   float dt_rot_b = normalizeAngle(odom_inc.yaw - dt_rot_a);
 
   // Motion sample standard deviations
-  float comp = (odom_inc.x < 0)
-                   ? M_PI
-                   : static_cast<float>(
+  float comp         = (odom_inc.x < 0)
+                           ? M_PI
+                           : static_cast<float>(
                          0.); // PREVENT ERROR WHEN ROBOT IS MOVING BACKWARDS :-)
   float s_rot_a_draw = srr * (std::fabs(dt_rot_a) - comp) + srt * dt_trans;
   float s_rot_b_draw = srr * (std::fabs(dt_rot_b) - comp) + srt * dt_trans;
@@ -233,7 +223,7 @@ void PF::gps(const pose& gps_pose, std::vector<float>& ws)
 
   for (const auto& particle : particles) {
     // - GPS [x, y] weight
-    float w_gps = 0.;
+    float w_gps;
     float dist  = particle.p.distance(gps_pose);
     w_gps = (normalizer_gps * static_cast<float>(std::exp(-1. / sigma_gps * dist)));
 
@@ -459,7 +449,7 @@ void PF::mediumLevelLines(const std::vector<Line>& vegetation_lines,
                           std::vector<float>&      ws)
 {
   bool c1 = vegetation_lines.size() == 2;
-  bool c2 = false;
+  bool c2;
 
   if (c1) {
     float theta_left  = std::atan(vegetation_lines[0].m);
@@ -800,9 +790,9 @@ void PF::scanMatch(const std::vector<ImageFeature>&     features,
 
       // - Compute weight
       float w = 0.;
-      for (size_t i = 0; i < serror.size(); i++) {
+      for (float i : serror) {
         w += static_cast<float>(normalizer_icp *
-                                exp(-1. / sigma_feature_matching * serror[i]));
+                                exp(-1. / sigma_feature_matching * i));
         //             static_cast<float>(normalizer_icp *
         //                                exp(-1. / sigma_feature_matching *
         //                                derror[i]));

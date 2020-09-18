@@ -1,6 +1,7 @@
 #pragma once
 
 // Include class objects
+#include <params.hpp>
 #include <feature.hpp>
 #include <occupancy_map.hpp>
 #include <icp.hpp>
@@ -9,13 +10,12 @@
 #include <math/tf.hpp>
 #include <math/const.hpp>
 
-// Include std members and yaml-cpp
+// Include std members
 #include <cstdlib>
 #include <limits>
 #include <chrono>
 #include <iostream>
 #include <map>
-#include <yaml-cpp/yaml.h>
 
 namespace vineslam
 {
@@ -53,7 +53,7 @@ class PF
 public:
   // Class constructor
   // - initializes the total set of particles
-  PF(const std::string& config_path, const pose& initial_pose);
+  PF(const Parameters& params, const pose& initial_pose);
 
   // Apply odometry motion model to all particles
   void motionModel(const pose& odom);

@@ -91,8 +91,8 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
 
   std::vector<ImageFeature> m_imgfeatures;
 
-  if (init && !init_odom && (!init_gps || !use_gps) &&
-      (bearings.size() > 1 || !use_landmarks)) {
+  if (init && !init_odom && (!init_gps || !params.use_gps) &&
+      (bearings.size() > 1 || !params.use_landmarks)) {
     // Initialize the localizer and get first particles distribution
     localizer->init(pose(0, 0, 0, 0, 0, odom.yaw));
     robot_pose = localizer->getPose();
@@ -129,7 +129,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     ROS_INFO("DONE! Starting Localization and Mapping.");
 
     init = false;
-  } else if (!init && !init_odom && (!init_gps || !use_gps)) {
+  } else if (!init && !init_odom && (!init_gps || !params.use_gps)) {
 
     // --------- Build local maps to use in the localization
     // - Compute 2D local map of semantic features on robot's referential frame
@@ -147,12 +147,12 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
 
     // ------- Build observation structure to use in the localization
     Observation obsv;
-    if (use_landmarks)
+    if (params.use_landmarks)
       obsv.landmarks = m_landmarks;
     obsv.corners          = m_corners_vel;
     obsv.vegetation_lines = m_vegetation_lines;
     obsv.ground_plane     = m_ground_plane_vel;
-    if (has_converged && use_gps)
+    if (has_converged && params.use_gps)
       obsv.gps_pose = gps_pose;
     else
       obsv.gps_pose = pose(0., 0., 0., 0., 0., 0.);
@@ -234,7 +234,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     publish3DMap(m_vegetation_lines, map3D_planes_publisher);
     // ------------------------------------------------ //
 
-    if (debug) {
+    if (params.debug) {
       // Publish all poses for DEBUG
       // ----------------------------------------------------------------------------
       std::vector<pose> poses;
@@ -302,8 +302,8 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
         float                x_min_a = m_vegetation_lines[0].pts[0].x;
         float                x_max_a =
             m_vegetation_lines[0].pts[m_vegetation_lines[0].pts.size() - 1].x;
-        float                x_min_b = m_vegetation_lines[1].pts[0].x;
-        float                x_max_b =
+        float x_min_b = m_vegetation_lines[1].pts[0].x;
+        float x_max_b =
             m_vegetation_lines[1].pts[m_vegetation_lines[1].pts.size() - 1].x;
         P1_a.x = x_min_a;
         P1_a.y = x_min_a * m_vegetation_lines[0].m + m_vegetation_lines[0].b;
@@ -421,8 +421,8 @@ void VineSLAM_ros::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
 
     // Set initial datum
     agrob_map_transform::SetDatum srv;
-    srv.request.geo_pose.position.latitude  = gps_init_lat;
-    srv.request.geo_pose.position.longitude = gps_init_long;
+    srv.request.geo_pose.position.latitude  = params.latitude;
+    srv.request.geo_pose.position.longitude = params.longitude;
     srv.request.geo_pose.position.altitude  = 0.0;
     tf::Quaternion quat;
     quat.setRPY(0.0, 0.0, 0.0);
@@ -599,7 +599,7 @@ void VineSLAM_ros::computeObsv(const sensor_msgs::Image& depth_img,
       if (std::isfinite(depths[idx]) && depths[idx] > range_min &&
           depths[idx] < range_max) {
         float x         = depths[idx];
-        float y         = -(static_cast<float>(i) - cx) * (x / fx);
+        float y         = -(static_cast<float>(i) - params.cx) * (x / params.fx);
         float m_depth   = static_cast<float>(sqrt(pow(x, 2) + pow(y, 2)));
         dtheta[m_depth] = atan2(y, x);
       }
@@ -630,34 +630,39 @@ void VineSLAM_ros::publishGridMap(const std_msgs::Header& header)
 
   // Set the map metadata
   nav_msgs::MapMetaData metadata;
-  metadata.origin.position.x    = occ_origin.x;
-  metadata.origin.position.y    = occ_origin.y;
-  metadata.origin.position.z    = occ_origin.z;
+  metadata.origin.position.x    = params.gridmap_origin_x;
+  metadata.origin.position.y    = params.gridmap_origin_y;
+  metadata.origin.position.z    = 0;
   metadata.origin.orientation.x = 0.;
   metadata.origin.orientation.y = 0.;
   metadata.origin.orientation.z = 0.;
   metadata.origin.orientation.w = 1.;
-  metadata.resolution           = occ_resolution;
-  metadata.width                = occ_width / occ_resolution;
-  metadata.height               = occ_height / occ_resolution;
-  occ_map.info                  = metadata;
+  metadata.resolution           = params.gridmap_resolution;
+  metadata.width                = params.gridmap_width / params.gridmap_resolution;
+  metadata.height = params.gridmap_height / params.gridmap_resolution;
+  occ_map.info    = metadata;
 
   // Fill the occupancy grid map
   occ_map.data.resize(metadata.width * metadata.height);
   // - compute x and y bounds
-  int xmin = static_cast<int>(occ_origin.x / occ_resolution);
-  int xmax = static_cast<int>((float)xmin + occ_width / occ_resolution - 1);
-  int ymin = static_cast<int>(occ_origin.y / occ_resolution);
-  int ymax = static_cast<int>((float)ymin + occ_height / occ_resolution - 1);
+  int xmin = static_cast<int>(params.gridmap_origin_x / params.gridmap_resolution);
+  int xmax = static_cast<int>(
+      (float)xmin + params.gridmap_width / params.gridmap_resolution - 1);
+  int ymin = static_cast<int>(params.gridmap_origin_y / params.gridmap_resolution);
+  int ymax = static_cast<int>(
+      (float)ymin + params.gridmap_height / params.gridmap_resolution - 1);
   for (int i = xmin; i < xmax; i++) {
     for (int j = ymin; j < ymax; j++) {
       int8_t number_objs = (*grid_map)(i, j).landmarks.size() +
                            (*grid_map)(i, j).surf_features.size() +
                            (*grid_map)(i, j).corner_features.size();
 
-      int m_i = i - static_cast<int>(occ_origin.x / occ_resolution);
-      int m_j = j - static_cast<int>(occ_origin.y / occ_resolution);
-      int idx = m_i + m_j * static_cast<int>((occ_width / occ_resolution));
+      int m_i = i - static_cast<int>(params.gridmap_origin_x /
+                                     params.gridmap_resolution);
+      int m_j = j - static_cast<int>(params.gridmap_origin_y /
+                                     params.gridmap_resolution);
+      int idx = m_i + m_j * static_cast<int>((params.gridmap_width /
+                                              params.gridmap_resolution));
 
       occ_map.data[idx] = number_objs * 10;
     }

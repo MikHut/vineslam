@@ -1,6 +1,7 @@
 #pragma once
 
 // Object members
+#include <params.hpp>
 #include <math/point.hpp>
 #include <math/stat.hpp>
 #include <math/const.hpp>
@@ -8,7 +9,6 @@
 // ROS, std, Eigen
 #include <eigen3/Eigen/Dense>
 #include <iostream>
-#include <yaml-cpp/yaml.h>
 
 using Eigen::MatrixXf;
 using Eigen::VectorXf;
@@ -22,11 +22,11 @@ public:
   // Class constructor
   // - Receives the initial state and the parameters
   // - initializes the covariance matrix
-  KF(const VectorXf&    X0,
+  KF(const Parameters&  params,
+     const VectorXf&    X0,
      const VectorXf&    s,
      const VectorXf&    g,
-     const VectorXf&    z,
-     const std::string& config_path);
+     const VectorXf&    z);
   // Function that processes all the Kalman Filter routines
   void process(const VectorXf& s, const VectorXf& g, const VectorXf& z);
   // Function that outputs the current state of the Kalman Filter

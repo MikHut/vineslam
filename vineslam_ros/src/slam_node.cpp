@@ -19,6 +19,9 @@ SLAMNode::SLAMNode(int argc, char** argv)
   ros::init(argc, argv, "SLAMNode");
   ros::NodeHandle nh;
 
+  // Load params
+  loadParameters(nh, "/slam_node", params);
+
   // Set initialization flags default values
   init             = true;
   init_gps         = true;
@@ -26,40 +29,13 @@ SLAMNode::SLAMNode(int argc, char** argv)
   register_map     = true;
   estimate_heading = true;
 
-  // Load param
-  if (!nh.getParam("/slam_node/SLAMNode/config_path", config_path)) {
-    ROS_ERROR("/config_path parameter not found. Shutting down...");
-    return;
-  }
-
-  // Load config file
-  auto config = YAML::LoadFile(config_path);
-  // System flags
-  debug = config["system"]["debug"].as<bool>();
-  // Load camera info parameters
-  img_width  = config["camera_info"]["img_width"].as<int>();
-  img_height = config["camera_info"]["img_height"].as<int>();
-  fx         = config["camera_info"]["fx"].as<float>();
-  fy         = config["camera_info"]["fy"].as<float>();
-  cx         = config["camera_info"]["cx"].as<float>();
-  cy         = config["camera_info"]["cy"].as<float>();
-  // Load occupancy grid map parameters
-  occ_origin.x = config["multilayer_mapping"]["grid_map"]["origin"]["x"].as<float>();
-  occ_origin.y = config["multilayer_mapping"]["grid_map"]["origin"]["y"].as<float>();
-  occ_resolution =
-      config["multilayer_mapping"]["grid_map"]["resolution"].as<float>();
-  occ_width     = config["multilayer_mapping"]["grid_map"]["width"].as<float>();
-  occ_height    = config["multilayer_mapping"]["grid_map"]["height"].as<float>();
-  use_landmarks = config["system"]["use_landmarks"].as<bool>();
-  use_gps       = config["system"]["use_gps"].as<bool>();
-  gps_init_lat  = config["system"]["gps_datum"]["lat"].as<float>();
-  gps_init_long = config["system"]["gps_datum"]["long"].as<float>();
-
   // Declare the Mappers and Localizer objects
-  localizer = new Localizer(config_path);
-  grid_map  = new OccupancyMap(config_path);
-  mapper2D  = new Mapper2D(config_path);
-  mapper3D  = new Mapper3D(config_path);
+  localizer = new Localizer(params);
+  grid_map  = new OccupancyMap(params);
+  mapper2D  = new Mapper2D(params);
+  mapper3D  = new Mapper3D(params);
+
+  printParameters(params);
 
   // Services
   polar2pose = nh.serviceClient<agrob_map_transform::GetPose>("polar_to_pose");
@@ -67,11 +43,11 @@ SLAMNode::SLAMNode(int argc, char** argv)
 
   // Synchronize subscribers of both topics
   message_filters::Subscriber<sensor_msgs::Image> left_image_sub(
-      nh, "/left_image", 1);
+      nh, params.left_img_topic, 1);
   message_filters::Subscriber<sensor_msgs::Image> depth_image_sub(
-      nh, "/depth_image", 1);
+      nh, params.depth_img_topic, 1);
   message_filters::Subscriber<vision_msgs::Detection2DArray> detections_sub(
-      nh, "/detections", 1);
+      nh, params.detections_topic, 1);
   message_filters::TimeSynchronizer<sensor_msgs::Image,
                                     sensor_msgs::Image,
                                     vision_msgs::Detection2DArray>
@@ -79,14 +55,20 @@ SLAMNode::SLAMNode(int argc, char** argv)
   sync.registerCallback(boost::bind(&SLAMNode::mainCallbackFct, this, _1, _2, _3));
 
   // Scan subscription
-  ros::Subscriber scan_subscriber = nh.subscribe(
-      "/scan_3D", 1, &VineSLAM_ros::scanListener, dynamic_cast<VineSLAM_ros*>(this));
+  ros::Subscriber scan_subscriber = nh.subscribe(params.pcl_topic,
+                                                 1,
+                                                 &VineSLAM_ros::scanListener,
+                                                 dynamic_cast<VineSLAM_ros*>(this));
   // Odometry subscription
-  ros::Subscriber odom_subscriber = nh.subscribe(
-      "/odom", 1, &VineSLAM_ros::odomListener, dynamic_cast<VineSLAM_ros*>(this));
+  ros::Subscriber odom_subscriber = nh.subscribe(params.odom_topic,
+                                                 1,
+                                                 &VineSLAM_ros::odomListener,
+                                                 dynamic_cast<VineSLAM_ros*>(this));
   // GPS subscription
-  ros::Subscriber gps_subscriber = nh.subscribe(
-      "/fix", 1, &VineSLAM_ros::gpsListener, dynamic_cast<VineSLAM_ros*>(this));
+  ros::Subscriber gps_subscriber = nh.subscribe(params.fix_topic,
+                                                1,
+                                                &VineSLAM_ros::gpsListener,
+                                                dynamic_cast<VineSLAM_ros*>(this));
 
   // Publish maps and particle filter
   mapOCC_publisher =
@@ -125,7 +107,7 @@ SLAMNode::SLAMNode(int argc, char** argv)
                           dynamic_cast<VineSLAM_ros*>(this));
 
   // GNSS varibales
-  if (use_gps) {
+  if (params.use_gps) {
     datum_autocorrection_stage = 0;
     global_counter             = 0;
   }
@@ -166,12 +148,11 @@ SLAMNode::SLAMNode(int argc, char** argv)
 SLAMNode::~SLAMNode()
 {
   // Save map data
-  auto config   = YAML::LoadFile(config_path);
-  bool save_map = config["multilayer_mapping"]["grid_map"]["save_map"].as<bool>();
+  bool save_map = params.save_map;
 
   if (save_map) {
     std::cout << "Writing map to file ..." << std::endl;
-    MapWriter mw(config_path);
+    MapWriter mw(params);
     mw.writeToFile(*grid_map);
   }
 

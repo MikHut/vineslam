@@ -7,8 +7,6 @@
 
   <!-- agrob_map_transform gps node -->
   <node pkg="agrob_map_transform" type="agrob_gnss_transform_node" name="agrob_gnss_transform_node" clear_params="true">
-    <rosparam command="load" file="$(find agrob_map_transform)/params/vineslam_configs.yaml" />
-
       <remap from="imu/data" to="/Dummy/IMU"/>
       <remap from="odometry/filtered" to="/vineslam/odom"/>
       <remap from="gps/fix" to="/fix"/>
@@ -22,13 +20,7 @@
 
   <!-- slam node -->
   <node pkg="vineslam_ros" type="localization_node" name="localization_node" output="screen">
-    <remap from="/left_image"  to="/zed/zed_node/left/image_rect_color"/>
-    <remap from="/depth_image" to="/zed/zed_node/depth/depth_registered" />
-    <remap from="/detections"  to="/detections" />
-    <remap from="/odom"        to="/husky_velocity_controller/odom" />
-    <remap from="/fix"         to="/fix" />
-
-    <param name="/LocalizationNode/config_path" value="$(find vineslam)/config/setup.yaml" />
+    <rosparam command="load" subst_value="True" file="$(find vineslam_ros)/param/setup.yaml"/>
   </node>
 
   <!-- Coral edgetpu trunk detection node -->

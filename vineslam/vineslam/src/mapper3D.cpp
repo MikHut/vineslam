@@ -3,33 +3,28 @@
 namespace vineslam
 {
 
-Mapper3D::Mapper3D(const std::string& config_path)
+Mapper3D::Mapper3D(const Parameters& params)
 {
-  // Load configuration file
-  YAML::Node config = YAML::LoadFile(config_path);
-
   // Load camera info parameters
-  img_width  = config["camera_info"]["img_width"].as<int>();
-  img_height = config["camera_info"]["img_height"].as<int>();
-  fx         = config["camera_info"]["fx"].as<float>();
-  fy         = config["camera_info"]["fy"].as<float>();
-  cx         = config["camera_info"]["cx"].as<float>();
-  cy         = config["camera_info"]["cy"].as<float>();
-  depth_hfov = config["camera_info"]["depth_hfov"].as<float>() * DEGREE_TO_RAD;
-  depth_vfov = config["camera_info"]["depth_vfov"].as<float>() * DEGREE_TO_RAD;
+  img_width  = params.img_width;
+  img_height = params.img_height;
+  fx         = params.fx;
+  fy         = params.fy;
+  cx         = params.cx;
+  cy         = params.cy;
+  depth_hfov = params.depth_hfov;
+  depth_vfov = params.depth_vfov;
   // Load 3D map parameters
-  metric     = config["multilayer_mapping"]["grid_map"]["metric"].as<std::string>();
-  max_range  = config["multilayer_mapping"]["map_3D"]["max_range"].as<float>();
-  max_height = config["multilayer_mapping"]["map_3D"]["max_height"].as<float>();
+  metric     = params.gridmap_metric;
+  max_range  = params.max_range;
+  max_height = params.max_height;
   // Feature detector
-  hessian_threshold =
-      config["multilayer_mapping"]["image_feature"]["hessian_threshold"].as<int>();
+  hessian_threshold = params.hessian_threshold;
 
   // Set pointcloud feature parameters
-  max_iters      = 20;
-  dist_threshold = 0.08;
-  init_downsample_f =
-      config["multilayer_mapping"]["cloud_feature"]["downsample_factor"].as<int>();
+  max_iters         = 20;
+  dist_threshold    = 0.08;
+  init_downsample_f = params.downsample_factor;
 
   // Threshold to consider correspondences
   correspondence_threshold = 0.02;

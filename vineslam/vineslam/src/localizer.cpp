@@ -5,15 +5,15 @@
 namespace vineslam
 {
 
-Localizer::Localizer(std::string config_path)
-    : config_path(std::move(config_path))
+Localizer::Localizer(Parameters params)
+    : params(std::move(params))
 {
 }
 
 void Localizer::init(const pose& initial_pose)
 {
   // Initialize the particle filter
-  pf = new PF(config_path, initial_pose);
+  pf = new PF(params, initial_pose);
 
   // Compute average pose and standard deviation of the
   // first distribution

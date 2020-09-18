@@ -3,16 +3,15 @@
 namespace vineslam
 {
 
-OccupancyMap::OccupancyMap(const std::string& config_path)
+OccupancyMap::OccupancyMap(const Parameters& params)
 {
   // Read input parameters
-  YAML::Node config = YAML::LoadFile(config_path);
-  origin.x   = config["multilayer_mapping"]["grid_map"]["origin"]["x"].as<float>();
-  origin.y   = config["multilayer_mapping"]["grid_map"]["origin"]["y"].as<float>();
-  resolution = config["multilayer_mapping"]["grid_map"]["resolution"].as<float>();
-  width      = config["multilayer_mapping"]["grid_map"]["width"].as<float>();
-  height     = config["multilayer_mapping"]["grid_map"]["height"].as<float>();
-  metric     = config["multilayer_mapping"]["grid_map"]["metric"].as<std::string>();
+  origin.x   = params.gridmap_origin_x;
+  origin.y   = params.gridmap_origin_y;
+  resolution = params.gridmap_resolution;
+  width      = params.gridmap_width;
+  height     = params.gridmap_height;
+  metric     = params.gridmap_metric;
 
   // Set the grid map size
   int map_size =

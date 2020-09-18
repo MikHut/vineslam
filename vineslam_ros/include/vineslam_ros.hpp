@@ -1,6 +1,7 @@
 #pragma once
 
 // vineslam members
+#include <params_loader.hpp>
 #include <feature.hpp>
 #include <localizer.hpp>
 #include <occupancy_map.hpp>
@@ -39,7 +40,6 @@
 #include <nav_msgs/OccupancyGrid.h>
 #include <pcl_ros/point_cloud.h>
 #include <pcl/filters/filter.h>
-#include <yaml-cpp/yaml.h>
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 #include <vineslam_ros/start_map_registration.h>
@@ -133,6 +133,7 @@ public:
   ros::ServiceClient set_datum;
 
   // Classes object members
+  Parameters    params;
   Localizer*    localizer;
   OccupancyMap* grid_map;
   Mapper2D*     mapper2D;
@@ -164,36 +165,11 @@ public:
   bool    estimate_heading;
   float   heading;
 
-  // Input parameters
-  // ------------------------
-  std::string config_path;
-  bool        debug;
-  // Camera info parameters
-  int   img_width;
-  int   img_height;
-  float fx;
-  float fy;
-  float cx;
-  float cy;
-  // ------------------------
-  // Grid map
-  bool register_map;
-  // NOTE: corners are in reference to the given origin
-  point occ_origin;
-  float occ_resolution;
-  float occ_width;
-  float occ_height;
-  //------------------------
-  // System settings
-  bool  use_gps;
-  float gps_init_lat;
-  float gps_init_long;
-  bool  use_landmarks;
-
   // Initialization flags
   bool init;
   bool init_gps;
   bool init_odom;
+  bool register_map;
 };
 
 } // namespace vineslam

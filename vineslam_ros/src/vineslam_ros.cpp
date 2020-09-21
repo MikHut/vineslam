@@ -115,7 +115,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
 
     // Convert vineslam pose to ROS pose and publish it
     geometry_msgs::PoseStamped pose_stamped;
-    pose_stamped.header             = depth_image->header;
+    pose_stamped.header.stamp       = ros::Time::now();
     pose_stamped.header.frame_id    = "map";
     pose_stamped.pose.position.x    = 0;
     pose_stamped.pose.position.y    = 0;
@@ -199,7 +199,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
 
     // Convert vineslam pose to ROS pose and publish it
     geometry_msgs::PoseStamped pose_stamped;
-    pose_stamped.header             = depth_image->header;
+    pose_stamped.header.stamp       = ros::Time::now();
     pose_stamped.header.frame_id    = "map";
     pose_stamped.pose.position.x    = robot_pose.x;
     pose_stamped.pose.position.y    = robot_pose.y;
@@ -213,15 +213,15 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // Push back the current pose to the path container and publish it
     path.push_back(pose_stamped);
     nav_msgs::Path ros_path;
-    ros_path.header          = depth_image->header;
+    ros_path.header.stamp    = ros::Time::now();
     ros_path.header.frame_id = "map";
     ros_path.poses           = path;
     path_publisher.publish(ros_path);
 
     // Publish cam-to-map tf::Transform
     static tf::TransformBroadcaster br;
-    br.sendTransform(tf::StampedTransform(
-        base2map, pose_stamped.header.stamp, "map", "base_link"));
+    br.sendTransform(
+        tf::StampedTransform(base2map, ros::Time::now(), "map", "base_link"));
 
     // ---------- Publish Multi-layer map ------------- //
     // Publish the grid map
@@ -240,7 +240,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
       std::vector<pose> poses;
       (*localizer).getParticles(poses);
       geometry_msgs::PoseArray ros_poses;
-      ros_poses.header          = depth_image->header;
+      ros_poses.header.stamp    = ros::Time::now();
       ros_poses.header.frame_id = "map";
       for (const auto& pose : poses) {
         tf::Quaternion m_q;
@@ -320,7 +320,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
 
         visualization_msgs::Marker marker_a;
         marker_a.header.frame_id = "map";
-        marker_a.header.stamp    = ros::Time();
+        marker_a.header.stamp    = ros::Time::now();
         marker_a.ns              = "line_a";
         marker_a.id              = 0;
         marker_a.type            = visualization_msgs::Marker::LINE_STRIP;
@@ -336,7 +336,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
         marker_a.scale.z = 0.1;
         visualization_msgs::Marker marker_b;
         marker_b.header.frame_id = "map";
-        marker_b.header.stamp    = ros::Time();
+        marker_b.header.stamp    = ros::Time::now();
         marker_b.ns              = "line_b";
         marker_b.id              = 1;
         marker_b.type            = visualization_msgs::Marker::LINE_STRIP;
@@ -413,9 +413,9 @@ void VineSLAM_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)
 
 void VineSLAM_ros::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
 {
-  //  if (!use_gps)
-  //    return;
-  //
+    if (!params.use_gps)
+      return;
+
   if (init_gps) {
     has_converged = false;
 
@@ -456,7 +456,7 @@ void VineSLAM_ros::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
 
     // Publish gnss to map tf::Transform
     static tf::TransformBroadcaster br;
-    br.sendTransform(tf::StampedTransform(ned2map, msg->header.stamp, "enu", "map"));
+    br.sendTransform(tf::StampedTransform(ned2map, ros::Time::now(), "enu", "map"));
 
     // Publish gnss pose in the enu reference frame
     geometry_msgs::PoseStamped gnss_pose;
@@ -467,7 +467,7 @@ void VineSLAM_ros::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
     gnss_pose.pose.orientation.y = 0.;
     gnss_pose.pose.orientation.z = 0.;
     gnss_pose.pose.orientation.w = 1.;
-    gnss_pose.header             = msg->header;
+    gnss_pose.header.stamp       = ros::Time::now();
     gnss_pose.header.frame_id    = "enu";
 
     gps_poses.push_back(gnss_pose);
@@ -625,7 +625,7 @@ void VineSLAM_ros::publishGridMap(const std_msgs::Header& header)
 {
   // Define ROS occupancy grid map
   nav_msgs::OccupancyGrid occ_map;
-  occ_map.header          = header;
+  occ_map.header.stamp    = ros::Time::now();
   occ_map.header.frame_id = "map";
 
   // Set the map metadata
@@ -639,30 +639,30 @@ void VineSLAM_ros::publishGridMap(const std_msgs::Header& header)
   metadata.origin.orientation.w = 1.;
   metadata.resolution           = params.gridmap_resolution;
   metadata.width                = params.gridmap_width / params.gridmap_resolution;
-  metadata.height = params.gridmap_height / params.gridmap_resolution;
-  occ_map.info    = metadata;
+  metadata.height               = params.gridmap_height / params.gridmap_resolution;
+  occ_map.info                  = metadata;
 
   // Fill the occupancy grid map
   occ_map.data.resize(metadata.width * metadata.height);
   // - compute x and y bounds
   int xmin = static_cast<int>(params.gridmap_origin_x / params.gridmap_resolution);
-  int xmax = static_cast<int>(
-      (float)xmin + params.gridmap_width / params.gridmap_resolution - 1);
+  int xmax = static_cast<int>((float)xmin +
+                              params.gridmap_width / params.gridmap_resolution - 1);
   int ymin = static_cast<int>(params.gridmap_origin_y / params.gridmap_resolution);
-  int ymax = static_cast<int>(
-      (float)ymin + params.gridmap_height / params.gridmap_resolution - 1);
+  int ymax = static_cast<int>((float)ymin +
+                              params.gridmap_height / params.gridmap_resolution - 1);
   for (int i = xmin; i < xmax; i++) {
     for (int j = ymin; j < ymax; j++) {
       int8_t number_objs = (*grid_map)(i, j).landmarks.size() +
                            (*grid_map)(i, j).surf_features.size() +
                            (*grid_map)(i, j).corner_features.size();
 
-      int m_i = i - static_cast<int>(params.gridmap_origin_x /
-                                     params.gridmap_resolution);
-      int m_j = j - static_cast<int>(params.gridmap_origin_y /
-                                     params.gridmap_resolution);
-      int idx = m_i + m_j * static_cast<int>((params.gridmap_width /
-                                              params.gridmap_resolution));
+      int m_i =
+          i - static_cast<int>(params.gridmap_origin_x / params.gridmap_resolution);
+      int m_j =
+          j - static_cast<int>(params.gridmap_origin_y / params.gridmap_resolution);
+      int idx = m_i + m_j * static_cast<int>(
+                                (params.gridmap_width / params.gridmap_resolution));
 
       occ_map.data[idx] = number_objs * 10;
     }
@@ -718,7 +718,7 @@ void VineSLAM_ros::publish2DMap(const std_msgs::Header&   header,
     for (const auto& m_sfeature : it.landmarks) {
       // Draw sfeature mean
       marker.id              = id;
-      marker.header          = header;
+      marker.header.stamp    = ros::Time::now();
       marker.header.frame_id = "map";
       marker.pose.position.x = m_sfeature.second.pos.x;
       marker.pose.position.y = m_sfeature.second.pos.y;
@@ -731,7 +731,7 @@ void VineSLAM_ros::publish2DMap(const std_msgs::Header&   header,
       q.setRPY(0, 0, m_sfeature.second.gauss.theta);
 
       ellipse.id                 = id;
-      ellipse.header             = header;
+      ellipse.header.stamp       = ros::Time::now();
       ellipse.header.frame_id    = "map";
       ellipse.pose.position.x    = m_sfeature.second.pos.x;
       ellipse.pose.position.y    = m_sfeature.second.pos.y;
@@ -754,7 +754,7 @@ void VineSLAM_ros::publish2DMap(const std_msgs::Header&   header,
   q.setRPY(0, 0, pose.dist.theta);
 
   ellipse.id                 = id;
-  ellipse.header             = header;
+  ellipse.header.stamp       = ros::Time::now();
   ellipse.header.frame_id    = "map";
   ellipse.pose.position.x    = pose.x;
   ellipse.pose.position.y    = pose.y;
@@ -917,7 +917,7 @@ void VineSLAM_ros::cornersDebug(const std::vector<Corner>&       corners,
 
     visualization_msgs::Marker marker;
     marker.header.frame_id = "map";
-    marker.header.stamp    = ros::Time();
+    marker.header.stamp    = ros::Time::now();
     marker.ns              = "correspondence_" + std::to_string(i);
     marker.id              = i++;
     marker.type            = visualization_msgs::Marker::ARROW;

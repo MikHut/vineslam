@@ -37,7 +37,7 @@ Visualization Manager:
       Cell Size: 1
       Class: rviz/Grid
       Color: 160; 160; 164
-      Enabled: true
+      Enabled: false
       Line Style:
         Line Width: 0.029999999329447746
         Value: Lines
@@ -50,7 +50,7 @@ Visualization Manager:
       Plane: XY
       Plane Cell Count: 100
       Reference Frame: <Fixed Frame>
-      Value: true
+      Value: false
     - Class: rviz/Image
       Enabled: true
       Image Topic: /zed/zed_node/left/image_rect_color
@@ -76,101 +76,65 @@ Visualization Manager:
       Unreliable: false
       Value: true
     - Class: rviz/TF
-      Enabled: false
+      Enabled: true
       Frame Timeout: 15
       Frames:
         All Enabled: false
+        base_link:
+          Value: true
+        camerat265_odom_frame:
+          Value: false
+        camerat265_pose_frame:
+          Value: false
+        front_left_wheel_link:
+          Value: true
+        front_right_wheel_link:
+          Value: true
+        gps:
+          Value: false
+        hokuyo_link:
+          Value: false
+        imu_link:
+          Value: false
+        map:
+          Value: true
+        rear_left_wheel_link:
+          Value: true
+        rear_right_wheel_link:
+          Value: true
+        tower_base:
+          Value: true
+        velodyne:
+          Value: true
       Marker Scale: 5
       Name: TF
       Show Arrows: false
       Show Axes: true
       Show Names: false
       Tree:
-        {}
+        map:
+          base_link:
+            front_left_wheel_link:
+              {}
+            front_right_wheel_link:
+              {}
+            gps:
+              {}
+            hokuyo_link:
+              {}
+            rear_left_wheel_link:
+              {}
+            rear_right_wheel_link:
+              {}
+            tower_base:
+              imu_link:
+                {}
+              velodyne:
+                {}
+          camerat265_odom_frame:
+            camerat265_pose_frame:
+              {}
       Update Interval: 0
-      Value: false
-    - Angle Tolerance: 0.10000000149011612
-      Class: rviz/Odometry
-      Covariance:
-        Orientation:
-          Alpha: 0.5
-          Color: 255; 255; 127
-          Color Style: Unique
-          Frame: Local
-          Offset: 1
-          Scale: 1
-          Value: true
-        Position:
-          Alpha: 0.30000001192092896
-          Color: 204; 51; 204
-          Scale: 1
-          Value: true
-        Value: false
-      Enabled: true
-      Keep: 10000
-      Name: Odometry
-      Position Tolerance: 0.10000000149011612
-      Shape:
-        Alpha: 1
-        Axes Length: 1
-        Axes Radius: 0.10000000149011612
-        Color: 32; 74; 135
-        Head Length: 0.07000000029802322
-        Head Radius: 0.05000000074505806
-        Shaft Length: 0.4000000059604645
-        Shaft Radius: 0.10000000149011612
-        Value: Arrow
-      Topic: /husky_velocity_controller/odom
-      Unreliable: true
-      Value: true
-    - Angle Tolerance: 0.10000000149011612
-      Class: rviz/Odometry
-      Covariance:
-        Orientation:
-          Alpha: 0.5
-          Color: 255; 255; 127
-          Color Style: Unique
-          Frame: Local
-          Offset: 1
-          Scale: 1
-          Value: true
-        Position:
-          Alpha: 0.30000001192092896
-          Color: 204; 51; 204
-          Scale: 1
-          Value: true
-        Value: false
-      Enabled: true
-      Keep: 1000000
-      Name: RealSense Odometry
-      Position Tolerance: 0.10000000149011612
-      Shape:
-        Alpha: 1
-        Axes Length: 1
-        Axes Radius: 0.10000000149011612
-        Color: 206; 92; 0
-        Head Length: 0.30000001192092896
-        Head Radius: 0.10000000149011612
-        Shaft Length: 0.5
-        Shaft Radius: 0.05000000074505806
-        Value: Arrow
-      Topic: /camerat265/odom/sample
-      Unreliable: false
-      Value: true
-    - Alpha: 1
-      Axes Length: 1
-      Axes Radius: 0.10000000149011612
-      Class: rviz/Pose
-      Color: 255; 25; 0
-      Enabled: true
-      Head Length: 0.10000000149011612
-      Head Radius: 0.10000000149011612
-      Name: Robot Pose
-      Shaft Length: 1
-      Shaft Radius: 0.10000000149011612
-      Shape: Arrow
-      Topic: /vineslam/pose
-      Unreliable: false
       Value: true
     - Alpha: 1
       Buffer Length: 1
@@ -386,25 +350,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 42.24819564819336
+      Distance: 55.858421325683594
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.5716805458068848
-        Y: -2.0805931091308594
-        Z: -9.375613444717601e-6
+        X: 1.3250181674957275
+        Y: 1.998427391052246
+        Z: -6.991427653701976e-6
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: 0.10479691624641418
       Target Frame: <Fixed Frame>
       Value: XYOrbit (rviz)
-      Yaw: 3.1396195888519287
+      Yaw: 2.2114338874816895
     Saved: ~
 Window Geometry:
   Displays:

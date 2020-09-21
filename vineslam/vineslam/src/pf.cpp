@@ -24,14 +24,14 @@ PF::PF(const Parameters& params, const pose& initial_pose)
   // - Innovation parameters
   sigma_xy    = params.sigma_xy;
   sigma_z     = params.sigma_z;
-  sigma_roll  = params.sigma_roll;
-  sigma_pitch = params.sigma_pitch;
-  sigma_yaw   = params.sigma_yaw;
+  sigma_roll  = params.sigma_roll * DEGREE_TO_RAD;
+  sigma_pitch = params.sigma_pitch * DEGREE_TO_RAD;
+  sigma_yaw   = params.sigma_yaw * DEGREE_TO_RAD;
   // - Update standard deviations of each layer
   sigma_landmark_matching    = params.sigma_landmark_matching;
   sigma_feature_matching     = params.sigma_feature_matching;
   sigma_corner_matching      = params.sigma_corner_matching;
-  sigma_vegetation_lines_yaw = params.sigma_vegetation_lines_yaw;
+  sigma_vegetation_lines_yaw = params.sigma_vegetation_lines_yaw * DEGREE_TO_RAD;
   sigma_ground_rp            = params.sigma_ground_rp * DEGREE_TO_RAD;
   sigma_gps                  = params.sigma_gps;
   // - Set clustering parameters

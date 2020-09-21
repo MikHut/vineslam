@@ -5,8 +5,8 @@ rs_odom_topic: /camerat265/odom/sample
 fix_topic: /fix
 tf_topic: /tf
 depth_img_topic: /zed/zed_node/depth/depth_registered
-#left_img_topic: /zed/zed_node/left_raw/image_raw_color/compressed
-left_img_topic: /zed/zed_node/left/image
+left_img_topic: /zed/zed_node/left_raw/image_raw_color/compressed
+#left_img_topic: /zed/zed_node/left/image
 detections_topic: /tpu/detections
 pcl_topic: /velodyne_points
 
@@ -85,7 +85,7 @@ pf:
   sigma_xy: 0.15 # meters (just for initialization)
   sigma_z: 0.01 # meters
   sigma_roll: 0.01 # degrees
-  sigma_pitch: 0.1 # degrees
+  sigma_pitch: 0.01 # degrees
   sigma_yaw: 1.0 # degrees (just for initialization)
 
   ## --- PARTICLES UPDATE -- #

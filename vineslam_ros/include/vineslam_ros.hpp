@@ -17,7 +17,6 @@
 // std
 #include <iostream>
 #include <ctime>
-#include <thread>
 
 // ROS
 #include <cv_bridge/cv_bridge.h>
@@ -40,8 +39,6 @@
 #include <nav_msgs/OccupancyGrid.h>
 #include <pcl_ros/point_cloud.h>
 #include <pcl/filters/filter.h>
-#include <rosbag/bag.h>
-#include <rosbag/view.h>
 #include <vineslam_ros/start_map_registration.h>
 #include <vineslam_ros/stop_map_registration.h>
 #include <vineslam_ros/stop_gps_heading_estimation.h>

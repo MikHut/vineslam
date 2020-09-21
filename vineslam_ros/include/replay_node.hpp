@@ -2,6 +2,12 @@
 
 #include "vineslam_ros.hpp"
 
+#include <rosbag/bag.h>
+#include <rosbag/view.h>
+#include <rosgraph_msgs/Clock.h>
+
+#include <thread>
+
 namespace vineslam
 {
 

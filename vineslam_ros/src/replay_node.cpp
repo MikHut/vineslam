@@ -21,7 +21,6 @@ ReplayNode::ReplayNode(int argc, char** argv)
 
   // Load params
   loadParameters(nh, "/replay_node", params);
-  printParameters(params);
 
   // Set node flags
   nmessages = 0;
@@ -35,7 +34,6 @@ ReplayNode::ReplayNode(int argc, char** argv)
   init_odom        = true;
   register_map     = true;
   estimate_heading = true;
-
 
   // Declare the Mappers and Localizer objects
   localizer = new Localizer(params);
@@ -137,12 +135,12 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
   // -------------------------------------------------------------------------------
   // ----- Set rosbags topics of interest
   // -------------------------------------------------------------------------------
-  ros::Publisher odom_pub = nh.advertise<nav_msgs::Odometry>(params.odom_topic, 1);
+  ros::Publisher clock_pub = nh.advertise<rosgraph_msgs::Clock>("/clock", 1);
+  ros::Publisher odom_pub  = nh.advertise<nav_msgs::Odometry>(params.odom_topic, 1);
   ros::Publisher rs_odom_pub =
       nh.advertise<nav_msgs::Odometry>(params.rs_odom_topic, 1);
-  ros::Publisher tf_pub = nh.advertise<tf2_msgs::TFMessage>(params.tf_topic, 1);
-  ros::Publisher fix_pub =
-      nh.advertise<sensor_msgs::NavSatFix>(params.fix_topic, 1);
+  ros::Publisher tf_pub  = nh.advertise<tf2_msgs::TFMessage>(params.tf_topic, 1);
+  ros::Publisher fix_pub = nh.advertise<sensor_msgs::NavSatFix>(params.fix_topic, 1);
   ros::Publisher depth_img_pub =
       nh.advertise<sensor_msgs::Image>(params.depth_img_topic, 1);
   ros::Publisher left_img_pub =
@@ -150,6 +148,7 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
   ros::Publisher pcl_pub =
       nh.advertise<sensor_msgs::PointCloud2>(params.pcl_topic, 1);
 
+  rosgraph_msgs::ClockConstPtr     clock_ptr;
   tf2_msgs::TFMessageConstPtr      tf_ptr;
   nav_msgs::OdometryConstPtr       rs_odom_ptr;
   nav_msgs::OdometryConstPtr       odom_ptr;
@@ -159,15 +158,11 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
   sensor_msgs::PointCloud2ConstPtr pcl_ptr;
 
   ROS_INFO("Reading ROSBAG topics...");
-  bool tf_bool = false, rs_odom_bool = false, odom_bool = false, fix_bool = false,
+  bool tf_bool = false, clock_bool = false, odom_bool = false, fix_bool = false,
        depth_bool = false, left_bool = false, pcl_bool = false;
   for (rosbag::MessageInstance const m : rosbag::View(bag)) {
-    // Publish static tfs
-    static tf::TransformBroadcaster br;
-    br.sendTransform(tf::StampedTransform(unit_tf, m.getTime(), "map", "odom"));
-    br.sendTransform(
-        tf::StampedTransform(unit_tf, m.getTime(), "odom", "base_link"));
-    br.sendTransform(tf::StampedTransform(unit_tf, m.getTime(), "base_link", "gps"));
+    // Publish clock
+    clock_pub.publish(m.getTime());
 
     // Publish rosbag topics of interest
     const std::string& topic = m.getTopic();
@@ -178,13 +173,6 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
       if (tf_ptr != nullptr) {
         tf_bool = true;
         tf_pub.publish(*tf_ptr);
-      }
-    } else if (topic == params.rs_odom_topic) {
-      rs_odom_ptr = m.instantiate<nav_msgs::Odometry>();
-
-      if (rs_odom_ptr != nullptr) {
-        rs_odom_bool = true;
-        rs_odom_pub.publish(*rs_odom_ptr);
       }
     } else if (topic == params.odom_topic) {
       odom_ptr = m.instantiate<nav_msgs::Odometry>();
@@ -235,19 +223,21 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
     if (nmessages == 6) {
       scanListener(pcl_ptr);
       odomListener(odom_ptr);
-      gpsListener(fix_ptr);
+//      gpsListener(fix_ptr);
       mainFct(left_img, depth_img_ptr, nullptr);
 
-      tf_bool      = false;
-      rs_odom_bool = false;
-      odom_bool    = false;
-      fix_bool     = false;
-      depth_bool   = false;
-      left_bool    = false;
-      pcl_bool     = false;
-      nmessages    = 0;
+      tf_bool    = false;
+      odom_bool  = false;
+      fix_bool   = false;
+      depth_bool = false;
+      left_bool  = false;
+      pcl_bool   = false;
+      nmessages  = 0;
+
     }
   }
+
+  bag.close();
 }
 
 ReplayNode::~ReplayNode()

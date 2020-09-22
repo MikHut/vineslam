@@ -222,6 +222,23 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     static tf::TransformBroadcaster br;
     br.sendTransform(
         tf::StampedTransform(base2map, ros::Time::now(), "map", "base_link"));
+    // Publish other tf::Trasforms
+    tf::Transform cam2base(
+        tf::Quaternion(params.cam2base[3],
+                       params.cam2base[4],
+                       params.cam2base[5],
+                       params.cam2base[6]),
+        tf::Vector3(params.cam2base[0], params.cam2base[1], params.cam2base[2]));
+    br.sendTransform(tf::StampedTransform(
+        cam2base, ros::Time::now(), "base_link", "zed_camera_left_optical_frame"));
+    tf::Transform vel2base(
+        tf::Quaternion(params.vel2base[3],
+                       params.vel2base[4],
+                       params.vel2base[5],
+                       params.vel2base[6]),
+        tf::Vector3(params.vel2base[0], params.vel2base[1], params.vel2base[2]));
+    br.sendTransform(
+        tf::StampedTransform(vel2base, ros::Time::now(), "base_link", "velodyne"));
 
     // ---------- Publish Multi-layer map ------------- //
     // Publish the grid map
@@ -231,9 +248,14 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // Publish 3D maps
     publish3DMap();
     publish3DMap(m_corners_vel, corners_local_publisher);
-    publish3DMap(m_vegetation_lines, map3D_planes_publisher);
+    publish3DMap(m_vegetation_lines, map3D_lines_publisher);
+    std::vector<Plane> planes = {m_ground_plane_vel};
+    publish3DMap(planes, map3D_planes_publisher);
     // ------------------------------------------------ //
 
+    // --------------------------------------------------
+    // ----- Debug area : publishes the robot path & the vegetation lines
+    // --------------------------------------------------
     if (params.debug) {
       // Publish all poses for DEBUG
       // ----------------------------------------------------------------------------
@@ -260,41 +282,8 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
       }
       poses_publisher.publish(ros_poses);
 
-      // - Compute rotation matrix from ground plane normal vector and aplly it to
-      // the plane
-      std::array<float, 9> R{};
-      vector3D             m_normal = obsv.ground_plane.normal;
-      float norm = std::sqrt(m_normal.x * m_normal.x + m_normal.y * m_normal.y);
-      R[0]       = +m_normal.y / norm;
-      R[1]       = -m_normal.x / norm;
-      R[2]       = 0.;
-      R[3]       = (m_normal.x * m_normal.z) / norm;
-      R[4]       = (m_normal.y * m_normal.z) / norm;
-      R[5]       = -norm;
-      R[6]       = m_normal.x;
-      R[7]       = m_normal.y;
-      R[8]       = m_normal.z;
-
-      std::array<float, 3> trans            = {0., 0., 0.};
-      pose                 pose_from_ground = pose(R, trans);
-      pose_from_ground.yaw                  = 0.;
-      R                                     = {};
-      pose_from_ground.toRotMatrix(R);
-
-      Plane m_plane;
-      for (const auto& pt : obsv.ground_plane.points) {
-        point m_pt;
-        m_pt.x = pt.x * R[0] + pt.y * R[1] + pt.z * R[2];
-        m_pt.y = pt.x * R[3] + pt.y * R[4] + pt.z * R[5];
-        m_pt.z = pt.x * R[6] + pt.y * R[7] + pt.z * R[8];
-
-        m_plane.points.push_back(pt);
-      }
-      //      publish3DMap(m_plane, map3D_planes_publisher);
-
       // - Publish associations between corners
       visualization_msgs::MarkerArray markers;
-      //      cornersDebug(m_corners_vel, markers);
 
       // - Publish vegetation lines for debug
       if (m_vegetation_lines.size() == 2) {
@@ -319,7 +308,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
         P2_b.z = 0;
 
         visualization_msgs::Marker marker_a;
-        marker_a.header.frame_id = "map";
+        marker_a.header.frame_id = "base_link";
         marker_a.header.stamp    = ros::Time::now();
         marker_a.ns              = "line_a";
         marker_a.id              = 0;
@@ -335,7 +324,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
         marker_a.scale.y = 0.1;
         marker_a.scale.z = 0.1;
         visualization_msgs::Marker marker_b;
-        marker_b.header.frame_id = "map";
+        marker_b.header.frame_id = "base_link";
         marker_b.header.stamp    = ros::Time::now();
         marker_b.ns              = "line_b";
         marker_b.id              = 1;
@@ -413,8 +402,8 @@ void VineSLAM_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)
 
 void VineSLAM_ros::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
 {
-    if (!params.use_gps)
-      return;
+  if (!params.use_gps)
+    return;
 
   if (init_gps) {
     has_converged = false;
@@ -808,19 +797,31 @@ void VineSLAM_ros::publish3DMap()
   map3D_corners_publisher.publish(corner_cloud);
 }
 
-void VineSLAM_ros::publish3DMap(const Plane& plane, const ros::Publisher& pub)
+void VineSLAM_ros::publish3DMap(const std::vector<Plane>& planes,
+                                const ros::Publisher&     pub)
 {
   pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(
       new pcl::PointCloud<pcl::PointXYZI>);
 
-  pcl::PointXYZI m_pt(0);
+  int i = 0;
+  for (const auto& plane : planes) {
+    for (const auto& pt : plane.points) {
+      std::array<float, 9> robot_R{};
+      robot_pose.toRotMatrix(robot_R);
+      TF robot_tf(robot_R,
+                  std::array<float, 3>{robot_pose.x, robot_pose.y, robot_pose.z});
 
-  for (const auto& pt : plane.points) {
-    m_pt.x = pt.x;
-    m_pt.y = pt.y;
-    m_pt.z = pt.z;
+      pcl::PointXYZI m_pt(i);
+      m_pt.x = pt.x * robot_tf.R[0] + pt.y * robot_tf.R[1] + pt.z * robot_tf.R[2] +
+               robot_tf.t[0];
+      m_pt.y = pt.x * robot_tf.R[3] + pt.y * robot_tf.R[4] + pt.z * robot_tf.R[5] +
+               robot_tf.t[1];
+      m_pt.z = pt.x * robot_tf.R[6] + pt.y * robot_tf.R[7] + pt.z * robot_tf.R[8] +
+               robot_tf.t[2];
 
-    cloud_out->points.push_back(m_pt);
+      cloud_out->points.push_back(m_pt);
+    }
+    i++;
   }
 
   cloud_out->header.frame_id = "map";
@@ -836,13 +837,18 @@ void VineSLAM_ros::publish3DMap(const std::vector<Line>& vegetation_lines,
   int i = 0;
   for (const auto& line : vegetation_lines) {
     for (const auto& pt : line.pts) {
+      std::array<float, 9> robot_R{};
+      robot_pose.toRotMatrix(robot_R);
+      TF robot_tf(robot_R,
+                  std::array<float, 3>{robot_pose.x, robot_pose.y, robot_pose.z});
+
       pcl::PointXYZI m_pt(i);
-
-      m_pt.x = pt.x;
-      m_pt.y = pt.y;
-      m_pt.z = pt.z;
-
-      m_pt.intensity = i;
+      m_pt.x = pt.x * robot_tf.R[0] + pt.y * robot_tf.R[1] + pt.z * robot_tf.R[2] +
+               robot_tf.t[0];
+      m_pt.y = pt.x * robot_tf.R[3] + pt.y * robot_tf.R[4] + pt.z * robot_tf.R[5] +
+               robot_tf.t[1];
+      m_pt.z = pt.x * robot_tf.R[6] + pt.y * robot_tf.R[7] + pt.z * robot_tf.R[8] +
+               robot_tf.t[2];
 
       cloud_out->points.push_back(m_pt);
     }
@@ -859,7 +865,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<Corner>& corners,
   pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(
       new pcl::PointCloud<pcl::PointXYZI>);
 
-  pcl::PointXYZI m_pt(0);
+  pcl::PointXYZI m_pt;
 
   for (const auto& corner : corners) {
     std::array<float, 9> robot_R{};
@@ -879,61 +885,6 @@ void VineSLAM_ros::publish3DMap(const std::vector<Corner>& corners,
 
   cloud_out->header.frame_id = "map";
   pub.publish(cloud_out);
-}
-
-void VineSLAM_ros::cornersDebug(const std::vector<Corner>&       corners,
-                                visualization_msgs::MarkerArray& markers)
-{
-  int i = 0;
-
-  for (const auto& corner : corners) {
-    point tf_corner;
-    if (corner.correspondence.x == 0 && corner.correspondence.y == 0 &&
-        corner.correspondence.z == 0) {
-      continue;
-    } else {
-      std::array<float, 9> robot_R{};
-      robot_pose.toRotMatrix(robot_R);
-      TF robot_tf(robot_R,
-                  std::array<float, 3>{robot_pose.x, robot_pose.y, robot_pose.z});
-
-      tf_corner.x = corner.pos.x * robot_tf.R[0] + corner.pos.y * robot_tf.R[1] +
-                    corner.pos.z * robot_tf.R[2] + robot_tf.t[0];
-      tf_corner.y = corner.pos.x * robot_tf.R[3] + corner.pos.y * robot_tf.R[4] +
-                    corner.pos.z * robot_tf.R[5] + robot_tf.t[1];
-      tf_corner.z = corner.pos.x * robot_tf.R[6] + corner.pos.y * robot_tf.R[7] +
-                    corner.pos.z * robot_tf.R[8] + robot_tf.t[2];
-    }
-
-    geometry_msgs::Point p1, p2;
-
-    p1.x = tf_corner.x;
-    p1.y = tf_corner.y;
-    p1.z = tf_corner.z;
-
-    p2.x = corner.correspondence.x;
-    p2.y = corner.correspondence.y;
-    p2.z = corner.correspondence.z;
-
-    visualization_msgs::Marker marker;
-    marker.header.frame_id = "map";
-    marker.header.stamp    = ros::Time::now();
-    marker.ns              = "correspondence_" + std::to_string(i);
-    marker.id              = i++;
-    marker.type            = visualization_msgs::Marker::ARROW;
-    marker.action          = visualization_msgs::Marker::ADD;
-    marker.points.push_back(p1);
-    marker.points.push_back(p2);
-    marker.color.a = 1;
-    marker.color.r = 0;
-    marker.color.g = 1;
-    marker.color.b = 0;
-    marker.scale.x = 0.1;
-    marker.scale.y = 0.1;
-    marker.scale.z = 0.1;
-
-    markers.markers.push_back(marker);
-  }
 }
 
 } // namespace vineslam

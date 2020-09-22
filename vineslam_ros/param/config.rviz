@@ -4,8 +4,8 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
-        - /TF1/Frames1
-      Splitter Ratio: 0.5018050670623779
+        - /TFs1/Frames1
+      Splitter Ratio: 0.5812274217605591
     Tree Height: 806
   - Class: rviz/Selection
     Name: Selection
@@ -75,6 +75,13 @@ Visualization Manager:
       Transport Hint: raw
       Unreliable: false
       Value: true
+    - Class: rviz/Axes
+      Enabled: true
+      Length: 1
+      Name: Robot pose
+      Radius: 0.20000000298023224
+      Reference Frame: base_link
+      Value: true
     - Class: rviz/TF
       Enabled: true
       Frame Timeout: 15
@@ -103,11 +110,13 @@ Visualization Manager:
         rear_right_wheel_link:
           Value: true
         tower_base:
-          Value: true
+          Value: false
         velodyne:
-          Value: true
-      Marker Scale: 5
-      Name: TF
+          Value: false
+        zed_camera_left_optical_frame:
+          Value: false
+      Marker Scale: 2
+      Name: TFs
       Show Arrows: false
       Show Axes: true
       Show Names: false
@@ -129,8 +138,10 @@ Visualization Manager:
             tower_base:
               imu_link:
                 {}
-              velodyne:
-                {}
+            velodyne:
+              {}
+            zed_camera_left_optical_frame:
+              {}
           camerat265_odom_frame:
             camerat265_pose_frame:
               {}
@@ -188,7 +199,7 @@ Visualization Manager:
     - Class: rviz/MarkerArray
       Enabled: false
       Marker Topic: /vineslam/map2D
-      Name: MAP 1 - Semantic
+      Name: Global MAP 1 - Semantic
       Namespaces:
         {}
       Queue Size: 10000
@@ -211,7 +222,7 @@ Visualization Manager:
       Max Intensity: 0
       Min Color: 0; 0; 0
       Min Intensity: 0
-      Name: MAP 2 - Corners
+      Name: Global MAP 2 - Corners
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
@@ -232,45 +243,6 @@ Visualization Manager:
       Axis: Z
       Channel Name: intensity
       Class: rviz/PointCloud2
-      Color: 38; 139; 210
-      Color Transformer: Intensity
-      Decay Time: 0
-      Enabled: true
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Max Intensity: 1
-      Min Color: 0; 0; 0
-      Min Intensity: 0
-      Name: Map 3 - Planes
-      Position Transformer: XYZ
-      Queue Size: 10
-      Selectable: true
-      Size (Pixels): 6
-      Size (m): 0.05000000074505806
-      Style: Points
-      Topic: /vineslam/map3D/planes
-      Unreliable: false
-      Use Fixed Frame: true
-      Use rainbow: true
-      Value: true
-    - Class: rviz/MarkerArray
-      Enabled: true
-      Marker Topic: /vineslam/debug_markers
-      Name: MAP 4 - Lines
-      Namespaces:
-        line_a: true
-        line_b: true
-      Queue Size: 100
-      Value: true
-    - Alpha: 1
-      Autocompute Intensity Bounds: true
-      Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
-      Axis: Z
-      Channel Name: intensity
-      Class: rviz/PointCloud2
       Color: 255; 255; 255
       Color Transformer: RGB8
       Decay Time: 0
@@ -280,7 +252,7 @@ Visualization Manager:
       Max Intensity: 4096
       Min Color: 0; 0; 0
       Min Intensity: 0
-      Name: Map 5 - SURF
+      Name: Global Map 3 - SURF
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
@@ -301,6 +273,66 @@ Visualization Manager:
       Axis: Z
       Channel Name: intensity
       Class: rviz/PointCloud2
+      Color: 38; 139; 210
+      Color Transformer: FlatColor
+      Decay Time: 0
+      Enabled: false
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 0
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: Local Map 1 - Ground Plane
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 6
+      Size (m): 0.05000000074505806
+      Style: Points
+      Topic: /vineslam/map3D/planes
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: false
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: Intensity
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 1
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: Local Map 2 - Vegetation Lines
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.05000000074505806
+      Style: Flat Squares
+      Topic: /vineslam/map3D/lines
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
       Color: 255; 255; 255
       Color Transformer: FlatColor
       Decay Time: 0
@@ -310,7 +342,7 @@ Visualization Manager:
       Max Intensity: 0
       Min Color: 0; 0; 0
       Min Intensity: 0
-      Name: DEBUG - Corners Local Map
+      Name: "Local MAP 3 - Corners "
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
@@ -321,6 +353,14 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
+      Value: false
+    - Class: rviz/MarkerArray
+      Enabled: false
+      Marker Topic: /vineslam/debug_markers
+      Name: DEBUG - Vegetation Linear Regression
+      Namespaces:
+        {}
+      Queue Size: 100
       Value: false
   Enabled: true
   Global Options:
@@ -350,25 +390,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 55.858421325683594
+      Distance: 38.323509216308594
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 1.3250181674957275
-        Y: 1.998427391052246
+        X: 15.13553237915039
+        Y: -8.987038612365723
         Z: -6.991427653701976e-6
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.10479691624641418
+      Pitch: 0.20479720830917358
       Target Frame: <Fixed Frame>
       Value: XYOrbit (rviz)
-      Yaw: 2.2114338874816895
+      Yaw: 1.3269726037979126
     Saved: ~
 Window Geometry:
   Displays:

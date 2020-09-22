@@ -323,6 +323,11 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
   for (auto& corner : out_corners) {
     corner.pos = corner.pos * tf.inverse();
   }
+  for (auto & line : out_vegetation_lines) {
+    for (auto & pt : line.pts) {
+      pt = pt * tf.inverse();
+    }
+  }
   // -------------------------------------------
 }
 

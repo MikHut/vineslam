@@ -56,6 +56,8 @@ ReplayNode::ReplayNode(int argc, char** argv)
       nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners", 1);
   map3D_planes_publisher =
       nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planes", 1);
+  map3D_lines_publisher =
+      nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/lines", 1);
   pose_publisher  = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/pose", 1);
   gps_publisher   = nh.advertise<nav_msgs::Path>("/vineslam/gps", 1);
   path_publisher  = nh.advertise<nav_msgs::Path>("/vineslam/path", 1);
@@ -93,9 +95,12 @@ ReplayNode::ReplayNode(int argc, char** argv)
     got_tfs = true;
 
     tf::Transform cam2base;
-    cam2base.setRotation(tf::Quaternion(-0.002, 0.100, -0.004, 0.995));
-    //    cam2base.setRotation(tf::Quaternion(0, 0.1691, 0, 0.9856));
-    cam2base.setOrigin(tf::Vector3(0.343, 0.079, 0.820));
+    cam2base.setRotation(tf::Quaternion(params.cam2base[3],
+                                        params.cam2base[4],
+                                        params.cam2base[5],
+                                        params.cam2base[6]));
+    cam2base.setOrigin(
+        tf::Vector3(params.cam2base[0], params.cam2base[1], params.cam2base[2]));
     cam2base      = cam2base.inverse();
     tf::Vector3 t = cam2base.getOrigin();
     tfScalar    roll, pitch, yaw;
@@ -105,8 +110,12 @@ ReplayNode::ReplayNode(int argc, char** argv)
     mapper2D->setCamPitch(pitch);
 
     tf::Transform vel2base;
-    vel2base.setRotation(tf::Quaternion(0., 0., 0., 1.));
-    vel2base.setOrigin(tf::Vector3(0., 0., 0.942));
+    vel2base.setRotation(tf::Quaternion(params.vel2base[3],
+                                        params.vel2base[4],
+                                        params.vel2base[5],
+                                        params.vel2base[6]));
+    vel2base.setOrigin(
+        tf::Vector3(params.vel2base[0], params.vel2base[1], params.vel2base[2]));
     vel2base = vel2base.inverse();
     t        = vel2base.getOrigin();
     vel2base.getBasis().getRPY(roll, pitch, yaw);
@@ -223,7 +232,8 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
     if (nmessages == 6) {
       scanListener(pcl_ptr);
       odomListener(odom_ptr);
-//      gpsListener(fix_ptr);
+      // TODO (Andre Aguiar): GPS should be supported in the future
+      // gpsListener(fix_ptr);
       mainFct(left_img, depth_img_ptr, nullptr);
 
       tf_bool    = false;
@@ -233,7 +243,6 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
       left_bool  = false;
       pcl_bool   = false;
       nmessages  = 0;
-
     }
   }
 

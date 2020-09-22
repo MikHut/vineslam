@@ -35,8 +35,6 @@ SLAMNode::SLAMNode(int argc, char** argv)
   mapper2D  = new Mapper2D(params);
   mapper3D  = new Mapper3D(params);
 
-  printParameters(params);
-
   // Services
   polar2pose = nh.serviceClient<agrob_map_transform::GetPose>("polar_to_pose");
   set_datum  = nh.serviceClient<agrob_map_transform::SetDatum>("datum");
@@ -81,6 +79,8 @@ SLAMNode::SLAMNode(int argc, char** argv)
       nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners", 1);
   map3D_planes_publisher =
       nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/ground", 1);
+  map3D_lines_publisher =
+      nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/lines", 1);
   pose_publisher  = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/pose", 1);
   gps_publisher   = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/gps", 1);
   path_publisher  = nh.advertise<nav_msgs::Path>("/vineslam/path", 1);

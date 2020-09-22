@@ -87,18 +87,15 @@ public:
                     const std::vector<float>& depths);
   // Publish the 3D maps
   void publish3DMap();
-  // Publish the 3D PCL ground plane
-  static void publish3DMap(const Plane& plane, const ros::Publisher& pub);
-  // Publish the 3D PCL planes map
-  static void publish3DMap(const std::vector<Line>& vegetation_lines,
-                           const ros::Publisher&    pub);
+  // Publish the 3D PCL planes
+  void publish3DMap(const std::vector<Plane>& planes, const ros::Publisher& pub);
+  // Publish the 3D PCL lines
+  void publish3DMap(const std::vector<Line>& vegetation_lines,
+                    const ros::Publisher&    pub);
   // Publish a 3D PCL corners map
   void publish3DMap(const std::vector<Corner>& corners, const ros::Publisher& pub);
   // Publish the grid map that contains all the maps
   void publishGridMap(const std_msgs::Header& header);
-  // Visualization debug tools publishing
-  void cornersDebug(const std::vector<Corner>&       corners,
-                    visualization_msgs::MarkerArray& markers);
 
   // Computes the bearing depth of an object using the ZED disparity image
   // - Uses the point with minimum depth inside the bounding box
@@ -119,6 +116,7 @@ public:
   ros::Publisher     map3D_features_publisher;
   ros::Publisher     map3D_corners_publisher;
   ros::Publisher     map3D_planes_publisher;
+  ros::Publisher     map3D_lines_publisher;
   ros::Publisher     pose_publisher;
   ros::Publisher     path_publisher;
   ros::Publisher     poses_publisher;

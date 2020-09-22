@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <vector>
 
 namespace vineslam
 {
@@ -35,6 +36,12 @@ struct Parameters {
   // -----------------------------------
   float latitude{};
   float longitude{};
+
+  // -----------------------------------
+  // ------ On-board sensors transformations to base link
+  // -----------------------------------
+  std::vector<float> cam2base;
+  std::vector<float> vel2base;
 
   // -----------------------------------
   // ------ Camera info parameters

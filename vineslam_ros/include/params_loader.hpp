@@ -98,6 +98,16 @@ static void loadParameters(const ros::NodeHandle& nh,
               prefix.c_str());
     exit(-1);
   }
+  if (!nh.getParam(prefix + "/system/cam2base", params.cam2base)) {
+    ROS_ERROR("%s/system/cam2base parameter not found. Shutting down...",
+              prefix.c_str());
+    exit(-1);
+  }
+  if (!nh.getParam(prefix + "/system/vel2base", params.vel2base)) {
+    ROS_ERROR("%s/system/vel2base parameter not found. Shutting down...",
+              prefix.c_str());
+    exit(-1);
+  }
   if (!nh.getParam(prefix + "/camera_info/baseline", params.baseline)) {
     ROS_ERROR("%s/camera_info/baseline parameter not found. Shutting down...",
               prefix.c_str());
@@ -353,87 +363,6 @@ static void loadParameters(const ros::NodeHandle& nh,
               prefix.c_str());
     exit(-1);
   }
-}
-
-static void printParameters(const Parameters& params)
-{
-  std::cout << "-------- VineSLAM parameters log --------" << std::endl;
-  std::cout << "-----------------------------------------"
-            << std::endl
-            << std::endl;
-
-  std::cout << " - ROS topics:" << std::endl;
-  std::cout << "   - odom topic: " << params.odom_topic << std::endl;
-  std::cout << "   - rsense topic: " << params.rs_odom_topic << std::endl;
-  std::cout << "   - fix topic: " << params.fix_topic << std::endl;
-  std::cout << "   - tf topic: " << params.tf_topic << std::endl;
-  std::cout << "   - depth image topic: " << params.depth_img_topic << std::endl;
-  std::cout << "   - left image topic: " << params.left_img_topic << std::endl;
-  std::cout << "   - detections topic: " << params.detections_topic << std::endl;
-  std::cout << "   - pcl topic: " << params.pcl_topic << std::endl;
-
-  std::cout << " - System parameters:" << std::endl;
-  std::cout << "   - debug: " << params.debug << std::endl;
-  std::cout << "   - use_vegetation_lines: " << params.use_vegetation_lines << std::endl;
-  std::cout << "   - use_ground_plane: " << params.use_ground_plane << std::endl;
-  std::cout << "   - use_landmarks: " << params.use_landmarks << std::endl;
-  std::cout << "   - use_icp: " << params.use_icp << std::endl;
-  std::cout << "   - use_gps: " << params.use_gps << std::endl;
-
-  std::cout << " - GPS datum:" << std::endl;
-  std::cout << "   - latitude: " << params.latitude << std::endl;
-  std::cout << "   - longitude: " << params.longitude << std::endl;
-
-  std::cout << " - Camera info:" << std::endl;
-  std::cout << "   - baseline: " << params.baseline << std::endl;
-  std::cout << "   - depth_hfov: " << params.depth_hfov << std::endl;
-  std::cout << "   - depth_vfov: " << params.depth_vfov << std::endl;
-  std::cout << "   - img_width: " << params.img_width << std::endl;
-  std::cout << "   - img_height: " << params.img_height << std::endl;
-  std::cout << "   - fx: " << params.fx << std::endl;
-  std::cout << "   - fy: " << params.fy << std::endl;
-  std::cout << "   - cx: " << params.cx << std::endl;
-  std::cout << "   - cy: " << params.cy << std::endl;
-
-  std::cout << " - Multilayer mapping:" << std::endl;
-  std::cout << "   - gridmap origin x: " << params.gridmap_origin_x << std::endl;
-  std::cout << "   - gridmap origin y: " << params.gridmap_origin_y << std::endl;
-  std::cout << "   - gridmap width: " << params.gridmap_width << std::endl;
-  std::cout << "   - gridmap height: " << params.gridmap_height << std::endl;
-  std::cout << "   - gridmap resolution: " << params.gridmap_resolution << std::endl;
-  std::cout << "   - gridmap metric: " << params.gridmap_metric << std::endl;
-  std::cout << "   - save map: " << params.save_map << std::endl;
-  std::cout << "   - map output folder: " << params.map_output_folder << std::endl;
-  std::cout << "   - map input file: " << params.map_input_file << std::endl;
-  std::cout << "   - hessian_threshold: " << params.hessian_threshold << std::endl;
-  std::cout << "   - downsample_factor: " << params.downsample_factor << std::endl;
-  std::cout << "   - max_range: " << params.max_range << std::endl;
-  std::cout << "   - max_height: " << params.max_height << std::endl;
-  std::cout << "   - icp_max_iters: " << params.icp_max_iters << std::endl;
-  std::cout << "   - icp_distance_threshold: " << params.icp_distance_threshold << std::endl;
-  std::cout << "   - icp_reject_outliers: " << params.icp_reject_outliers << std::endl;
-
-  std::cout << " - Particle filter:" << std::endl;
-  std::cout << "   - n_particles: " << params.number_particles << std::endl;
-  std::cout << "   - srr: " << params.srr << std::endl;
-  std::cout << "   - srt: " << params.srt << std::endl;
-  std::cout << "   - str: " << params.str << std::endl;
-  std::cout << "   - stt: " << params.stt << std::endl;
-  std::cout << "   - sigma_xy: " << params.sigma_xy << std::endl;
-  std::cout << "   - sigma_z: " << params.sigma_z << std::endl;
-  std::cout << "   - sigma_roll: " << params.sigma_roll << std::endl;
-  std::cout << "   - sigma_pitch: " << params.sigma_pitch << std::endl;
-  std::cout << "   - sigma_yaw: " << params.sigma_yaw << std::endl;
-  std::cout << "   - sigma_landmark_matching: " << params.sigma_landmark_matching << std::endl;
-  std::cout << "   - sigma_corner_matching: " << params.sigma_corner_matching << std::endl;
-  std::cout << "   - sigma_feature_matching: " << params.sigma_feature_matching << std::endl;
-  std::cout << "   - sigma_vegetation_lines_yaw: " << params.sigma_vegetation_lines_yaw << std::endl;
-  std::cout << "   - sigma_ground_rp: " << params.sigma_ground_rp << std::endl;
-  std::cout << "   - sigma_gps: " << params.sigma_gps << std::endl;
-  std::cout << "   - n_clusters: " << params.number_clusters << std::endl;
-
-  std::cout << "-----------------------------------------" << std::endl;
-  std::cout << "-----------------------------------------" << std::endl;
 }
 
 } // namespace vineslam

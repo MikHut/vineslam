@@ -15,6 +15,7 @@
 
 // OpenCV
 #include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
 #include <opencv2/features2d.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/xfeatures2d.hpp>
@@ -48,8 +49,8 @@ struct by_value {
 
 // ---------------------------------------------------------------------------------
 // The 3D map is composed of two layers:
-// -> A map extracted directly from the 3D point cloud containing corners and the
-// ground plane
+// -> A map extracted directly from the 3D point cloud containing corners, the
+// ground plane, and the vegetation planes
 // -> A map extracted from 2D image features and projected in 3D
 // ---------------------------------------------------------------------------------
 class Mapper3D
@@ -85,6 +86,11 @@ public:
   void globalCornerMap(const pose&          robot_pose,
                        std::vector<Corner>& corners,
                        OccupancyMap&        grid_map) const;
+
+  // Computes a range image from a raw point cloud
+  void rangeImage(const std::vector<point>& pcl,
+                  const std::vector<float>& intensities,
+                  cv::Mat&                  out_image);
   // -------------------------------------------------------------------------------
 
   // Setter functions

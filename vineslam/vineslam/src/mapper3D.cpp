@@ -22,12 +22,25 @@ Mapper3D::Mapper3D(const Parameters& params)
   hessian_threshold = params.hessian_threshold;
 
   // Set pointcloud feature parameters
-  max_iters         = 20;
-  dist_threshold    = 0.08;
-  init_downsample_f = params.downsample_factor;
+  max_iters      = 20;
+  dist_threshold = 0.08;
 
   // Threshold to consider correspondences
   correspondence_threshold = 0.02;
+
+  // Set velodyne configuration parameters
+  picked_num              = 20;
+  planes_th               = static_cast<float>(60.) * DEGREE_TO_RAD;
+  ground_th               = static_cast<float>(10.) * DEGREE_TO_RAD;
+  edge_threshold          = 0.1;
+  vertical_scans          = 16;
+  horizontal_scans        = 1800;
+  ground_scan_idx         = 7;
+  segment_valid_point_num = 5;
+  segment_valid_line_num  = 3;
+  vertical_angle_bottom   = static_cast<float>(15. + 0.1) * DEGREE_TO_RAD;
+  ang_res_x               = static_cast<float>(0.2) * DEGREE_TO_RAD;
+  ang_res_y               = static_cast<float>(2.) * DEGREE_TO_RAD;
 }
 
 // -------------------------------------------------------------------------------
@@ -215,21 +228,6 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
                            Plane&                    out_groundplane)
 {
   std::vector<point> transformed_pcl;
-  // Set velodyne configuration parameters
-  sensor                  = "velodyne";
-  picked_num              = 20;
-  planes_th               = static_cast<float>(60.) * DEGREE_TO_RAD;
-  ground_th               = static_cast<float>(10.) * DEGREE_TO_RAD;
-  edge_threshold          = 0.1;
-  vertical_scans          = 16;
-  horizontal_scans        = 1800;
-  ground_scan_idx         = 7;
-  segment_valid_point_num = 5;
-  segment_valid_line_num  = 3;
-  vertical_angle_bottom   = static_cast<float>(15. + 0.1) * DEGREE_TO_RAD;
-  ang_res_x               = static_cast<float>(0.2) * DEGREE_TO_RAD;
-  ang_res_y               = static_cast<float>(2.) * DEGREE_TO_RAD;
-  downsample_f            = 1;
 
   // Reset global variables and members
   reset();
@@ -323,8 +321,8 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
   for (auto& corner : out_corners) {
     corner.pos = corner.pos * tf.inverse();
   }
-  for (auto & line : out_vegetation_lines) {
-    for (auto & pt : line.pts) {
+  for (auto& line : out_vegetation_lines) {
+    for (auto& pt : line.pts) {
       pt = pt * tf.inverse();
     }
   }
@@ -402,13 +400,8 @@ void Mapper3D::groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl)
   //  0, initial value, after validation, means not ground
   //  1, ground
   int ymin, ylim;
-  if (sensor == "zed") {
-    ymin = vertical_scans / 2;
-    ylim = vertical_scans - 1;
-  } else {
-    ymin = 0;
-    ylim = ground_scan_idx;
-  }
+  ymin = vertical_scans / 2;
+  ylim = vertical_scans - 1;
 
   for (int j = 0; j < horizontal_scans;) {
     for (int i = ymin; i < ylim;) {
@@ -421,7 +414,7 @@ void Mapper3D::groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl)
       if (range_mat(i, j) == -1 || range_mat(i + 1, j) == -1) {
         // no info to check, invalid points
         ground_mat(i, j) = -1;
-        i += downsample_f;
+        i += 1;
         continue;
       }
 
@@ -437,9 +430,9 @@ void Mapper3D::groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl)
         out_pcl.indexes.emplace_back(i, j);
         out_pcl.indexes.emplace_back(i + 1, j);
       }
-      i += downsample_f;
+      i += 1;
     }
-    j += downsample_f;
+    j += 1;
   }
 }
 
@@ -576,9 +569,9 @@ void Mapper3D::cloudSegmentation(const std::vector<point>& in_pts,
     for (int j = 0; j < horizontal_scans;) {
       if (label_mat(i, j) == 0 && range_mat(i, j) != -1)
         labelComponents(i, j, in_pts, label);
-      j += downsample_f;
+      j += 1;
     }
-    i += downsample_f;
+    i += 1;
   }
 
   // Extract segmented cloud for visualization
@@ -618,8 +611,7 @@ void Mapper3D::labelComponents(const int&                row,
   std::vector<bool> line_count_flag(vertical_scans, false);
 
   // - Define neighborhood
-  const Coord2D neighbor_it[4] = {
-      {0, -downsample_f}, {-downsample_f, 0}, {downsample_f, 0}, {0, downsample_f}};
+  const Coord2D neighbor_it[4] = {{0, -1}, {-1, 0}, {1, 0}, {0, 1}};
 
   while (!queue.empty()) {
     // Evaluate front element of the queue and pop it
@@ -673,32 +665,24 @@ void Mapper3D::labelComponents(const int&                row,
   }
 
   // Check if this segment is valid
-  if (sensor == "velodyne") {
-    bool feasible_segment = false;
-    if (global_queue.size() >= 30) {
+  bool feasible_segment = false;
+  if (global_queue.size() >= 30) {
+    feasible_segment = true;
+  } else if (global_queue.size() >= segment_valid_point_num) {
+    int line_count = 0;
+    for (int i = 0; i < vertical_scans; i++) {
+      if (line_count_flag[i])
+        line_count++;
+    }
+
+    if (line_count >= segment_valid_line_num)
       feasible_segment = true;
-    } else if (global_queue.size() >= segment_valid_point_num) {
-      int line_count = 0;
-      for (int i = 0; i < vertical_scans; i++) {
-        if (line_count_flag[i])
-          line_count++;
-      }
+  }
 
-      if (line_count >= segment_valid_line_num)
-        feasible_segment = true;
-    }
-
-    if (feasible_segment) {
-      label++;
-    } else {
-      for (auto& i : global_queue) label_mat(i.x(), i.y()) = 999999;
-    }
+  if (feasible_segment) {
+    label++;
   } else {
-    if (global_queue.size() >= 30) {
-      label++;
-    } else {
-      for (auto& i : global_queue) label_mat(i.x(), i.y()) = 999999;
-    }
+    for (auto& i : global_queue) label_mat(i.x(), i.y()) = 999999;
   }
 }
 
@@ -829,6 +813,69 @@ void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,
       }
       // -----------------------------------------------------
     }
+  }
+}
+
+void Mapper3D::rangeImage(const std::vector<point>& pcl,
+                          const std::vector<float>& intensities,
+                          cv::Mat&                  out_image)
+{
+  float max_distance = 20;
+  float ang_res      = 0.4;
+  float fov_up       = static_cast<float>(15.) * DEGREE_TO_RAD;
+  float fov_down     = static_cast<float>(-15.) * DEGREE_TO_RAD;
+  float fov          = std::fabs(fov_up) + std::fabs(fov_down);
+  float proj_W       = 360 / ang_res;
+  float proj_H       = 16;
+
+  // Set the output range map to the desired dimensions and format
+  out_image                   = cv::Mat::ones(cv::Size(proj_W, proj_H), CV_8UC3);
+  cv::Mat out_range_image     = cv::Mat::ones(cv::Size(proj_W, proj_H), CV_8UC1);
+  cv::Mat out_intensity_image = cv::Mat::ones(cv::Size(proj_W, proj_H), CV_8UC1);
+
+  for (size_t i = 0; i < pcl.size(); i++) {
+    point pt = pcl[i];
+
+    float depth = pt.norm3D();
+    float yaw   = std::atan2(pt.y, pt.x);
+    float pitch = std::asin(pt.z / depth);
+
+    if (depth > max_distance)
+      continue;
+
+    // Get projections in image coordinates
+    float proj_x = static_cast<float>(.5) * (yaw / M_PI + static_cast<float>(1.));
+    float proj_y = static_cast<float>(1.) - (pitch + std::fabs(fov_down)) / fov;
+
+    // Scale to image size using angular resolution
+    proj_x *= proj_W;
+    proj_y *= proj_H;
+
+    // Round and clamp for use as index
+    proj_x             = std::floor(proj_x);
+    proj_x             = std::min(proj_W - static_cast<float>(1.), proj_x);
+    int proj_x_rounded = static_cast<int>(std::max(static_cast<float>(0.), proj_x));
+    proj_y             = std::floor(proj_y);
+    proj_y             = std::min(proj_H - static_cast<float>(1.), proj_y);
+    int proj_y_rounded = static_cast<int>(std::max(static_cast<float>(0.), proj_y));
+
+    // Compute depth image and intensity image
+    unsigned char depth_normalized = 255 / max_distance * depth;
+    out_range_image.at<uchar>(proj_y_rounded, proj_x_rounded)     = depth_normalized;
+    out_intensity_image.at<uchar>(proj_y_rounded, proj_x_rounded) = intensities[i];
+
+    // Compute a mixed image (first 16 bits with depth and last 8 bits with
+    // intensity)
+    uint16_t      depth_normalized_ = 65536 / max_distance * depth;
+    unsigned char msb = (unsigned char)((depth_normalized_ >> 8) & 0xFF);
+    unsigned char lsb = (unsigned char)(depth_normalized_ & 0xFF);
+    cv::Vec3b     mixed_val;
+    mixed_val[0] = lsb;
+    mixed_val[1] = msb;
+    mixed_val[2] = intensities[i];
+    //    mixed_val[2] = 0;
+
+    out_image.at<cv::Vec3b>(proj_y_rounded, proj_x_rounded) = mixed_val;
   }
 }
 

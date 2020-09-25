@@ -356,10 +356,12 @@ void VineSLAM_ros::scanListener(const sensor_msgs::PointCloud2ConstPtr& msg)
   std::vector<int> indices;
   pcl::removeNaNFromPointCloud(*velodyne_pcl, *velodyne_pcl, indices);
 
+  std::vector<float> intensities;
   scan_pts.clear();
   for (const auto& pt : *velodyne_pcl) {
     point m_pt(pt.x, pt.y, pt.z);
     scan_pts.push_back(m_pt);
+    intensities.push_back(pt.intensity);
   }
 }
 

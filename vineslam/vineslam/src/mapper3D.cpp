@@ -866,17 +866,56 @@ void Mapper3D::rangeImage(const std::vector<point>& pcl,
 
     // Compute a mixed image (first 16 bits with depth and last 8 bits with
     // intensity)
-    uint16_t      depth_normalized_ = 65536 / max_distance * depth;
-    unsigned char msb = (unsigned char)((depth_normalized_ >> 8) & 0xFF);
-    unsigned char lsb = (unsigned char)(depth_normalized_ & 0xFF);
-    cv::Vec3b     mixed_val;
+    uint16_t  depth_normalized_ = 65536 / max_distance * depth;
+    auto      msb = static_cast<float>((depth_normalized_ >> 8) & 0xFF);
+    auto      lsb = static_cast<float>(depth_normalized_ & 0xFF);
+    cv::Vec3b mixed_val;
     mixed_val[0] = lsb;
     mixed_val[1] = msb;
     mixed_val[2] = intensities[i];
-    //    mixed_val[2] = 0;
 
     out_image.at<cv::Vec3b>(proj_y_rounded, proj_x_rounded) = mixed_val;
   }
+}
+
+void Mapper3D::birdEyeImage(const std::vector<point>& pcl, cv::Mat& out_image)
+{
+  // Grid parameters
+  float grid_resolution = 0.03;
+  float side_range_min  = -5;
+  float side_range_max  = 5;
+  float fwd_range_min   = -5;
+  float fwd_range_max   = 5;
+
+  // Set output image size
+  int x_size =
+      1 + static_cast<int>((fwd_range_max - fwd_range_min) / grid_resolution);
+  int y_size =
+      1 + static_cast<int>((side_range_max - side_range_min) / grid_resolution);
+  out_image = cv::Mat::zeros(cv::Size(x_size, y_size), CV_8UC1);
+
+  for (const auto& pt : pcl) {
+    // Check if point is inside the desired bounds
+    if (pt.x > fwd_range_max || pt.x < fwd_range_min || pt.y > side_range_max ||
+        pt.y < side_range_min)
+      continue;
+
+    // Convert point to pixel position values
+    int x_img = static_cast<int>(-pt.x / grid_resolution);
+    int y_img = static_cast<int>(-pt.y / grid_resolution);
+
+    // Shift pixels to the image origin
+    x_img += std::floor(fwd_range_max / grid_resolution);
+    y_img += std::ceil(side_range_max / grid_resolution);
+
+    // Incremet pixel intensity at each observation
+    out_image.at<uchar>(y_img, x_img) += 10;
+  }
+
+  cv::Mat cm_img0;
+  cv::applyColorMap(out_image, cm_img0, cv::COLORMAP_JET);
+  cv::imshow("Birds eye image (colormap)", cm_img0);
+  cv::waitKey();
 }
 
 // -------------------------------------------------------------------------------

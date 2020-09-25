@@ -88,9 +88,12 @@ public:
                        OccupancyMap&        grid_map) const;
 
   // Computes a range image from a raw point cloud
-  void rangeImage(const std::vector<point>& pcl,
+  static void rangeImage(const std::vector<point>& pcl,
                   const std::vector<float>& intensities,
                   cv::Mat&                  out_image);
+
+  // Computes a birds eye image from a raw point cloud
+  static void birdEyeImage(const std::vector<point>& pcl, cv::Mat& out_image);
   // -------------------------------------------------------------------------------
 
   // Setter functions

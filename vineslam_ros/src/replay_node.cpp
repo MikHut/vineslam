@@ -24,9 +24,12 @@ ReplayNode::ReplayNode(int argc, char** argv)
 
   // Set node flags
   nmessages = 0;
+  bag_state = PLAYING;
 
-  std::thread th(&ReplayNode::replayFct, this, nh);
-  th.detach();
+  std::thread th1(&ReplayNode::replayFct, this, nh);
+  th1.detach();
+  std::thread th2(&ReplayNode::listenStdin, this);
+  th2.detach();
 
   // Set initialization flags default values
   init             = true;
@@ -170,6 +173,11 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
   bool tf_bool = false, clock_bool = false, odom_bool = false, fix_bool = false,
        depth_bool = false, left_bool = false, pcl_bool = false;
   for (rosbag::MessageInstance const m : rosbag::View(bag)) {
+    while (ros::ok()) {
+      if (bag_state == PLAYING)
+        break;
+    }
+
     // Publish clock
     clock_pub.publish(m.getTime());
 
@@ -247,6 +255,21 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
   }
 
   bag.close();
+}
+
+void ReplayNode::listenStdin()
+{
+  std::string input;
+  while (ros::ok()) {
+    std::cin >> input;
+    if (input == "s" && bag_state == PAUSED) {
+      ROS_INFO("Playing bag file...");
+      bag_state = PLAYING;
+    } else if (input == "s" && bag_state == PLAYING) {
+      ROS_INFO("Pausing bag file...");
+      bag_state = PAUSED;
+    }
+  }
 }
 
 ReplayNode::~ReplayNode()

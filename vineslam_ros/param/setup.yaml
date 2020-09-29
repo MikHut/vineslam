@@ -99,4 +99,4 @@ pf:
   sigma_ground_rp: 1.0 # degrees
   sigma_gps: 0.08 # meters
 
-  k_clusters: 3
+  k_clusters: 22

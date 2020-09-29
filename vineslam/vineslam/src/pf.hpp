@@ -121,13 +121,13 @@ private:
   std::string config_path;
   // Input numeric parameters
   // - General parameters
-  bool use_landmarks;
-  bool use_corners;
-  bool use_vegetation_lines;
-  bool use_ground_plane;
-  bool use_icp;
-  bool use_gps;
-  int  n_particles;
+  bool  use_landmarks;
+  bool  use_corners;
+  bool  use_vegetation_lines;
+  bool  use_ground_plane;
+  bool  use_icp;
+  bool  use_gps;
+  float n_particles;
   // - Innovation parameters
   float srr;
   float str;

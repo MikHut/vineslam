@@ -13,6 +13,13 @@ struct Feature {
 
   explicit Feature(const point& m_pos) { pos = m_pos; }
 
+  Feature(const int& m_id, const point& m_pos)
+  {
+    id  = m_id;
+    pos = m_pos;
+  }
+
+  int   id{};
   point pos;
 };
 
@@ -162,20 +169,26 @@ struct ImageFeature : public Feature {
 struct Corner : public Feature {
   Corner() = default;
 
-  Corner(const point& m_pt, const int& m_which_plane)
+  Corner(const point& m_pt, const int& m_which_plane, const int& m_id = 0)
   {
     pos         = m_pt;
     which_plane = m_which_plane;
+    id          = m_id;
   }
 
-  Corner(const point& m_pt, const int& m_which_plane, const point& m_correspondece)
+  Corner(const point& m_pt,
+         const int&   m_which_plane,
+         const point& m_correspondece,
+         const int&   m_id = 0)
   {
     pos            = m_pt;
     which_plane    = m_which_plane;
     correspondence = m_correspondece;
+    id             = m_id;
   }
 
   int   which_plane{};    // sets the plane where the corner belongs
+  int   which_cluster{};  // sets the cluster where the corner belongs
   point correspondence{}; // debug: correspondence point in other map
 };
 
@@ -194,6 +207,37 @@ struct PlanePoint : public Corner {
     pos         = m_corner.pos;
     which_plane = m_corner.which_plane;
   }
+};
+
+// ---------------------------------------------------------------------------------
+// ----- Point cloud medium-level sphere feature
+// ---------------------------------------------------------------------------------
+struct Cluster : public Feature {
+  Cluster() = default;
+
+  Cluster(const point& m_center, const point& m_radius, const int& m_id = 0)
+  {
+    center = m_center;
+    radius = m_radius;
+    id     = m_id;
+  }
+
+  Cluster(const point&               m_center,
+          const point&               m_radius,
+          const std::vector<Corner>& m_items,
+          const int&                 m_id = 0)
+  {
+    center = m_center;
+    radius = m_radius;
+    id     = m_id;
+
+    items = m_items;
+  }
+
+  point center; // Cluster centre
+  point radius; // Cluster radius
+
+  std::vector<Corner> items; // Items located inside the sphere feature
 };
 
 // ---------------------------------------------------------------------------------
@@ -233,7 +277,7 @@ struct Line {
   }
 
   // - This constructor fits a line in a set of points using a linear regression
-  Line(const std::vector<point>& m_pts)
+  explicit Line(const std::vector<point>& m_pts)
   {
     float sumX = 0., sumX2, sumY = 0., sumXY = 0.;
     float n      = 0;

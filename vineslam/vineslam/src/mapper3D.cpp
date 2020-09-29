@@ -1,4 +1,5 @@
 #include "mapper3D.hpp"
+#include <chrono>
 
 namespace vineslam
 {
@@ -41,6 +42,17 @@ Mapper3D::Mapper3D(const Parameters& params)
   vertical_angle_bottom   = static_cast<float>(15. + 0.1) * DEGREE_TO_RAD;
   ang_res_x               = static_cast<float>(0.2) * DEGREE_TO_RAD;
   ang_res_y               = static_cast<float>(2.) * DEGREE_TO_RAD;
+
+  // Initialize local map for clustering
+  Parameters local_map_params;
+  local_map_params.gridmap_origin_x   = -25;
+  local_map_params.gridmap_origin_y   = -10;
+  local_map_params.gridmap_resolution = 0.25;
+  local_map_params.gridmap_width      = 50;
+  local_map_params.gridmap_height     = 20;
+  local_map_params.gridmap_metric     = "euclidean";
+
+  local_map = new OccupancyMap(local_map_params);
 }
 
 // -------------------------------------------------------------------------------
@@ -224,6 +236,7 @@ void Mapper3D::reset()
 
 void Mapper3D::localPCLMap(const std::vector<point>& pcl,
                            std::vector<Corner>&      out_corners,
+                           std::vector<Cluster>&     out_clusters,
                            std::vector<Line>&        out_vegetation_lines,
                            Plane&                    out_groundplane)
 {
@@ -297,8 +310,9 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
   // - Vegetation 2 planes
   extractVegetationPlanes(cloud_seg, out_vegetation_lines);
 
-  //- Feature extraction and publication
+  //- Corners feature extraction
   extractCorners(cloud_seg, out_corners);
+  downsampleCorners(out_corners, 0.40, out_clusters, 1, 500);
 
   // Convert features to base_link referential frame
   pose tf_pose;
@@ -320,6 +334,12 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
   }
   for (auto& corner : out_corners) {
     corner.pos = corner.pos * tf.inverse();
+  }
+  for (auto& cluster : out_clusters) {
+    cluster.center = cluster.center * tf.inverse();
+    for (auto& corner : cluster.items) {
+      corner.pos = corner.pos * tf.inverse();
+    }
   }
   for (auto& line : out_vegetation_lines) {
     for (auto& pt : line.pts) {
@@ -753,6 +773,7 @@ void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,
   // -------------------------------------------------------------------------------
   // ----- Extract features from the 3D cloud
   // -------------------------------------------------------------------------------
+  int corner_id = 0;
   for (int i = 0; i < vertical_scans; i++) {
     for (int k = 0; k < 6; k++) {
       // Compute start and end indexes of the sub-region
@@ -781,8 +802,10 @@ void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,
             cloud_smoothness[l].value > edge_threshold) {
           picked_counter++;
           if (picked_counter <= picked_num) {
-            Corner m_corner(in_plane_pts[idx].pos, in_plane_pts[idx].which_plane);
+            Corner m_corner(
+                in_plane_pts[idx].pos, in_plane_pts[idx].which_plane, corner_id);
             out_corners.push_back(m_corner);
+            corner_id++;
           } else {
             break;
           }
@@ -815,6 +838,114 @@ void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,
     }
   }
 }
+
+void Mapper3D::downsampleCorners(std::vector<Corner>&  corners,
+                                 const float&          tolerance,
+                                 std::vector<Cluster>& clusters,
+                                 const unsigned int&   min_pts_per_cluster,
+                                 const unsigned int&   max_points_per_cluster)
+{
+  // -----------------------------------------------------------------------------
+  // ------ (1) Create and fill local grid map to speed up the search
+  // -----------------------------------------------------------------------------
+  local_map->clear();
+  for (const auto& corner : corners) local_map->insert(corner);
+
+  // -----------------------------------------------------------------------------
+  // ------ (2) Euclidean clustering algorithm
+  // -----------------------------------------------------------------------------
+  std::vector<bool> processed(corners.size(), false);
+
+  int cluster_id    = 0;
+  int clustered_pts = 0;
+  for (size_t i = 0; i < corners.size(); i++) {
+    if (processed[i])
+      continue;
+    else
+      processed[i] = true;
+
+    std::vector<int>   nn_indices;
+    std::vector<float> nn_distances;
+    std::vector<int>   seed_queue;
+    int                sq_idx = 0;
+    seed_queue.push_back(i);
+
+    while (sq_idx < seed_queue.size()) {
+      // Search for neighbours inside the radius tolerance
+      int   idx = seed_queue[sq_idx];
+      point pt  = corners[idx].pos;
+      for (const auto& m_corner : (*local_map)(pt.x, pt.y).corner_features) {
+        float dist = pt.distance(m_corner.pos);
+
+        if (dist < tolerance) {
+          nn_indices.push_back(m_corner.id);
+          nn_distances.push_back(dist);
+        }
+      }
+
+      std::vector<Cell> adjacents;
+      local_map->getAdjacent(pt.x, pt.y, 1, adjacents);
+      for (const auto& m_cell : adjacents) {
+        for (const auto& m_corner : m_cell.corner_features) {
+          float dist = pt.distance(m_corner.pos);
+          if (dist < tolerance) {
+            nn_indices.push_back(m_corner.id);
+            nn_distances.push_back(dist);
+          }
+        }
+      }
+
+      if (nn_indices.empty()) {
+        sq_idx++;
+        continue;
+      }
+
+      // If we found valid neighbours, insert them into a cluster
+      for (int& nn_indice : nn_indices) {
+        // Check if corners has already been processed
+        if (processed[nn_indice])
+          continue;
+
+        // Perform a simple Euclidean clustering
+        seed_queue.push_back(nn_indice);
+        processed[nn_indice] = true;
+      }
+
+      sq_idx++;
+    }
+
+    // Check if we found a valid cluster, and if so, save it
+    if (seed_queue.size() >= min_pts_per_cluster &&
+        seed_queue.size() <= max_points_per_cluster) {
+      std::vector<Corner> clustered_corners;
+      point               center(0., 0., 0.);
+      point               radius(0., 0., 0.);
+      for (int j : seed_queue) {
+        clustered_corners.push_back(corners[j]);
+        corners[j].which_cluster = cluster_id;
+
+        center = center + corners[j].pos;
+      }
+      center = center / static_cast<float>(seed_queue.size());
+      for (const auto& m_corner : clustered_corners) {
+        float dist_x = std::fabs(m_corner.pos.x - center.x);
+        float dist_y = std::fabs(m_corner.pos.y - center.y);
+        float dist_z = std::fabs(m_corner.pos.z - center.z);
+
+        radius.x = (dist_x > radius.x) ? dist_x : radius.x;
+        radius.y = (dist_y > radius.y) ? dist_y : radius.y;
+        radius.z = (dist_z > radius.z) ? dist_z : radius.z;
+
+        clustered_pts++;
+      }
+      Cluster cluster(center, radius, clustered_corners, cluster_id);
+      clusters.push_back(cluster);
+      cluster_id++;
+    }
+  }
+}
+
+bool Mapper3D::fitToPolyhedre(const std::vector<Corner>& items, Cluster& cluster) {}
 
 void Mapper3D::rangeImage(const std::vector<point>& pcl,
                           const std::vector<float>& intensities,
@@ -867,7 +998,7 @@ void Mapper3D::rangeImage(const std::vector<point>& pcl,
     // Compute a mixed image (first 16 bits with depth and last 8 bits with
     // intensity)
     uint16_t  depth_normalized_ = 65536 / max_distance * depth;
-    auto      msb = static_cast<float>((depth_normalized_ >> 8) & 0xFF);
+    auto      msb = static_cast<float>((depth_normalized_ >> 8u) & 0xFF);
     auto      lsb = static_cast<float>(depth_normalized_ & 0xFF);
     cv::Vec3b mixed_val;
     mixed_val[0] = lsb;
@@ -911,11 +1042,6 @@ void Mapper3D::birdEyeImage(const std::vector<point>& pcl, cv::Mat& out_image)
     // Incremet pixel intensity at each observation
     out_image.at<uchar>(y_img, x_img) += 10;
   }
-
-  cv::Mat cm_img0;
-  cv::applyColorMap(out_image, cm_img0, cv::COLORMAP_JET);
-  cv::imshow("Birds eye image (colormap)", cm_img0);
-  cv::waitKey();
 }
 
 // -------------------------------------------------------------------------------

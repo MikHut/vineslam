@@ -79,6 +79,7 @@ public:
   // Builds local map given the current 3D point cloud - for velodyne
   void localPCLMap(const std::vector<point>& pcl,
                    std::vector<Corner>&      out_corners,
+                   std::vector<Cluster>&     out_clusters,
                    std::vector<Line>&        out_vegetation_lines,
                    Plane&                    out_groundplane);
 
@@ -89,8 +90,8 @@ public:
 
   // Computes a range image from a raw point cloud
   static void rangeImage(const std::vector<point>& pcl,
-                  const std::vector<float>& intensities,
-                  cv::Mat&                  out_image);
+                         const std::vector<float>& intensities,
+                         cv::Mat&                  out_image);
 
   // Computes a birds eye image from a raw point cloud
   static void birdEyeImage(const std::vector<point>& pcl, cv::Mat& out_image);
@@ -163,10 +164,22 @@ private:
   void extractCorners(const std::vector<PlanePoint>& in_plane_pts,
                       std::vector<Corner>&           out_corners);
 
+  // Downsample 3D corners point cloud using cluster and fitting algorithms
+  void downsampleCorners(std::vector<Corner>&  corners,
+                         const float&          tolerance,
+                         std::vector<Cluster>& clusters,
+                         const unsigned int&   min_pts_per_cluster,
+                         const unsigned int&   max_points_per_cluster);
+
+  // Fit a cluster of corners into a ...
+  bool fitToPolyhedre(const std::vector<Corner>& items, Cluster& cluster);
   // ------------------------------------------------------------------------------
 
   // Converts a pixel into world's coordinate reference
   void pixel2base(const point& in_pt, const float& depth, point& out_pt) const;
+
+  // Local grid map for clustering search
+  OccupancyMap *local_map;
 
   // Camera info parameters
   int   img_width;
@@ -187,8 +200,6 @@ private:
 
   // 3D cloud feature parameters
   float correspondence_threshold;
-  int   downsample_f;
-  int   init_downsample_f;
   int   max_iters;
   float dist_threshold;
   float planes_th{};

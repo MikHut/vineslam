@@ -84,7 +84,7 @@ public:
   void publish2DMap(const std_msgs::Header&   header,
                     const pose&               pose,
                     const std::vector<float>& bearings,
-                    const std::vector<float>& depths);
+                    const std::vector<float>& depths) const;
   // Publish the 3D maps
   void publish3DMap();
   // Publish the 3D PCL planes
@@ -95,7 +95,7 @@ public:
   // Publish a 3D PCL corners map
   void publish3DMap(const std::vector<Corner>& corners, const ros::Publisher& pub);
   // Publish the grid map that contains all the maps
-  void publishGridMap(const std_msgs::Header& header);
+  void publishGridMap(const std_msgs::Header& header) const;
 
   // Computes the bearing depth of an object using the ZED disparity image
   // - Uses the point with minimum depth inside the bounding box

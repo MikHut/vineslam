@@ -11,6 +11,8 @@
 namespace vineslam
 {
 
+enum BAG_STATE { PAUSED, PLAYING };
+
 class ReplayNode : public VineSLAM_ros
 {
 public:
@@ -26,6 +28,9 @@ private:
   // Bag file iterator function - for offline mode
   void replayFct(ros::NodeHandle nh);
 
+  // Input keyboard reader thread to pause and play the bagfile
+  void listenStdin();
+
   // Topic and rosbag names
   std::string bagfile_str;
   std::string odom_str;
@@ -37,7 +42,8 @@ private:
   std::string pcl_str;
 
   // System flags
-  int nmessages;
+  int       nmessages;
+  BAG_STATE bag_state;
 };
 
 } // namespace vineslam

@@ -45,11 +45,11 @@ Mapper3D::Mapper3D(const Parameters& params)
 
   // Initialize local map for clustering
   Parameters local_map_params;
-  local_map_params.gridmap_origin_x   = -25;
-  local_map_params.gridmap_origin_y   = -10;
+  local_map_params.gridmap_origin_x   = -35;
+  local_map_params.gridmap_origin_y   = -20;
   local_map_params.gridmap_resolution = 0.25;
-  local_map_params.gridmap_width      = 50;
-  local_map_params.gridmap_height     = 20;
+  local_map_params.gridmap_width      = 70;
+  local_map_params.gridmap_height     = 30;
   local_map_params.gridmap_metric     = "euclidean";
 
   local_map = new OccupancyMap(local_map_params);
@@ -945,8 +945,6 @@ void Mapper3D::downsampleCorners(std::vector<Corner>&  corners,
   }
 }
 
-bool Mapper3D::fitToPolyhedre(const std::vector<Corner>& items, Cluster& cluster) {}
-
 void Mapper3D::rangeImage(const std::vector<point>& pcl,
                           const std::vector<float>& intensities,
                           cv::Mat&                  out_image)
@@ -975,7 +973,8 @@ void Mapper3D::rangeImage(const std::vector<point>& pcl,
       continue;
 
     // Get projections in image coordinates
-    float proj_x = static_cast<float>(.5) * (yaw / M_PI + static_cast<float>(1.));
+    float proj_x = static_cast<float>(.5) *
+                   (yaw / static_cast<float>(M_PI) + static_cast<float>(1.));
     float proj_y = static_cast<float>(1.) - (pitch + std::fabs(fov_down)) / fov;
 
     // Scale to image size using angular resolution
@@ -991,7 +990,7 @@ void Mapper3D::rangeImage(const std::vector<point>& pcl,
     int proj_y_rounded = static_cast<int>(std::max(static_cast<float>(0.), proj_y));
 
     // Compute depth image and intensity image
-    unsigned char depth_normalized = 255 / max_distance * depth;
+    auto depth_normalized = static_cast<unsigned char>(255 / max_distance * depth);
     out_range_image.at<uchar>(proj_y_rounded, proj_x_rounded)     = depth_normalized;
     out_intensity_image.at<uchar>(proj_y_rounded, proj_x_rounded) = intensities[i];
 
@@ -1039,8 +1038,68 @@ void Mapper3D::birdEyeImage(const std::vector<point>& pcl, cv::Mat& out_image)
     x_img += std::floor(fwd_range_max / grid_resolution);
     y_img += std::ceil(side_range_max / grid_resolution);
 
-    // Incremet pixel intensity at each observation
+    // Increment pixel intensity at each observation
     out_image.at<uchar>(y_img, x_img) += 10;
+  }
+}
+
+void Mapper3D::sideViewImageXZ(const std::vector<point>& pcl, cv::Mat& out_image)
+{
+  // Set initial parameters
+  float grid_res       = 0.03;
+  float horizontal_min = -10.;
+  float horizontal_max = 10.;
+  float vertical_min   = -3.;
+  float vertical_max   = 3.;
+  int   img_size_x = static_cast<int>((horizontal_max - horizontal_min) / grid_res);
+  int   img_size_y = static_cast<int>((vertical_max - vertical_min) / grid_res);
+
+  // Initialize image dimensions
+  out_image = cv::Mat::ones(cv::Size(img_size_x, img_size_y), CV_8UC1);
+
+  for (const auto& pt : pcl) {
+    // Check if point is inside the grid bounds
+    if (pt.x < horizontal_min || pt.x > horizontal_max || pt.z < vertical_min ||
+        pt.z > vertical_max)
+      continue;
+
+    // Map point to image
+    int x_img = static_cast<int>(pt.x / grid_res - horizontal_min / grid_res);
+    int y_img =
+        img_size_y - static_cast<int>(pt.z / grid_res - vertical_min / grid_res);
+
+    // Increment pixel intensity at each observation
+    out_image.at<uchar>(y_img, x_img) += 20;
+  }
+}
+
+void Mapper3D::sideViewImageYZ(const std::vector<point>& pcl, cv::Mat& out_image)
+{
+  // Set initial parameters
+  float grid_res       = 0.02;
+  float horizontal_min = -4.;
+  float horizontal_max = 4.;
+  float vertical_min   = -3.;
+  float vertical_max   = 3.;
+  int   img_size_x = static_cast<int>((horizontal_max - horizontal_min) / grid_res);
+  int   img_size_y = static_cast<int>((vertical_max - vertical_min) / grid_res);
+
+  // Initialize image dimensions
+  out_image = cv::Mat::ones(cv::Size(img_size_x, img_size_y), CV_8UC1);
+
+  for (const auto& pt : pcl) {
+    // Check if point is inside the grid bounds
+    if (pt.y < horizontal_min || pt.y > horizontal_max || pt.z < vertical_min ||
+        pt.z > vertical_max)
+      continue;
+
+    // Map point to image
+    int x_img = static_cast<int>(pt.y / grid_res - horizontal_min / grid_res);
+    int y_img =
+        img_size_y - static_cast<int>(pt.z / grid_res - vertical_min / grid_res);
+
+    // Increment pixel intensity at each observation
+    out_image.at<uchar>(y_img, x_img) += 20;
   }
 }
 

@@ -86,7 +86,7 @@ public:
                     const std::vector<float>& bearings,
                     const std::vector<float>& depths) const;
   // Publish the 3D maps
-  void publish3DMap();
+  void publish3DMap() const;
   // Publish the 3D PCL planes
   void publish3DMap(const std::vector<Plane>& planes, const ros::Publisher& pub);
   // Publish the 3D PCL lines

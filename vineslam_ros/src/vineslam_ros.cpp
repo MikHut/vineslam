@@ -809,7 +809,7 @@ void VineSLAM_ros::publish2DMap(const std_msgs::Header&   header,
   map2D_publisher.publish(ellipse_array);
 }
 
-void VineSLAM_ros::publish3DMap()
+void VineSLAM_ros::publish3DMap() const
 {
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr feature_cloud(
       new pcl::PointCloud<pcl::PointXYZRGB>);

@@ -95,6 +95,10 @@ public:
 
   // Computes a birds eye image from a raw point cloud
   static void birdEyeImage(const std::vector<point>& pcl, cv::Mat& out_image);
+
+  // Computes a projection of the point cloud into a side view image
+  static void sideViewImageXZ(const std::vector<point>& pcl, cv::Mat& out_image);
+  static void sideViewImageYZ(const std::vector<point>& pcl, cv::Mat& out_image);
   // -------------------------------------------------------------------------------
 
   // Setter functions
@@ -170,9 +174,6 @@ private:
                          std::vector<Cluster>& clusters,
                          const unsigned int&   min_pts_per_cluster,
                          const unsigned int&   max_points_per_cluster);
-
-  // Fit a cluster of corners into a ...
-  bool fitToPolyhedre(const std::vector<Corner>& items, Cluster& cluster);
   // ------------------------------------------------------------------------------
 
   // Converts a pixel into world's coordinate reference

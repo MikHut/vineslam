@@ -90,7 +90,7 @@ public:
 
     // Trough exception if out of bounds indexing
     if (index >= m_gmap.size() - 1 || index < 0)
-      throw "Exception: Access to grid map out of bounds\n";
+      throw "Exception: Access to grid map out of bounds";
   }
 
   // Define iterator to provide access to the cells array

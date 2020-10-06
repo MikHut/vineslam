@@ -97,8 +97,14 @@ public:
   static void birdEyeImage(const std::vector<point>& pcl, cv::Mat& out_image);
 
   // Computes a projection of the point cloud into a side view image
-  static void sideViewImageXZ(const std::vector<point>& pcl, cv::Mat& out_image);
-  static void sideViewImageYZ(const std::vector<point>& pcl, cv::Mat& out_image);
+  static void sideViewImageXZ(const std::vector<point>& pcl,
+                              cv::Mat&                  image_pside,
+                              cv::Mat&                  image_nside,
+                              cv::Mat&                  image_pside_depth,
+                              cv::Mat&                  image_nside_depth);
+  static void sideViewImageYZ(const std::vector<point>& pcl,
+                              cv::Mat&                  out_image,
+                              cv::Mat&                  out_image_range);
   // -------------------------------------------------------------------------------
 
   // Setter functions
@@ -180,7 +186,7 @@ private:
   void pixel2base(const point& in_pt, const float& depth, point& out_pt) const;
 
   // Local grid map for clustering search
-  OccupancyMap *local_map;
+  OccupancyMap* local_map;
 
   // Camera info parameters
   int   img_width;

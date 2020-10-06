@@ -1043,7 +1043,11 @@ void Mapper3D::birdEyeImage(const std::vector<point>& pcl, cv::Mat& out_image)
   }
 }
 
-void Mapper3D::sideViewImageXZ(const std::vector<point>& pcl, cv::Mat& out_image)
+void Mapper3D::sideViewImageXZ(const std::vector<point>& pcl,
+                               cv::Mat&                  image_pside,
+                               cv::Mat&                  image_nside,
+                               cv::Mat&                  image_pside_depth,
+                               cv::Mat&                  image_nside_depth)
 {
   // Set initial parameters
   float grid_res       = 0.03;
@@ -1051,11 +1055,21 @@ void Mapper3D::sideViewImageXZ(const std::vector<point>& pcl, cv::Mat& out_image
   float horizontal_max = 10.;
   float vertical_min   = -3.;
   float vertical_max   = 3.;
+  float normalizer     = 50.;
   int   img_size_x = static_cast<int>((horizontal_max - horizontal_min) / grid_res);
   int   img_size_y = static_cast<int>((vertical_max - vertical_min) / grid_res);
 
   // Initialize image dimensions
-  out_image = cv::Mat::ones(cv::Size(img_size_x, img_size_y), CV_8UC1);
+  image_pside = cv::Mat::zeros(cv::Size(img_size_x + 1, img_size_y + 1), CV_8UC1);
+  image_nside = cv::Mat::zeros(cv::Size(img_size_x + 1, img_size_y + 1), CV_8UC1);
+  image_pside_depth =
+      cv::Mat::zeros(cv::Size(img_size_x + 1, img_size_y + 1), CV_32FC1);
+  image_nside_depth =
+      cv::Mat::zeros(cv::Size(img_size_x + 1, img_size_y + 1), CV_32FC1);
+
+  // Map from pixel to elements
+  std::map<int, std::vector<float>> pmap;
+  std::map<int, std::vector<float>> nmap;
 
   for (const auto& pt : pcl) {
     // Check if point is inside the grid bounds
@@ -1069,11 +1083,73 @@ void Mapper3D::sideViewImageXZ(const std::vector<point>& pcl, cv::Mat& out_image
         img_size_y - static_cast<int>(pt.z / grid_res - vertical_min / grid_res);
 
     // Increment pixel intensity at each observation
-    out_image.at<uchar>(y_img, x_img) += 20;
+    if (pt.y > 0.) {
+      // Add element to grid cell
+      image_pside.at<uchar>(y_img, x_img) += 20;
+
+      // Store info to compute depth variance
+      image_pside_depth.at<float>(y_img, x_img) += pt.y;
+      pmap[y_img * img_size_x + x_img].push_back(pt.y);
+    } else {
+      // Add element to grid cell
+      image_nside.at<uchar>(y_img, x_img) += 20;
+
+      // Store info to compute depth variance
+      image_nside_depth.at<float>(y_img, x_img) += pt.y;
+      nmap[y_img * img_size_x + x_img].push_back(pt.y);
+    }
+  }
+
+  // Compute depth variance images
+  for (int i = 0; i < img_size_x; i++) {
+    for (int j = 0; j < img_size_y; j++) {
+      // Compute index
+      int idx = j * img_size_x + i;
+
+      if (!pmap[idx].empty()) {
+        // Compute mean of each grid cell
+        float pmean =
+            static_cast<float>(image_pside_depth.at<float>(j, i)) / pmap[idx].size();
+        // Compute depth variances for each grid cell
+        float pvar = 0.;
+        for (const auto& depth : pmap[idx]) {
+          pvar += std::pow(depth - pmean, 2);
+        }
+        pvar = std::sqrt(pvar / static_cast<float>(pmap[idx].size()));
+
+        // Save variance on cell
+        float val       = pvar / normalizer * static_cast<float>(255);
+        float final_val = val > 255 ? 255 : val;
+        image_pside_depth.at<float>(j, i) = final_val;
+      }
+
+      if (!nmap[idx].empty()) {
+        // Compute mean of each grid cell
+        float nmean =
+            static_cast<float>(image_nside_depth.at<float>(j, i)) / nmap[idx].size();
+        // Compute depth variances for each grid cell
+        float nvar = 0.;
+        for (const auto& depth : nmap[idx]) {
+          nvar += std::pow(depth - nmean, 2);
+        }
+        nvar = std::sqrt(nvar / static_cast<float>(nmap[idx].size()));
+
+        // Normalize variance to write on image
+        float nmax = *std::max_element(nmap[idx].begin(), nmap[idx].end());
+        int   nvar_normalized = static_cast<int>(nvar / nmax * 255);
+
+        // Save variance on cell
+        float val       = nvar / normalizer * static_cast<float>(255);
+        float final_val = val > 255 ? 255 : val;
+        image_nside_depth.at<float>(j, i) = final_val;
+      }
+    }
   }
 }
 
-void Mapper3D::sideViewImageYZ(const std::vector<point>& pcl, cv::Mat& out_image)
+void Mapper3D::sideViewImageYZ(const std::vector<point>& pcl,
+                               cv::Mat&                  out_image,
+                               cv::Mat&                  out_image_depth)
 {
   // Set initial parameters
   float grid_res       = 0.02;
@@ -1081,11 +1157,17 @@ void Mapper3D::sideViewImageYZ(const std::vector<point>& pcl, cv::Mat& out_image
   float horizontal_max = 4.;
   float vertical_min   = -3.;
   float vertical_max   = 3.;
+  float normalizer     = 50.;
   int   img_size_x = static_cast<int>((horizontal_max - horizontal_min) / grid_res);
   int   img_size_y = static_cast<int>((vertical_max - vertical_min) / grid_res);
 
   // Initialize image dimensions
-  out_image = cv::Mat::ones(cv::Size(img_size_x, img_size_y), CV_8UC1);
+  out_image = cv::Mat::zeros(cv::Size(img_size_x + 1, img_size_y + 1), CV_8UC1);
+  out_image_depth =
+      cv::Mat::zeros(cv::Size(img_size_x + 1, img_size_y + 1), CV_32FC1);
+
+  // Map from pixel to elements
+  std::map<int, std::vector<float>> depth_map;
 
   for (const auto& pt : pcl) {
     // Check if point is inside the grid bounds
@@ -1100,6 +1182,35 @@ void Mapper3D::sideViewImageYZ(const std::vector<point>& pcl, cv::Mat& out_image
 
     // Increment pixel intensity at each observation
     out_image.at<uchar>(y_img, x_img) += 20;
+
+    // Store info to compute depth variance
+    out_image_depth.at<float>(y_img, x_img) += pt.x;
+    depth_map[y_img * img_size_x + x_img].push_back(pt.x);
+  }
+
+  // Compute depth variance image
+  for (int i = 0; i < img_size_x; i++) {
+    for (int j = 0; j < img_size_y; j++) {
+      // Compute index
+      int idx = j * img_size_x + i;
+
+      if (!depth_map[idx].empty()) {
+        // Compute mean of each grid cell
+        float mean = static_cast<float>(out_image_depth.at<float>(j, i)) /
+                     depth_map[idx].size();
+        // Compute depth variances for each grid cell
+        float var = 0.;
+        for (const auto& depth : depth_map[idx]) {
+          var += std::pow(depth - mean, 2);
+        }
+        var = std::sqrt(var / static_cast<float>(depth_map[idx].size()));
+
+        // Save variance on cell
+        float val                       = var / normalizer * static_cast<float>(255);
+        float final_val                 = val > 255 ? 255 : val;
+        out_image_depth.at<float>(j, i) = final_val;
+      }
+    }
   }
 }
 

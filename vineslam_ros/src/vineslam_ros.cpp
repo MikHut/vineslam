@@ -406,6 +406,12 @@ void VineSLAM_ros::scanListener(const sensor_msgs::PointCloud2ConstPtr& msg)
     scan_pts.push_back(m_pt);
     intensities.push_back(pt.intensity);
   }
+
+  cv::Mat imagepXZ, imagenXZ, imagepXZ_depth, imagenXZ_depth;
+  vineslam::Mapper3D::sideViewImageXZ(
+      scan_pts, imagepXZ, imagenXZ, imagepXZ_depth, imagenXZ_depth);
+  cv::Mat imageYZ, imageYZ_depth;
+  vineslam::Mapper3D::sideViewImageYZ(scan_pts, imageYZ, imageYZ_depth);
 }
 
 void VineSLAM_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)

@@ -264,7 +264,7 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
       continue;
     }
 
-    float horizon_angle = std::atan2(m_pt.x, m_pt.y);
+    float horizon_angle = std::atan2(m_pt.x, m_pt.y); // this is not an error
 
     int column_idx = static_cast<int>(-round((horizon_angle - M_PI_2) / ang_res_x) +
                                       horizontal_scans / 2.);
@@ -313,7 +313,7 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
 
   //- Corners feature extraction
   extractCorners(cloud_seg, out_corners);
-  downsampleCorners(out_corners, 0.40, out_clusters, 1, 500);
+  //  downsampleCorners(out_corners, 0.40, out_clusters, 1, 500);
 
   // Convert features to base_link referential frame
   pose tf_pose;

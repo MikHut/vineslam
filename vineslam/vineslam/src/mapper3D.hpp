@@ -211,7 +211,6 @@ private:
   float depth_vfov;
 
   // 3D map parameters
-  std::string sensor;
   std::string metric;
   float       max_range;
   float       max_height;

@@ -455,7 +455,7 @@ void PF::mediumLevelLines(const std::vector<Line>& vegetation_lines,
     float theta_left  = std::atan(vegetation_lines[0].m);
     float theta_right = std::atan(vegetation_lines[1].m);
 
-    // Check if current vineyard lines are approximately paralell
+    // Check if current vineyard lines are approximately parallel
     c2 = std::fabs(theta_left - theta_right) < (3. * DEGREE_TO_RAD);
 
     // Compute static vars to use in the PF loop

@@ -94,17 +94,24 @@ public:
                          cv::Mat&                  out_image);
 
   // Computes a birds eye image from a raw point cloud
-  static void birdEyeImage(const std::vector<point>& pcl, cv::Mat& out_image);
+  static void birdEyeImage(const std::vector<point>& pcl,
+                           cv::Mat&                  out_image,
+                           cv::Mat&                  out_image_var);
 
-  // Computes a projection of the point cloud into a side view image
+  // Computes a projection of the point cloud into different side view images
   static void sideViewImageXZ(const std::vector<point>& pcl,
                               cv::Mat&                  image_pside,
                               cv::Mat&                  image_nside,
-                              cv::Mat&                  image_pside_depth,
-                              cv::Mat&                  image_nside_depth);
+                              cv::Mat&                  image_pside_var,
+                              cv::Mat&                  image_nside_var);
   static void sideViewImageYZ(const std::vector<point>& pcl,
                               cv::Mat&                  out_image,
-                              cv::Mat&                  out_image_range);
+                              cv::Mat&                  out_image_var);
+  // Extract point cloud descriptors from variance images
+  static void extractPCLDescriptors(const cv::Mat& by_image_var,
+                                    const cv::Mat& pside_image_var,
+                                    const cv::Mat& nside_image_var,
+                                    const cv::Mat& back_image_var);
   // -------------------------------------------------------------------------------
 
   // Setter functions
@@ -136,6 +143,9 @@ public:
     vel2base_pitch = pitch;
     vel2base_yaw   = yaw;
   }
+
+  // Public vars
+  float lidar_height;
 
 private:
   // -------------------------------------------------------------------------------
@@ -180,6 +190,8 @@ private:
                          std::vector<Cluster>& clusters,
                          const unsigned int&   min_pts_per_cluster,
                          const unsigned int&   max_points_per_cluster);
+  // Computes an histogram of a point cloud image
+  static void computeHistogram(const cv::Mat& in_image, std::vector<int>& hist);
   // ------------------------------------------------------------------------------
 
   // Converts a pixel into world's coordinate reference

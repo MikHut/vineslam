@@ -154,7 +154,8 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
       obsv.landmarks = m_landmarks;
     obsv.corners          = m_corners;
     obsv.vegetation_lines = m_vegetation_lines;
-    obsv.ground_plane     = m_ground_plane;
+    if (std::fabs(m_ground_plane.mean_height) > mapper3D->lidar_height / 2)
+      obsv.ground_plane = m_ground_plane;
     if (has_converged && params.use_gps)
       obsv.gps_pose = gps_pose;
     else
@@ -175,21 +176,6 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
       mapper3D->globalSurfMap(m_surf_features, robot_pose, *grid_map);
       // ---------------------------------------- //
     }
-
-    // Save poses to paths
-    std::array<float, 9> robot_R{};
-    robot_pose.toRotMatrix(robot_R);
-    TF robot_tf(robot_R,
-                std::array<float, 3>{robot_pose.x, robot_pose.y, robot_pose.z});
-    robot_path.push_back(robot_tf);
-    std::array<float, 9> gps_R{};
-    robot_pose.toRotMatrix(gps_R);
-    TF gps_tf(robot_R, std::array<float, 3>{gps_pose.x, gps_pose.y, gps_pose.z});
-    gps_path.push_back(gps_tf);
-    std::array<float, 9> odom_R{};
-    odom.toRotMatrix(odom_R);
-    TF odom_tf(odom_R, std::array<float, 3>{odom.x, odom.y, odom.z});
-    odom_path.push_back(odom_tf);
 
     // Convert robot pose to tf::Transform corresponding
     // to the camera to map transformation
@@ -347,6 +333,10 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
       }
 
       for (const auto& cluster : m_clusters) {
+        std::array<float, 9> robot_R{};
+        robot_pose.toRotMatrix(robot_R);
+        TF    robot_tf(robot_R,
+                    std::array<float, 3>{robot_pose.x, robot_pose.y, robot_pose.z});
         point m_pt;
         m_pt.x = cluster.center.x * robot_tf.R[0] +
                  cluster.center.y * robot_tf.R[1] +
@@ -407,11 +397,27 @@ void VineSLAM_ros::scanListener(const sensor_msgs::PointCloud2ConstPtr& msg)
     intensities.push_back(pt.intensity);
   }
 
-  cv::Mat imagepXZ, imagenXZ, imagepXZ_depth, imagenXZ_depth;
-  vineslam::Mapper3D::sideViewImageXZ(
-      scan_pts, imagepXZ, imagenXZ, imagepXZ_depth, imagenXZ_depth);
-  cv::Mat imageYZ, imageYZ_depth;
-  vineslam::Mapper3D::sideViewImageYZ(scan_pts, imageYZ, imageYZ_depth);
+  //  cv::Mat image_top, image_top_depth;
+  //  vineslam::Mapper3D::birdEyeImage(scan_pts, image_top, image_top_depth);
+  //  cv::Mat imagepXZ, imagenXZ, imagepXZ_depth, imagenXZ_depth;
+  //  vineslam::Mapper3D::sideViewImageXZ(
+  //      scan_pts, imagepXZ, imagenXZ, imagepXZ_depth, imagenXZ_depth);
+  //  cv::Mat imageYZ, imageYZ_depth;
+  //  vineslam::Mapper3D::sideViewImageYZ(scan_pts, imageYZ, imageYZ_depth);
+  //  vineslam::Mapper3D::extractPCLDescriptors(
+  //      image_top_depth, imagepXZ_depth, imagenXZ_depth, imageYZ_depth);
+
+  // Convert grayscale image to colormap
+  //  cv::Mat cm_top, cmpXZ, cmnXZ, cmYZ;
+  //  cv::applyColorMap(image_top_depth, cm_top, cv::COLORMAP_JET);
+  //  cv::applyColorMap(imagepXZ_depth, cmpXZ, cv::COLORMAP_JET);
+  //  cv::applyColorMap(imagenXZ_depth, cmnXZ, cv::COLORMAP_JET);
+  //  cv::applyColorMap(imageYZ_depth, cmYZ, cv::COLORMAP_JET);
+  //  cv::imshow("Birds eye view depth variance image", cm_top);
+  //  cv::imshow("Side positive view depth variance image XZ", cmpXZ);
+  //  cv::imshow("Side negative view depth variance image XZ", cmnXZ);
+  //  cv::imshow("Back view depth variance image YZ", cmYZ);
+  //  cv::waitKey(1000);
 }
 
 void VineSLAM_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)

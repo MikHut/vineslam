@@ -145,7 +145,7 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
   std::vector<float> gps_weights(n_particles, 0.);
 
   auto before = std::chrono::high_resolution_clock::now();
-  if (use_landmarks && !(motion_state == ROTATING))
+  if (use_landmarks && motion_state != ROTATING)
     highLevel(landmarks, grid_map, semantic_weights);
   auto after = std::chrono::high_resolution_clock::now();
   std::chrono::duration<float, std::milli> duration = after - before;
@@ -224,7 +224,7 @@ void PF::gps(const pose& gps_pose, std::vector<float>& ws)
   for (const auto& particle : particles) {
     // - GPS [x, y] weight
     float w_gps;
-    float dist  = particle.p.distance(gps_pose);
+    float dist = particle.p.distance(gps_pose);
     w_gps = (normalizer_gps * static_cast<float>(std::exp(-1. / sigma_gps * dist)));
 
     ws[particle.id] = w_gps;
@@ -455,7 +455,7 @@ void PF::mediumLevelLines(const std::vector<Line>& vegetation_lines,
     float theta_left  = std::atan(vegetation_lines[0].m);
     float theta_right = std::atan(vegetation_lines[1].m);
 
-    // Check if current vineyard lines are approximately paralell
+    // Check if current vineyard lines are approximately parallel
     c2 = std::fabs(theta_left - theta_right) < (3. * DEGREE_TO_RAD);
 
     // Compute static vars to use in the PF loop
@@ -472,11 +472,6 @@ void PF::mediumLevelLines(const std::vector<Line>& vegetation_lines,
         w_veg_lines =
             (normalizer_veg_lines *
              static_cast<float>(std::exp(-1. / sigma_vegetation_lines_yaw * error)));
-
-        //        std::cout << "error = (" << (theta_left - particle.p.yaw) *
-        //        RAD_TO_DEGREE << "," << (theta_right - particle.p.yaw) *
-        //        RAD_TO_DEGREE << ") " << error * RAD_TO_DEGREE << ", w = " <<
-        //        w_veg_lines << std::endl;
       }
 
       ws[particle.id] = w_veg_lines;
@@ -542,7 +537,8 @@ void PF::cluster(std::map<int, Gaussian<pose, pose>>& gauss_map)
     }
   }
   std::vector<int> num_per_cluster(k_clusters, 0);
-  int              max_num = n_particles / k_clusters;
+  int              max_num = static_cast<int>(static_cast<float>(n_particles) /
+                                 static_cast<float>(k_clusters));
   for (auto& particle : particles) {
     float min_dist = std::numeric_limits<float>::max();
     for (int i = 0; i < k_clusters; i++) {
@@ -600,7 +596,7 @@ void PF::cluster(std::map<int, Gaussian<pose, pose>>& gauss_map)
       if (which_cluster != particle.which_cluster) {
         auto it = swap.find(particle.which_cluster);
         if (num_per_cluster[particle.which_cluster] >
-            static_cast<float>(n_particles / k_clusters) * 1.0) {
+            static_cast<float>(n_particles) / static_cast<float>(k_clusters)) {
           num_per_cluster[which_cluster]++;
           num_per_cluster[particle.which_cluster]--;
           particle.which_cluster = which_cluster;

@@ -13,6 +13,13 @@ struct Feature {
 
   explicit Feature(const point& m_pos) { pos = m_pos; }
 
+  Feature(const int& m_id, const point& m_pos)
+  {
+    id  = m_id;
+    pos = m_pos;
+  }
+
+  int   id{};
   point pos;
 };
 
@@ -162,21 +169,15 @@ struct ImageFeature : public Feature {
 struct Corner : public Feature {
   Corner() = default;
 
-  Corner(const point& m_pt, const int& m_which_plane)
+  Corner(const point& m_pt, const int& m_which_plane, const int& m_id = 0)
   {
     pos         = m_pt;
     which_plane = m_which_plane;
+    id          = m_id;
   }
 
-  Corner(const point& m_pt, const int& m_which_plane, const point& m_correspondece)
-  {
-    pos            = m_pt;
-    which_plane    = m_which_plane;
-    correspondence = m_correspondece;
-  }
-
-  int   which_plane{};    // sets the plane where the corner belongs
-  point correspondence{}; // debug: correspondence point in other map
+  int which_plane{};   // sets the plane where the corner belongs
+  int which_cluster{}; // sets the cluster where the corner belongs
 };
 
 // Dummy struct to represent a plane point, before corner extraction
@@ -197,6 +198,37 @@ struct PlanePoint : public Corner {
 };
 
 // ---------------------------------------------------------------------------------
+// ----- Point cloud medium-level sphere feature
+// ---------------------------------------------------------------------------------
+struct Cluster : public Feature {
+  Cluster() = default;
+
+  Cluster(const point& m_center, const point& m_radius, const int& m_id = 0)
+  {
+    center = m_center;
+    radius = m_radius;
+    id     = m_id;
+  }
+
+  Cluster(const point&               m_center,
+          const point&               m_radius,
+          const std::vector<Corner>& m_items,
+          const int&                 m_id = 0)
+  {
+    center = m_center;
+    radius = m_radius;
+    id     = m_id;
+
+    items = m_items;
+  }
+
+  point center; // Cluster centre
+  point radius; // Cluster radius
+
+  std::vector<Corner> items; // Items located inside the sphere feature
+};
+
+// ---------------------------------------------------------------------------------
 // ----- Point cloud medium-level plane feature
 // ---------------------------------------------------------------------------------
 
@@ -214,6 +246,7 @@ struct Plane {
   vector3D           normal;  // plane normal vector
   std::vector<point> points;  // set of points that belong to the plane
   std::vector<point> indexes; // indexes of points projected into the range image
+  float              mean_height{}; // ground plane mean height - used for validation
 };
 
 // ---------------------------------------------------------------------------------
@@ -233,7 +266,7 @@ struct Line {
   }
 
   // - This constructor fits a line in a set of points using a linear regression
-  Line(const std::vector<point>& m_pts)
+  explicit Line(const std::vector<point>& m_pts)
   {
     float sumX = 0., sumX2, sumY = 0., sumXY = 0.;
     float n      = 0;

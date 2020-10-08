@@ -97,13 +97,24 @@ struct point {
     return res;
   }
 
+  // Comparison operators
+  bool operator==(const point& other) const
+  {
+    return (x == other.x && y == other.y && z == other.z);
+  }
+  bool operator!=(const point& other) const
+  {
+    return (x != other.x || y != other.y || z != other.z);
+  }
+
   // 3D euclidean distance
   float distance(const point& other) const
   {
     float dist_x = x - other.x;
     float dist_y = y - other.y;
     float dist_z = z - other.z;
-    return sqrt(std::pow(dist_x, 2) + std::pow(dist_y, 2) + std::pow(dist_z, 2));
+    return std::sqrt(std::pow(dist_x, 2) + std::pow(dist_y, 2) +
+                     std::pow(dist_z, 2));
   }
 
   // 2D euclidean distance
@@ -111,11 +122,14 @@ struct point {
   {
     float dist_x = x - other.x;
     float dist_y = y - other.y;
-    return sqrt(std::pow(dist_x, 2) + std::pow(dist_y, 2));
+    return std::sqrt(std::pow(dist_x, 2) + std::pow(dist_y, 2));
   }
 
   // 3D point norm
-  float norm3D() { return sqrt(std::pow(x, 2) + std::pow(y, 2) + std::pow(z, 2)); }
+  float norm3D()
+  {
+    return std::sqrt(std::pow(x, 2) + std::pow(y, 2) + std::pow(z, 2));
+  }
 
   // Convert point to Eigen 3D vector
   Eigen::VectorXf toEig2D() const
@@ -144,4 +158,5 @@ static std::ostream& operator<<(std::ostream& out, point const& p)
 {
   return out << '(' << p.x << ' ' << p.y << ' ' << p.z << ")\n";
 }
+
 } // namespace vineslam

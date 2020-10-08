@@ -90,7 +90,7 @@ public:
 
     // Trough exception if out of bounds indexing
     if (index >= m_gmap.size() - 1 || index < 0)
-      throw "Exception: Access to grid map out of bounds\n";
+      throw "Exception: Access to grid map out of bounds";
   }
 
   // Define iterator to provide access to the cells array
@@ -153,9 +153,23 @@ public:
   bool findNearestOnCell(const ImageFeature& input, ImageFeature& nearest);
 
   // Returns true if the map has no features or landmarks
-  bool empty()
+  bool empty() const
   {
     return (n_surf_features == 0 && n_landmarks == 0 && n_corner_features == 0);
+  }
+
+  // Delete all features in the map
+  void clear()
+  {
+    for (auto& cell : m_gmap) {
+      cell.corner_features.clear();
+      cell.surf_features.clear();
+      cell.landmarks.clear();
+    }
+
+    n_corner_features = 0;
+    n_surf_features   = 0;
+    n_landmarks       = 0;
   }
 
   // Number of features and landmarks in the map

@@ -116,13 +116,12 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
       mapper2D->init(robot_pose, bearings, depths, labels, *grid_map);
 
       // - 3D PCL corner map estimation
-      std::vector<Corner>  m_corners;
-      std::vector<Cluster> m_clusters;
-      std::vector<Line>    m_vegetation_lines;
-      Plane                m_ground_plane;
-      mapper3D->localPCLMap(
-          scan_pts, m_corners, m_clusters, m_vegetation_lines, m_ground_plane);
+      std::vector<Corner> m_corners;
+      std::vector<Plane>  m_planes;
+      Plane               m_ground_plane;
+      mapper3D->localPCLMap(scan_pts, m_corners, m_planes, m_ground_plane);
       mapper3D->globalCornerMap(robot_pose, m_corners, *grid_map);
+      mapper3D->globalPlaneMap(robot_pose, m_planes, *grid_map);
 
       // - 3D image feature map estimation
       auto*                     raw_depths = (float*)(&(*depth_image).data[0]);
@@ -144,12 +143,10 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     mapper2D->localMap(bearings, depths, m_landmarks);
 
     // - Compute 3D PCL corners and ground plane on robot's referential frame
-    std::vector<Corner>  m_corners;
-    std::vector<Cluster> m_clusters;
-    std::vector<Line>    m_vegetation_lines;
-    Plane                m_ground_plane;
-    mapper3D->localPCLMap(
-        scan_pts, m_corners, m_clusters, m_vegetation_lines, m_ground_plane);
+    std::vector<Corner> m_corners;
+    std::vector<Plane>  m_planes;
+    Plane               m_ground_plane;
+    mapper3D->localPCLMap(scan_pts, m_corners, m_planes, m_ground_plane);
 
     // - Compute 3D image features on robot's referential frame
     std::vector<ImageFeature> m_surf_features;
@@ -168,11 +165,11 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     Observation obsv;
     if (params.use_landmarks)
       obsv.landmarks = m_landmarks;
-    obsv.corners          = m_corners;
-    obsv.vegetation_lines = m_vegetation_lines;
+    obsv.corners = m_corners;
+    obsv.planes  = m_planes;
     if (std::fabs(m_ground_plane.mean_height) > mapper3D->lidar_height / 2)
       obsv.ground_plane = m_ground_plane;
-    obsv.surf_features    = m_surf_features;
+    obsv.surf_features = m_surf_features;
     if (has_converged && params.use_gps)
       obsv.gps_pose = gps_pose;
     else
@@ -186,6 +183,8 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
       mapper2D->process(robot_pose, m_landmarks, labels, *grid_map);
       // - 3D PCL corner map estimation
       mapper3D->globalCornerMap(robot_pose, m_corners, *grid_map);
+      // - 3D PCL plane map estimation
+      mapper3D->globalPlaneMap(robot_pose, m_planes, *grid_map);
       // - 3D image feature map estimation
       mapper3D->globalSurfMap(m_surf_features, robot_pose, *grid_map);
     }
@@ -236,9 +235,9 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // Publish 3D maps
     publish3DMap();
     publish3DMap(m_corners, corners_local_publisher);
-    publish3DMap(m_vegetation_lines, map3D_lines_publisher);
-    std::vector<Plane> planes = {m_ground_plane};
-    publish3DMap(planes, map3D_planes_publisher);
+    publish3DMap(m_planes, map3D_lines_publisher);
+    //    std::vector<Plane> planes = {m_ground_plane};
+    //    publish3DMap(planes, map3D_planes_publisher);
 
     // Publish cam-to-map tf::Transform
     static tf::TransformBroadcaster br;
@@ -266,7 +265,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // ----- Debug area : publishes the robot path & the vegetation lines
     // --------------------------------------------------
     if (params.debug) {
-      visDebug(m_vegetation_lines, m_clusters);
+      visDebug(m_planes);
     }
   }
 }

@@ -24,7 +24,7 @@ struct Parameters {
   // ------ System flags
   // -----------------------------------
   bool debug{};
-  bool use_vegetation_lines{};
+  bool use_planes{};
   bool use_landmarks{};
   bool use_ground_plane{};
   bool use_corners{};
@@ -94,7 +94,7 @@ struct Parameters {
   float sigma_landmark_matching{};
   float sigma_feature_matching{};
   float sigma_corner_matching{};
-  float sigma_vegetation_lines_yaw{};
+  float sigma_planes_yaw{};
   float sigma_ground_rp{};
   float sigma_gps{};
   int   number_clusters{};

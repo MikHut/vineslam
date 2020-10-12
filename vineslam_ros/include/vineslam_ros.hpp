@@ -89,16 +89,12 @@ public:
   void publish3DMap() const;
   // Publish the 3D PCL planes
   void publish3DMap(const std::vector<Plane>& planes, const ros::Publisher& pub);
-  // Publish the 3D PCL lines
-  void publish3DMap(const std::vector<Line>& vegetation_lines,
-                    const ros::Publisher&    pub);
   // Publish a 3D PCL corners map
   void publish3DMap(const std::vector<Corner>& corners, const ros::Publisher& pub);
   // Publish the grid map that contains all the maps
   void publishGridMap(const std_msgs::Header& header) const;
   // Publishes debug visualization objects
-  void visDebug(const std::vector<Line>&    m_vegetation_lines,
-                const std::vector<Cluster>& m_clusters);
+  void visDebug(const std::vector<Plane>& planes);
 
   // Computes the bearing depth of an object using the ZED disparity image
   // - Uses the point with minimum depth inside the bounding box

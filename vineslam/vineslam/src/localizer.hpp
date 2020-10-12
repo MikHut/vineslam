@@ -22,7 +22,7 @@ struct Observation {
   std::vector<SemanticFeature> landmarks;
   std::vector<Corner>          corners;
   std::vector<ImageFeature>    surf_features;
-  std::vector<Line>            vegetation_lines;
+  std::vector<Plane>           planes;
   Plane                        ground_plane;
   pose                         gps_pose;
 };
@@ -31,7 +31,7 @@ class Localizer
 {
 public:
   // Class constructor
-  explicit Localizer(Parameters  params);
+  explicit Localizer(Parameters params);
 
   // Initializes the particle filter with the number of particles
   // and the first odometry pose

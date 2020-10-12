@@ -237,8 +237,7 @@ void Mapper3D::reset()
 
 void Mapper3D::localPCLMap(const std::vector<point>& pcl,
                            std::vector<Corner>&      out_corners,
-                           std::vector<Cluster>&     out_clusters,
-                           std::vector<Line>&        out_vegetation_lines,
+                           std::vector<Plane>&       out_planes,
                            Plane&                    out_groundplane)
 {
   std::vector<point> transformed_pcl;
@@ -308,12 +307,11 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
   std::vector<PlanePoint> cloud_seg;
   cloudSegmentation(transformed_pcl, cloud_seg);
 
-  // - Vegetation 2 planes
-  extractVegetationPlanes(cloud_seg, out_vegetation_lines);
+  // - Extract two planes (right and left) from point cloud
+  extractHighLevelPlanes(cloud_seg, out_planes);
 
   //- Corners feature extraction
   extractCorners(cloud_seg, out_corners);
-  //  downsampleCorners(out_corners, 0.40, out_clusters, 1, 500);
 
   // Convert features to base_link referential frame
   pose tf_pose;
@@ -336,14 +334,8 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
   for (auto& corner : out_corners) {
     corner.pos = corner.pos * tf.inverse();
   }
-  for (auto& cluster : out_clusters) {
-    cluster.center = cluster.center * tf.inverse();
-    for (auto& corner : cluster.items) {
-      corner.pos = corner.pos * tf.inverse();
-    }
-  }
-  for (auto& line : out_vegetation_lines) {
-    for (auto& pt : line.pts) {
+  for (auto& plane : out_planes) {
+    for (auto& pt : plane.points) {
       pt = pt * tf.inverse();
     }
   }
@@ -410,6 +402,51 @@ void Mapper3D::globalCornerMap(const pose&          robot_pose,
       Corner new_corner(m_pt, corner.which_plane);
       grid_map.insert(new_corner);
     }
+  }
+}
+
+void Mapper3D::globalPlaneMap(const pose&         robot_pose,
+                              std::vector<Plane>& planes,
+                              OccupancyMap&       grid_map) const
+{
+  for (auto& plane : planes) {
+    // -------------------------------------------------
+    // ---- Transform plane to maps' referential
+    // -------------------------------------------------
+    std::array<float, 9> tf_rot{};
+    robot_pose.toRotMatrix(tf_rot);
+    TF tf =
+        TF(tf_rot, std::array<float, 3>{robot_pose.x, robot_pose.y, robot_pose.z});
+
+    for (auto& pt : plane.points) pt = pt * tf;
+    plane.regression = Line(plane.points);
+
+    bool found_correspondence = false;
+    for (auto& map_plane : grid_map.getPlanes()) {
+      // -----------------------------------------------
+      // ---- Search for correspondence
+      // -----------------------------------------------
+//      std::cout << std::fabs(plane.regression.m - map_plane.regression.m) << std::endl;
+//      std::cout << std::fabs(plane.regression.b - map_plane.regression.b) << std::endl;
+      if (std::fabs(plane.regression.m - map_plane.regression.m) <
+              5 * DEGREE_TO_RAD &&
+          std::fabs(plane.regression.b - map_plane.regression.b) < 0.1) {
+        // ---------------------------------------------
+        // ---- Update corresponding plane
+        // ---------------------------------------------
+        map_plane.points.insert(
+            map_plane.points.end(), plane.points.begin(), plane.points.end());
+        map_plane.regression = Line(map_plane.points);
+
+        found_correspondence = true;
+        break;
+      }
+    }
+    // -------------------------------------------------
+    // ---- Insert new plane on the map if none correspondence was found
+    // -------------------------------------------------
+    if (!found_correspondence)
+      grid_map.insert(plane);
   }
 }
 
@@ -708,8 +745,8 @@ void Mapper3D::labelComponents(const int&                row,
   }
 }
 
-void Mapper3D::extractVegetationPlanes(const std::vector<PlanePoint>& in_plane_pts,
-                                       std::vector<Line>& out_vegetation_lines)
+void Mapper3D::extractHighLevelPlanes(const std::vector<PlanePoint>& in_plane_pts,
+                                      std::vector<Plane>&            out_planes)
 {
   // -------------------------------------------------------------------------------
   // ----- Segment plane points in two different sets
@@ -744,8 +781,38 @@ void Mapper3D::extractVegetationPlanes(const std::vector<PlanePoint>& in_plane_p
   Line line_a(side_plane_a_filtered.points);
   Line line_b(side_plane_b_filtered.points);
 
-  out_vegetation_lines.clear();
-  out_vegetation_lines = {line_a, line_b};
+  side_plane_a_filtered.regression = line_a;
+  side_plane_b_filtered.regression = line_b;
+
+  // -------------------------------------------------------------------------------
+  // ----- Check the validity of the extracted planes
+  // -------------------------------------------------------------------------------
+  std::vector<Plane> planes = {side_plane_a_filtered, side_plane_b_filtered};
+
+  for (auto plane : planes) {
+    bool A = false, B = false;
+
+    // (A) - Check if the plane have a minimum number of points
+    if (plane.points.size() > 500)
+      A = true;
+
+    // (B) - Compute point to line distance and check if the average distance is
+    //       bellow a threshold
+    float dist = 0;
+    if (!plane.points.empty()) {
+      for (const auto& pt : plane.points) {
+        dist += plane.regression.dist(pt);
+      }
+      dist /= static_cast<float>(plane.points.size());
+    }
+
+    if (dist > 0 && dist < 0.05)
+      B = true;
+
+    // (C) - Save plane if in case of success
+    if (A && B)
+      out_planes.push_back(plane);
+  }
 }
 
 void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,

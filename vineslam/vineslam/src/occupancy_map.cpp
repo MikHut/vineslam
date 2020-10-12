@@ -467,22 +467,6 @@ bool OccupancyMap::findNearest(const ImageFeature& input,
     level++;
   } while (level < 2 && valid_iteration && !found_solution);
 
-  //  // Compute missing error
-  //  if (found_solution) {
-  //    if (metric == "euclidean") {
-  //      std::vector<float> input_desc   = input.signature;
-  //      std::vector<float> nearest_desc = nearest.signature;
-  //
-  //      ddist = 0.;
-  //      for (size_t k = 0; k < input_desc.size(); k++)
-  //        ddist +=
-  //            (input_desc[k] - nearest_desc[k]) * (input_desc[k] -
-  //            nearest_desc[k]);
-  //    } else {
-  //      sdist = input.pos.distance(nearest.pos);
-  //    }
-  //  }
-
   return found_solution;
 }
 

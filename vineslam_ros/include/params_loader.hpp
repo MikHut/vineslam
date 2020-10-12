@@ -62,9 +62,9 @@ static void loadParameters(const ros::NodeHandle& nh,
               prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/system/use_vegetation_lines",
-                   params.use_vegetation_lines)) {
-    ROS_ERROR("%s/system/use_vegetation_lines parameter not found. Shutting down...",
+  if (!nh.getParam(prefix + "/system/use_planes",
+                   params.use_planes)) {
+    ROS_ERROR("%s/system/use_planes parameter not found. Shutting down...",
               prefix.c_str());
     exit(-1);
   }
@@ -338,9 +338,9 @@ static void loadParameters(const ros::NodeHandle& nh,
               prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/pf/sigma_vegetation_lines_yaw",
-                   params.sigma_vegetation_lines_yaw)) {
-    ROS_ERROR("%s/pf/sigma_vegetation_lines_yaw not found. "
+  if (!nh.getParam(prefix + "/pf/sigma_planes_yaw",
+                   params.sigma_planes_yaw)) {
+    ROS_ERROR("%s/pf/sigma_planes_yaw not found. "
               "Shutting down...",
               prefix.c_str());
     exit(-1);

@@ -225,28 +225,7 @@ struct Cluster : public Feature {
   point center; // Cluster centre
   point radius; // Cluster radius
 
-  std::vector<Corner> items; // Items located inside the sphere feature
-};
-
-// ---------------------------------------------------------------------------------
-// ----- Point cloud medium-level plane feature
-// ---------------------------------------------------------------------------------
-
-struct Plane {
-  Plane() = default;
-
-  explicit Plane(const vector3D& m_normal) { normal = m_normal; }
-
-  Plane(const vector3D& m_normal, const std::vector<point>& m_points)
-  {
-    normal = m_normal;
-    points = m_points;
-  }
-
-  vector3D           normal;  // plane normal vector
-  std::vector<point> points;  // set of points that belong to the plane
-  std::vector<point> indexes; // indexes of points projected into the range image
-  float              mean_height{}; // ground plane mean height - used for validation
+  std::vector<Corner> items; // Items located inside the cluster
 };
 
 // ---------------------------------------------------------------------------------
@@ -256,13 +235,10 @@ struct Plane {
 struct Line {
   Line() = default;
 
-  Line(const float& m_m, const float& m_b, const std::vector<point>& m_pts)
+  Line(const float& m_m, const float& m_b)
   {
     m = m_m;
     b = m_b;
-
-    pts.clear();
-    pts = m_pts;
   }
 
   // - This constructor fits a line in a set of points using a linear regression
@@ -284,15 +260,37 @@ struct Line {
 
     m = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
     b = (sumY - m * sumX) / n;
+  }
 
-    pts.clear();
-    pts = m_pts;
+  float dist(const point& pt)
+  {
+    return std::sqrt(std::pow(b + m * pt.x - pt.y, 2) / std::pow(m * m + 1, 2));
   }
 
   float m{}; // slope
   float b{}; // zero intercept
+};
 
-  std::vector<point> pts; // points on line
+// ---------------------------------------------------------------------------------
+// ----- Point cloud medium-level plane feature
+// ---------------------------------------------------------------------------------
+
+struct Plane {
+  Plane() = default;
+
+  explicit Plane(const vector3D& m_normal) { normal = m_normal; }
+
+  Plane(const vector3D& m_normal, const std::vector<point>& m_points)
+  {
+    normal = m_normal;
+    points = m_points;
+  }
+
+  vector3D           normal;     // plane normal vector
+  std::vector<point> points;     // set of points that belong to the plane
+  std::vector<point> indexes;    // indexes of points projected into the range image
+  Line               regression; // XY linear fitting of plane points into a line
+  float              mean_height{}; // ground plane mean height - used for validation
 };
 
 } // namespace vineslam

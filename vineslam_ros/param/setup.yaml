@@ -17,7 +17,7 @@ system:
   # ---------------------
   debug: True
   # ---- Define system inputs
-  use_vegetation_lines: True
+  use_planes: True
   use_ground_plane: False
   use_landmarks: False
   use_corners: True
@@ -95,7 +95,7 @@ pf:
   sigma_landmark_matching: 0.01 # meters
   sigma_feature_matching: 0.05 # meters
   sigma_corner_matching: 0.05 # meters
-  sigma_vegetation_lines_yaw: 1.0 # degrees
+  sigma_planes_yaw: 1.0 # degrees
   sigma_ground_rp: 1.0 # degrees
   sigma_gps: 0.08 # meters
 

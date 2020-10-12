@@ -79,14 +79,17 @@ public:
   // Builds local map given the current 3D point cloud - for velodyne
   void localPCLMap(const std::vector<point>& pcl,
                    std::vector<Corner>&      out_corners,
-                   std::vector<Cluster>&     out_clusters,
-                   std::vector<Line>&        out_vegetation_lines,
+                   std::vector<Plane>&       out_planes,
                    Plane&                    out_groundplane);
 
   // Adds the corner features to the global map
   void globalCornerMap(const pose&          robot_pose,
                        std::vector<Corner>& corners,
                        OccupancyMap&        grid_map) const;
+  // Adds the corner features to the global map
+  void globalPlaneMap(const pose&         robot_pose,
+                      std::vector<Plane>& planes,
+                      OccupancyMap&       grid_map) const;
 
   // Computes a range image from a raw point cloud
   static void rangeImage(const std::vector<point>& pcl,
@@ -177,8 +180,8 @@ private:
                        int&                      label);
 
   // Extract the couple of vegetation side planes
-  void extractVegetationPlanes(const std::vector<PlanePoint>& in_plane_pts,
-                               std::vector<Line>&             out_vegetation_lines);
+  void extractHighLevelPlanes(const std::vector<PlanePoint>& in_plane_pts,
+                              std::vector<Plane>&            out_planes);
 
   // 3D feature extraction from a point cloud
   void extractCorners(const std::vector<PlanePoint>& in_plane_pts,

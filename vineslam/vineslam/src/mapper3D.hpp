@@ -86,11 +86,6 @@ public:
   void globalCornerMap(const pose&          robot_pose,
                        std::vector<Corner>& corners,
                        OccupancyMap&        grid_map) const;
-  // Adds the corner features to the global map
-  void globalPlaneMap(const pose&         robot_pose,
-                      std::vector<Plane>& planes,
-                      OccupancyMap&       grid_map) const;
-
   // Computes a range image from a raw point cloud
   static void rangeImage(const std::vector<point>& pcl,
                          const std::vector<float>& intensities,

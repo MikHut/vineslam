@@ -80,7 +80,7 @@ pf:
   n_particles: 500
 
   srr: 0.010 # rotation - rotation (rad / rad)
-  srt: 0.500 # rotation - translation (rad / meter)
+  srt: 0.080 # rotation - translation (rad / meter)
   str: 0.008 # translation - rotation (meter / rad)
   stt: 0.100 # translation - translation (meter / meter)
 
@@ -99,4 +99,4 @@ pf:
   sigma_ground_rp: 1.0 # degrees
   sigma_gps: 0.08 # meters
 
-  k_clusters: 22
+  k_clusters: 3

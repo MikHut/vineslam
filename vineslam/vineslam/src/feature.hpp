@@ -255,11 +255,17 @@ struct Line {
 
       x_mean += pt.x;
       x_max = (pt.x > x_max) ? pt.x : x_max;
-      n++;
+      n += 1.;
+
     }
 
-    m = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-    b = (sumY - m * sumX) / n;
+    if (n == 0) {
+      m = 0;
+      b = 0;
+    } else {
+      m = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+      b = (sumY - m * sumX) / n;
+    }
   }
 
   float dist(const point& pt)
@@ -267,8 +273,8 @@ struct Line {
     return std::sqrt(std::pow(b + m * pt.x - pt.y, 2) / std::pow(m * m + 1, 2));
   }
 
-  float m{}; // slope
-  float b{}; // zero intercept
+  float m; // slope
+  float b; // zero intercept
 };
 
 // ---------------------------------------------------------------------------------
@@ -286,6 +292,7 @@ struct Plane {
     points = m_points;
   }
 
+  int                id{};       // plane identifier
   vector3D           normal;     // plane normal vector
   std::vector<point> points;     // set of points that belong to the plane
   std::vector<point> indexes;    // indexes of points projected into the range image

@@ -405,51 +405,6 @@ void Mapper3D::globalCornerMap(const pose&          robot_pose,
   }
 }
 
-void Mapper3D::globalPlaneMap(const pose&         robot_pose,
-                              std::vector<Plane>& planes,
-                              OccupancyMap&       grid_map) const
-{
-  for (auto& plane : planes) {
-    // -------------------------------------------------
-    // ---- Transform plane to maps' referential
-    // -------------------------------------------------
-    std::array<float, 9> tf_rot{};
-    robot_pose.toRotMatrix(tf_rot);
-    TF tf =
-        TF(tf_rot, std::array<float, 3>{robot_pose.x, robot_pose.y, robot_pose.z});
-
-    for (auto& pt : plane.points) pt = pt * tf;
-    plane.regression = Line(plane.points);
-
-    bool found_correspondence = false;
-    for (auto& map_plane : grid_map.getPlanes()) {
-      // -----------------------------------------------
-      // ---- Search for correspondence
-      // -----------------------------------------------
-//      std::cout << std::fabs(plane.regression.m - map_plane.regression.m) << std::endl;
-//      std::cout << std::fabs(plane.regression.b - map_plane.regression.b) << std::endl;
-      if (std::fabs(plane.regression.m - map_plane.regression.m) <
-              5 * DEGREE_TO_RAD &&
-          std::fabs(plane.regression.b - map_plane.regression.b) < 0.1) {
-        // ---------------------------------------------
-        // ---- Update corresponding plane
-        // ---------------------------------------------
-        map_plane.points.insert(
-            map_plane.points.end(), plane.points.begin(), plane.points.end());
-        map_plane.regression = Line(map_plane.points);
-
-        found_correspondence = true;
-        break;
-      }
-    }
-    // -------------------------------------------------
-    // ---- Insert new plane on the map if none correspondence was found
-    // -------------------------------------------------
-    if (!found_correspondence)
-      grid_map.insert(plane);
-  }
-}
-
 void Mapper3D::groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl)
 {
   // _ground_mat
@@ -806,8 +761,8 @@ void Mapper3D::extractHighLevelPlanes(const std::vector<PlanePoint>& in_plane_pt
       dist /= static_cast<float>(plane.points.size());
     }
 
-    if (dist > 0 && dist < 0.05)
-      B = true;
+    //    if (dist > 0 && dist < 0.05)
+    B = true;
 
     // (C) - Save plane if in case of success
     if (A && B)

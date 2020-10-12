@@ -121,7 +121,6 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
       Plane               m_ground_plane;
       mapper3D->localPCLMap(scan_pts, m_corners, m_planes, m_ground_plane);
       mapper3D->globalCornerMap(robot_pose, m_corners, *grid_map);
-      mapper3D->globalPlaneMap(robot_pose, m_planes, *grid_map);
 
       // - 3D image feature map estimation
       auto*                     raw_depths = (float*)(&(*depth_image).data[0]);
@@ -183,8 +182,6 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
       mapper2D->process(robot_pose, m_landmarks, labels, *grid_map);
       // - 3D PCL corner map estimation
       mapper3D->globalCornerMap(robot_pose, m_corners, *grid_map);
-      // - 3D PCL plane map estimation
-      mapper3D->globalPlaneMap(robot_pose, m_planes, *grid_map);
       // - 3D image feature map estimation
       mapper3D->globalSurfMap(m_surf_features, robot_pose, *grid_map);
     }

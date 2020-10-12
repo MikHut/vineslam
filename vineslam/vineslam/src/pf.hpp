@@ -37,6 +37,7 @@ struct Particle {
 
   int   id{};
   pose  p;
+  pose  pp; // previous pose
   float w{};
   int   which_cluster{};
 };
@@ -114,6 +115,9 @@ private:
 
   // Iteration number
   int n_it;
+
+  // Previous iterations
+  std::vector<Plane> p_planes;
 
   // Motion state
   MOTION_STATE motion_state;

@@ -117,6 +117,9 @@ void PF::motionModel(const pose& odom)
     dt_pose.pitch = sampleGaussian(sigma_pitch);
     dt_pose.yaw   = s_rot_a + s_rot_b;
 
+    // Save particle previous pose
+    particle.pp = particle.p;
+
     // Innovate particles using the odometry motion model
     particle.p.x += dt_pose.x;
     particle.p.y += dt_pose.y;
@@ -451,51 +454,58 @@ void PF::mediumLevelPlanes(std::vector<Plane>  planes,
   const float normalizer_planes =
       static_cast<float>(1.) / (sigma_planes_yaw * std::sqrt(M_2PI));
 
-  for (const auto& particle : particles) {
-    for (auto& plane : planes) {
-      // -------------------------------------------------
-      // ---- Transform plane to maps' referential
-      // -------------------------------------------------
-      std::array<float, 9> tf_rot{};
-      particle.p.toRotMatrix(tf_rot);
-      TF tf =
-          TF(tf_rot, std::array<float, 3>{particle.p.x, particle.p.y, particle.p.z});
+  std::vector<float> dvec;
+  for (const auto& plane : planes) {
 
-      for (auto& pt : plane.points) pt = pt * tf;
-      plane.regression = Line(plane.points);
+    float dist_min     = std::numeric_limits<float>::max();
+    float displacement = -1.0;
+    for (const auto& p_plane : p_planes) {
+      // -----------------------------------------------
+      // ---- Search for correspondence
+      // -----------------------------------------------
+      float ang_diff =
+          std::fabs(std::atan(plane.regression.m) - std::atan(p_plane.regression.m));
+      float zero_diff = std::fabs(plane.regression.b - p_plane.regression.b);
+      if (ang_diff < 2 * DEGREE_TO_RAD && zero_diff < 0.08) {
 
-      bool  found_correspondence = false;
-      Plane correspondence;
-      for (const auto& map_plane : grid_map->getPlanes()) {
-        // -----------------------------------------------
-        // ---- Search for correspondence
-        // -----------------------------------------------
-        if (std::fabs(plane.regression.m - map_plane.regression.m) <
-                5 * DEGREE_TO_RAD &&
-            std::fabs(plane.regression.b - map_plane.regression.b) < 0.1) {
-          // ---------------------------------------------
-          // ---- Save corresponding plane
-          // ---------------------------------------------
-          correspondence = map_plane;
-          correspondence.points.insert(
-              correspondence.points.end(), plane.points.begin(), plane.points.end());
-          correspondence.regression = Line(map_plane.points);
-
-          found_correspondence = true;
-          break;
+        float dist = ang_diff / (static_cast<float>(2.0 * DEGREE_TO_RAD)) +
+                     zero_diff / static_cast<float>(0.08);
+        if (dist > dist_min)
+          continue;
+        else {
+          dist_min     = dist;
+          displacement = ang_diff;
         }
       }
-
-      if (found_correspondence) {
-        std::cout << "PF FOUND\n----\n\n";
-        float error = std::fabs(std::atan(correspondence.regression.m) -
-                                std::atan(plane.regression.m));
-        ws[particle.id] +=
-            (normalizer_planes *
-             static_cast<float>(std::exp(-1. / sigma_planes_yaw * error)));
-      }
     }
+
+    if (displacement > 0)
+      dvec.push_back(displacement);
   }
+
+  for (const auto& particle : particles) {
+    float w_planes = 0.;
+    if (!dvec.empty()) {
+      float mean_sin = 0.;
+      float mean_cos = 0.;
+      for (const auto& dist : dvec) {
+        mean_sin += std::sin(dist);
+        mean_cos += std::cos(dist);
+      }
+      mean_sin /= static_cast<float>(dvec.size());
+      mean_cos /= static_cast<float>(dvec.size());
+
+      float delta_p_yaw = std::fabs(particle.p.yaw - particle.pp.yaw);
+      float dist        = std::atan2(mean_sin, mean_cos) - delta_p_yaw;
+
+      w_planes += (normalizer_planes *
+                   static_cast<float>(std::exp(-1. / sigma_planes_yaw * dist)));
+    }
+
+    ws[particle.id] = w_planes;
+  }
+
+  p_planes = planes;
 }
 
 void PF::lowLevel(const std::vector<ImageFeature>& surf_features,

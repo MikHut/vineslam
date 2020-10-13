@@ -118,6 +118,7 @@ private:
 
   // Previous iterations
   std::vector<Plane> p_planes;
+  Plane p_ground;
 
   // Motion state
   MOTION_STATE motion_state;

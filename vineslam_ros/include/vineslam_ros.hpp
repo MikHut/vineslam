@@ -94,7 +94,7 @@ public:
   // Publish the grid map that contains all the maps
   void publishGridMap(const std_msgs::Header& header) const;
   // Publishes debug visualization objects
-  void visDebug(const std::vector<Plane>& planes);
+  void visDebug(const std::vector<Plane>& planes, const Plane& ground_plane);
 
   // Computes the bearing depth of an object using the ZED disparity image
   // - Uses the point with minimum depth inside the bounding box

@@ -10,6 +10,7 @@
 
 namespace vineslam
 {
+
 struct point {
   // Default constructor
   point()

@@ -398,53 +398,44 @@ void PF::mediumLevelGround(const Plane& ground_plane, std::vector<float>& ws)
   // -------------------------------------------------------------------------------
   // --- 3D ground plane [roll, pitch, z] estimation
   // -------------------------------------------------------------------------------
-  pose                   pose_from_ground;
-  Gaussian<float, float> ground_plane_gauss{};
-  if (ground_plane.points.size() > 1) {
-    // - Compute rotation matrix that transform the normal vector into a vector
-    // parelel to the plane z = 0
-    // ---- in other words, the rotation matrix that aligns the ground plane with
-    // the plane z = 0
-    // ---- this matrix will encode the absolute roll and pitch of the robot
-    std::array<float, 9> R{};
-    vector3D             m_normal = ground_plane.normal;
-    float norm = std::sqrt(m_normal.x * m_normal.x + m_normal.y * m_normal.y);
-    R[0]       = +m_normal.y / norm;
-    R[1]       = -m_normal.x / norm;
-    R[2]       = 0.;
-    R[3]       = (m_normal.x * m_normal.z) / norm;
-    R[4]       = (m_normal.y * m_normal.z) / norm;
-    R[5]       = -norm;
-    R[6]       = m_normal.x;
-    R[7]       = m_normal.y;
-    R[8]       = m_normal.z;
-
-    pose_from_ground = pose(R, std::array<float, 3>{0., 0., 0});
+  if (p_ground.points.empty() || ground_plane.points.empty()) {
+    for (const auto& particle : particles) ws[particle.id] = 0;
   } else {
-    ground_plane_gauss = Gaussian<float, float>(0., 0.);
-  }
+    float normalizer_ground =
+        static_cast<float>(1.) / (sigma_ground_rp * std::sqrt(M_2PI));
 
-  // Compute static vars to use in the PF loop
-  float normalizer_ground_rp =
-      static_cast<float>(1.) / (sigma_ground_rp * std::sqrt(M_2PI));
+    // -----------------------------------------------------------------------------
+    // --- Find the rotation matrix that transforms one normal vector into another
+    // -----------------------------------------------------------------------------
+    vector3D u = p_ground.normal;
+    vector3D v = ground_plane.normal;
 
-  for (const auto& particle : particles) {
-    // - Ground plane [roll, pitch] weight
-    float w_ground = 0.;
-    if (ground_plane_gauss.mean != 0. && ground_plane_gauss.stdev != 0.) {
-      w_ground =
-          (normalizer_ground_rp *
-           static_cast<float>(
-               std::exp(-1. / sigma_ground_rp *
-                        std::fabs(particle.p.roll - pose_from_ground.roll)))) *
-          (normalizer_ground_rp *
-           static_cast<float>(
-               std::exp(-1. / sigma_ground_rp *
-                        std::fabs(particle.p.pitch - pose_from_ground.pitch))));
+    std::array<float, 9> R = u.rotation(v);
+
+    // -----------------------------------------------------------------------------
+    // --- Extract the euler angles from the rotation matrix
+    // -----------------------------------------------------------------------------
+    pose delta_ground_rot(R, std::array<float, 3>{0, 0, 0});
+
+    for (const auto& particle : particles) {
+      float w_ground = 0.;
+
+      // Particle delta rotation and planes delta rotation should null each
+      float delta_p_roll  = particle.p.yaw - particle.pp.yaw;
+      float delta_p_pitch = particle.p.pitch - particle.pp.pitch;
+      float dist_roll     = std::fabs(delta_ground_rot.roll + delta_p_roll);
+      float dist_pitch    = std::fabs(delta_ground_rot.pitch + delta_p_pitch);
+
+      w_ground = (normalizer_ground *
+                  static_cast<float>(std::exp(-1. / sigma_ground_rp * dist_roll))) +
+                 (normalizer_ground *
+                  static_cast<float>(std::exp(-1. / sigma_ground_rp * dist_pitch)));
+
+      ws[particle.id] = w_ground;
     }
-
-    ws[particle.id] = w_ground;
   }
+
+  p_ground = ground_plane;
 }
 
 void PF::mediumLevelPlanes(std::vector<Plane>  planes,
@@ -458,7 +449,7 @@ void PF::mediumLevelPlanes(std::vector<Plane>  planes,
   for (const auto& plane : planes) {
 
     float dist_min     = std::numeric_limits<float>::max();
-    float displacement = -1.0;
+    float displacement = 0;
     for (const auto& p_plane : p_planes) {
       // -----------------------------------------------
       // ---- Search for correspondence
@@ -473,30 +464,26 @@ void PF::mediumLevelPlanes(std::vector<Plane>  planes,
         if (dist > dist_min)
           continue;
         else {
-          dist_min     = dist;
-          displacement = ang_diff;
+          dist_min = dist;
+          displacement =
+              std::atan(plane.regression.m) - std::atan(p_plane.regression.m);
         }
       }
     }
 
-    if (displacement > 0)
+    if (std::fabs(displacement) > 0)
       dvec.push_back(displacement);
   }
 
   for (const auto& particle : particles) {
     float w_planes = 0.;
-    if (!dvec.empty()) {
-      float mean_sin = 0.;
-      float mean_cos = 0.;
-      for (const auto& dist : dvec) {
-        mean_sin += std::sin(dist);
-        mean_cos += std::cos(dist);
-      }
-      mean_sin /= static_cast<float>(dvec.size());
-      mean_cos /= static_cast<float>(dvec.size());
+    for (const auto& displacement : dvec) {
 
-      float delta_p_yaw = std::fabs(particle.p.yaw - particle.pp.yaw);
-      float dist        = std::atan2(mean_sin, mean_cos) - delta_p_yaw;
+      // Particle delta rotation and planes delta rotation should null each other
+      float delta_p_yaw = particle.p.yaw - particle.pp.yaw;
+      float dist =
+          std::fabs(std::atan2(std::sin(displacement), std::cos(displacement)) +
+                    std::atan2(std::sin(delta_p_yaw), std::cos(delta_p_yaw)));
 
       w_planes += (normalizer_planes *
                    static_cast<float>(std::exp(-1. / sigma_planes_yaw * dist)));

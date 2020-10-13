@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <math/pose.hpp>
 #include <math/stat.hpp>
 #include <math/point.hpp>
 #include <math/vector3D.hpp>
@@ -256,7 +257,6 @@ struct Line {
       x_mean += pt.x;
       x_max = (pt.x > x_max) ? pt.x : x_max;
       n += 1.;
-
     }
 
     if (n == 0) {
@@ -292,11 +292,36 @@ struct Plane {
     points = m_points;
   }
 
-  int                id{};       // plane identifier
-  vector3D           normal;     // plane normal vector
-  std::vector<point> points;     // set of points that belong to the plane
-  std::vector<point> indexes;    // indexes of points projected into the range image
-  Line               regression; // XY linear fitting of plane points into a line
+  pose planeOrientation()
+  {
+    // - Compute rotation matrix that transform the normal vector into a vector
+    // perpendicular to the plane z = 0
+    // ---- in other words, the rotation matrix that aligns the ground plane with
+    // the plane z = 0
+    // ---- this matrix will encode the absolute roll and pitch of the robot
+    std::array<float, 9> R{};
+    vector3D             m_normal = normal;
+    float norm = std::sqrt(m_normal.x * m_normal.x + m_normal.y * m_normal.y);
+    R[0]       = +m_normal.y / norm;
+    R[1]       = -m_normal.x / norm;
+    R[2]       = 0.;
+    R[3]       = (m_normal.x * m_normal.z) / norm;
+    R[4]       = (m_normal.y * m_normal.z) / norm;
+    R[5]       = -norm;
+    R[6]       = m_normal.x;
+    R[7]       = m_normal.y;
+    R[8]       = m_normal.z;
+
+    pose pose_from_plane = pose(R, std::array<float, 3>{0., 0., 0});
+
+    return pose_from_plane;
+  }
+
+  int                id{};    // plane identifier
+  vector3D           normal;  // plane normal vector
+  std::vector<point> points;  // set of points that belong to the plane
+  std::vector<point> indexes; // indexes of points projected into the range image
+  Line               regression{};  // XY linear fitting of plane points into a line
   float              mean_height{}; // ground plane mean height - used for validation
 };
 

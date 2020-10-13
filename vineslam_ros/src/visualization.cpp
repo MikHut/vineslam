@@ -186,25 +186,11 @@ void VineSLAM_ros::publish3DMap() const
     }
   }
 
-  int i = 0;
-  for (const auto& plane : grid_map->getPlanes()) {
-    for (const auto& pt : plane.points) {
-      pcl::PointXYZI m_pt(static_cast<float>(i));
-      m_pt.x = pt.x;
-      m_pt.y = pt.y;
-      m_pt.z = pt.z;
-
-      plane_cloud->points.push_back(m_pt);
-    }
-    i++;
-  }
-
   feature_cloud->header.frame_id = "map";
   corner_cloud->header.frame_id  = "map";
-  plane_cloud->header.frame_id = "map";
+  plane_cloud->header.frame_id   = "map";
   map3D_features_publisher.publish(feature_cloud);
   map3D_corners_publisher.publish(corner_cloud);
-  map3D_planes_publisher.publish(plane_cloud);
 }
 
 void VineSLAM_ros::publish3DMap(const std::vector<Plane>& planes,
@@ -228,6 +214,10 @@ void VineSLAM_ros::publish3DMap(const std::vector<Plane>& planes,
                robot_tf.t[1];
       m_pt.z = pt.x * robot_tf.R[6] + pt.y * robot_tf.R[7] + pt.z * robot_tf.R[8] +
                robot_tf.t[2];
+
+      m_pt.x = pt.x;
+      m_pt.y = pt.y;
+      m_pt.z = pt.z;
 
       cloud_out->points.push_back(m_pt);
     }
@@ -267,7 +257,8 @@ void VineSLAM_ros::publish3DMap(const std::vector<Corner>& corners,
   pub.publish(cloud_out);
 }
 
-void VineSLAM_ros::visDebug(const std::vector<Plane>& planes)
+void VineSLAM_ros::visDebug(const std::vector<Plane>& planes,
+                            const Plane&              ground_plane)
 {
   // Publish all poses for DEBUG
   // ----------------------------------------------------------------------------

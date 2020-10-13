@@ -172,10 +172,6 @@ public:
     n_landmarks       = 0;
   }
 
-  // Planes handler functions
-  void insert(const Plane& m_plane) { m_planes.push_back(m_plane); }
-  std::vector<Plane>& getPlanes() { return m_planes; }
-
   // Number of features and landmarks in the map
   int n_surf_features;
   int n_corner_features;
@@ -193,9 +189,6 @@ public:
 private:
   // Private grid map to store all the cells
   std::vector<Cell> m_gmap;
-
-  // Private vector to store the global map planes
-  std::vector<Plane> m_planes;
 };
 
 } // namespace vineslam

@@ -232,9 +232,8 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // Publish 3D maps
     publish3DMap();
     publish3DMap(m_corners, corners_local_publisher);
-    publish3DMap(m_planes, map3D_lines_publisher);
-    //    std::vector<Plane> planes = {m_ground_plane};
-    //    publish3DMap(planes, map3D_planes_publisher);
+    std::vector<Plane> planes = {m_ground_plane};
+    publish3DMap(planes, map3D_planes_publisher);
 
     // Publish cam-to-map tf::Transform
     static tf::TransformBroadcaster br;
@@ -262,7 +261,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // ----- Debug area : publishes the robot path & the vegetation lines
     // --------------------------------------------------
     if (params.debug) {
-      visDebug(m_planes);
+      visDebug(m_planes, m_ground_plane);
     }
   }
 }

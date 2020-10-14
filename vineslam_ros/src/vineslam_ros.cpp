@@ -232,7 +232,9 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // Publish 3D maps
     publish3DMap();
     publish3DMap(m_corners, corners_local_publisher);
-    std::vector<Plane> planes = {m_ground_plane};
+  std::vector<Plane> planes = {m_ground_plane};
+    for (const auto& plane : m_planes)
+      planes.push_back(plane);
     publish3DMap(planes, map3D_planes_publisher);
 
     // Publish cam-to-map tf::Transform

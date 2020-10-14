@@ -21,7 +21,7 @@ system:
   use_ground_plane: True
   use_landmarks: False
   use_corners: True
-  use_icp: True
+  use_icp: False
   use_gps: False
   # ---------------------
   # GPS datum

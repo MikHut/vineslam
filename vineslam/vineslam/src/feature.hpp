@@ -172,11 +172,13 @@ struct Corner : public Feature {
 
   Corner(const point& m_pt, const int& m_which_plane, const int& m_id = 0)
   {
-    pos         = m_pt;
-    which_plane = m_which_plane;
-    id          = m_id;
+    pos            = m_pt;
+    which_plane    = m_which_plane;
+    id             = m_id;
+    n_observations = 0;
   }
 
+  int n_observations{};
   int which_plane{};   // sets the plane where the corner belongs
   int which_cluster{}; // sets the cluster where the corner belongs
 };

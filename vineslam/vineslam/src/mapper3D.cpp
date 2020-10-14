@@ -395,8 +395,12 @@ void Mapper3D::globalCornerMap(const pose&          robot_pose,
 
     // - Then, insert the corner into the grid map
     if (found) {
-      point  new_pt = (m_pt + correspondence.pos) / 2.;
+      point new_pt =
+          ((correspondence.pos * static_cast<float>(correspondence.n_observations)) +
+           m_pt) /
+          static_cast<float>(correspondence.n_observations + 1);
       Corner new_corner(new_pt, corner.which_plane);
+      new_corner.n_observations = correspondence.n_observations + 1;
       grid_map.update(correspondence, new_corner);
     } else {
       Corner new_corner(m_pt, corner.which_plane);

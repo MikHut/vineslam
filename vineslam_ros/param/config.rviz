@@ -276,13 +276,13 @@ Visualization Manager:
       Color: 38; 139; 210
       Color Transformer: Intensity
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
-      Max Intensity: -999999
+      Max Intensity: 2
       Min Color: 0; 0; 0
-      Min Intensity: 999999
-      Name: Local Map 1 - Ground Plane
+      Min Intensity: 0
+      Name: Local Map 1 - Planes
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
@@ -293,7 +293,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -390,15 +390,15 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 28.184053421020508
+      Distance: 19.20664405822754
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.9529528617858887
-        Y: -0.941077709197998
+        X: -2.3700919151306152
+        Y: -0.7039077281951904
         Z: -1.0806124919326976e-5
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806

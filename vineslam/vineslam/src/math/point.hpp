@@ -87,6 +87,17 @@ struct point {
     return result;
   }
 
+  // Scalar multiplication operator
+  point operator*(const float& scalar) const
+  {
+    point result(*this);
+    result.x *= scalar;
+    result.y *= scalar;
+    result.z *= scalar;
+
+    return result;
+  }
+
   // Multiplication by homogeneous transformation
   point operator*(const TF& tf) const
   {

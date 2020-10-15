@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <vector>
 #include <map>
+#include <search.h>
 
 namespace vineslam
 {
@@ -42,15 +43,17 @@ public:
 private:
 };
 
-class OccupancyMap
+class MapLayer
 {
 public:
+  MapLayer() = default;
+
   // Class constructor
   // - initializes the grid map given the input parameters
-  explicit OccupancyMap(const Parameters& params);
+  explicit MapLayer(const Parameters& params);
 
   // Copy contructor
-  OccupancyMap(const OccupancyMap& grid_map);
+  MapLayer(const MapLayer& grid_map);
 
   // 2D grid map direct access to cell coordinates
   Cell& operator()(int i, int j)
@@ -194,7 +197,7 @@ public:
   // NOTE: map corners are in reference to the given origin
   point origin;
   float width;
-  float height;
+  float lenght;
   float resolution;
   // Search metric to use: euclidean / descriptor
   std::string metric;
@@ -202,6 +205,108 @@ public:
 private:
   // Private grid map to store all the cells
   std::vector<Cell> m_gmap;
+};
+
+class OccupancyMap
+{
+public:
+  // Class constructor
+  // - initializes the multi-layer grid map given the input parameters
+  explicit OccupancyMap(const Parameters& params);
+
+  // Copy constructor
+  OccupancyMap(const OccupancyMap& grid_map);
+
+  // 3D grid map access to cell coordinates
+  Cell& operator()(float x, float y, float z)
+  {
+    int layer_num = getLayerNumber(z);
+    layer_num     = (layer_num < zmin) ? zmin : layer_num;
+    layer_num     = (layer_num > zmax) ? zmax : layer_num;
+
+    return m_layers[layer_num](x, y);
+  }
+
+  // Define iterator to provide access to the layers array
+  typedef std::map<int, MapLayer>::iterator iterator;
+  // Return members to provide access to the cells array
+  iterator begin() { return m_layers.begin(); }
+  iterator end() { return m_layers.end(); }
+
+  // Insert a Landmark given a Feature/Landmark location
+  bool insert(const SemanticFeature& m_landmark, const int& id);
+
+  // Insert a Image Feature given a Feature/Landmark location
+  bool insert(const ImageFeature& m_feature);
+
+  // Insert a Image Feature given a Feature/Landmark location
+  bool insert(const Corner& m_feature);
+
+  // Insert a point given a its location
+  bool insert(const point& m_point);
+
+  // Since Landmark map is built with a KF, Landmarks position change in each
+  // iteration. This routine updates the position of a given Landmark
+  bool update(const SemanticFeature& new_landmark,
+              const int&             id,
+              const float&           i,
+              const float&           j);
+
+  // Updates a corner 3D feature location
+  bool update(const Corner& old_corner, const Corner& new_corner);
+
+  // Updates a image 3D feature location
+  bool update(const ImageFeature& old_image_feature,
+              const ImageFeature& new_image_feature);
+
+  // Method to get all the adjacent cells to a given cell given a Feature/Landmark
+  // location
+  bool getAdjacent(const float&       x,
+                   const float&       y,
+                   const float&       z,
+                   const int&         layers,
+                   std::vector<Cell>& adjacent);
+
+  // Find nearest neighbor of a feature considering adjacent cells
+  bool findNearest(const ImageFeature& input,
+                   ImageFeature&       nearest,
+                   float&              sdist,
+                   float&              ddist);
+  // Find nearest neighbor of a feature on its cell
+  bool findNearestOnCell(const ImageFeature& input, ImageFeature& nearest);
+
+  // Returns true is none layer has features/landmarks
+  bool empty() const
+  {
+    bool is_empty = false;
+    for (const auto& layer : m_layers) is_empty |= layer.second.empty();
+
+    return is_empty;
+  }
+
+  // Delete all layers in the map
+  void clear()
+  {
+    for (auto& layer : m_layers) layer.second.clear();
+  }
+
+  // Grid map dimensions
+  point       origin;
+  float       width;
+  float       lenght;
+  float       height;
+  float       resolution;
+  int         zmin;
+  int         zmax;
+  std::string metric;
+
+private:
+  // Recover the layer number from the feature z component
+  int getLayerNumber(const float& z) const;
+
+  // Private grid map to store all the individual layers
+  // (int, MapLayer): (layer number, layer class)
+  std::map<int, MapLayer> m_layers;
 };
 
 } // namespace vineslam

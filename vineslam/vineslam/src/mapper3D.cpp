@@ -50,10 +50,10 @@ Mapper3D::Mapper3D(const Parameters& params)
   local_map_params.gridmap_origin_y   = -20;
   local_map_params.gridmap_resolution = 0.25;
   local_map_params.gridmap_width      = 70;
-  local_map_params.gridmap_height     = 30;
+  local_map_params.gridmap_lenght     = 30;
   local_map_params.gridmap_metric     = "euclidean";
 
-  local_map = new OccupancyMap(local_map_params);
+  local_map = new MapLayer(local_map_params);
 }
 
 // -------------------------------------------------------------------------------
@@ -104,7 +104,7 @@ void Mapper3D::localSurfMap(const cv::Mat&             img,
 
 void Mapper3D::globalSurfMap(const std::vector<ImageFeature>& features,
                              const pose&                      robot_pose,
-                             OccupancyMap&                    grid_map) const
+                             MapLayer&                    grid_map) const
 {
   // ------ Convert robot pose into homogeneous transformation
   std::array<float, 9> Rot{};
@@ -344,7 +344,7 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
 
 void Mapper3D::globalCornerMap(const pose&          robot_pose,
                                std::vector<Corner>& corners,
-                               OccupancyMap&        grid_map) const
+                               MapLayer&        grid_map) const
 {
   // ------ Convert robot pose into homogeneous transformation
   std::array<float, 9> Rot{};
@@ -969,7 +969,7 @@ void Mapper3D::downsampleCorners(std::vector<Corner>&  corners,
 }
 
 void Mapper3D::removeDynamicPoints(const pose&               robot_pose,
-                                   const OccupancyMap&       grid_map,
+                                   const MapLayer&       grid_map,
                                    const std::vector<point>& pcl,
                                    std::vector<Corner>&      corners)
 {

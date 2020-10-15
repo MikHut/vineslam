@@ -21,7 +21,7 @@ void VineSLAM_ros::publishGridMap(const std_msgs::Header& header) const
   metadata.origin.orientation.w = 1.;
   metadata.resolution           = params.gridmap_resolution;
   metadata.width                = params.gridmap_width / params.gridmap_resolution;
-  metadata.height               = params.gridmap_height / params.gridmap_resolution;
+  metadata.height               = params.gridmap_lenght / params.gridmap_resolution;
   occ_map.info                  = metadata;
 
   // Fill the occupancy grid map
@@ -32,7 +32,7 @@ void VineSLAM_ros::publishGridMap(const std_msgs::Header& header) const
                               params.gridmap_width / params.gridmap_resolution - 1);
   int ymin = static_cast<int>(params.gridmap_origin_y / params.gridmap_resolution);
   int ymax = static_cast<int>((float)ymin +
-                              params.gridmap_height / params.gridmap_resolution - 1);
+                              params.gridmap_lenght / params.gridmap_resolution - 1);
   for (int i = xmin; i < xmax; i++) {
     for (int j = ymin; j < ymax; j++) {
       int8_t number_objs = (*grid_map)(i, j).landmarks.size() +

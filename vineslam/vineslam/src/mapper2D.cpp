@@ -20,7 +20,7 @@ void Mapper2D::init(const pose&               pose,
                     const std::vector<float>& bearings,
                     const std::vector<float>& depths,
                     const std::vector<int>&   labels,
-                    OccupancyMap&             grid_map)
+                    MapLayer&             grid_map)
 {
   int                    n_obsv      = bearings.size();
   Gaussian<point, point> robot_gauss = pose.getDist();
@@ -68,7 +68,7 @@ void Mapper2D::init(const pose&               pose,
 void Mapper2D::process(const pose&                         pose,
                        const std::vector<SemanticFeature>& landmarks,
                        const std::vector<int>&             labels,
-                       OccupancyMap&                       grid_map)
+                       MapLayer&                       grid_map)
 {
   // Compute local map on robot's referential frame
   std::vector<point> l_map = base2map(pose, landmarks);
@@ -121,7 +121,7 @@ void Mapper2D::predict(const pose&               pose,
                        const std::vector<float>& bearings,
                        const std::vector<float>& depths,
                        const std::vector<int>&   labels,
-                       OccupancyMap&             grid_map)
+                       MapLayer&             grid_map)
 {
   int                    n_obsv      = bearings.size();
   Gaussian<point, point> robot_gauss = pose.getDist();
@@ -182,7 +182,7 @@ void Mapper2D::predict(const pose&               pose,
   }
 }
 
-std::pair<int, point> Mapper2D::findCorr(const point& pos, OccupancyMap& grid_map)
+std::pair<int, point> Mapper2D::findCorr(const point& pos, MapLayer& grid_map)
 {
   int   best_correspondence = -1;
   float best_aprox          = 0.5;
@@ -244,7 +244,7 @@ void Mapper2D::localMap(const std::vector<float>&     bearings,
   }
 }
 
-void Mapper2D::filter(OccupancyMap& grid_map) const
+void Mapper2D::filter(MapLayer& grid_map) const
 {
   int old_limit = grid_map.n_landmarks - (grid_map.n_landmarks / 10);
 

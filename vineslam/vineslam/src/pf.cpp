@@ -138,7 +138,7 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
                 const Plane&                        ground_plane,
                 const std::vector<ImageFeature>&    surf_features,
                 const pose&                         gps_pose,
-                OccupancyMap*                       grid_map)
+                MapLayer*                       grid_map)
 {
   std::vector<float> semantic_weights(n_particles, 0.);
   std::vector<float> corner_weights(n_particles, 0.);
@@ -234,7 +234,7 @@ void PF::gps(const pose& gps_pose, std::vector<float>& ws)
 }
 
 void PF::highLevel(const std::vector<SemanticFeature>& landmarks,
-                   OccupancyMap*                       grid_map,
+                   MapLayer*                       grid_map,
                    std::vector<float>&                 ws)
 {
   float normalizer_landmark =
@@ -313,7 +313,7 @@ void PF::highLevel(const std::vector<SemanticFeature>& landmarks,
 }
 
 void PF::mediumLevelCorners(const std::vector<Corner>& corners,
-                            OccupancyMap*              grid_map,
+                            MapLayer*              grid_map,
                             std::vector<float>&        ws)
 {
   float normalizer_corner =
@@ -439,7 +439,7 @@ void PF::mediumLevelGround(const Plane& ground_plane, std::vector<float>& ws)
 }
 
 void PF::mediumLevelPlanes(std::vector<Plane>  planes,
-                           OccupancyMap*       grid_map,
+                           MapLayer*       grid_map,
                            std::vector<float>& ws)
 {
   const float normalizer_planes =
@@ -496,7 +496,7 @@ void PF::mediumLevelPlanes(std::vector<Plane>  planes,
 }
 
 void PF::lowLevel(const std::vector<ImageFeature>& surf_features,
-                  OccupancyMap*                    grid_map,
+                  MapLayer*                    grid_map,
                   std::vector<float>&              ws)
 {
   // ------------------------------------------------------------------------------
@@ -738,7 +738,7 @@ void PF::cluster(std::map<int, Gaussian<pose, pose>>& gauss_map)
 }
 
 void PF::scanMatch(const std::vector<ImageFeature>&     features,
-                   OccupancyMap*                        grid_map,
+                   MapLayer*                        grid_map,
                    std::map<int, Gaussian<pose, pose>>& gauss_map,
                    std::vector<float>&                  ws)
 {

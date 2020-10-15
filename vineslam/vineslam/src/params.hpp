@@ -62,7 +62,9 @@ struct Parameters {
   // - Grid map
   float       gridmap_origin_x{};
   float       gridmap_origin_y{};
+  float       gridmap_origin_z{};
   float       gridmap_width{};
+  float       gridmap_lenght{};
   float       gridmap_height{};
   float       gridmap_resolution{};
   std::string gridmap_metric;

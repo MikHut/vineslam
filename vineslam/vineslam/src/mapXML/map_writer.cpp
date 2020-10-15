@@ -12,7 +12,7 @@ MapWriter::MapWriter(const Parameters& params)
   file_path += "map_" + std::to_string(t) + ".xml";
 }
 
-void MapWriter::writeToFile(OccupancyMap grid_map)
+void MapWriter::writeToFile(MapLayer grid_map)
 {
   // Create file
   std::ofstream xmlfile;
@@ -31,7 +31,7 @@ void MapWriter::writeToFile(OccupancyMap grid_map)
   xmlfile << TAB << TAB << open(Y_) << grid_map.origin.y << close(Y_) << ENDL;
   xmlfile << TAB << close(ORIGIN) << ENDL;
   xmlfile << TAB << open(WIDTH) << grid_map.width << close(WIDTH) << ENDL;
-  xmlfile << TAB << open(HEIGHT) << grid_map.height << close(HEIGHT) << ENDL;
+  xmlfile << TAB << open(HEIGHT) << grid_map.lenght << close(HEIGHT) << ENDL;
   xmlfile << TAB << open(RESOLUTION) << grid_map.resolution << close(RESOLUTION)
           << ENDL;
   xmlfile << TAB << open(METRIC) << grid_map.metric << close(METRIC) << ENDL;
@@ -44,7 +44,7 @@ void MapWriter::writeToFile(OccupancyMap grid_map)
                               grid_map.width / grid_map.resolution - 1);
   int ymin = static_cast<int>(grid_map.origin.y / grid_map.resolution);
   int ymax = static_cast<int>(static_cast<float>(ymin) +
-                              grid_map.height / grid_map.resolution - 1);
+                              grid_map.lenght / grid_map.resolution - 1);
   for (int i = xmin; i < xmax; i++) {
     for (int j = ymin; j < ymax; j++) {
       // Check if there is any feature in the current cell

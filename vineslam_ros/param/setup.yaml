@@ -52,8 +52,10 @@ multilayer_mapping:
     origin:
       x: -75
       y: -75
+      z: -5
     width: 150
-    height: 150
+    lenght: 150
+    height: 10
     resolution: 0.25 # meters
     metric: "euclidean"
     save_map: True

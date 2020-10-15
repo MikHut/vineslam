@@ -9,7 +9,7 @@ MapParser::MapParser(const Parameters& params)
   file_path = params.map_input_file;
 }
 
-void MapParser::parseFile(OccupancyMap& grid_map)
+void MapParser::parseFile(MapLayer& grid_map)
 {
   std::ifstream xmlfile(file_path);
   bool          readinginfo = true;
@@ -37,7 +37,7 @@ void MapParser::parseFile(OccupancyMap& grid_map)
     } else if (tag == openTag((WIDTH))) {
       grid_map.width = getFloat(line);
     } else if (tag == openTag(HEIGHT)) {
-      grid_map.height = getFloat(line);
+      grid_map.lenght = getFloat(line);
     } else if (tag == openTag(RESOLUTION)) {
       grid_map.resolution = getFloat(line);
     } else if (tag == openTag(METRIC)) {
@@ -220,7 +220,7 @@ std::string MapParser::getString(const std::string& line)
   return sub_str.substr(0, last_it);
 }
 
-void MapParser::printMap(OccupancyMap grid_map)
+void MapParser::printMap(MapLayer grid_map)
 {
   std::cout << "-----------------------------------------------" << std::endl;
   std::cout << "----- Map info " << std::endl;
@@ -230,7 +230,7 @@ void MapParser::printMap(OccupancyMap grid_map)
   std::cout << "  [X,Y]: [" << grid_map.origin.x << "," << grid_map.origin.y << "]"
             << std::endl;
   std::cout << "  width: [" << grid_map.width << std::endl;
-  std::cout << "  height: [" << grid_map.height << std::endl;
+  std::cout << "  height: [" << grid_map.lenght << std::endl;
   std::cout << "  resolution: [" << grid_map.resolution << std::endl;
   std::cout << "  metric: [" << grid_map.metric << std::endl << std::endl;
 
@@ -244,7 +244,7 @@ void MapParser::printMap(OccupancyMap grid_map)
                               grid_map.width / grid_map.resolution - 1);
   int ymin = static_cast<int>(grid_map.origin.y / grid_map.resolution);
   int ymax = static_cast<int>(static_cast<float>(ymin) +
-                              grid_map.height / grid_map.resolution - 1);
+                              grid_map.lenght / grid_map.resolution - 1);
   for (int i = xmin; i < xmax; i++) {
     for (int j = ymin; j < ymax; j++) {
       // Check if there is any feature in the current cell

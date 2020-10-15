@@ -23,6 +23,7 @@ OccupancyMap::OccupancyMap(const Parameters& params)
   n_surf_features   = 0;
   n_landmarks       = 0;
   n_corner_features = 0;
+  n_points          = 0;
 }
 
 OccupancyMap::OccupancyMap(const OccupancyMap& grid_map)
@@ -31,6 +32,7 @@ OccupancyMap::OccupancyMap(const OccupancyMap& grid_map)
   this->n_corner_features = grid_map.n_corner_features;
   this->n_surf_features   = grid_map.n_surf_features;
   this->n_landmarks       = grid_map.n_landmarks;
+  this->n_points          = grid_map.n_points;
   this->resolution        = grid_map.resolution;
   this->origin            = grid_map.origin;
   this->height            = grid_map.height;
@@ -111,6 +113,30 @@ bool OccupancyMap::insert(const Corner& m_feature)
   int m_j = static_cast<int>(std::round(m_feature.pos.y / resolution + .49));
 
   return insert(m_feature, m_i, m_j);
+}
+
+bool OccupancyMap::insert(const point& m_point, const int& i, const int& j)
+{
+  try {
+    check(i, j);
+  } catch (char const* msg) {
+    std::cout << msg;
+    return false;
+  }
+
+  (*this)(i, j).points.push_back(m_point);
+  n_points++;
+  return true;
+}
+
+bool OccupancyMap::insert(const point& m_point)
+{
+  // Compute grid coordinates for the floating point Feature location
+  // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+  int m_i = static_cast<int>(std::round(m_point.x / resolution + .49));
+  int m_j = static_cast<int>(std::round(m_point.y / resolution + .49));
+
+  return insert(m_point, m_i, m_j);
 }
 
 bool OccupancyMap::update(const SemanticFeature& new_landmark,

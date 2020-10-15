@@ -199,27 +199,22 @@ void VineSLAM_ros::publish3DMap(const std::vector<Plane>& planes,
   pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(
       new pcl::PointCloud<pcl::PointXYZI>);
 
+  std::array<float, 9> robot_R{};
+  robot_pose.toRotMatrix(robot_R);
+  TF robot_tf(robot_R,
+              std::array<float, 3>{robot_pose.x, robot_pose.y, robot_pose.z});
+
   int i = 0;
   for (const auto& plane : planes) {
     for (const auto& pt : plane.points) {
-      std::array<float, 9> robot_R{};
-      robot_pose.toRotMatrix(robot_R);
-      TF robot_tf(robot_R,
-                  std::array<float, 3>{robot_pose.x, robot_pose.y, robot_pose.z});
+      point m_pt = pt * robot_tf;
 
-      pcl::PointXYZI m_pt(i);
-      m_pt.x = pt.x * robot_tf.R[0] + pt.y * robot_tf.R[1] + pt.z * robot_tf.R[2] +
-               robot_tf.t[0];
-      m_pt.y = pt.x * robot_tf.R[3] + pt.y * robot_tf.R[4] + pt.z * robot_tf.R[5] +
-               robot_tf.t[1];
-      m_pt.z = pt.x * robot_tf.R[6] + pt.y * robot_tf.R[7] + pt.z * robot_tf.R[8] +
-               robot_tf.t[2];
+      pcl::PointXYZI pcl_pt(i);
+      pcl_pt.x = m_pt.x;
+      pcl_pt.y = m_pt.y;
+      pcl_pt.z = m_pt.z;
 
-      m_pt.x = pt.x;
-      m_pt.y = pt.y;
-      m_pt.z = pt.z;
-
-      cloud_out->points.push_back(m_pt);
+      cloud_out->points.push_back(pcl_pt);
     }
     i++;
   }

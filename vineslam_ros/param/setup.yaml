@@ -79,7 +79,7 @@ multilayer_mapping:
 pf:
   n_particles: 500
 
-  srr: 0.010 # rotation - rotation (rad / rad)
+  srr: 0.005 # rotation - rotation (rad / rad)
   srt: 0.100 # rotation - translation (rad / meter)
   str: 0.008 # translation - rotation (meter / rad)
   stt: 0.100 # translation - translation (meter / meter)

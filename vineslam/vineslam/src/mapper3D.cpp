@@ -350,17 +350,12 @@ void Mapper3D::globalCornerMap(const pose&          robot_pose,
   std::array<float, 9> Rot{};
   robot_pose.toRotMatrix(Rot);
   std::array<float, 3> trans = {robot_pose.x, robot_pose.y, robot_pose.z};
+  TF                   tf(Rot, trans);
 
   // ------ Insert corner into the grid map
   for (auto& corner : corners) {
     // - First convert them to map's referential using the robot pose
-    point m_pt;
-    m_pt.x = corner.pos.x * Rot[0] + corner.pos.y * Rot[1] + corner.pos.z * Rot[2] +
-             trans[0];
-    m_pt.y = corner.pos.x * Rot[3] + corner.pos.y * Rot[4] + corner.pos.z * Rot[5] +
-             trans[1];
-    m_pt.z = corner.pos.x * Rot[6] + corner.pos.y * Rot[7] + corner.pos.z * Rot[8] +
-             trans[2];
+    point m_pt = corner.pos * tf;
 
     // - Then, look for correspondences in the local map
     Corner correspondence{};
@@ -971,6 +966,32 @@ void Mapper3D::downsampleCorners(std::vector<Corner>&  corners,
       cluster_id++;
     }
   }
+}
+
+void Mapper3D::removeDynamicPoints(const pose&               robot_pose,
+                                   const OccupancyMap&       grid_map,
+                                   const std::vector<point>& pcl,
+                                   std::vector<Corner>&      corners)
+{
+  local_map->clear();
+
+  // -------------------------------------------------------------------------------
+  // ---- Convert local points to maps' referential frame, and insert them into the
+  //      local grid map
+  // -------------------------------------------------------------------------------
+  std::array<float, 9> Rot{};
+  robot_pose.toRotMatrix(Rot);
+  std::array<float, 3> trans = {robot_pose.x, robot_pose.y, robot_pose.z};
+  TF                   tf(Rot, trans);
+
+  for (auto& pt : pcl) {
+    point m_pt = pt * tf;
+    local_map->insert(m_pt);
+  }
+
+  // -------------------------------------------------------------------------------
+  // ----
+  // -------------------------------------------------------------------------------
 }
 
 void Mapper3D::extractPCLDescriptors(const cv::Mat& by_image_var,

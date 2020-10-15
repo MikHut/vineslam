@@ -178,6 +178,12 @@ private:
   void extractHighLevelPlanes(const std::vector<PlanePoint>& in_plane_pts,
                               std::vector<Plane>&            out_planes);
 
+  // Remove dynamic points from the corners point cloud
+  void removeDynamicPoints(const pose&               robot_pose,
+                           const OccupancyMap&       grid_map,
+                           const std::vector<point>& pcl,
+                           std::vector<Corner>&      corners);
+
   // 3D feature extraction from a point cloud
   void extractCorners(const std::vector<PlanePoint>& in_plane_pts,
                       std::vector<Corner>&           out_corners);
@@ -195,7 +201,7 @@ private:
   // Converts a pixel into world's coordinate reference
   void pixel2base(const point& in_pt, const float& depth, point& out_pt) const;
 
-  // Local grid map for clustering search
+  // Local grid map for several algorithms (clustering, dynamic points removal)
   OccupancyMap* local_map;
 
   // Camera info parameters

@@ -30,10 +30,14 @@ public:
   // Inserts a corner feature in the features array
   void insert(const Corner& m_feature) { corner_features.push_back(m_feature); }
 
-  // List of landmarks and features at each cell
+  // Inserts a point in the points array
+  void insert(const point& m_point) { points.push_back(m_point); }
+
+  // List of landmarks, features, and points at each cell
   std::map<int, SemanticFeature> landmarks;
   std::vector<ImageFeature>      surf_features;
   std::vector<Corner>            corner_features;
+  std::vector<point>             points;
 
 private:
 };
@@ -118,6 +122,11 @@ public:
   // Insert a Image Feature given a Feature/Landmark location
   bool insert(const Corner& m_feature);
 
+  // Insert a point using the direct grid coordinates
+  bool insert(const point& m_point, const int& i, const int& j);
+  // Insert a point given a its location
+  bool insert(const point& m_point);
+
   // Since Landmark map is built with a KF, Landmarks position change in each
   // iteration. This routine updates the position of a given Landmark
   bool update(const SemanticFeature& new_landmark,
@@ -155,7 +164,8 @@ public:
   // Returns true if the map has no features or landmarks
   bool empty() const
   {
-    return (n_surf_features == 0 && n_landmarks == 0 && n_corner_features == 0);
+    return (n_surf_features == 0 && n_landmarks == 0 && n_corner_features == 0 &&
+            n_points == 0);
   }
 
   // Delete all features in the map
@@ -165,17 +175,20 @@ public:
       cell.corner_features.clear();
       cell.surf_features.clear();
       cell.landmarks.clear();
+      cell.points.clear();
     }
 
     n_corner_features = 0;
     n_surf_features   = 0;
     n_landmarks       = 0;
+    n_points          = 0;
   }
 
-  // Number of features and landmarks in the map
+  // Number of features, landmarks, and points in the map
   int n_surf_features;
   int n_corner_features;
   int n_landmarks;
+  int n_points;
 
   // Grid map dimensions
   // NOTE: map corners are in reference to the given origin

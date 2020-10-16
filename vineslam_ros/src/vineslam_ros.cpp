@@ -405,7 +405,11 @@ void VineSLAM_ros::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
     gnss_pose.header.frame_id    = "enu";
 
     gps_poses.push_back(gnss_pose);
-    gps_publisher.publish(gps_poses);
+    nav_msgs::Path ros_path;
+    ros_path.header.stamp    = ros::Time::now();
+    ros_path.header.frame_id = "map";
+    ros_path.poses           = gps_poses;
+    gps_publisher.publish(ros_path);
 
     // Transform locally the gps pose from enu to map to use in localization
     tf::Matrix3x3 Rot = ned2map.getBasis().inverse();

@@ -160,7 +160,7 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
   ros::Publisher pcl_pub =
       nh.advertise<sensor_msgs::PointCloud2>(params.pcl_topic, 1);
 
-  rosgraph_msgs::ClockConstPtr     clock_ptr;
+  rosgraph_msgs::Clock             clock_ptr;
   tf2_msgs::TFMessageConstPtr      tf_ptr;
   nav_msgs::OdometryConstPtr       rs_odom_ptr;
   nav_msgs::OdometryConstPtr       odom_ptr;
@@ -179,7 +179,8 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
     }
 
     // Publish clock
-    clock_pub.publish(m.getTime());
+    clock_ptr.clock = m.getTime();
+    clock_pub.publish(clock_ptr);
 
     // Publish rosbag topics of interest
     const std::string& topic = m.getTopic();

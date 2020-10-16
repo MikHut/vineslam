@@ -6,7 +6,6 @@ namespace vineslam
 Mapper2D::Mapper2D(Parameters params)
     : params(std::move(params))
 {
-  std::cout << "\n\n\n\n\n----------------------------\n\n\n\n Initializing Mapper2D \n\n\n\n\n\n";
   fx       = params.fx;
   baseline = params.baseline;
 

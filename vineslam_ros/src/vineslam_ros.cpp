@@ -230,8 +230,6 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     ros_path.poses           = path;
     path_publisher.publish(ros_path);
 
-    // Publish the grid map
-    publishGridMap(depth_image->header);
     // Publish the 2D map
     publish2DMap(depth_image->header, robot_pose, bearings, depths);
     // Publish 3D maps

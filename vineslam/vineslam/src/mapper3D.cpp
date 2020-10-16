@@ -110,21 +110,15 @@ void Mapper3D::globalSurfMap(const std::vector<ImageFeature>& features,
   std::array<float, 9> Rot{};
   robot_pose.toRotMatrix(Rot);
   std::array<float, 3> trans = {robot_pose.x, robot_pose.y, robot_pose.z};
+  TF                   tf(Rot, trans);
 
   // ------ Insert features into the grid map
   for (const auto& image_feature : features) {
     // - First convert them to map's referential using the robot pose
+    point m_pt = image_feature.pos * tf;
+
     ImageFeature m_feature = image_feature;
-
-    point m_pt;
-    m_pt.x = image_feature.pos.x * Rot[0] + image_feature.pos.y * Rot[1] +
-             image_feature.pos.z * Rot[2] + trans[0];
-    m_pt.y = image_feature.pos.x * Rot[3] + image_feature.pos.y * Rot[4] +
-             image_feature.pos.z * Rot[5] + trans[1];
-    m_pt.z = image_feature.pos.x * Rot[6] + image_feature.pos.y * Rot[7] +
-             image_feature.pos.z * Rot[8] + trans[2];
-
-    m_feature.pos = m_pt;
+    m_feature.pos          = m_pt;
 
     // - Then, look for correspondences in the local map
     ImageFeature correspondence{};
@@ -159,15 +153,19 @@ void Mapper3D::globalSurfMap(const std::vector<ImageFeature>& features,
 
     // - Then, insert the image feature into the grid map
     if (found) {
-      point        new_pt = (m_pt + correspondence.pos) / 2.;
+      point new_pt =
+          ((correspondence.pos * static_cast<float>(correspondence.n_observations)) +
+           m_pt) /
+          static_cast<float>(correspondence.n_observations + 1);
       ImageFeature new_image_feature(image_feature.u,
                                      image_feature.v,
                                      image_feature.r,
                                      image_feature.g,
                                      image_feature.b,
                                      new_pt);
-      new_image_feature.laplacian = image_feature.laplacian;
-      new_image_feature.signature = image_feature.signature;
+      new_image_feature.laplacian      = image_feature.laplacian;
+      new_image_feature.signature      = image_feature.signature;
+      new_image_feature.n_observations = correspondence.n_observations++;
       grid_map.update(correspondence, new_image_feature);
     } else {
       ImageFeature new_image_feature(image_feature.u,
@@ -359,10 +357,11 @@ void Mapper3D::globalCornerMap(const pose&          robot_pose,
     point m_pt = corner.pos * tf;
 
     // - Then, look for correspondences in the local map
-    Corner correspondence{};
-    float  best_correspondence = correspondence_threshold;
-    bool   found               = false;
-    for (const auto& m_corner : grid_map(m_pt.x, m_pt.y, m_pt.z).corner_features) {
+    Corner              correspondence{};
+    float               best_correspondence = correspondence_threshold;
+    bool                found               = false;
+    std::vector<Corner> m_corners = grid_map(m_pt.x, m_pt.y, m_pt.z).corner_features;
+    for (const auto& m_corner : m_corners) {
       float dist_min = m_pt.distance(m_corner.pos);
 
       if (dist_min < best_correspondence) {

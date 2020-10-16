@@ -132,24 +132,27 @@ struct ImageFeature : public Feature {
                const uint8_t& b,
                const point&   pos)
   {
-    (*this).u         = u;
-    (*this).v         = v;
-    (*this).r         = r;
-    (*this).g         = g;
-    (*this).b         = b;
-    (*this).signature = std::vector<float>();
-    (*this).pos       = pos;
+    (*this).u              = u;
+    (*this).v              = v;
+    (*this).r              = r;
+    (*this).g              = g;
+    (*this).b              = b;
+    (*this).signature      = std::vector<float>();
+    (*this).pos            = pos;
+    (*this).n_observations = 0;
   }
 
   // Class constructor
   // - initializes its image
   ImageFeature(const int& u, const int& v)
   {
-    (*this).u         = u;
-    (*this).v         = v;
-    (*this).signature = std::vector<float>();
+    (*this).u              = u;
+    (*this).v              = v;
+    (*this).signature      = std::vector<float>();
+    (*this).n_observations = 0;
   }
 
+  int n_observations{};
   // Image pixel position
   int u{};
   int v{};

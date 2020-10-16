@@ -294,9 +294,10 @@ bool MapLayer::findNearest(const ImageFeature& input,
                            float&              ddist)
 {
   if (n_surf_features == 0) {
-    std::cout
-        << "WARNING (findNearest): Trying to find nearest feature on empty map..."
-        << std::endl;
+    //    std::cout
+    //        << "WARNING (findNearest): Trying to find nearest feature on empty
+    //        map..."
+    //        << std::endl;
     return false;
   }
 
@@ -528,41 +529,44 @@ bool MapLayer::findNearestOnCell(const ImageFeature& input, ImageFeature& neares
 OccupancyMap::OccupancyMap(const Parameters& params)
 {
   // Read input parameters
-  origin.x   = params.gridmap_origin_x;
-  origin.y   = params.gridmap_origin_y;
-  origin.z   = params.gridmap_origin_z;
-  resolution = params.gridmap_resolution;
-  width      = params.gridmap_width;
-  lenght     = params.gridmap_lenght;
-  height     = params.gridmap_height;
-  zmin       = 0;
-  zmax       = static_cast<int>(
-      std::round((std::fabs(origin.z) + height) / resolution + .49));
-  metric = params.gridmap_metric;
+  origin.x     = params.gridmap_origin_x;
+  origin.y     = params.gridmap_origin_y;
+  origin.z     = params.gridmap_origin_z;
+  resolution   = params.gridmap_resolution;
+  resolution_z = resolution / 8;
+  width        = params.gridmap_width;
+  lenght       = params.gridmap_lenght;
+  height       = params.gridmap_height;
+  zmin         = 0;
+  zmax         = static_cast<int>(std::round(height / resolution_z)) - 1;
+  metric       = params.gridmap_metric;
 
   // Initialize multi-layer grid map
-  for (float i = origin.z; i < origin.z + height;) {
+  float i = origin.z;
+  while (i < origin.z + height) {
     int layer_num       = getLayerNumber(i);
     m_layers[layer_num] = MapLayer(params);
-    i += resolution / 2;
+    i += resolution_z;
   }
 }
 
 OccupancyMap::OccupancyMap(const OccupancyMap& grid_map)
 {
-  this->m_layers   = grid_map.m_layers;
-  this->resolution = grid_map.resolution;
-  this->origin     = grid_map.origin;
-  this->lenght     = grid_map.lenght;
-  this->width      = grid_map.width;
-  this->height     = grid_map.height;
-  this->metric     = grid_map.metric;
+  this->m_layers     = grid_map.m_layers;
+  this->resolution   = grid_map.resolution;
+  this->origin       = grid_map.origin;
+  this->lenght       = grid_map.lenght;
+  this->width        = grid_map.width;
+  this->height       = grid_map.height;
+  this->resolution_z = grid_map.resolution_z;
+  this->zmin         = grid_map.zmin;
+  this->zmax         = grid_map.zmax;
+  this->metric       = grid_map.metric;
 }
 
 int OccupancyMap::getLayerNumber(const float& z) const
 {
-  int layer_num = static_cast<int>(std::round(z / resolution + .49)) -
-                  static_cast<int>(std::round(origin.z / resolution + .49));
+  int layer_num = static_cast<int>(std::round((z - origin.z) / resolution_z));
 
   layer_num = (layer_num < zmin) ? zmin : layer_num;
   layer_num = (layer_num > zmax) ? zmax : layer_num;
@@ -603,9 +607,9 @@ bool OccupancyMap::update(const Corner& old_corner, const Corner& new_corner)
   int old_layer_num = getLayerNumber(old_corner.pos.z);
   int new_layer_num = getLayerNumber(new_corner.pos.z);
 
-  if (old_layer_num == new_layer_num)
+  if (old_layer_num == new_layer_num) {
     return m_layers[old_layer_num].update(old_corner, new_corner);
-  else {
+  } else {
     // Compute grid coordinates for the floating point old corner location
     // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
     int m_i = static_cast<int>(std::round(old_corner.pos.x / resolution + .49));
@@ -680,36 +684,47 @@ bool OccupancyMap::findNearest(const ImageFeature& input,
 {
   // Set up data needed to compute the routine
   ImageFeature nearest_down, nearest_up, nearest_layer;
-  float        sdist_down = 0, sdist_up = 0, sdist_layer = 0;
-  float        ddist_down = 0, ddist_up = 0, ddist_layer = 0;
+  float        sdist_down = 1e6, sdist_up = 1e6, sdist_layer = 1e6;
+  float        ddist_down = 1e6, ddist_up = 1e6, ddist_layer = 1e6;
 
   int layer_num = getLayerNumber(input.pos.z);
 
   // Find the nearest feature in each layer
-  bool c1 = false, c2 = false, c3 = false;
-  if (layer_num - 1 > zmin)
-    c1 = m_layers[layer_num - 1].findNearest(
-        input, nearest_down, sdist_down, ddist_down);
-  if (layer_num + 1 < zmax)
-    c2 = m_layers[layer_num + 1].findNearest(input, nearest_up, sdist_up, ddist_up);
-  if (layer_num > zmin && layer_num < zmax)
-    c3 = m_layers[layer_num].findNearest(
-        input, nearest_layer, sdist_layer, ddist_layer);
+  bool c1 = m_layers[layer_num - 1].findNearest(
+      input, nearest_down, sdist_down, ddist_down);
+  bool c2 =
+      m_layers[layer_num + 1].findNearest(input, nearest_up, sdist_up, ddist_up);
+  bool c3 = m_layers[layer_num].findNearest(
+      input, nearest_layer, sdist_layer, ddist_layer);
 
   if (metric == "euclidean") {
-    if (sdist_down > sdist_up && sdist_down > sdist_layer)
+    if (sdist_down < sdist_up && sdist_down < sdist_layer) {
       nearest = nearest_down;
-    else if (sdist_up > sdist_down && sdist_up > sdist_layer)
+      sdist   = sdist_down;
+      ddist   = ddist_down;
+    } else if (sdist_up < sdist_down && sdist_up < sdist_layer) {
       nearest = nearest_up;
-    else
+      sdist   = sdist_up;
+      ddist   = ddist_up;
+    } else {
       nearest = nearest_layer;
+      sdist   = sdist_layer;
+      ddist   = ddist_layer;
+    }
   } else {
-    if (sdist_down > ddist_up && ddist_down > ddist_layer)
+    if (sdist_down < ddist_up && ddist_down < ddist_layer) {
       nearest = nearest_down;
-    else if (ddist_up > ddist_down && ddist_up > ddist_layer)
+      sdist   = sdist_down;
+      ddist   = ddist_down;
+    } else if (ddist_up < ddist_down && ddist_up < ddist_layer) {
       nearest = nearest_up;
-    else
+      sdist   = sdist_up;
+      ddist   = ddist_up;
+    } else {
       nearest = nearest_layer;
+      sdist   = sdist_layer;
+      ddist   = ddist_layer;
+    }
   }
 
   return c1 || c2 || c3;

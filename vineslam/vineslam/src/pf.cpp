@@ -127,6 +127,12 @@ void PF::motionModel(const pose& odom)
     particle.p.roll += dt_pose.roll;
     particle.p.pitch += dt_pose.pitch;
     particle.p.yaw += dt_pose.yaw;
+
+    // Save particle homogeneous transformation
+    std::array<float, 9> Rot{};
+    particle.p.toRotMatrix(Rot);
+    std::array<float, 3> trans = {particle.p.x, particle.p.y, particle.p.z};
+    particle.tf                = TF(Rot, trans);
   }
 
   p_odom = odom;
@@ -319,36 +325,24 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
       static_cast<float>(1.) / (sigma_corner_matching * std::sqrt(M_2PI));
 
   // Loop over all particles
-  int counter = 0;
-  int n_corners = 0;
   for (const auto& particle : particles) {
     // ------------------------------------------------------
     // --- 3D corner map fitting
     // ------------------------------------------------------
-    std::array<float, 9> Rot{};
-    particle.p.toRotMatrix(Rot);
     std::vector<float> dcornervec;
     for (const auto& corner : corners) {
       // Convert landmark to the particle's referential frame
-      point X;
-      X.x = corner.pos.x * Rot[0] + corner.pos.y * Rot[1] + corner.pos.z * Rot[2] +
-            particle.p.x;
-      X.y = corner.pos.x * Rot[3] + corner.pos.y * Rot[4] + corner.pos.z * Rot[5] +
-            particle.p.y;
-      X.z = corner.pos.x * Rot[6] + corner.pos.y * Rot[7] + corner.pos.z * Rot[8] +
-            particle.p.z;
+      point X = corner.pos * particle.tf;
+
+      std::vector<Corner> m_corners = (*grid_map)(X.x, X.y, X.z).corner_features;
 
       // Search for a correspondence in the current cell first
-      point dpos;
       float best_correspondence = std::numeric_limits<float>::max();
       bool  found               = false;
-      counter++;
-      n_corners += (*grid_map)(X.x, X.y, X.z).corner_features.size();
-      for (const auto& m_corner : (*grid_map)(X.x, X.y, X.z).corner_features) {
+      for (const auto& m_corner : m_corners) {
         float dist_min = X.distance(m_corner.pos);
 
         if (dist_min < best_correspondence) {
-          dpos                = m_corner.pos;
           best_correspondence = dist_min;
           found               = true;
         }
@@ -394,8 +388,6 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
 
     ws[particle.id] = w_corners;
   }
-
-  std::cout << n_corners / counter << std::endl;
 }
 
 void PF::mediumLevelGround(const Plane& ground_plane, std::vector<float>& ws)

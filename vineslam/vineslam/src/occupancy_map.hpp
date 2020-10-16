@@ -62,7 +62,7 @@ public:
     try {
       check(i, j);
     } catch (char const* msg) {
-      std::cout << msg;
+      std::cout << msg << std::endl;
       std::cout << "Returning last grid element ..." << std::endl;
 
       return m_gmap[m_gmap.size() - 1];
@@ -308,6 +308,7 @@ public:
   float       lenght;
   float       height;
   float       resolution;
+  float       resolution_z;
   int         zmin;
   int         zmax;
   std::string metric;

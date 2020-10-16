@@ -6,6 +6,7 @@ namespace vineslam
 Mapper2D::Mapper2D(Parameters params)
     : params(std::move(params))
 {
+  std::cout << "\n\n\n\n\n----------------------------\n\n\n\n Initializing Mapper2D \n\n\n\n\n\n";
   fx       = params.fx;
   baseline = params.baseline;
 
@@ -20,7 +21,7 @@ void Mapper2D::init(const pose&               pose,
                     const std::vector<float>& bearings,
                     const std::vector<float>& depths,
                     const std::vector<int>&   labels,
-                    MapLayer&             grid_map)
+                    OccupancyMap&             grid_map)
 {
   int                    n_obsv      = bearings.size();
   Gaussian<point, point> robot_gauss = pose.getDist();
@@ -68,7 +69,7 @@ void Mapper2D::init(const pose&               pose,
 void Mapper2D::process(const pose&                         pose,
                        const std::vector<SemanticFeature>& landmarks,
                        const std::vector<int>&             labels,
-                       MapLayer&                       grid_map)
+                       OccupancyMap&                       grid_map)
 {
   // Compute local map on robot's referential frame
   std::vector<point> l_map = base2map(pose, landmarks);
@@ -121,7 +122,7 @@ void Mapper2D::predict(const pose&               pose,
                        const std::vector<float>& bearings,
                        const std::vector<float>& depths,
                        const std::vector<int>&   labels,
-                       MapLayer&             grid_map)
+                       OccupancyMap&             grid_map)
 {
   int                    n_obsv      = bearings.size();
   Gaussian<point, point> robot_gauss = pose.getDist();
@@ -153,8 +154,7 @@ void Mapper2D::predict(const pose&               pose,
       Eigen::MatrixXd R(2, 2);
 
       // Initialize the Kalman Filter
-      KF kf(
-          params, X.toEig2D(), pose.toEig2D(), robot_gauss.stdev.toEig2D(), z);
+      KF kf(params, X.toEig2D(), pose.toEig2D(), robot_gauss.stdev.toEig2D(), z);
       filters.push_back(kf);
 
       // Insert the landmark on the map, with a single observation
@@ -182,7 +182,7 @@ void Mapper2D::predict(const pose&               pose,
   }
 }
 
-std::pair<int, point> Mapper2D::findCorr(const point& pos, MapLayer& grid_map)
+std::pair<int, point> Mapper2D::findCorr(const point& pos, OccupancyMap& grid_map)
 {
   int   best_correspondence = -1;
   float best_aprox          = 0.5;
@@ -190,7 +190,7 @@ std::pair<int, point> Mapper2D::findCorr(const point& pos, MapLayer& grid_map)
   point correspondence;
 
   // Search on current cell first
-  for (const auto& m_landmark : grid_map(pos.x, pos.y).landmarks) {
+  for (const auto& m_landmark : grid_map(pos.x, pos.y, 0).landmarks) {
     float dist = pos.distanceXY(m_landmark.second.pos);
 
     if (dist < best_aprox) {
@@ -203,7 +203,7 @@ std::pair<int, point> Mapper2D::findCorr(const point& pos, MapLayer& grid_map)
   // Search on adjacent cells then
   int               number_layers = (best_correspondence == -1) ? 2 : 1;
   std::vector<Cell> adjacents;
-  grid_map.getAdjacent(pos.x, pos.y, number_layers, adjacents);
+  grid_map.getAdjacent(pos.x, pos.y, 0., number_layers, adjacents);
   for (const auto& m_cell : adjacents) {
     for (const auto& m_landmark : m_cell.landmarks) {
       float dist = pos.distanceXY(m_landmark.second.pos);
@@ -244,11 +244,11 @@ void Mapper2D::localMap(const std::vector<float>&     bearings,
   }
 }
 
-void Mapper2D::filter(MapLayer& grid_map) const
+void Mapper2D::filter(OccupancyMap& grid_map) const
 {
-  int old_limit = grid_map.n_landmarks - (grid_map.n_landmarks / 10);
+  int old_limit = grid_map(0).n_landmarks - (grid_map(0).n_landmarks / 10);
 
-  for (auto& cell : grid_map) {
+  for (auto& cell : grid_map(0)) {
     std::map<int, SemanticFeature> m_landmarks = cell.landmarks;
     for (const auto& m_landmark : m_landmarks) {
 

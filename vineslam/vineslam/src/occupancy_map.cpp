@@ -535,15 +535,16 @@ OccupancyMap::OccupancyMap(const Parameters& params)
   width      = params.gridmap_width;
   lenght     = params.gridmap_lenght;
   height     = params.gridmap_height;
-  zmin       = getLayerNumber(origin.z);
-  zmax       = getLayerNumber(origin.z + height);
-  metric     = params.gridmap_metric;
+  zmin       = 0;
+  zmax       = static_cast<int>(
+      std::round((std::fabs(origin.z) + height) / resolution + .49));
+  metric = params.gridmap_metric;
 
   // Initialize multi-layer grid map
   for (float i = origin.z; i < origin.z + height;) {
     int layer_num       = getLayerNumber(i);
     m_layers[layer_num] = MapLayer(params);
-    i += resolution;
+    i += resolution / 2;
   }
 }
 

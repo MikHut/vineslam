@@ -217,6 +217,16 @@ public:
   // Copy constructor
   OccupancyMap(const OccupancyMap& grid_map);
 
+  // Access map layer
+  MapLayer& operator()(float z)
+  {
+    int layer_num = getLayerNumber(z);
+    layer_num     = (layer_num < zmin) ? zmin : layer_num;
+    layer_num     = (layer_num > zmax) ? zmax : layer_num;
+
+    return m_layers[layer_num];
+  }
+
   // 3D grid map access to cell coordinates
   Cell& operator()(float x, float y, float z)
   {
@@ -274,6 +284,8 @@ public:
                    float&              ddist);
   // Find nearest neighbor of a feature on its cell
   bool findNearestOnCell(const ImageFeature& input, ImageFeature& nearest);
+  // Recover the layer number from the feature z component
+  int getLayerNumber(const float& z) const;
 
   // Returns true is none layer has features/landmarks
   bool empty() const
@@ -301,9 +313,6 @@ public:
   std::string metric;
 
 private:
-  // Recover the layer number from the feature z component
-  int getLayerNumber(const float& z) const;
-
   // Private grid map to store all the individual layers
   // (int, MapLayer): (layer number, layer class)
   std::map<int, MapLayer> m_layers;

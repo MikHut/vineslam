@@ -71,7 +71,7 @@ public:
   // Adds the image features to the global map
   void globalSurfMap(const std::vector<ImageFeature>& features,
                      const pose&                      robot_pose,
-                     MapLayer&                    grid_map) const;
+                     OccupancyMap&                    grid_map) const;
 
   // -------------------------------------------------------------------------------
   // ---- 3D pointcloud feature map
@@ -85,7 +85,7 @@ public:
   // Adds the corner features to the global map
   void globalCornerMap(const pose&          robot_pose,
                        std::vector<Corner>& corners,
-                       MapLayer&        grid_map) const;
+                       OccupancyMap&        grid_map) const;
   // Computes a range image from a raw point cloud
   static void rangeImage(const std::vector<point>& pcl,
                          const std::vector<float>& intensities,
@@ -180,7 +180,7 @@ private:
 
   // Remove dynamic points from the corners point cloud
   void removeDynamicPoints(const pose&               robot_pose,
-                           const MapLayer&       grid_map,
+                           const OccupancyMap&       grid_map,
                            const std::vector<point>& pcl,
                            std::vector<Corner>&      corners);
 
@@ -202,7 +202,7 @@ private:
   void pixel2base(const point& in_pt, const float& depth, point& out_pt) const;
 
   // Local grid map for several algorithms (clustering, dynamic points removal)
-  MapLayer* local_map;
+  OccupancyMap* local_map;
 
   // Camera info parameters
   int   img_width;

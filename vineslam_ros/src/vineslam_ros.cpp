@@ -82,6 +82,11 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     }
   }
 
+//  for (float i = -1; i < 4;) {
+//    std::cout << i << " -> " << (*grid_map)(i).n_corner_features << std::endl;
+//    i += .25/2;
+//  }
+
   // -------------------------------------------------------------------------------
   // ---- Localization and mapping procedures
   // -------------------------------------------------------------------------------
@@ -232,9 +237,8 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // Publish 3D maps
     publish3DMap();
     publish3DMap(m_corners, corners_local_publisher);
-  std::vector<Plane> planes = {m_ground_plane};
-    for (const auto& plane : m_planes)
-      planes.push_back(plane);
+    std::vector<Plane> planes = {m_ground_plane};
+    for (const auto& plane : m_planes) planes.push_back(plane);
     publish3DMap(planes, map3D_planes_publisher);
 
     // Publish cam-to-map tf::Transform
@@ -405,7 +409,11 @@ void VineSLAM_ros::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
     gnss_pose.header.frame_id    = "enu";
 
     gps_poses.push_back(gnss_pose);
-    gps_publisher.publish(gps_poses);
+    nav_msgs::Path ros_path;
+    ros_path.header.stamp    = ros::Time::now();
+    ros_path.header.frame_id = "map";
+    ros_path.poses           = gps_poses;
+    gps_publisher.publish(ros_path);
 
     // Transform locally the gps pose from enu to map to use in localization
     tf::Matrix3x3 Rot = ned2map.getBasis().inverse();

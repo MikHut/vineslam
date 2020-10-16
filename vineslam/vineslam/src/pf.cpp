@@ -138,7 +138,7 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
                 const Plane&                        ground_plane,
                 const std::vector<ImageFeature>&    surf_features,
                 const pose&                         gps_pose,
-                MapLayer*                       grid_map)
+                OccupancyMap*                       grid_map)
 {
   std::vector<float> semantic_weights(n_particles, 0.);
   std::vector<float> corner_weights(n_particles, 0.);
@@ -160,8 +160,7 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
   after    = std::chrono::high_resolution_clock::now();
   duration = after - before;
   std::cout << "Time elapsed on PF - corner features (msecs): " << duration.count()
-            << " (" << corners.size() << ", " << grid_map->n_corner_features << ")"
-            << std::endl;
+            << " (" << corners.size() << ")" << std::endl;
   before = std::chrono::high_resolution_clock::now();
   if (use_planes)
     mediumLevelPlanes(planes, grid_map, planes_weights);
@@ -234,7 +233,7 @@ void PF::gps(const pose& gps_pose, std::vector<float>& ws)
 }
 
 void PF::highLevel(const std::vector<SemanticFeature>& landmarks,
-                   MapLayer*                       grid_map,
+                   OccupancyMap*                       grid_map,
                    std::vector<float>&                 ws)
 {
   float normalizer_landmark =
@@ -266,7 +265,7 @@ void PF::highLevel(const std::vector<SemanticFeature>& landmarks,
       // Search for a correspondence in the current cell first
       float best_correspondence = std::numeric_limits<float>::max();
       bool  found               = false;
-      for (const auto& m_landmark : (*grid_map)(X.x, X.y).landmarks) {
+      for (const auto& m_landmark : (*grid_map)(X.x, X.y, 0).landmarks) {
         float dist_min = X.distanceXY(m_landmark.second.pos);
 
         if (dist_min < best_correspondence) {
@@ -278,7 +277,7 @@ void PF::highLevel(const std::vector<SemanticFeature>& landmarks,
       // Only search in the adjacent cells if we do not find in the source cell
       if (!found) {
         std::vector<Cell> adjacents;
-        grid_map->getAdjacent(X.x, X.y, 2, adjacents);
+        grid_map->getAdjacent(X.x, X.y, 0, 2, adjacents);
         for (const auto& m_cell : adjacents) {
           for (const auto& m_landmark : m_cell.landmarks) {
             float dist_min = X.distanceXY(m_landmark.second.pos);
@@ -313,13 +312,15 @@ void PF::highLevel(const std::vector<SemanticFeature>& landmarks,
 }
 
 void PF::mediumLevelCorners(const std::vector<Corner>& corners,
-                            MapLayer*              grid_map,
+                            OccupancyMap*              grid_map,
                             std::vector<float>&        ws)
 {
   float normalizer_corner =
       static_cast<float>(1.) / (sigma_corner_matching * std::sqrt(M_2PI));
 
   // Loop over all particles
+  int counter = 0;
+  int n_corners = 0;
   for (const auto& particle : particles) {
     // ------------------------------------------------------
     // --- 3D corner map fitting
@@ -341,7 +342,9 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
       point dpos;
       float best_correspondence = std::numeric_limits<float>::max();
       bool  found               = false;
-      for (const auto& m_corner : (*grid_map)(X.x, X.y).corner_features) {
+      counter++;
+      n_corners += (*grid_map)(X.x, X.y, X.z).corner_features.size();
+      for (const auto& m_corner : (*grid_map)(X.x, X.y, X.z).corner_features) {
         float dist_min = X.distance(m_corner.pos);
 
         if (dist_min < best_correspondence) {
@@ -356,7 +359,7 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
       // Only search in the adjacent cells if we do not find in the source cell
       //  if (!found) {
       //    std::vector<Cell> adjacents;
-      //    grid_map.getAdjacent(X.x, X.y, 1, adjacents);
+      //    grid_map.getAdjacent(X.x, X.y, X.z, 1, adjacents);
       //    for (const auto& m_cell : adjacents) {
       //      for (const auto& m_corner : m_cell.corner_features) {
       //        float dist_min = X.distance(m_corner.pos);
@@ -391,6 +394,8 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
 
     ws[particle.id] = w_corners;
   }
+
+  std::cout << n_corners / counter << std::endl;
 }
 
 void PF::mediumLevelGround(const Plane& ground_plane, std::vector<float>& ws)
@@ -439,7 +444,7 @@ void PF::mediumLevelGround(const Plane& ground_plane, std::vector<float>& ws)
 }
 
 void PF::mediumLevelPlanes(std::vector<Plane>  planes,
-                           MapLayer*       grid_map,
+                           OccupancyMap*       grid_map,
                            std::vector<float>& ws)
 {
   const float normalizer_planes =
@@ -496,7 +501,7 @@ void PF::mediumLevelPlanes(std::vector<Plane>  planes,
 }
 
 void PF::lowLevel(const std::vector<ImageFeature>& surf_features,
-                  MapLayer*                    grid_map,
+                  OccupancyMap*                    grid_map,
                   std::vector<float>&              ws)
 {
   // ------------------------------------------------------------------------------
@@ -738,7 +743,7 @@ void PF::cluster(std::map<int, Gaussian<pose, pose>>& gauss_map)
 }
 
 void PF::scanMatch(const std::vector<ImageFeature>&     features,
-                   MapLayer*                        grid_map,
+                   OccupancyMap*                        grid_map,
                    std::map<int, Gaussian<pose, pose>>& gauss_map,
                    std::vector<float>&                  ws)
 {

@@ -5,53 +5,53 @@ namespace vineslam
 
 void VineSLAM_ros::publishGridMap(const std_msgs::Header& header) const
 {
-  // Define ROS occupancy grid map
-  nav_msgs::OccupancyGrid occ_map;
-  occ_map.header.stamp    = ros::Time::now();
-  occ_map.header.frame_id = "map";
-
-  // Set the map metadata
-  nav_msgs::MapMetaData metadata;
-  metadata.origin.position.x    = params.gridmap_origin_x;
-  metadata.origin.position.y    = params.gridmap_origin_y;
-  metadata.origin.position.z    = 0;
-  metadata.origin.orientation.x = 0.;
-  metadata.origin.orientation.y = 0.;
-  metadata.origin.orientation.z = 0.;
-  metadata.origin.orientation.w = 1.;
-  metadata.resolution           = params.gridmap_resolution;
-  metadata.width                = params.gridmap_width / params.gridmap_resolution;
-  metadata.height               = params.gridmap_lenght / params.gridmap_resolution;
-  occ_map.info                  = metadata;
-
-  // Fill the occupancy grid map
-  occ_map.data.resize(metadata.width * metadata.height);
-  // - compute x and y bounds
-  int xmin = static_cast<int>(params.gridmap_origin_x / params.gridmap_resolution);
-  int xmax = static_cast<int>((float)xmin +
-                              params.gridmap_width / params.gridmap_resolution - 1);
-  int ymin = static_cast<int>(params.gridmap_origin_y / params.gridmap_resolution);
-  int ymax = static_cast<int>((float)ymin +
-                              params.gridmap_lenght / params.gridmap_resolution - 1);
-  for (int i = xmin; i < xmax; i++) {
-    for (int j = ymin; j < ymax; j++) {
-      int8_t number_objs = (*grid_map)(i, j).landmarks.size() +
-                           (*grid_map)(i, j).surf_features.size() +
-                           (*grid_map)(i, j).corner_features.size();
-
-      int m_i =
-          i - static_cast<int>(params.gridmap_origin_x / params.gridmap_resolution);
-      int m_j =
-          j - static_cast<int>(params.gridmap_origin_y / params.gridmap_resolution);
-      int idx = m_i + m_j * static_cast<int>(
-                                (params.gridmap_width / params.gridmap_resolution));
-
-      occ_map.data[idx] = number_objs * 10;
-    }
-  }
-
-  // Publish the map
-  mapOCC_publisher.publish(occ_map);
+//  // Define ROS occupancy grid map
+//  nav_msgs::OccupancyGrid occ_map;
+//  occ_map.header.stamp    = ros::Time::now();
+//  occ_map.header.frame_id = "map";
+//
+//  // Set the map metadata
+//  nav_msgs::MapMetaData metadata;
+//  metadata.origin.position.x    = params.gridmap_origin_x;
+//  metadata.origin.position.y    = params.gridmap_origin_y;
+//  metadata.origin.position.z    = 0;
+//  metadata.origin.orientation.x = 0.;
+//  metadata.origin.orientation.y = 0.;
+//  metadata.origin.orientation.z = 0.;
+//  metadata.origin.orientation.w = 1.;
+//  metadata.resolution           = params.gridmap_resolution;
+//  metadata.width                = params.gridmap_width / params.gridmap_resolution;
+//  metadata.height               = params.gridmap_lenght / params.gridmap_resolution;
+//  occ_map.info                  = metadata;
+//
+//  // Fill the occupancy grid map
+//  occ_map.data.resize(metadata.width * metadata.height);
+//  // - compute x and y bounds
+//  int xmin = static_cast<int>(params.gridmap_origin_x / params.gridmap_resolution);
+//  int xmax = static_cast<int>((float)xmin +
+//                              params.gridmap_width / params.gridmap_resolution - 1);
+//  int ymin = static_cast<int>(params.gridmap_origin_y / params.gridmap_resolution);
+//  int ymax = static_cast<int>((float)ymin +
+//                              params.gridmap_lenght / params.gridmap_resolution - 1);
+//  for (int i = xmin; i < xmax; i++) {
+//    for (int j = ymin; j < ymax; j++) {
+//      int8_t number_objs = (*grid_map)(i, j).landmarks.size() +
+//                           (*grid_map)(i, j).surf_features.size() +
+//                           (*grid_map)(i, j).corner_features.size();
+//
+//      int m_i =
+//          i - static_cast<int>(params.gridmap_origin_x / params.gridmap_resolution);
+//      int m_j =
+//          j - static_cast<int>(params.gridmap_origin_y / params.gridmap_resolution);
+//      int idx = m_i + m_j * static_cast<int>(
+//                                (params.gridmap_width / params.gridmap_resolution));
+//
+//      occ_map.data[idx] = number_objs * 10;
+//    }
+//  }
+//
+//  // Publish the map
+//  mapOCC_publisher.publish(occ_map);
 }
 
 void VineSLAM_ros::publish2DMap(const std_msgs::Header&   header,
@@ -96,7 +96,7 @@ void VineSLAM_ros::publish2DMap(const std_msgs::Header&   header,
 
   // Publish markers
   int id = 1;
-  for (auto& it : (*grid_map)) {
+  for (auto& it : (*grid_map)(0)) {
     for (const auto& m_sfeature : it.landmarks) {
       // Draw sfeature mean
       marker.id              = id;
@@ -166,23 +166,25 @@ void VineSLAM_ros::publish3DMap() const
   pcl::PointCloud<pcl::PointXYZI>::Ptr plane_cloud(
       new pcl::PointCloud<pcl::PointXYZI>);
 
-  for (const auto& it : *grid_map) {
-    for (const auto& feature : it.surf_features) {
-      pcl::PointXYZRGB m_pt(feature.r, feature.g, feature.b);
-      m_pt.x = feature.pos.x;
-      m_pt.y = feature.pos.y;
-      m_pt.z = feature.pos.z;
+  for (auto& it : *grid_map) {
+    for (const auto& cell : it.second) {
+      for (const auto& feature : cell.surf_features) {
+        pcl::PointXYZRGB m_pt(feature.r, feature.g, feature.b);
+        m_pt.x = feature.pos.x;
+        m_pt.y = feature.pos.y;
+        m_pt.z = feature.pos.z;
 
-      feature_cloud->points.push_back(m_pt);
-    }
+        feature_cloud->points.push_back(m_pt);
+      }
 
-    for (const auto& corner : it.corner_features) {
-      pcl::PointXYZI m_pt(static_cast<float>(corner.which_cluster));
-      m_pt.x = corner.pos.x;
-      m_pt.y = corner.pos.y;
-      m_pt.z = corner.pos.z;
+      for (const auto& corner : cell.corner_features) {
+        pcl::PointXYZI m_pt(static_cast<float>(corner.which_cluster));
+        m_pt.x = corner.pos.x;
+        m_pt.y = corner.pos.y;
+        m_pt.z = corner.pos.z;
 
-      corner_cloud->points.push_back(m_pt);
+        corner_cloud->points.push_back(m_pt);
+      }
     }
   }
 

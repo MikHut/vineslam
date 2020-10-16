@@ -37,7 +37,7 @@ public:
   void setThreshold(const float& m_threshold) { dist_threshold = m_threshold; }
 
   // Methods to receive the source and target point clouds
-  void setInputTarget(MapLayer* m_target)
+  void setInputTarget(OccupancyMap* m_target)
   {
     target = m_target;
   }
@@ -83,7 +83,7 @@ private:
   bool reject_outliers;
 
   // Source and target point clouds
-  MapLayer*             target;
+  OccupancyMap*             target;
   std::vector<ImageFeature> source;
 
   // Last homogeneous transformation computed

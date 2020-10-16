@@ -53,7 +53,7 @@ Mapper3D::Mapper3D(const Parameters& params)
   local_map_params.gridmap_lenght     = 30;
   local_map_params.gridmap_metric     = "euclidean";
 
-  local_map = new MapLayer(local_map_params);
+  local_map = new OccupancyMap(local_map_params);
 }
 
 // -------------------------------------------------------------------------------
@@ -104,7 +104,7 @@ void Mapper3D::localSurfMap(const cv::Mat&             img,
 
 void Mapper3D::globalSurfMap(const std::vector<ImageFeature>& features,
                              const pose&                      robot_pose,
-                             MapLayer&                    grid_map) const
+                             OccupancyMap&                    grid_map) const
 {
   // ------ Convert robot pose into homogeneous transformation
   std::array<float, 9> Rot{};
@@ -130,7 +130,8 @@ void Mapper3D::globalSurfMap(const std::vector<ImageFeature>& features,
     ImageFeature correspondence{};
     float        best_correspondence = correspondence_threshold;
     bool         found               = false;
-    for (const auto& m_image_feature : grid_map(m_pt.x, m_pt.y).surf_features) {
+    for (const auto& m_image_feature :
+         grid_map(m_pt.x, m_pt.y, m_pt.z).surf_features) {
       float dist_min = m_pt.distance(m_image_feature.pos);
 
       if (dist_min < best_correspondence) {
@@ -143,7 +144,7 @@ void Mapper3D::globalSurfMap(const std::vector<ImageFeature>& features,
     // Only search in the adjacent cells if we do not find in the source cell
     if (!found) {
       std::vector<Cell> adjacents;
-      grid_map.getAdjacent(m_pt.x, m_pt.y, 2, adjacents);
+      grid_map.getAdjacent(m_pt.x, m_pt.y, m_pt.z, 2, adjacents);
       for (const auto& m_cell : adjacents) {
         for (const auto& m_image_feature : m_cell.surf_features) {
           float dist_min = m_pt.distance(m_image_feature.pos);
@@ -344,7 +345,7 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
 
 void Mapper3D::globalCornerMap(const pose&          robot_pose,
                                std::vector<Corner>& corners,
-                               MapLayer&        grid_map) const
+                               OccupancyMap&        grid_map) const
 {
   // ------ Convert robot pose into homogeneous transformation
   std::array<float, 9> Rot{};
@@ -361,7 +362,7 @@ void Mapper3D::globalCornerMap(const pose&          robot_pose,
     Corner correspondence{};
     float  best_correspondence = correspondence_threshold;
     bool   found               = false;
-    for (const auto& m_corner : grid_map(m_pt.x, m_pt.y).corner_features) {
+    for (const auto& m_corner : grid_map(m_pt.x, m_pt.y, m_pt.z).corner_features) {
       float dist_min = m_pt.distance(m_corner.pos);
 
       if (dist_min < best_correspondence) {
@@ -375,7 +376,7 @@ void Mapper3D::globalCornerMap(const pose&          robot_pose,
     // Only search in the adjacent cells if we do not find in the source cell
     //    if (!found) {
     //      std::vector<Cell> adjacents;
-    //      grid_map.getAdjacent(m_pt.x, m_pt.y, 2, adjacents);
+    //      grid_map.getAdjacent(m_pt.x, m_pt.y, m_pt.z, 2, adjacents);
     //      for (const auto& m_cell : adjacents) {
     //        for (const auto& m_corner : m_cell.corner_features) {
     //          float dist_min = m_pt.distance(m_corner.pos);
@@ -897,7 +898,7 @@ void Mapper3D::downsampleCorners(std::vector<Corner>&  corners,
       // Search for neighbours inside the radius tolerance
       int   idx = seed_queue[sq_idx];
       point pt  = corners[idx].pos;
-      for (const auto& m_corner : (*local_map)(pt.x, pt.y).corner_features) {
+      for (const auto& m_corner : (*local_map)(pt.x, pt.y, pt.z).corner_features) {
         float dist = pt.distance(m_corner.pos);
 
         if (dist < tolerance) {
@@ -907,7 +908,7 @@ void Mapper3D::downsampleCorners(std::vector<Corner>&  corners,
       }
 
       std::vector<Cell> adjacents;
-      local_map->getAdjacent(pt.x, pt.y, 1, adjacents);
+      local_map->getAdjacent(pt.x, pt.y, pt.z, 1, adjacents);
       for (const auto& m_cell : adjacents) {
         for (const auto& m_corner : m_cell.corner_features) {
           float dist = pt.distance(m_corner.pos);
@@ -969,29 +970,10 @@ void Mapper3D::downsampleCorners(std::vector<Corner>&  corners,
 }
 
 void Mapper3D::removeDynamicPoints(const pose&               robot_pose,
-                                   const MapLayer&       grid_map,
+                                   const OccupancyMap&       grid_map,
                                    const std::vector<point>& pcl,
                                    std::vector<Corner>&      corners)
 {
-  local_map->clear();
-
-  // -------------------------------------------------------------------------------
-  // ---- Convert local points to maps' referential frame, and insert them into the
-  //      local grid map
-  // -------------------------------------------------------------------------------
-  std::array<float, 9> Rot{};
-  robot_pose.toRotMatrix(Rot);
-  std::array<float, 3> trans = {robot_pose.x, robot_pose.y, robot_pose.z};
-  TF                   tf(Rot, trans);
-
-  for (auto& pt : pcl) {
-    point m_pt = pt * tf;
-    local_map->insert(m_pt);
-  }
-
-  // -------------------------------------------------------------------------------
-  // ----
-  // -------------------------------------------------------------------------------
 }
 
 void Mapper3D::extractPCLDescriptors(const cv::Mat& by_image_var,

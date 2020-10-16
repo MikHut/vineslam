@@ -24,7 +24,7 @@ void Localizer::init(const pose& initial_pose)
 
 void Localizer::process(const pose&        odom,
                         const Observation& obsv,
-                        MapLayer*      grid_map)
+                        OccupancyMap*      grid_map)
 {
   auto before = std::chrono::high_resolution_clock::now();
   // Reset weights sum

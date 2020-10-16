@@ -31,7 +31,7 @@ SLAMNode::SLAMNode(int argc, char** argv)
 
   // Declare the Mappers and Localizer objects
   localizer = new Localizer(params);
-  grid_map  = new MapLayer(params);
+  grid_map  = new OccupancyMap(params);
   mapper2D  = new Mapper2D(params);
   mapper3D  = new Mapper3D(params);
 

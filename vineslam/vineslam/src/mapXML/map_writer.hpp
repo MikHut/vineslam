@@ -17,6 +17,7 @@
 #define ORIGIN "origin"
 #define WIDTH "width"
 #define HEIGHT "height"
+#define LENGHT "lenght"
 #define RESOLUTION "resolution"
 #define METRIC "metric"
 // -- Map data
@@ -58,7 +59,7 @@ public:
   explicit MapWriter(const Parameters& params);
 
   // Receives the occupancy grid map and writes it to a xml file
-  void writeToFile(MapLayer grid_map);
+  void writeToFile(OccupancyMap grid_map);
 
 private:
   // Opens a tag with a specified value

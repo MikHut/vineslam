@@ -17,7 +17,7 @@ public:
   explicit MapParser(const Parameters& params);
 
   // Receives the occupancy grid map and writes it to a xml file
-  void parseFile(MapLayer& grid_map);
+  void parseFile(OccupancyMap& grid_map);
 
 private:
   // Build a xml tag (open) from a string
@@ -33,7 +33,7 @@ private:
   // Reads a string inside a tag
   static std::string getString(const std::string& line);
   // Print the map read
-  static void printMap(MapLayer grid_map);
+  static void printMap(OccupancyMap grid_map);
 
   // Input parameters
   std::string file_path;

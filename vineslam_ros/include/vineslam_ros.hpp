@@ -129,7 +129,7 @@ public:
   // Classes object members
   Parameters    params;
   Localizer*    localizer;
-  MapLayer* grid_map;
+  OccupancyMap* grid_map;
   Mapper2D*     mapper2D;
   Mapper3D*     mapper3D;
 

@@ -52,10 +52,10 @@ multilayer_mapping:
     origin:
       x: -75
       y: -75
-      z: -5
+      z: -1
     width: 150
     lenght: 150
-    height: 10
+    height: 4
     resolution: 0.25 # meters
     metric: "euclidean"
     save_map: True
@@ -79,7 +79,7 @@ multilayer_mapping:
 
 
 pf:
-  n_particles: 500
+  n_particles: 1
 
   srr: 0.005 # rotation - rotation (rad / rad)
   srt: 0.100 # rotation - translation (rad / meter)

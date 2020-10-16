@@ -20,14 +20,5 @@
     <node pkg="vineslam_ros" type="replay_node" name="replay_node" output="screen">
         <rosparam command="load" subst_value="True" file="$(find vineslam_ros)/param/setup.yaml"/>
     </node>
-
-    <!-- Coral edgetpu trunk detection node -->
-    <node pkg="detector" type="detector_node" name="detector">
-        <param name="image_left" value="/zed/zed_node/left/image_rect_color"/>
-        <param name="image_depth" value="/zed/zed_node/depth/depth_registered"/>
-
-        <param name="model_path" value="$(find edgetpu_cpp)/model/output_tflite_graph_edgetpu.tflite"/>
-        <param name="labels_path" value="$(find edgetpu_cpp)/model/labels.txt"/>
-    </node>
-
+      mapper2D->init(robot_pose, bearings, depths, labels, *grid_map);
 </launch>

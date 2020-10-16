@@ -65,7 +65,7 @@ public:
               const Plane&                        ground_plane,
               const std::vector<ImageFeature>&    surf_features,
               const pose&                         gps_pose,
-              MapLayer*                       grid_map);
+              OccupancyMap*                       grid_map);
   // Normalize particles weights
   void normalizeWeights();
   // Resample particles
@@ -84,27 +84,27 @@ private:
   // Update functions
   // - High level semantic features layer
   void highLevel(const std::vector<SemanticFeature>& landmarks,
-                 MapLayer*                       grid_map,
+                 OccupancyMap*                       grid_map,
                  std::vector<float>&                 ws);
   // - Medium level corner features layer
   void mediumLevelCorners(const std::vector<Corner>& corners,
-                          MapLayer*              grid_map,
+                          OccupancyMap*              grid_map,
                           std::vector<float>&        ws);
   // - Medium level ground plane layer
   void mediumLevelGround(const Plane& ground_plane, std::vector<float>& ws);
   // - Medium level vegetation lines layer
   void mediumLevelPlanes(std::vector<Plane>  planes,
-                         MapLayer*       grid_map,
+                         OccupancyMap*       grid_map,
                          std::vector<float>& ws);
   // - Low level image features layer
   void lowLevel(const std::vector<ImageFeature>& surf_features,
-                MapLayer*                    grid_map,
+                OccupancyMap*                    grid_map,
                 std::vector<float>&              ws);
   // -------- (Low level) K-means based particle clustering
   void cluster(std::map<int, Gaussian<pose, pose>>& gauss_map);
   // -------- (Low level) Scan match on clustered particles
   void scanMatch(const std::vector<ImageFeature>&     features,
-                 MapLayer*                        grid_map,
+                 OccupancyMap*                        grid_map,
                  std::map<int, Gaussian<pose, pose>>& gauss_map,
                  std::vector<float>&                  ws);
   // - GPS

@@ -31,7 +31,7 @@ public:
   void process(const pose&                         pose,
                const std::vector<SemanticFeature>& landmarks,
                const std::vector<int>&             labels,
-               MapLayer&                       grid_map);
+               OccupancyMap&                       grid_map);
 
   // Initializes the map
   // - Invocated only once to insert the first observations on the map
@@ -39,7 +39,7 @@ public:
             const std::vector<float>& bearings,
             const std::vector<float>& depths,
             const std::vector<int>&   labels,
-            MapLayer&             grid_map);
+            OccupancyMap&             grid_map);
 
   // Computes a local map on camera's referential given a set of range-bearing
   // observations
@@ -73,11 +73,11 @@ private:
                const std::vector<float>& bearings,
                const std::vector<float>& depths,
                const std::vector<int>&   labels,
-               MapLayer&             grid_map);
+               OccupancyMap&             grid_map);
 
   // Filters semantic map based on the mapping uncertainty
   // - old landmarks that have high uncertainty are removed
-  void filter(MapLayer& grid_map) const;
+  void filter(OccupancyMap& grid_map) const;
 
   // Computes a local map, on robot's frame
   static std::vector<point> base2map(const pose&                         pose,
@@ -85,7 +85,7 @@ private:
 
   // Searches from correspondences between observations and landmarks
   // already mapped
-  static std::pair<int, point> findCorr(const point& l_pos, MapLayer& grid_map);
+  static std::pair<int, point> findCorr(const point& l_pos, OccupancyMap& grid_map);
 };
 
 } // namespace vineslam

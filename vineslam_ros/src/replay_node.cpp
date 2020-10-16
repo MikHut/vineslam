@@ -19,6 +19,8 @@ ReplayNode::ReplayNode(int argc, char** argv)
   ros::init(argc, argv, "ReplayNode");
   ros::NodeHandle nh;
 
+  ROS_INFO("Initializing node ...");
+
   // Load params
   loadParameters(nh, "/replay_node", params);
 
@@ -26,10 +28,12 @@ ReplayNode::ReplayNode(int argc, char** argv)
   nmessages = 0;
   bag_state = PLAYING;
 
-  std::thread th1(&ReplayNode::replayFct, this, nh);
-  th1.detach();
-  std::thread th2(&ReplayNode::listenStdin, this);
-  th2.detach();
+  // Declare the Mappers and Localizer objects
+  localizer = new Localizer(params);
+  grid_map  = new OccupancyMap(params);
+  mapper2D  = new Mapper2D(params);
+  mapper3D  = new Mapper3D(params);
+
 
   // Set initialization flags default values
   init             = true;
@@ -37,12 +41,6 @@ ReplayNode::ReplayNode(int argc, char** argv)
   init_odom        = true;
   register_map     = true;
   estimate_heading = true;
-
-  // Declare the Mappers and Localizer objects
-  localizer = new Localizer(params);
-  grid_map  = new MapLayer(params);
-  mapper2D  = new Mapper2D(params);
-  mapper3D  = new Mapper3D(params);
 
   // Services
   polar2pose = nh.serviceClient<agrob_map_transform::GetPose>("polar_to_pose");
@@ -126,7 +124,12 @@ ReplayNode::ReplayNode(int argc, char** argv)
     mapper3D->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
   }
 
-  ROS_INFO("Got the transforms! Initializing maps...");
+  ROS_INFO("Done! Execution started.");
+
+  std::thread th1(&ReplayNode::replayFct, this, nh);
+  th1.detach();
+  std::thread th2(&ReplayNode::listenStdin, this);
+  th2.detach();
 
   ros::spin();
 }
@@ -160,7 +163,7 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
   ros::Publisher pcl_pub =
       nh.advertise<sensor_msgs::PointCloud2>(params.pcl_topic, 1);
 
-  rosgraph_msgs::ClockConstPtr     clock_ptr;
+  rosgraph_msgs::Clock             clock_ptr;
   tf2_msgs::TFMessageConstPtr      tf_ptr;
   nav_msgs::OdometryConstPtr       rs_odom_ptr;
   nav_msgs::OdometryConstPtr       odom_ptr;
@@ -172,14 +175,15 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
   ROS_INFO("Reading ROSBAG topics...");
   bool tf_bool = false, clock_bool = false, odom_bool = false, fix_bool = false,
        depth_bool = false, left_bool = false, pcl_bool = false;
-  for (rosbag::MessageInstance const m : rosbag::View(bag)) {
+  for (rosbag::MessageInstance m : rosbag::View(bag)) {
     while (ros::ok()) {
       if (bag_state == PLAYING)
         break;
     }
 
     // Publish clock
-    clock_pub.publish(m.getTime());
+    clock_ptr.clock = m.getTime();
+    clock_pub.publish(clock_ptr);
 
     // Publish rosbag topics of interest
     const std::string& topic = m.getTopic();

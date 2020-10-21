@@ -186,6 +186,26 @@ struct Corner : public Feature {
   int which_cluster{}; // sets the cluster where the corner belongs
 };
 
+// ---------------------------------------------------------------------------------
+// ----- Point cloud medium-level planar feature
+// ---------------------------------------------------------------------------------
+
+struct Planar : public Feature {
+  Planar() = default;
+
+  Planar(const point& m_pt, const int& m_which_plane, const int& m_id = 0)
+  {
+    pos            = m_pt;
+    which_plane    = m_which_plane;
+    id             = m_id;
+    n_observations = 0;
+  }
+
+  int n_observations{};
+  int which_plane{};   // sets the plane where the corner belongs
+  int which_cluster{}; // sets the cluster where the corner belongs
+};
+
 // Dummy struct to represent a plane point, before corner extraction
 struct PlanePoint : public Corner {
   PlanePoint() = default;

@@ -82,11 +82,6 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     }
   }
 
-//  for (float i = -1; i < 4;) {
-//    std::cout << i << " -> " << (*grid_map)(i).n_corner_features << std::endl;
-//    i += .25/2;
-//  }
-
   // -------------------------------------------------------------------------------
   // ---- Localization and mapping procedures
   // -------------------------------------------------------------------------------
@@ -100,7 +95,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
   // -- here is where all the runtime localization and mapping procedures take place
   // -- the multi-layer map is created
   // -- the particle filter is used to localize the robot
-  // -- visualization funtions are invocated to publish maps
+  // -- visualization functions are invocated to publish maps
   // }
 
   if (init && !init_odom && (!init_gps || !params.use_gps) &&
@@ -286,28 +281,6 @@ void VineSLAM_ros::scanListener(const sensor_msgs::PointCloud2ConstPtr& msg)
     scan_pts.push_back(m_pt);
     intensities.push_back(pt.intensity);
   }
-
-  //  cv::Mat image_top, image_top_depth;
-  //  vineslam::Mapper3D::birdEyeImage(scan_pts, image_top, image_top_depth);
-  //  cv::Mat imagepXZ, imagenXZ, imagepXZ_depth, imagenXZ_depth;
-  //  vineslam::Mapper3D::sideViewImageXZ(
-  //      scan_pts, imagepXZ, imagenXZ, imagepXZ_depth, imagenXZ_depth);
-  //  cv::Mat imageYZ, imageYZ_depth;
-  //  vineslam::Mapper3D::sideViewImageYZ(scan_pts, imageYZ, imageYZ_depth);
-  //  vineslam::Mapper3D::extractPCLDescriptors(
-  //      image_top_depth, imagepXZ_depth, imagenXZ_depth, imageYZ_depth);
-
-  // Convert grayscale image to colormap
-  //  cv::Mat cm_top, cmpXZ, cmnXZ, cmYZ;
-  //  cv::applyColorMap(image_top_depth, cm_top, cv::COLORMAP_JET);
-  //  cv::applyColorMap(imagepXZ_depth, cmpXZ, cv::COLORMAP_JET);
-  //  cv::applyColorMap(imagenXZ_depth, cmnXZ, cv::COLORMAP_JET);
-  //  cv::applyColorMap(imageYZ_depth, cmYZ, cv::COLORMAP_JET);
-  //  cv::imshow("Birds eye view depth variance image", cm_top);
-  //  cv::imshow("Side positive view depth variance image XZ", cmpXZ);
-  //  cv::imshow("Side negative view depth variance image XZ", cmnXZ);
-  //  cv::imshow("Back view depth variance image YZ", cmYZ);
-  //  cv::waitKey(1000);
 }
 
 void VineSLAM_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)

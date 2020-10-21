@@ -17,7 +17,7 @@ MapLayer::MapLayer(const Parameters& params)
   // Set the grid map size
   int map_size =
       static_cast<int>(std::round((width / resolution) * (lenght / resolution)));
-  m_gmap.resize(map_size);
+  m_gmap = std::vector<Cell>(map_size);
 
   // Initialize number of features and landmarks
   n_surf_features   = 0;

@@ -75,7 +75,6 @@ struct Parameters {
   int   hessian_threshold{};
   float max_range{};
   float max_height{};
-  int   downsample_factor{};
   int   icp_max_iters{};
   float icp_distance_threshold{};
   bool  icp_reject_outliers{};

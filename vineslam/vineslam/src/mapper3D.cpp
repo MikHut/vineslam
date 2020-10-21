@@ -30,7 +30,7 @@ Mapper3D::Mapper3D(const Parameters& params)
   correspondence_threshold = 0.02;
 
   // Set velodyne configuration parameters
-  picked_num              = 20;
+  picked_num              = 2;
   planes_th               = static_cast<float>(60.) * DEGREE_TO_RAD;
   ground_th               = static_cast<float>(10.) * DEGREE_TO_RAD;
   edge_threshold          = 0.1;

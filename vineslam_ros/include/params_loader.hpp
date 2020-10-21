@@ -174,13 +174,6 @@ static void loadParameters(const ros::NodeHandle& nh,
               prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/multilayer_mapping/cloud_feature/downsample_factor",
-                   params.downsample_factor)) {
-    ROS_ERROR("%s/multilayer_mapping/cloud_feature/downsample_factor parameter "
-              "not found. Shutting down...",
-              prefix.c_str());
-    exit(-1);
-  }
   if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/origin/x",
                    params.gridmap_origin_x)) {
     ROS_ERROR("%s/multilayer_mapping/grid_map/origin/x parameter "

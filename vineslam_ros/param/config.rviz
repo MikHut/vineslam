@@ -88,7 +88,7 @@ Visualization Manager:
       Frames:
         All Enabled: false
         base_link:
-          Value: true
+          Value: false
         camerat265_odom_frame:
           Value: false
         camerat265_pose_frame:
@@ -170,6 +170,14 @@ Visualization Manager:
       Topic: /vineslam/path
       Unreliable: false
       Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /vineslam/occupancyMap
+      Name: Grid Map
+      Namespaces:
+        "": true
+      Queue Size: 100
+      Value: true
     - Alpha: 1
       Arrow Length: 1
       Axes Length: 0.30000001192092896
@@ -186,16 +194,6 @@ Visualization Manager:
       Topic: /vineslam/poses
       Unreliable: false
       Value: true
-    - Alpha: 0.699999988079071
-      Class: rviz/Map
-      Color Scheme: map
-      Draw Behind: false
-      Enabled: false
-      Name: Grid Map
-      Topic: /vineslam/occupancyMap
-      Unreliable: false
-      Use Timestamp: false
-      Value: false
     - Class: rviz/MarkerArray
       Enabled: false
       Marker Topic: /vineslam/map2D
@@ -390,7 +388,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 19.20664405822754
+      Distance: 16.182151794433594
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1

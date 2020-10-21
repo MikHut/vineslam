@@ -62,7 +62,9 @@ struct Parameters {
   // - Grid map
   float       gridmap_origin_x{};
   float       gridmap_origin_y{};
+  float       gridmap_origin_z{};
   float       gridmap_width{};
+  float       gridmap_lenght{};
   float       gridmap_height{};
   float       gridmap_resolution{};
   std::string gridmap_metric;
@@ -73,7 +75,6 @@ struct Parameters {
   int   hessian_threshold{};
   float max_range{};
   float max_height{};
-  int   downsample_factor{};
   int   icp_max_iters{};
   float icp_distance_threshold{};
   bool  icp_reject_outliers{};

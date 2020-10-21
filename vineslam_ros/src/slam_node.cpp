@@ -70,7 +70,7 @@ SLAMNode::SLAMNode(int argc, char** argv)
 
   // Publish maps and particle filter
   mapOCC_publisher =
-      nh.advertise<nav_msgs::OccupancyGrid>("/vineslam/occupancyMap", 1);
+      nh.advertise<visualization_msgs::MarkerArray>("/vineslam/occupancyMap", 1);
   map2D_publisher =
       nh.advertise<visualization_msgs::MarkerArray>("/vineslam/map2D", 1);
   map3D_features_publisher =

@@ -33,11 +33,17 @@ struct Particle {
     (*this).id = id;
     (*this).p  = p;
     (*this).w  = w;
+
+    std::array<float, 9> Rot{};
+    p.toRotMatrix(Rot);
+    std::array<float, 3> trans = {p.x, p.y, p.z};
+    tf                         = TF(Rot, trans);
   }
 
   int   id{};
   pose  p;
   pose  pp; // previous pose
+  TF    tf; // pose resented as an homogeneous transformation
   float w{};
   int   which_cluster{};
 };
@@ -118,7 +124,7 @@ private:
 
   // Previous iterations
   std::vector<Plane> p_planes;
-  Plane p_ground;
+  Plane              p_ground;
 
   // Motion state
   MOTION_STATE motion_state;

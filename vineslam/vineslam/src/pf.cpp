@@ -127,6 +127,12 @@ void PF::motionModel(const pose& odom)
     particle.p.roll += dt_pose.roll;
     particle.p.pitch += dt_pose.pitch;
     particle.p.yaw += dt_pose.yaw;
+
+    // Save particle homogeneous transformation
+    std::array<float, 9> Rot{};
+    particle.p.toRotMatrix(Rot);
+    std::array<float, 3> trans = {particle.p.x, particle.p.y, particle.p.z};
+    particle.tf                = TF(Rot, trans);
   }
 
   p_odom = odom;
@@ -160,8 +166,7 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
   after    = std::chrono::high_resolution_clock::now();
   duration = after - before;
   std::cout << "Time elapsed on PF - corner features (msecs): " << duration.count()
-            << " (" << corners.size() << ", " << grid_map->n_corner_features << ")"
-            << std::endl;
+            << " (" << corners.size() << ")" << std::endl;
   before = std::chrono::high_resolution_clock::now();
   if (use_planes)
     mediumLevelPlanes(planes, grid_map, planes_weights);
@@ -266,7 +271,7 @@ void PF::highLevel(const std::vector<SemanticFeature>& landmarks,
       // Search for a correspondence in the current cell first
       float best_correspondence = std::numeric_limits<float>::max();
       bool  found               = false;
-      for (const auto& m_landmark : (*grid_map)(X.x, X.y).landmarks) {
+      for (const auto& m_landmark : (*grid_map)(X.x, X.y, 0).landmarks) {
         float dist_min = X.distanceXY(m_landmark.second.pos);
 
         if (dist_min < best_correspondence) {
@@ -278,7 +283,7 @@ void PF::highLevel(const std::vector<SemanticFeature>& landmarks,
       // Only search in the adjacent cells if we do not find in the source cell
       if (!found) {
         std::vector<Cell> adjacents;
-        grid_map->getAdjacent(X.x, X.y, 2, adjacents);
+        grid_map->getAdjacent(X.x, X.y, 0, 2, adjacents);
         for (const auto& m_cell : adjacents) {
           for (const auto& m_landmark : m_cell.landmarks) {
             float dist_min = X.distanceXY(m_landmark.second.pos);
@@ -324,28 +329,20 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
     // ------------------------------------------------------
     // --- 3D corner map fitting
     // ------------------------------------------------------
-    std::array<float, 9> Rot{};
-    particle.p.toRotMatrix(Rot);
     std::vector<float> dcornervec;
     for (const auto& corner : corners) {
       // Convert landmark to the particle's referential frame
-      point X;
-      X.x = corner.pos.x * Rot[0] + corner.pos.y * Rot[1] + corner.pos.z * Rot[2] +
-            particle.p.x;
-      X.y = corner.pos.x * Rot[3] + corner.pos.y * Rot[4] + corner.pos.z * Rot[5] +
-            particle.p.y;
-      X.z = corner.pos.x * Rot[6] + corner.pos.y * Rot[7] + corner.pos.z * Rot[8] +
-            particle.p.z;
+      point X = corner.pos * particle.tf;
+
+      std::vector<Corner> m_corners = (*grid_map)(X.x, X.y, X.z).corner_features;
 
       // Search for a correspondence in the current cell first
-      point dpos;
       float best_correspondence = std::numeric_limits<float>::max();
       bool  found               = false;
-      for (const auto& m_corner : (*grid_map)(X.x, X.y).corner_features) {
+      for (const auto& m_corner : m_corners) {
         float dist_min = X.distance(m_corner.pos);
 
         if (dist_min < best_correspondence) {
-          dpos                = m_corner.pos;
           best_correspondence = dist_min;
           found               = true;
         }
@@ -356,7 +353,7 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
       // Only search in the adjacent cells if we do not find in the source cell
       //  if (!found) {
       //    std::vector<Cell> adjacents;
-      //    grid_map.getAdjacent(X.x, X.y, 1, adjacents);
+      //    grid_map.getAdjacent(X.x, X.y, X.z, 1, adjacents);
       //    for (const auto& m_cell : adjacents) {
       //      for (const auto& m_corner : m_cell.corner_features) {
       //        float dist_min = X.distance(m_corner.pos);

@@ -91,6 +91,8 @@ public:
   void publish3DMap(const std::vector<Plane>& planes, const ros::Publisher& pub);
   // Publish a 3D PCL corners map
   void publish3DMap(const std::vector<Corner>& corners, const ros::Publisher& pub);
+  // Publish a 3D PCL planar features map
+  void publish3DMap(const std::vector<Planar>& planars, const ros::Publisher& pub);
   // Publish the grid map that contains all the maps
   void publishGridMap(const std_msgs::Header& header) const;
   // Publishes debug visualization objects
@@ -110,19 +112,18 @@ public:
   bool getGNSSHeading(const pose& gps_odom, const std_msgs::Header& header);
 
   // ROS publishers/services
-  ros::Publisher     mapOCC_publisher;
+  ros::Publisher     grid_map_publisher;
   ros::Publisher     map2D_publisher;
   ros::Publisher     map3D_features_publisher;
   ros::Publisher     map3D_corners_publisher;
   ros::Publisher     map3D_planes_publisher;
-  ros::Publisher     map3D_lines_publisher;
   ros::Publisher     pose_publisher;
   ros::Publisher     path_publisher;
   ros::Publisher     poses_publisher;
   ros::Publisher     gps_publisher;
   ros::Publisher     corners_local_publisher;
+  ros::Publisher     planars_local_publisher;
   ros::Publisher     debug_markers;
-  ros::Publisher     exec_boolean;
   ros::ServiceClient polar2pose;
   ros::ServiceClient set_datum;
 

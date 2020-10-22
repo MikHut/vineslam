@@ -47,7 +47,7 @@ ReplayNode::ReplayNode(int argc, char** argv)
   set_datum  = nh.serviceClient<agrob_map_transform::SetDatum>("datum");
 
   // Publish maps and particle filter
-  mapOCC_publisher =
+  grid_map_publisher =
       nh.advertise<visualization_msgs::MarkerArray>("/vineslam/occupancyMap", 1);
   map2D_publisher =
       nh.advertise<visualization_msgs::MarkerArray>("/vineslam/map2D", 1);
@@ -57,18 +57,17 @@ ReplayNode::ReplayNode(int argc, char** argv)
       nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners", 1);
   map3D_planes_publisher =
       nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planes", 1);
-  map3D_lines_publisher =
-      nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/lines", 1);
+  corners_local_publisher = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>(
+      "/vineslam/map3D/corners_local", 1);
+  planars_local_publisher = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>(
+      "/vineslam/map3D/planars_local", 1);
   pose_publisher  = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/pose", 1);
   gps_publisher   = nh.advertise<nav_msgs::Path>("/vineslam/gps", 1);
   path_publisher  = nh.advertise<nav_msgs::Path>("/vineslam/path", 1);
   poses_publisher = nh.advertise<geometry_msgs::PoseArray>("/vineslam/poses", 1);
   // Debug publishers
-  corners_local_publisher = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>(
-      "/vineslam/map3D/corners_local", 1);
   debug_markers =
       nh.advertise<visualization_msgs::MarkerArray>("/vineslam/debug_markers", 1);
-  exec_boolean = nh.advertise<std_msgs::Bool>("/vineslam/execution_bool", 1);
 
   // ROS services
   ros::ServiceServer start_reg_srv =

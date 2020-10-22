@@ -79,6 +79,7 @@ public:
   // Builds local map given the current 3D point cloud - for velodyne
   void localPCLMap(const std::vector<point>& pcl,
                    std::vector<Corner>&      out_corners,
+                   std::vector<Planar>&      out_planars,
                    std::vector<Plane>&       out_planes,
                    Plane&                    out_groundplane);
 
@@ -166,7 +167,8 @@ private:
 
   // Cloud generic plane segmentation
   void cloudSegmentation(const std::vector<point>& in_pts,
-                         std::vector<PlanePoint>&  out_plane_pts);
+                         std::vector<PlanePoint>&  cloud_seg,
+                         std::vector<PlanePoint>&  cloud_seg_pure);
 
   // Label a segment of a 3D point cloud
   void labelComponents(const int&                row,
@@ -185,8 +187,9 @@ private:
                            std::vector<Corner>&      corners);
 
   // 3D feature extraction from a point cloud
-  void extractCorners(const std::vector<PlanePoint>& in_plane_pts,
-                      std::vector<Corner>&           out_corners);
+  void extract3DFeatures(const std::vector<PlanePoint>& in_plane_pts,
+                         std::vector<Corner>&           out_corners,
+                         std::vector<Planar>&           out_planars);
 
   // Downsample 3D corners point cloud using cluster and fitting algorithms
   void downsampleCorners(std::vector<Corner>&  corners,
@@ -227,6 +230,7 @@ private:
   float planes_th{};
   float ground_th{};
   float edge_threshold{};
+  float planar_threshold{};
   // ----------------------------
   int   picked_num{};
   int   vertical_scans{};

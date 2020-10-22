@@ -24,7 +24,7 @@ void VineSLAM_ros::publishGridMap(const std_msgs::Header& header) const
     float ymin = layer.second.origin.y;
     float ymax = xmin + layer.second.lenght;
     float zmin = static_cast<float>(layer.first) * grid_map->resolution_z +
-                grid_map->origin.z;
+                 grid_map->origin.z;
     for (float i = xmin; i < xmax - grid_map->resolution;) {
       for (float j = ymin; j < ymax - grid_map->resolution;) {
         int8_t number_objs = layer.second(i, j).landmarks.size() +
@@ -68,7 +68,7 @@ void VineSLAM_ros::publishGridMap(const std_msgs::Header& header) const
   }
 
   // Publish the map
-  mapOCC_publisher.publish(occ_map);
+  grid_map_publisher.publish(occ_map);
 }
 
 void VineSLAM_ros::publish2DMap(const std_msgs::Header&   header,
@@ -264,6 +264,38 @@ void VineSLAM_ros::publish3DMap(const std::vector<Corner>& corners,
              corner.pos.z * robot_tf.R[8] + robot_tf.t[2];
 
     m_pt.intensity = static_cast<float>(corner.which_cluster) * 10.0f;
+    cloud_out->points.push_back(m_pt);
+  }
+
+  cloud_out->header.frame_id = "map";
+  pub.publish(cloud_out);
+}
+
+void VineSLAM_ros::publish3DMap(const std::vector<Planar>& planars,
+                                const ros::Publisher&      pub)
+{
+  pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(
+      new pcl::PointCloud<pcl::PointXYZI>);
+
+  pcl::PointXYZI m_pt;
+
+  for (const auto& planar_feature : planars) {
+    std::array<float, 9> robot_R{};
+    robot_pose.toRotMatrix(robot_R);
+    TF robot_tf(robot_R,
+                std::array<float, 3>{robot_pose.x, robot_pose.y, robot_pose.z});
+
+    m_pt.x = planar_feature.pos.x * robot_tf.R[0] +
+             planar_feature.pos.y * robot_tf.R[1] +
+             planar_feature.pos.z * robot_tf.R[2] + robot_tf.t[0];
+    m_pt.y = planar_feature.pos.x * robot_tf.R[3] +
+             planar_feature.pos.y * robot_tf.R[4] +
+             planar_feature.pos.z * robot_tf.R[5] + robot_tf.t[1];
+    m_pt.z = planar_feature.pos.x * robot_tf.R[6] +
+             planar_feature.pos.y * robot_tf.R[7] +
+             planar_feature.pos.z * robot_tf.R[8] + robot_tf.t[2];
+
+    m_pt.intensity = static_cast<float>(planar_feature.which_cluster) * 10.0f;
     cloud_out->points.push_back(m_pt);
   }
 

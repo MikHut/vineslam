@@ -117,9 +117,10 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
 
       // - 3D PCL corner map estimation
       std::vector<Corner> m_corners;
+      std::vector<Planar> m_planars;
       std::vector<Plane>  m_planes;
       Plane               m_ground_plane;
-      mapper3D->localPCLMap(scan_pts, m_corners, m_planes, m_ground_plane);
+      mapper3D->localPCLMap(scan_pts, m_corners, m_planars, m_planes, m_ground_plane);
       mapper3D->globalCornerMap(robot_pose, m_corners, *grid_map);
 
       // - 3D image feature map estimation
@@ -143,9 +144,10 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
 
     // - Compute 3D PCL corners and ground plane on robot's referential frame
     std::vector<Corner> m_corners;
+    std::vector<Planar> m_planars;
     std::vector<Plane>  m_planes;
     Plane               m_ground_plane;
-    mapper3D->localPCLMap(scan_pts, m_corners, m_planes, m_ground_plane);
+    mapper3D->localPCLMap(scan_pts, m_corners, m_planars, m_planes, m_ground_plane);
 
     // - Compute 3D image features on robot's referential frame
     std::vector<ImageFeature> m_surf_features;
@@ -230,6 +232,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // Publish 3D maps
     publish3DMap();
     publish3DMap(m_corners, corners_local_publisher);
+    publish3DMap(m_planars, planars_local_publisher);
     std::vector<Plane> planes = {m_ground_plane};
     for (const auto& plane : m_planes) planes.push_back(plane);
     publish3DMap(planes, map3D_planes_publisher);

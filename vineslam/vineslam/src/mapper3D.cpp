@@ -30,10 +30,11 @@ Mapper3D::Mapper3D(const Parameters& params)
   correspondence_threshold = 0.02;
 
   // Set velodyne configuration parameters
-  picked_num              = 2;
+  picked_num              = 20;
   planes_th               = static_cast<float>(60.) * DEGREE_TO_RAD;
   ground_th               = static_cast<float>(10.) * DEGREE_TO_RAD;
   edge_threshold          = 0.1;
+  planar_threshold        = 0.1;
   vertical_scans          = 16;
   horizontal_scans        = 1800;
   ground_scan_idx         = 7;
@@ -236,6 +237,7 @@ void Mapper3D::reset()
 
 void Mapper3D::localPCLMap(const std::vector<point>& pcl,
                            std::vector<Corner>&      out_corners,
+                           std::vector<Planar>&      out_planars,
                            std::vector<Plane>&       out_planes,
                            Plane&                    out_groundplane)
 {
@@ -294,7 +296,8 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
   // -------------------------------------------------------------------------------
   // ----- Mark ground points
   // -------------------------------------------------------------------------------
-  for (const auto& index : out_groundplane.indexes) {
+  for (const auto& index : gplane_unfilt.indexes) {
+    //  for (const auto& index : out_groundplane.indexes) {
     int i = static_cast<int>(index.x);
     int j = static_cast<int>(index.y);
 
@@ -303,14 +306,14 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
   }
 
   // - Planes that are not the ground
-  std::vector<PlanePoint> cloud_seg;
-  cloudSegmentation(transformed_pcl, cloud_seg);
+  std::vector<PlanePoint> cloud_seg, cloud_seg_pure;
+  cloudSegmentation(transformed_pcl, cloud_seg, cloud_seg_pure);
 
   // - Extract two planes (right and left) from point cloud
-  extractHighLevelPlanes(cloud_seg, out_planes);
+  extractHighLevelPlanes(cloud_seg_pure, out_planes);
 
   //- Corners feature extraction
-  extractCorners(cloud_seg, out_corners);
+  extract3DFeatures(cloud_seg, out_corners, out_planars);
 
   // Convert features to base_link referential frame
   pose tf_pose;
@@ -574,29 +577,42 @@ bool Mapper3D::ransac(const Plane& in_plane, Plane& out_plane) const
 }
 
 void Mapper3D::cloudSegmentation(const std::vector<point>& in_pts,
-                                 std::vector<PlanePoint>&  out_plane_pts)
+                                 std::vector<PlanePoint>&  cloud_seg,
+                                 std::vector<PlanePoint>&  cloud_seg_pure)
 {
   // Segmentation process
   int label = 1;
-  for (int i = 0; i < vertical_scans;) {
-    for (int j = 0; j < horizontal_scans;) {
+  for (int i = 0; i < vertical_scans; i++) {
+    for (int j = 0; j < horizontal_scans; j++) {
       if (label_mat(i, j) == 0 && range_mat(i, j) != -1)
         labelComponents(i, j, in_pts, label);
-      j += 1;
     }
-    i += 1;
   }
 
   // Extract segmented cloud for visualization
   int seg_cloud_size = 0;
   for (int i = 0; i < vertical_scans; i++) {
+
     seg_pcl.start_col_idx[i] = seg_cloud_size - 1 + 5;
+
     for (int j = 0; j < horizontal_scans; j++) {
-      if (label_mat(i, j) > 0 && label_mat(i, j) != 999999) {
+      if (label_mat(i, j) > 0 || ground_mat(i, j) == 1) {
+        if (label_mat(i, j) == 999999)
+          continue;
+
+        // The majority of ground points are skipped
+        if (ground_mat(i, j) == 1) {
+          if (j % 5 != 0 && j > 5 && j < horizontal_scans - 5)
+            continue;
+        }
+
+        // Mark ground points so they will not be considered as edge features later
+        seg_pcl.is_ground[seg_cloud_size] = (ground_mat(i, j) == 1);
+
         // Save segmented cloud into a pcl
         point      pt = in_pts[j + i * horizontal_scans];
         PlanePoint m_ppoint(pt, label_mat(i, j));
-        out_plane_pts.push_back(m_ppoint);
+        cloud_seg.push_back(m_ppoint);
         // ------------------------------------------
         // Save segmented cloud in the given structure
         seg_pcl.col_idx[seg_cloud_size] = j;
@@ -606,6 +622,17 @@ void Mapper3D::cloudSegmentation(const std::vector<point>& in_pts,
       }
     }
     seg_pcl.end_col_idx[i] = seg_cloud_size - 1 - 5;
+  }
+
+  // Save pure segmented cloud (without unfiltered ground)
+  for (int i = 0; i < vertical_scans; i++) {
+    for (int j = 0; j < horizontal_scans; j++) {
+      if (label_mat(i, j) > 0 && label_mat(i, j) != 999999) {
+        point      pt = in_pts[j + i * horizontal_scans];
+        PlanePoint m_ppoint(pt, label_mat(i, j));
+        cloud_seg_pure.push_back(m_ppoint);
+      }
+    }
   }
 }
 
@@ -769,12 +796,15 @@ void Mapper3D::extractHighLevelPlanes(const std::vector<PlanePoint>& in_plane_pt
   }
 }
 
-void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,
-                              std::vector<Corner>&           out_corners)
+void Mapper3D::extract3DFeatures(const std::vector<PlanePoint>& in_plane_pts,
+                                 std::vector<Corner>&           out_corners,
+                                 std::vector<Planar>&           out_planars)
+
 {
   // -------------------------------------------------------------------------------
   // ----- Compute cloud smoothness
   // -------------------------------------------------------------------------------
+  int*                      cloudLabel = new int[vertical_scans * horizontal_scans];
   int                       m_cloud_size = in_plane_pts.size();
   std::vector<smoothness_t> cloud_smoothness(vertical_scans * horizontal_scans);
   std::vector<int>          neighbor_picked(vertical_scans * horizontal_scans);
@@ -789,6 +819,8 @@ void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,
     cloud_smoothness[i].value = diff_range * diff_range;
     cloud_smoothness[i].idx   = i;
 
+    cloudLabel[i] = 0;
+
     // Reset neighborhood flag array
     neighbor_picked[i] = 0;
   }
@@ -796,8 +828,13 @@ void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,
   // -------------------------------------------------------------------------------
   // ----- Extract features from the 3D cloud
   // -------------------------------------------------------------------------------
-  int corner_id = 0;
+  std::vector<Planar> planar_points_less_flat;
+  int                 corner_id = 0;
+  int                 planar_id = 0;
   for (int i = 0; i < vertical_scans; i++) {
+
+    planar_points_less_flat.clear();
+
     for (int k = 0; k < 6; k++) {
       // Compute start and end indexes of the sub-region
       int sp =
@@ -815,14 +852,13 @@ void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,
           cloud_smoothness.begin() + sp, cloud_smoothness.begin() + ep, by_value());
 
       // -- Extract edge features
-      // -----------------------------------------------------
       int picked_counter = 0;
       for (int l = ep; l >= sp; l--) {
         int idx = cloud_smoothness[l].idx;
 
         // Check if the current point is an edge feature
         if (neighbor_picked[idx] == 0 &&
-            cloud_smoothness[l].value > edge_threshold) {
+            cloud_smoothness[l].value > edge_threshold && !seg_pcl.is_ground[idx]) {
           picked_counter++;
           if (picked_counter <= picked_num) {
             Corner m_corner(
@@ -857,8 +893,61 @@ void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,
           }
         }
       }
-      // -----------------------------------------------------
+
+      // -- Extract planar features
+      picked_counter = 0;
+      for (int l = sp; l <= ep; l++) {
+        int idx = cloud_smoothness[l].idx;
+
+        // Check if the current point is a planar feature
+        if (neighbor_picked[idx] == 0 &&
+            cloud_smoothness[l].value < planar_threshold) {
+
+          cloudLabel[idx] = -1;
+          Planar m_planar(
+              in_plane_pts[idx].pos, in_plane_pts[idx].which_plane, planar_id);
+          out_planars.push_back(m_planar);
+          planar_id++;
+
+          picked_counter++;
+          if (picked_counter >= 4)
+            break;
+
+          neighbor_picked[idx] = 1;
+          for (int m = 1; m <= 5; m++) {
+            int col_diff =
+                std::abs(seg_pcl.col_idx[idx + m] - seg_pcl.col_idx[idx + m - 1]);
+
+            if (col_diff > 10)
+              break;
+            else
+              neighbor_picked[idx + m] = 1;
+          }
+          for (int m = -1; m >= -5; m--) {
+            if (idx + m < 0)
+              continue;
+            int col_diff =
+                std::abs(seg_pcl.col_idx[idx + m] - seg_pcl.col_idx[idx + m + 1]);
+            if (col_diff > 10)
+              break;
+            else
+              neighbor_picked[idx + m] = 1;
+          }
+        }
+      }
+
+      for (int l = sp; l <= ep; l++) {
+        if (cloudLabel[l] <= 0) {
+          Planar m_planar(
+              in_plane_pts[l].pos, in_plane_pts[l].which_plane, planar_id);
+          planar_points_less_flat.push_back(m_planar);
+        }
+      }
     }
+
+    out_planars.insert(out_planars.end(),
+                       planar_points_less_flat.begin(),
+                       planar_points_less_flat.end());
   }
 }
 

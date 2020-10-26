@@ -120,14 +120,17 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
       std::vector<Planar> m_planars;
       std::vector<Plane>  m_planes;
       Plane               m_ground_plane;
-      mapper3D->localPCLMap(scan_pts, m_corners, m_planars, m_planes, m_ground_plane);
-      mapper3D->globalCornerMap(robot_pose, m_corners, *grid_map);
+      mapper3D->localPCLMap(
+          scan_pts, m_corners, m_planars, m_planes, m_ground_plane);
 
       // - 3D image feature map estimation
       auto*                     raw_depths = (float*)(&(*depth_image).data[0]);
       std::vector<ImageFeature> m_surf_features;
       mapper3D->localSurfMap(left_image, raw_depths, m_surf_features);
-      mapper3D->globalSurfMap(m_surf_features, robot_pose, *grid_map);
+
+      // - Register 3D maps
+      mapper3D->registerMaps(
+          robot_pose, m_surf_features, m_corners, m_planars, *grid_map);
     }
 
     ROS_INFO("Localization and Mapping has started.");
@@ -167,6 +170,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     if (params.use_landmarks)
       obsv.landmarks = m_landmarks;
     obsv.corners = m_corners;
+    obsv.planars = m_planars;
     obsv.planes  = m_planes;
     if (std::fabs(m_ground_plane.mean_height) > mapper3D->lidar_height / 2)
       obsv.ground_plane = m_ground_plane;
@@ -177,22 +181,30 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
       obsv.gps_pose = pose(0., 0., 0., 0., 0., 0.);
 
     // ---------------------------------------------------------
-    // ----- Register multi-layer map (if performing SLAM)
-    // ---------------------------------------------------------
-    if (register_map) {
-      // - 2D high-level semantic map estimation
-      mapper2D->process(robot_pose, m_landmarks, labels, *grid_map);
-      // - 3D PCL corner map estimation
-      mapper3D->globalCornerMap(robot_pose, m_corners, *grid_map);
-      // - 3D image feature map estimation
-      mapper3D->globalSurfMap(m_surf_features, robot_pose, *grid_map);
-    }
-
-    // ---------------------------------------------------------
     // ----- Localization procedure
     // ---------------------------------------------------------
     localizer->process(odom, obsv, grid_map);
     robot_pose = localizer->getPose();
+
+    // ---------------------------------------------------------
+    // ----- Register multi-layer map (if performing SLAM)
+    // ---------------------------------------------------------
+    if (register_map) {
+      mapper2D->process(robot_pose, m_landmarks, labels, *grid_map);
+
+      pose delta_pose = robot_pose - mapper3D->last_registering_pose;
+      delta_pose.normalize();
+
+      if (std::fabs(delta_pose.x) > 0.2 || std::fabs(delta_pose.y > 0.2) ||
+          std::fabs(delta_pose.z > 0.2) ||
+          std::fabs(delta_pose.roll) > 5 * DEGREE_TO_RAD ||
+          std::fabs(delta_pose.pitch) > 5 * DEGREE_TO_RAD ||
+          std::fabs(delta_pose.yaw) > 5 * DEGREE_TO_RAD) {
+        mapper3D->registerMaps(
+            robot_pose, m_surf_features, m_corners, m_planars, *grid_map);
+        grid_map->downsamplePlanars();
+      }
+    }
 
     // ---------------------------------------------------------
     // ----- ROS publishers and tf broadcasting

@@ -20,8 +20,9 @@ namespace vineslam
 // Structure that stores  observations to use in the localization procedure
 struct Observation {
   std::vector<SemanticFeature> landmarks;
-  std::vector<Corner>          corners;
   std::vector<ImageFeature>    surf_features;
+  std::vector<Planar>          planars;
+  std::vector<Corner>          corners;
   std::vector<Plane>           planes;
   Plane                        ground_plane;
   pose                         gps_pose;

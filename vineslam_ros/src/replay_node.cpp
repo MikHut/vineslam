@@ -55,6 +55,8 @@ ReplayNode::ReplayNode(int argc, char** argv)
       nh.advertise<pcl::PointCloud<pcl::PointXYZRGB>>("/vineslam/map3D/SURF", 1);
   map3D_corners_publisher =
       nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners", 1);
+  map3D_planars_publisher =
+      nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planars", 1);
   map3D_planes_publisher =
       nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planes", 1);
   corners_local_publisher = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>(
@@ -151,8 +153,6 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
   // -------------------------------------------------------------------------------
   ros::Publisher clock_pub = nh.advertise<rosgraph_msgs::Clock>("/clock", 1);
   ros::Publisher odom_pub  = nh.advertise<nav_msgs::Odometry>(params.odom_topic, 1);
-  ros::Publisher rs_odom_pub =
-      nh.advertise<nav_msgs::Odometry>(params.rs_odom_topic, 1);
   ros::Publisher tf_pub  = nh.advertise<tf2_msgs::TFMessage>(params.tf_topic, 1);
   ros::Publisher fix_pub = nh.advertise<sensor_msgs::NavSatFix>(params.fix_topic, 1);
   ros::Publisher depth_img_pub =

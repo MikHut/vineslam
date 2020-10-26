@@ -22,7 +22,7 @@ struct Feature {
 
   bool operator==(Feature m_feature)
   {
-    return m_feature.id == id && m_feature.pos == pos;
+    return m_feature.pos == pos;
   }
 
   int   id{};

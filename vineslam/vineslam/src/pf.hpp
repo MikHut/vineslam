@@ -67,6 +67,7 @@ public:
   // Update particles weights using the multi-layer map
   void update(const std::vector<SemanticFeature>& landmarks,
               const std::vector<Corner>&          corners,
+              const std::vector<Planar>&          planars,
               const std::vector<Plane>&           planes,
               const Plane&                        ground_plane,
               const std::vector<ImageFeature>&    surf_features,
@@ -94,6 +95,10 @@ private:
                  std::vector<float>&                 ws);
   // - Medium level corner features layer
   void mediumLevelCorners(const std::vector<Corner>& corners,
+                          OccupancyMap*              grid_map,
+                          std::vector<float>&        ws);
+  // - Medium level planar features layer
+  void mediumLevelPlanars(const std::vector<Planar>& planars,
                           OccupancyMap*              grid_map,
                           std::vector<float>&        ws);
   // - Medium level ground plane layer
@@ -135,6 +140,7 @@ private:
   // - General parameters
   bool  use_landmarks;
   bool  use_corners;
+  bool  use_planars;
   bool  use_planes;
   bool  use_ground_plane;
   bool  use_icp;
@@ -154,6 +160,7 @@ private:
   float sigma_landmark_matching;
   float sigma_feature_matching;
   float sigma_corner_matching;
+  float sigma_planar_matching;
   float sigma_planes_yaw;
   float sigma_ground_rp;
   float sigma_gps;

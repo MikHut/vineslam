@@ -196,17 +196,9 @@ struct pose {
   // Normalize pose angles
   void normalize()
   {
-    roll = std::fmod(roll, 2. * M_PI);
-    if (roll > M_PI)
-      roll -= 2. * M_PI;
-
-    pitch = std::fmod(pitch, 2. * M_PI);
-    if (pitch > M_PI)
-      pitch -= 2. * M_PI;
-
-    yaw = std::fmod(yaw, 2. * M_PI);
-    if (yaw > M_PI)
-      yaw -= 2. * M_PI;
+    roll  = std::atan2(std::sin(roll), std::cos(roll));
+    pitch = std::atan2(std::sin(pitch), std::cos(pitch));
+    yaw   = std::atan2(std::sin(yaw), std::cos(yaw));
   }
 
   // 2D and 3D norms of the pose

@@ -180,6 +180,8 @@ void VineSLAM_ros::publish3DMap() const
       new pcl::PointCloud<pcl::PointXYZRGB>);
   pcl::PointCloud<pcl::PointXYZI>::Ptr corner_cloud(
       new pcl::PointCloud<pcl::PointXYZI>);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr planar_cloud(
+      new pcl::PointCloud<pcl::PointXYZI>);
   pcl::PointCloud<pcl::PointXYZI>::Ptr plane_cloud(
       new pcl::PointCloud<pcl::PointXYZI>);
 
@@ -202,14 +204,25 @@ void VineSLAM_ros::publish3DMap() const
 
         corner_cloud->points.push_back(m_pt);
       }
+
+      for (const auto& planar : cell.planar_features) {
+        pcl::PointXYZI m_pt(static_cast<float>(planar.which_cluster));
+        m_pt.x = planar.pos.x;
+        m_pt.y = planar.pos.y;
+        m_pt.z = planar.pos.z;
+
+        planar_cloud->points.push_back(m_pt);
+      }
     }
   }
 
   feature_cloud->header.frame_id = "map";
   corner_cloud->header.frame_id  = "map";
+  planar_cloud->header.frame_id  = "map";
   plane_cloud->header.frame_id   = "map";
   map3D_features_publisher.publish(feature_cloud);
   map3D_corners_publisher.publish(corner_cloud);
+  map3D_planars_publisher.publish(planar_cloud);
 }
 
 void VineSLAM_ros::publish3DMap(const std::vector<Plane>& planes,

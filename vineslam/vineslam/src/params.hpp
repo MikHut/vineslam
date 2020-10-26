@@ -12,7 +12,6 @@ struct Parameters {
   // -----------------------------------
   std::string bagfile_name;
   std::string odom_topic;
-  std::string rs_odom_topic;
   std::string tf_topic;
   std::string fix_topic;
   std::string depth_img_topic;
@@ -28,6 +27,7 @@ struct Parameters {
   bool use_landmarks{};
   bool use_ground_plane{};
   bool use_corners{};
+  bool use_planars{};
   bool use_icp{};
   bool use_gps{};
 
@@ -95,6 +95,7 @@ struct Parameters {
   float sigma_landmark_matching{};
   float sigma_feature_matching{};
   float sigma_corner_matching{};
+  float sigma_planar_matching{};
   float sigma_planes_yaw{};
   float sigma_ground_rp{};
   float sigma_gps{};

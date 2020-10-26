@@ -53,9 +53,6 @@ namespace vineslam
 class VineSLAM_ros
 {
 public:
-  // Class constructor that
-  // - Initializes the ROS node
-  // - Defines the publish and subscribe topics
   VineSLAM_ros() = default;
 
   // Callback function that subscribes a rgb image, a  disparity image,
@@ -116,6 +113,7 @@ public:
   ros::Publisher     map2D_publisher;
   ros::Publisher     map3D_features_publisher;
   ros::Publisher     map3D_corners_publisher;
+  ros::Publisher     map3D_planars_publisher;
   ros::Publisher     map3D_planes_publisher;
   ros::Publisher     pose_publisher;
   ros::Publisher     path_publisher;

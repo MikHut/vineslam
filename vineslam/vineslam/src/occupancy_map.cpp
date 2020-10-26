@@ -54,6 +54,13 @@ bool MapLayer::insert(const SemanticFeature& m_landmark,
 
   (*this)(i, j).insert(id, m_landmark);
   n_landmarks++;
+
+  // Mark cell as occupied in pointer array
+  int m_i = i - static_cast<int>(std::round(origin.x / resolution + .49));
+  int m_j = j - static_cast<int>(std::round(origin.y / resolution + .49));
+  int idx = m_i + m_j * static_cast<int>(std::round(width / resolution + .49));
+  landmark_indexes.insert(idx);
+
   return true;
 }
 
@@ -78,6 +85,13 @@ bool MapLayer::insert(const ImageFeature& m_feature, const int& i, const int& j)
 
   (*this)(i, j).surf_features.push_back(m_feature);
   n_surf_features++;
+
+  // Mark cell as occupied in pointer array
+  int m_i = i - static_cast<int>(std::round(origin.x / resolution + .49));
+  int m_j = j - static_cast<int>(std::round(origin.y / resolution + .49));
+  int idx = m_i + m_j * static_cast<int>(std::round(width / resolution + .49));
+  surf_indexes.insert(idx);
+
   return true;
 }
 
@@ -102,10 +116,48 @@ bool MapLayer::insert(const Corner& m_feature, const int& i, const int& j)
 
   (*this)(i, j).corner_features.push_back(m_feature);
   n_corner_features++;
+
+  // Mark cell as occupied in pointer array
+  int m_i = i - static_cast<int>(std::round(origin.x / resolution + .49));
+  int m_j = j - static_cast<int>(std::round(origin.y / resolution + .49));
+  int idx = m_i + m_j * static_cast<int>(std::round(width / resolution + .49));
+  corner_indexes.insert(idx);
+
   return true;
 }
 
 bool MapLayer::insert(const Corner& m_feature)
+{
+  // Compute grid coordinates for the floating point Feature location
+  // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+  int m_i = static_cast<int>(std::round(m_feature.pos.x / resolution + .49));
+  int m_j = static_cast<int>(std::round(m_feature.pos.y / resolution + .49));
+
+  return insert(m_feature, m_i, m_j);
+}
+
+bool MapLayer::insert(const Planar& m_feature, const int& i, const int& j)
+{
+  try {
+    check(i, j);
+  } catch (char const* msg) {
+    std::cout << msg;
+    return false;
+  }
+
+  (*this)(i, j).planar_features.push_back(m_feature);
+  n_corner_features++;
+
+  // Mark cell as occupied in pointer array
+  int m_i = i - static_cast<int>(std::round(origin.x / resolution + .49));
+  int m_j = j - static_cast<int>(std::round(origin.y / resolution + .49));
+  int idx = m_i + m_j * static_cast<int>(std::round(width / resolution + .49));
+  planar_indexes.insert(idx);
+
+  return true;
+}
+
+bool MapLayer::insert(const Planar& m_feature)
 {
   // Compute grid coordinates for the floating point Feature location
   // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
@@ -126,6 +178,13 @@ bool MapLayer::insert(const point& m_point, const int& i, const int& j)
 
   (*this)(i, j).points.push_back(m_point);
   n_points++;
+
+  // Mark cell as occupied in pointer array
+  int m_i = i - static_cast<int>(std::round(origin.x / resolution + .49));
+  int m_j = j - static_cast<int>(std::round(origin.y / resolution + .49));
+  int idx = m_i + m_j * static_cast<int>(std::round(width / resolution + .49));
+  point_indexes.insert(idx);
+
   return true;
 }
 
@@ -224,9 +283,95 @@ bool MapLayer::update(const Corner& old_corner, const Corner& new_corner)
   return false;
 }
 
+bool MapLayer::update(const Planar& old_planar, const Planar& new_planar)
+{
+  // Compute grid coordinates for the floating point old Landmark location
+  // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+  int m_i = static_cast<int>(std::round(old_planar.pos.x / resolution + .49));
+  int m_j = static_cast<int>(std::round(old_planar.pos.y / resolution + .49));
+
+  // Access cell of old planar
+  Cell m_cell = (*this)(m_i, m_j);
+  // Get all the planar in the given cell
+  std::vector<Planar> m_planars = m_cell.planar_features;
+
+  // Find the planar and update it
+  for (size_t i = 0; i < m_planars.size(); i++) {
+    Planar m_planar = m_planars[i];
+
+    if (m_planar.pos.x == old_planar.pos.x && m_planar.pos.y == old_planar.pos.y &&
+        m_planar.pos.z == old_planar.pos.z) {
+
+      // Check if new planar lies on the same cell of the source one
+      int new_m_i =
+          static_cast<int>(std::round(new_planar.pos.x / resolution + .49));
+      int new_m_j =
+          static_cast<int>(std::round(new_planar.pos.y / resolution + .49));
+
+      if (new_m_i != m_i || new_m_j != m_j) {
+        (*this)(m_i, m_j).planar_features.erase(
+            (*this)(m_i, m_j).planar_features.begin() + i);
+        insert(new_planar);
+      } else {
+        (*this)(m_i, m_j).planar_features[i] = new_planar;
+      }
+
+      return true;
+    }
+  }
+
+  std::cout << "WARNING (OcuppancyMap::update): Trying to update a planar that is "
+               "not on the map... "
+            << std::endl;
+  return false;
+}
+
 bool MapLayer::update(const ImageFeature& old_image_feature,
                       const ImageFeature& new_image_feature)
 {
+}
+
+void MapLayer::downsampleCorners()
+{
+  for (const auto& i : corner_indexes) {
+    point m_pt(0, 0, 0);
+    int   wp;
+    for (const auto& corner : m_gmap[i].corner_features) {
+      m_pt.x += corner.pos.x;
+      m_pt.y += corner.pos.y;
+      m_pt.z += corner.pos.z;
+    }
+    m_pt.x /= static_cast<float>(m_gmap[i].corner_features.size());
+    m_pt.y /= static_cast<float>(m_gmap[i].corner_features.size());
+    m_pt.z /= static_cast<float>(m_gmap[i].corner_features.size());
+
+    m_gmap[i].corner_features.clear();
+    Corner c(m_pt, 0);
+    m_gmap[i].corner_features = {c};
+  }
+}
+
+void MapLayer::downsamplePlanars()
+{
+  for (const auto& i : planar_indexes) {
+    auto size = static_cast<float>(m_gmap[i].planar_features.size());
+    if (size == 0)
+      continue;
+    point m_pt(0, 0, 0);
+    int   wp;
+    for (const auto& planar : m_gmap[i].planar_features) {
+      m_pt.x += planar.pos.x;
+      m_pt.y += planar.pos.y;
+      m_pt.z += planar.pos.z;
+    }
+    m_pt.x /= size;
+    m_pt.y /= size;
+    m_pt.z /= size;
+
+    m_gmap[i].planar_features.clear();
+    Planar p(m_pt, 0);
+    m_gmap[i].planar_features = {p};
+  }
 }
 
 bool MapLayer::getAdjacent(const int&         i,
@@ -589,6 +734,11 @@ bool OccupancyMap::insert(const Corner& m_feature)
   return m_layers[getLayerNumber(m_feature.pos.z)].insert(m_feature);
 }
 
+bool OccupancyMap::insert(const Planar& m_feature)
+{
+  return m_layers[getLayerNumber(m_feature.pos.z)].insert(m_feature);
+}
+
 bool OccupancyMap::insert(const point& m_point)
 {
   return m_layers[getLayerNumber(m_point.z)].insert(m_point);
@@ -643,9 +793,60 @@ bool OccupancyMap::update(const Corner& old_corner, const Corner& new_corner)
   return false;
 }
 
+bool OccupancyMap::update(const Planar& old_planar, const Planar& new_planar)
+{
+  int old_layer_num = getLayerNumber(old_planar.pos.z);
+  int new_layer_num = getLayerNumber(new_planar.pos.z);
+
+  if (old_layer_num == new_layer_num) {
+    return m_layers[old_layer_num].update(old_planar, new_planar);
+  } else {
+    // Compute grid coordinates for the floating point old planar location
+    // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+    int m_i = static_cast<int>(std::round(old_planar.pos.x / resolution + .49));
+    int m_j = static_cast<int>(std::round(old_planar.pos.y / resolution + .49));
+
+    // Access cell of old planar
+    Cell m_cell = m_layers[old_layer_num](m_i, m_j);
+    // Get all the planar in the given cell
+    std::vector<Planar> m_planars = m_cell.planar_features;
+
+    // Find the planar and update it
+    for (size_t i = 0; i < m_planars.size(); i++) {
+      Planar m_planar = m_planars[i];
+
+      if (m_planar.pos.x == old_planar.pos.x && m_planar.pos.y == old_planar.pos.y &&
+          m_planar.pos.z == old_planar.pos.z) {
+
+        m_layers[old_layer_num](m_i, m_j).planar_features.erase(
+            m_layers[old_layer_num](m_i, m_j).planar_features.begin() + i);
+
+        insert(new_planar);
+
+        return true;
+      }
+    }
+  }
+
+  std::cout << "WARNING (OcuppancyMap::update): Trying to update a planar that is "
+               "not on the map... "
+            << std::endl;
+  return false;
+}
+
 bool OccupancyMap::update(const ImageFeature& old_image_feature,
                           const ImageFeature& new_image_feature)
 {
+}
+
+void OccupancyMap::downsampleCorners()
+{
+  for (auto& mlayer : m_layers) mlayer.second.downsampleCorners();
+}
+
+void OccupancyMap::downsamplePlanars()
+{
+  for (auto& mlayer : m_layers) mlayer.second.downsamplePlanars();
 }
 
 bool OccupancyMap::getAdjacent(const float&       x,

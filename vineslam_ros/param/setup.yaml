@@ -6,7 +6,6 @@ fix_topic: /fix
 tf_topic: /tf
 depth_img_topic: /zed/zed_node/depth/depth_registered
 left_img_topic: /zed/zed_node/left_raw/image_raw_color/compressed
-#left_img_topic: /zed/zed_node/left/image
 detections_topic: /tpu/detections
 pcl_topic: /velodyne_points
 
@@ -21,6 +20,7 @@ system:
   use_ground_plane: True
   use_landmarks: False
   use_corners: True
+  use_planars: True
   use_icp: False
   use_gps: False
   # ---------------------
@@ -64,9 +64,6 @@ multilayer_mapping:
   # Feature extractor and descriptor settings
   image_feature:
     hessian_threshold: 3500 # SURF threshold: the higher the value, the lesser the number of features computed
-  # 3D cloud feature extraction settings
-  cloud_feature:
-    downsample_factor: 1  # constant to downscale dense disparity image
   # 3D map definitions
   map_3D:
     max_range: 5.0 # meters
@@ -97,6 +94,7 @@ pf:
   sigma_landmark_matching: 0.01 # meters
   sigma_feature_matching: 0.05 # meters
   sigma_corner_matching: 0.05 # meters
+  sigma_planar_matching: 0.05 # meters
   sigma_planes_yaw: 1.0 # degrees
   sigma_ground_rp: 1.0 # degrees
   sigma_gps: 0.08 # meters

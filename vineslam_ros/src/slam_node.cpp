@@ -40,6 +40,7 @@ SLAMNode::SLAMNode(int argc, char** argv)
   set_datum  = nh.serviceClient<agrob_map_transform::SetDatum>("datum");
 
   // Synchronize subscribers of both topics
+  std::cout << params.left_img_topic << std::endl;
   message_filters::Subscriber<sensor_msgs::Image> left_image_sub(
       nh, params.left_img_topic, 1);
   message_filters::Subscriber<sensor_msgs::Image> depth_image_sub(
@@ -77,6 +78,8 @@ SLAMNode::SLAMNode(int argc, char** argv)
       nh.advertise<pcl::PointCloud<pcl::PointXYZRGB>>("/vineslam/map3D/SURF", 1);
   map3D_corners_publisher =
       nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners", 1);
+  map3D_planars_publisher =
+      nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planars", 1);
   map3D_planes_publisher =
       nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/ground", 1);
   corners_local_publisher = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>(

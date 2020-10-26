@@ -295,8 +295,8 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 3.429605007171631
-        Min Value: -1.3502837419509888
+        Max Value: 3.7397921085357666
+        Min Value: -3.7327821254730225
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -304,7 +304,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: AxisColor
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: -999999
@@ -321,17 +321,17 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 10.411676406860352
-        Min Value: -2.8617615699768066
+        Max Value: 5.310560703277588
+        Min Value: -0.15216638147830963
         Value: true
       Axis: Z
       Channel Name: intensity
       Class: rviz/PointCloud2
-      Color: 255; 255; 255
+      Color: 32; 74; 135
       Color Transformer: FlatColor
       Decay Time: 0
       Enabled: true
@@ -344,7 +344,7 @@ Visualization Manager:
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
-      Size (Pixels): 3
+      Size (Pixels): 4
       Size (m): 0.05000000074505806
       Style: Points
       Topic: /vineslam/map3D/corners_local
@@ -388,15 +388,15 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 82.47120666503906
+      Distance: 76.28743743896484
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -4.549030303955078
-        Y: 2.1953372955322266
+        X: -11.940053939819336
+        Y: 6.834393501281738
         Z: -9.852450602920726e-6
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
@@ -406,7 +406,7 @@ Visualization Manager:
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
       Value: XYOrbit (rviz)
-      Yaw: 3.069887161254883
+      Yaw: 3.1749019622802734
     Saved: ~
 Window Geometry:
   Displays:

@@ -11,6 +11,7 @@ PF::PF(const Parameters& params, const pose& initial_pose)
   // - General parameters
   use_landmarks    = params.use_landmarks;
   use_corners      = params.use_corners;
+  use_planars      = params.use_planars;
   use_planes       = params.use_planes;
   use_ground_plane = params.use_ground_plane;
   use_icp          = params.use_icp;
@@ -31,6 +32,7 @@ PF::PF(const Parameters& params, const pose& initial_pose)
   sigma_landmark_matching = params.sigma_landmark_matching;
   sigma_feature_matching  = params.sigma_feature_matching;
   sigma_corner_matching   = params.sigma_corner_matching;
+  sigma_planar_matching   = params.sigma_planar_matching;
   sigma_planes_yaw        = params.sigma_planes_yaw * DEGREE_TO_RAD;
   sigma_ground_rp         = params.sigma_ground_rp * DEGREE_TO_RAD;
   sigma_gps               = params.sigma_gps;
@@ -140,6 +142,7 @@ void PF::motionModel(const pose& odom)
 
 void PF::update(const std::vector<SemanticFeature>& landmarks,
                 const std::vector<Corner>&          corners,
+                const std::vector<Planar>&          planars,
                 const std::vector<Plane>&           planes,
                 const Plane&                        ground_plane,
                 const std::vector<ImageFeature>&    surf_features,
@@ -148,6 +151,7 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
 {
   std::vector<float> semantic_weights(n_particles, 0.);
   std::vector<float> corner_weights(n_particles, 0.);
+  std::vector<float> planar_weights(n_particles, 0.);
   std::vector<float> planes_weights(n_particles, 0.);
   std::vector<float> ground_weights(n_particles, 0.);
   std::vector<float> surf_weights(n_particles, 0.);
@@ -167,6 +171,13 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
   duration = after - before;
   std::cout << "Time elapsed on PF - corner features (msecs): " << duration.count()
             << " (" << corners.size() << ")" << std::endl;
+  before = std::chrono::high_resolution_clock::now();
+  if (use_planars)
+    mediumLevelPlanars(planars, grid_map, planar_weights);
+  after    = std::chrono::high_resolution_clock::now();
+  duration = after - before;
+  std::cout << "Time elapsed on PF - planar features (msecs): " << duration.count()
+            << " (" << planars.size() << ")" << std::endl;
   before = std::chrono::high_resolution_clock::now();
   if (use_planes)
     mediumLevelPlanes(planes, grid_map, planes_weights);
@@ -199,6 +210,8 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
       *std::max_element(semantic_weights.begin(), semantic_weights.end());
   float corners_max =
       *std::max_element(corner_weights.begin(), corner_weights.end());
+  float planars_max =
+      *std::max_element(planar_weights.begin(), planar_weights.end());
   float planes_max = *std::max_element(planes_weights.begin(), planes_weights.end());
   float ground_max = *std::max_element(ground_weights.begin(), ground_weights.end());
   float surf_max   = *std::max_element(surf_weights.begin(), surf_weights.end());
@@ -208,6 +221,8 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
         (semantic_max > 0.) ? semantic_weights[particle.id] : static_cast<float>(1.);
     float m_cw =
         (corners_max > 0.) ? corner_weights[particle.id] : static_cast<float>(1.);
+    float m_rw =
+        (planars_max > 0.) ? planar_weights[particle.id] : static_cast<float>(1.);
     float m_pw =
         (planes_max > 0.) ? planes_weights[particle.id] : static_cast<float>(1.);
     float m_gw =
@@ -217,7 +232,7 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
     float m_gpsw =
         (gps_max > 0.) ? gps_weights[particle.id] : static_cast<float>(1.);
 
-    particle.w = m_lw * m_cw * m_pw * m_gw * m_sw * m_gpsw;
+    particle.w = m_lw * m_cw * m_rw * m_pw * m_gw * m_sw * m_gpsw;
     w_sum += particle.w;
   }
 
@@ -329,6 +344,7 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
     // ------------------------------------------------------
     // --- 3D corner map fitting
     // ------------------------------------------------------
+    float              w_corners = 0;
     std::vector<float> dcornervec;
     for (const auto& corner : corners) {
       // Convert landmark to the particle's referential frame
@@ -337,7 +353,7 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
       std::vector<Corner> m_corners = (*grid_map)(X.x, X.y, X.z).corner_features;
 
       // Search for a correspondence in the current cell first
-      float best_correspondence = std::numeric_limits<float>::max();
+      float best_correspondence = 0.02;
       bool  found               = false;
       for (const auto& m_corner : m_corners) {
         float dist_min = X.distance(m_corner.pos);
@@ -348,45 +364,57 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
         }
       }
 
-      // NOTE (André Aguiar): with this, the filter becomes to slow ...
-      found &= (best_correspondence < 0.02);
-      // Only search in the adjacent cells if we do not find in the source cell
-      //  if (!found) {
-      //    std::vector<Cell> adjacents;
-      //    grid_map.getAdjacent(X.x, X.y, X.z, 1, adjacents);
-      //    for (const auto& m_cell : adjacents) {
-      //      for (const auto& m_corner : m_cell.corner_features) {
-      //        float dist_min = X.distance(m_corner.pos);
-      //        if (dist_min < best_correspondence) {
-      //          dpos                = m_corner.pos;
-      //          best_correspondence = dist_min;
-      //          found               = true;
-      //        }
-      //      }
-      //    }
-      //  }
-
       // Save distance if a correspondence was found
-      if (!found)
-        continue;
-      else
-        dcornervec.push_back(best_correspondence);
-    }
-
-    // - Corner feature matching [x, y, z, roll, pitch, yaw] weight
-    float w_corners = 0.;
-    if (dcornervec.size() <= 1) {
-      w_corners = 0.;
-    } else {
-
-      for (const auto& dist : dcornervec) {
-        w_corners +=
-            (normalizer_corner *
-             static_cast<float>(std::exp(-1. / sigma_corner_matching * dist)));
-      }
+      if (found)
+        w_corners += (normalizer_corner *
+                      static_cast<float>(std::exp(-1. / sigma_corner_matching *
+                                                  best_correspondence)));
     }
 
     ws[particle.id] = w_corners;
+  }
+}
+
+void PF::mediumLevelPlanars(const std::vector<Planar>& planars,
+                            OccupancyMap*              grid_map,
+                            std::vector<float>&        ws)
+{
+  float normalizer_planar =
+      static_cast<float>(1.) / (sigma_planar_matching * std::sqrt(M_2PI));
+
+  // Loop over all particles
+  for (const auto& particle : particles) {
+    // ------------------------------------------------------
+    // --- 3D planar map fitting
+    // ------------------------------------------------------
+    float              w_planars = 0.;
+    std::vector<float> dplanarvec;
+    for (const auto& planar : planars) {
+      // Convert landmark to the particle's referential frame
+      point X = planar.pos * particle.tf;
+
+      std::vector<Planar> m_planars = (*grid_map)(X.x, X.y, X.z).planar_features;
+
+      // Search for a correspondence in the current cell first
+      float best_correspondence = 0.02;
+      bool  found               = false;
+      for (const auto& m_planar : m_planars) {
+        float dist_min = X.distance(m_planar.pos);
+
+        if (dist_min < best_correspondence) {
+          best_correspondence = dist_min;
+          found               = true;
+        }
+      }
+
+      // Save distance if a correspondence was found
+      if (found)
+        w_planars += (normalizer_planar *
+                      static_cast<float>(std::exp(-1. / sigma_planar_matching *
+                                                  best_correspondence)));
+    }
+
+    ws[particle.id] = w_planars;
   }
 }
 

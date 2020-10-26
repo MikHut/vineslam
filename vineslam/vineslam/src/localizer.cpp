@@ -39,6 +39,7 @@ void Localizer::process(const pose&        odom,
   // ------------------------------------------------------------------------------
   pf->update(obsv.landmarks,
              obsv.corners,
+             obsv.planars,
              obsv.planes,
              obsv.ground_plane,
              obsv.surf_features,

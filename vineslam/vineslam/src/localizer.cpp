@@ -24,6 +24,7 @@ void Localizer::init(const pose& initial_pose)
 
 void Localizer::process(const pose&        odom,
                         const Observation& obsv,
+                        OccupancyMap*      previous_map,
                         OccupancyMap*      grid_map)
 {
   auto before = std::chrono::high_resolution_clock::now();
@@ -44,6 +45,7 @@ void Localizer::process(const pose&        odom,
              obsv.ground_plane,
              obsv.surf_features,
              obsv.gps_pose,
+             previous_map,
              grid_map);
 
   // ------------------------------------------------------------------------------
@@ -60,6 +62,13 @@ void Localizer::process(const pose&        odom,
   std::vector<pose> poses;
   for (const auto& particle : pf->particles) poses.push_back(particle.p);
   average_pose = pose(poses);
+  float w_max  = 0.;
+  //  for (const auto& particle : pf->particles) {
+  //    if (particle.w > w_max) {
+  //      w_max        = particle.w;
+  //      average_pose = particle.p;
+  //    }
+  //  }
 
   // - Save current control to use in the next iteration
   pf->p_odom = odom;

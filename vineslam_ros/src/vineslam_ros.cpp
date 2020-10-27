@@ -104,7 +104,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // ---------------------------------------------------------
     // ----- Initialize the localizer and get first particles distribution
     // ---------------------------------------------------------
-    localizer->init(pose(0, 0, 0, 0, 0, odom.yaw));
+    localizer->init(init_odom_pose);
     robot_pose = localizer->getPose();
 
     if (register_map) {
@@ -130,7 +130,10 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
 
       // - Register 3D maps
       mapper3D->registerMaps(
-          robot_pose, m_surf_features, m_corners, m_planars, *grid_map);
+          robot_pose, m_surf_features, m_corners, m_planars, m_planes, *grid_map);
+
+      // - Save local map for next iteration
+      previous_map = mapper3D->local_map;
     }
 
     ROS_INFO("Localization and Mapping has started.");
@@ -183,7 +186,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // ---------------------------------------------------------
     // ----- Localization procedure
     // ---------------------------------------------------------
-    localizer->process(odom, obsv, grid_map);
+    localizer->process(odom, obsv, previous_map, grid_map);
     robot_pose = localizer->getPose();
 
     // ---------------------------------------------------------
@@ -195,13 +198,14 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
       pose delta_pose = robot_pose - mapper3D->last_registering_pose;
       delta_pose.normalize();
 
-      if (std::fabs(delta_pose.x) > 0.2 || std::fabs(delta_pose.y > 0.2) ||
-          std::fabs(delta_pose.z > 0.2) ||
-          std::fabs(delta_pose.roll) > 5 * DEGREE_TO_RAD ||
-          std::fabs(delta_pose.pitch) > 5 * DEGREE_TO_RAD ||
-          std::fabs(delta_pose.yaw) > 5 * DEGREE_TO_RAD) {
+      //      if (std::fabs(delta_pose.x) > 0.2 || std::fabs(delta_pose.y > 0.2) ||
+      //          std::fabs(delta_pose.z > 0.2) ||
+      //          std::fabs(delta_pose.roll) > 5 * DEGREE_TO_RAD ||
+      //          std::fabs(delta_pose.pitch) > 5 * DEGREE_TO_RAD ||
+      //          std::fabs(delta_pose.yaw) > 5 * DEGREE_TO_RAD) {
+      if (1) {
         mapper3D->registerMaps(
-            robot_pose, m_surf_features, m_corners, m_planars, *grid_map);
+            robot_pose, m_surf_features, m_corners, m_planars, m_planes, *grid_map);
         grid_map->downsamplePlanars();
       }
     }
@@ -221,7 +225,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // Convert vineslam pose to ROS pose and publish it
     geometry_msgs::PoseStamped pose_stamped;
     pose_stamped.header.stamp       = ros::Time::now();
-    pose_stamped.header.frame_id    = "map";
+    pose_stamped.header.frame_id    = "odom";
     pose_stamped.pose.position.x    = robot_pose.x;
     pose_stamped.pose.position.y    = robot_pose.y;
     pose_stamped.pose.position.z    = robot_pose.z;
@@ -235,7 +239,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     path.push_back(pose_stamped);
     nav_msgs::Path ros_path;
     ros_path.header.stamp    = ros::Time::now();
-    ros_path.header.frame_id = "map";
+    ros_path.header.frame_id = "odom";
     ros_path.poses           = path;
     path_publisher.publish(ros_path);
 
@@ -247,12 +251,12 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     publish3DMap(m_planars, planars_local_publisher);
     std::vector<Plane> planes = {m_ground_plane};
     for (const auto& plane : m_planes) planes.push_back(plane);
-    publish3DMap(planes, map3D_planes_publisher);
+    publish3DMap(planes, planes_local_publisher);
 
     // Publish cam-to-map tf::Transform
     static tf::TransformBroadcaster br;
     br.sendTransform(
-        tf::StampedTransform(base2map, ros::Time::now(), "map", "base_link"));
+        tf::StampedTransform(base2map, ros::Time::now(), "odom", "base_link"));
     // Publish other tf::Trasforms
     tf::Transform cam2base(
         tf::Quaternion(params.cam2base[3],
@@ -270,6 +274,15 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
         tf::Vector3(params.vel2base[0], params.vel2base[1], params.vel2base[2]));
     br.sendTransform(
         tf::StampedTransform(vel2base, ros::Time::now(), "base_link", "velodyne"));
+    tf::Quaternion o2m_q;
+    o2m_q.setRPY(init_odom_pose.roll, init_odom_pose.pitch, init_odom_pose.yaw);
+    tf::Transform odom2map(
+        o2m_q, tf::Vector3(init_odom_pose.x, init_odom_pose.y, init_odom_pose.z));
+    br.sendTransform(
+        tf::StampedTransform(odom2map, ros::Time::now(), "odom", "map"));
+
+    // - Save local map for next iteration
+    previous_map = mapper3D->local_map;
 
     // --------------------------------------------------
     // ----- Debug area : publishes the robot path & the vegetation lines
@@ -313,11 +326,12 @@ void VineSLAM_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)
   // If it is the first iteration - initialize the Pose
   // relative to the previous frame
   if (init_odom) {
-    p_odom.x   = (*msg).pose.pose.position.x;
-    p_odom.y   = (*msg).pose.pose.position.y;
-    p_odom.yaw = yaw;
-    odom       = vineslam::pose(0., 0., 0., 0., 0., yaw);
-    init_odom  = false;
+    p_odom.x       = (*msg).pose.pose.position.x;
+    p_odom.y       = (*msg).pose.pose.position.y;
+    p_odom.yaw     = yaw;
+    odom           = vineslam::pose(p_odom.x, p_odom.y, 0., 0., 0., yaw);
+    init_odom_pose = odom;
+    init_odom      = false;
     return;
   }
 

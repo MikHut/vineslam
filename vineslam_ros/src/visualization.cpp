@@ -37,7 +37,7 @@ void VineSLAM_ros::publishGridMap(const std_msgs::Header& header) const
         }
 
         visualization_msgs::Marker cube_cell;
-        cube_cell.header.frame_id = "map";
+        cube_cell.header.frame_id = "odom";
         cube_cell.header.stamp    = ros::Time::now();
         cube_cell.id              = idx;
         cube_cell.type            = visualization_msgs::Marker::CUBE;
@@ -118,7 +118,7 @@ void VineSLAM_ros::publish2DMap(const std_msgs::Header&   header,
       // Draw sfeature mean
       marker.id              = id;
       marker.header.stamp    = ros::Time::now();
-      marker.header.frame_id = "map";
+      marker.header.frame_id = "odom";
       marker.pose.position.x = m_sfeature.second.pos.x;
       marker.pose.position.y = m_sfeature.second.pos.y;
       marker.pose.position.z = m_sfeature.second.pos.z;
@@ -131,7 +131,7 @@ void VineSLAM_ros::publish2DMap(const std_msgs::Header&   header,
 
       ellipse.id                 = id;
       ellipse.header.stamp       = ros::Time::now();
-      ellipse.header.frame_id    = "map";
+      ellipse.header.frame_id    = "odom";
       ellipse.pose.position.x    = m_sfeature.second.pos.x;
       ellipse.pose.position.y    = m_sfeature.second.pos.y;
       ellipse.pose.position.z    = m_sfeature.second.pos.z;
@@ -154,7 +154,7 @@ void VineSLAM_ros::publish2DMap(const std_msgs::Header&   header,
 
   ellipse.id                 = id;
   ellipse.header.stamp       = ros::Time::now();
-  ellipse.header.frame_id    = "map";
+  ellipse.header.frame_id    = "odom";
   ellipse.pose.position.x    = pose.x;
   ellipse.pose.position.y    = pose.y;
   ellipse.pose.position.z    = pose.z;
@@ -216,10 +216,9 @@ void VineSLAM_ros::publish3DMap() const
     }
   }
 
-  feature_cloud->header.frame_id = "map";
-  corner_cloud->header.frame_id  = "map";
-  planar_cloud->header.frame_id  = "map";
-  plane_cloud->header.frame_id   = "map";
+  feature_cloud->header.frame_id = "odom";
+  corner_cloud->header.frame_id  = "odom";
+  planar_cloud->header.frame_id  = "odom";
   map3D_features_publisher.publish(feature_cloud);
   map3D_corners_publisher.publish(corner_cloud);
   map3D_planars_publisher.publish(planar_cloud);
@@ -251,7 +250,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<Plane>& planes,
     i++;
   }
 
-  cloud_out->header.frame_id = "map";
+  cloud_out->header.frame_id = "odom";
   pub.publish(cloud_out);
 }
 
@@ -280,7 +279,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<Corner>& corners,
     cloud_out->points.push_back(m_pt);
   }
 
-  cloud_out->header.frame_id = "map";
+  cloud_out->header.frame_id = "odom";
   pub.publish(cloud_out);
 }
 
@@ -312,7 +311,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<Planar>& planars,
     cloud_out->points.push_back(m_pt);
   }
 
-  cloud_out->header.frame_id = "map";
+  cloud_out->header.frame_id = "odom";
   pub.publish(cloud_out);
 }
 
@@ -325,7 +324,7 @@ void VineSLAM_ros::visDebug(const std::vector<Plane>& planes,
   (*localizer).getParticles(poses);
   geometry_msgs::PoseArray ros_poses;
   ros_poses.header.stamp    = ros::Time::now();
-  ros_poses.header.frame_id = "map";
+  ros_poses.header.frame_id = "odom";
   for (const auto& pose : poses) {
     tf::Quaternion m_q;
     m_q.setRPY(pose.roll, pose.pitch, pose.yaw);

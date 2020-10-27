@@ -396,6 +396,9 @@ public:
   int         zmax;
   std::string metric;
 
+  // Grid map high level features (not stored in cells)
+  std::vector<Plane> map_planes;
+
 private:
   // Private grid map to store all the individual layers
   // (int, MapLayer): (layer number, layer class)

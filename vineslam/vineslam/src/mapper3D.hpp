@@ -64,6 +64,7 @@ public:
                     std::vector<ImageFeature>& img_features,
                     std::vector<Corner>&       corners,
                     std::vector<Planar>&       planars,
+                    std::vector<Plane>&        planes,
                     OccupancyMap&              grid_map);
 
   // -------------------------------------------------------------------------------
@@ -115,8 +116,9 @@ public:
   }
 
   // Public vars
-  float lidar_height;
-  pose  last_registering_pose;
+  float         lidar_height;
+  pose          last_registering_pose;
+  OccupancyMap* local_map;
 
 private:
   // -------------------------------------------------------------------------------
@@ -202,8 +204,6 @@ private:
 
   // Converts a pixel into world's coordinate reference
   void pixel2base(const point& in_pt, const float& depth, point& out_pt) const;
-
-  OccupancyMap* local_map;
 
   // Camera info parameters
   int   img_width;

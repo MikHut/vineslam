@@ -72,6 +72,7 @@ public:
               const Plane&                        ground_plane,
               const std::vector<ImageFeature>&    surf_features,
               const pose&                         gps_pose,
+              OccupancyMap*                       previous_map,
               OccupancyMap*                       grid_map);
   // Normalize particles weights
   void normalizeWeights();
@@ -104,7 +105,7 @@ private:
   // - Medium level ground plane layer
   void mediumLevelGround(const Plane& ground_plane, std::vector<float>& ws);
   // - Medium level vegetation lines layer
-  void mediumLevelPlanes(std::vector<Plane>  planes,
+  void mediumLevelPlanes(const std::vector<Plane>&  planes,
                          OccupancyMap*       grid_map,
                          std::vector<float>& ws);
   // - Low level image features layer

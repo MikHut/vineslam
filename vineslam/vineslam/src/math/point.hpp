@@ -168,7 +168,7 @@ struct point {
 // stdout operator
 static std::ostream& operator<<(std::ostream& out, point const& p)
 {
-  return out << '(' << p.x << ' ' << p.y << ' ' << p.z << ")\n";
+  return out << '(' << p.x << ' ' << p.y << ' ' << p.z << ")";
 }
 
 } // namespace vineslam

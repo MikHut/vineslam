@@ -114,13 +114,13 @@ public:
   ros::Publisher     map3D_features_publisher;
   ros::Publisher     map3D_corners_publisher;
   ros::Publisher     map3D_planars_publisher;
-  ros::Publisher     map3D_planes_publisher;
   ros::Publisher     pose_publisher;
   ros::Publisher     path_publisher;
   ros::Publisher     poses_publisher;
   ros::Publisher     gps_publisher;
   ros::Publisher     corners_local_publisher;
   ros::Publisher     planars_local_publisher;
+  ros::Publisher     planes_local_publisher;
   ros::Publisher     debug_markers;
   ros::ServiceClient polar2pose;
   ros::ServiceClient set_datum;
@@ -129,6 +129,7 @@ public:
   Parameters    params;
   Localizer*    localizer;
   OccupancyMap* grid_map;
+  OccupancyMap* previous_map;
   Mapper2D*     mapper2D;
   Mapper3D*     mapper3D;
 
@@ -138,6 +139,7 @@ public:
 
   // Motion variables
   pose odom;
+  pose init_odom_pose;
   pose p_odom;
   pose robot_pose;
   pose gps_pose;

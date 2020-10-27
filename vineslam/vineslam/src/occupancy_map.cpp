@@ -693,6 +693,8 @@ OccupancyMap::OccupancyMap(const Parameters& params)
     m_layers[layer_num] = MapLayer(params);
     i += resolution_z;
   }
+
+  map_planes = {};
 }
 
 OccupancyMap::OccupancyMap(const OccupancyMap& grid_map)
@@ -707,6 +709,7 @@ OccupancyMap::OccupancyMap(const OccupancyMap& grid_map)
   this->zmin         = grid_map.zmin;
   this->zmax         = grid_map.zmax;
   this->metric       = grid_map.metric;
+  this->map_planes = grid_map.map_planes;
 }
 
 int OccupancyMap::getLayerNumber(const float& z) const

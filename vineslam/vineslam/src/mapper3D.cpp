@@ -32,7 +32,7 @@ Mapper3D::Mapper3D(const Parameters& params)
 
   // Set velodyne configuration parameters
   picked_num              = 2;
-  planes_th               = static_cast<float>(45.) * DEGREE_TO_RAD;
+  planes_th               = static_cast<float>(60.) * DEGREE_TO_RAD;
   ground_th               = static_cast<float>(5.) * DEGREE_TO_RAD;
   edge_threshold          = 0.1;
   planar_threshold        = 0.1;
@@ -64,6 +64,7 @@ void Mapper3D::registerMaps(const pose&                robot_pose,
                             std::vector<ImageFeature>& img_features,
                             std::vector<Corner>&       corners,
                             std::vector<Planar>&       planars,
+                            std::vector<Plane>&        planes,
                             OccupancyMap&              grid_map)
 {
   // - 3D image feature map estimation
@@ -296,7 +297,7 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
       continue;
     }
 
-    if (range < 1.0 && range > 40.0) {
+    if (range < 1.0 && range > 25.0) {
       continue;
     }
 
@@ -811,6 +812,8 @@ void Mapper3D::extractHighLevelPlanes(const std::vector<PlanePoint>& in_plane_pt
   Plane side_plane_a_filtered, side_plane_b_filtered;
   ransac(side_plane_a, side_plane_a_filtered);
   ransac(side_plane_b, side_plane_b_filtered);
+  side_plane_a_filtered.id = 0;
+  side_plane_b_filtered.id = 1;
 
   // -------------------------------------------------------------------------------
   // ----- Fit both plane points by two lines
@@ -964,10 +967,6 @@ void Mapper3D::extract3DFeatures(const std::vector<PlanePoint>& in_plane_pts,
             cloud_smoothness[l].value < planar_threshold) {
 
           cloudPlanarLabel[idx] = -1;
-          Planar m_planar(
-              in_plane_pts[idx].pos, in_plane_pts[idx].which_plane, planar_id);
-          out_planars.push_back(m_planar);
-          planar_id++;
 
           picked_counter++;
           if (picked_counter >= 4)
@@ -1012,6 +1011,7 @@ void Mapper3D::extract3DFeatures(const std::vector<PlanePoint>& in_plane_pts,
 
   local_map->clear();
   for (const auto& planar : out_planars) local_map->insert(planar);
+  for (const auto& corner : out_corners) local_map->insert(corner);
   local_map->downsamplePlanars();
 
   out_planars.clear();

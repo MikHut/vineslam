@@ -476,48 +476,55 @@ void PF::mediumLevelPlanes(const std::vector<Plane>& planes,
   std::vector<float> dvec;
   for (const auto& plane : planes) {
 
-    float dist_min     = std::numeric_limits<float>::max();
+    float dist_min     = 3 * DEGREE_TO_RAD;
     float displacement = 0;
+    bool  found        = false;
     for (const auto& p_plane : p_planes) {
-      // -----------------------------------------------
-      // ---- Search for correspondence
-      // -----------------------------------------------
-      float ang_diff =
-          std::fabs(std::atan(plane.regression.m) - std::atan(p_plane.regression.m));
-      float zero_diff = std::fabs(plane.regression.b - p_plane.regression.b);
-      if (ang_diff < 2 * DEGREE_TO_RAD && zero_diff < 0.08) {
+      if (plane.id == p_plane.id) {
+        // -----------------------------------------------
+        // ---- Search for correspondence
+        // -----------------------------------------------
+        float ang_diff = std::fabs(normalizeAngle(std::atan(plane.regression.m) -
+                                                  std::atan(p_plane.regression.m)));
 
-        float dist = ang_diff / (static_cast<float>(2.0 * DEGREE_TO_RAD)) +
-                     zero_diff / static_cast<float>(0.08);
-        if (dist > dist_min)
-          continue;
-        else {
-          dist_min = dist;
-          displacement =
-              std::atan(plane.regression.m) - std::atan(p_plane.regression.m);
+        if (ang_diff < dist_min) {
+          dist_min = ang_diff;
+          found    = true;
+
+          displacement = normalizeAngle(std::atan(plane.regression.m) -
+                                        std::atan(p_plane.regression.m));
         }
       }
     }
 
-    if (std::fabs(displacement) > 0)
+    if (found)
       dvec.push_back(displacement);
   }
+
+  // Check variance of displacements
+  // * We want a low variance that means that all the planes rotated in the same way
+  // * If not, we don't consider this feature type for localization in this iteration
+  float s = 0, m = 0;
+  for (const auto& d : dvec) m += d;
+  m /= static_cast<float>(dvec.size());
+  for (const auto& d : dvec) s += d - m;
+  s = std::sqrt(s / static_cast<float>(dvec.size()));
 
   for (const auto& particle : particles) {
     float w_planes = 0.;
     for (const auto& displacement : dvec) {
 
-      // Particle delta rotation and planes delta rotation should null each
-      //      other
-      float delta_p_yaw = particle.p.yaw - particle.pp.yaw;
-      float dist =
-          std::fabs(std::atan2(std::sin(displacement), std::cos(displacement)) +
-                    std::atan2(std::sin(delta_p_yaw), std::cos(delta_p_yaw)));
-
-      float m_w = (normalizer_planes *
-                   static_cast<float>(std::exp(-1. / sigma_planes_yaw * dist)));
+      // Particle delta rotation and planes delta rotation should null each other
+      float delta_p_yaw = normalizeAngle(particle.p.yaw - particle.pp.yaw);
+      float error       = std::fabs(displacement + delta_p_yaw);
       w_planes += (normalizer_planes *
-                   static_cast<float>(std::exp(-1. / sigma_planes_yaw * dist)));
+                   static_cast<float>(std::exp(-1. / sigma_planes_yaw * error)));
+      float ww = (normalizer_planes *
+                  static_cast<float>(std::exp(-1. / sigma_planes_yaw * error)));
+
+      std::cout << particle.id << "(" << delta_p_yaw * RAD_TO_DEGREE << ", "
+                << displacement * RAD_TO_DEGREE << ") : " << s * RAD_TO_DEGREE
+                << " -> " << ww << "\n";
     }
 
     ws[particle.id] = w_planes;

@@ -34,6 +34,7 @@ add_library(vineslam
         ${PROJECT_NAME}/src/pf.cpp
         ${PROJECT_NAME}/src/occupancy_map.cpp
         ${PROJECT_NAME}/src/icp.cpp
+        ${PROJECT_NAME}/src/utils/visualization.cpp
         ${PROJECT_NAME}/src/mapXML/map_writer.cpp
         ${PROJECT_NAME}/src/mapXML/map_parser.cpp)
 

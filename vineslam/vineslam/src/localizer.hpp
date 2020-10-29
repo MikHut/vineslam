@@ -59,6 +59,9 @@ private:
   // Particle filter object
   PF* pf{};
 
+  // Visualization tools
+  Visual vis;
+
   // Input parameters
   Parameters params;
 };

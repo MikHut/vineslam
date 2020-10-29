@@ -522,9 +522,9 @@ void PF::mediumLevelPlanes(const std::vector<Plane>& planes,
       float ww = (normalizer_planes *
                   static_cast<float>(std::exp(-1. / sigma_planes_yaw * error)));
 
-      std::cout << particle.id << "(" << delta_p_yaw * RAD_TO_DEGREE << ", "
-                << displacement * RAD_TO_DEGREE << ") : " << s * RAD_TO_DEGREE
-                << " -> " << ww << "\n";
+//      std::cout << particle.id << "(" << delta_p_yaw * RAD_TO_DEGREE << ", "
+//                << displacement * RAD_TO_DEGREE << ") : " << s * RAD_TO_DEGREE
+//                << " -> " << ww << "\n";
     }
 
     ws[particle.id] = w_planes;

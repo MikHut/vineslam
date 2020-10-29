@@ -501,14 +501,6 @@ void PF::mediumLevelPlanes(const std::vector<Plane>& planes,
       dvec.push_back(displacement);
   }
 
-  // Check variance of displacements
-  // * We want a low variance that means that all the planes rotated in the same way
-  // * If not, we don't consider this feature type for localization in this iteration
-  float s = 0, m = 0;
-  for (const auto& d : dvec) m += d;
-  m /= static_cast<float>(dvec.size());
-  for (const auto& d : dvec) s += d - m;
-  s = std::sqrt(s / static_cast<float>(dvec.size()));
 
   for (const auto& particle : particles) {
     float w_planes = 0.;
@@ -521,10 +513,6 @@ void PF::mediumLevelPlanes(const std::vector<Plane>& planes,
                    static_cast<float>(std::exp(-1. / sigma_planes_yaw * error)));
       float ww = (normalizer_planes *
                   static_cast<float>(std::exp(-1. / sigma_planes_yaw * error)));
-
-      std::cout << particle.id << "(" << delta_p_yaw * RAD_TO_DEGREE << ", "
-                << displacement * RAD_TO_DEGREE << ") : " << s * RAD_TO_DEGREE
-                << " -> " << ww << "\n";
     }
 
     ws[particle.id] = w_planes;

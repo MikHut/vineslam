@@ -5,6 +5,7 @@ add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED
         vineslam
+        vineslam_msgs
         agrob_map_transform
         roscpp
         std_msgs

@@ -56,19 +56,15 @@ void Localizer::process(const pose&        odom,
   // ------------------------------------------------------------------------------
   // ---------------- Resample particles
   // ------------------------------------------------------------------------------
+  // - Save not resampled particles
+  m_particles.clear();
+  for (const auto& particle : pf->particles) m_particles.push_back(particle);
   pf->resample();
 
   // - Compute final robot pose using the mean of the particles poses
   std::vector<pose> poses;
   for (const auto& particle : pf->particles) poses.push_back(particle.p);
   average_pose = pose(poses);
-  float w_max  = 0.;
-  //  for (const auto& particle : pf->particles) {
-  //    if (particle.w > w_max) {
-  //      w_max        = particle.w;
-  //      average_pose = particle.p;
-  //    }
-  //  }
 
   // - Save current control to use in the next iteration
   pf->p_odom = odom;
@@ -80,10 +76,16 @@ void Localizer::process(const pose&        odom,
 
 pose Localizer::getPose() const { return average_pose; }
 
-void Localizer::getParticles(std::vector<pose>& in) const
+void Localizer::getParticles(std::vector<Particle>& in) const
 {
   in.resize(pf->particles.size());
-  for (size_t i = 0; i < in.size(); i++) in[i] = pf->particles[i].p;
+  for (size_t i = 0; i < in.size(); i++) in[i] = pf->particles[i];
+}
+
+void Localizer::getParticlesBeforeResampling(std::vector<Particle>& in) const
+{
+  in.resize(m_particles.size());
+  for (size_t i = 0; i < in.size(); i++) in[i] = m_particles[i];
 }
 
 } // namespace vineslam

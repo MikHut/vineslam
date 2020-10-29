@@ -236,6 +236,65 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     ros_path.poses           = path;
     path_publisher.publish(ros_path);
 
+    // Publish particle poses (after and before resampling)
+    // - Get the particles
+    std::vector<Particle> b_particles, a_particles;
+    (*localizer).getParticlesBeforeResampling(b_particles);
+    (*localizer).getParticles(a_particles);
+    // - Convert them to ROS pose array and fill the vineslam report msgs
+    vineslam_msgs::report    report;
+    geometry_msgs::PoseArray ros_poses;
+    ros_poses.header.stamp    = ros::Time::now();
+    ros_poses.header.frame_id = "odom";
+    report.header.stamp       = ros_poses.header.stamp;
+    report.header.frame_id    = ros_poses.header.frame_id;
+    for (const auto& particle : b_particles) {
+      tf::Quaternion m_q;
+      m_q.setRPY(particle.p.roll, particle.p.pitch, particle.p.yaw);
+      m_q.normalize();
+
+      geometry_msgs::Pose m_pose;
+      m_pose.position.x    = particle.p.x;
+      m_pose.position.y    = particle.p.y;
+      m_pose.position.z    = particle.p.z;
+      m_pose.orientation.x = m_q.x();
+      m_pose.orientation.y = m_q.y();
+      m_pose.orientation.z = m_q.z();
+      m_pose.orientation.w = m_q.w();
+
+      vineslam_msgs::particle particle_info;
+      particle_info.id   = particle.id;
+      particle_info.pose = m_pose;
+      particle_info.w    = particle.w;
+
+      report.b_particles.push_back(particle_info);
+    }
+    for (const auto& particle : a_particles) {
+      tf::Quaternion m_q;
+      m_q.setRPY(particle.p.roll, particle.p.pitch, particle.p.yaw);
+      m_q.normalize();
+
+      geometry_msgs::Pose m_pose;
+      m_pose.position.x    = particle.p.x;
+      m_pose.position.y    = particle.p.y;
+      m_pose.position.z    = particle.p.z;
+      m_pose.orientation.x = m_q.x();
+      m_pose.orientation.y = m_q.y();
+      m_pose.orientation.z = m_q.z();
+      m_pose.orientation.w = m_q.w();
+
+      ros_poses.poses.push_back(m_pose);
+
+      vineslam_msgs::particle particle_info;
+      particle_info.id   = particle.id;
+      particle_info.pose = m_pose;
+      particle_info.w    = particle.w;
+
+      report.a_particles.push_back(particle_info);
+    }
+    poses_publisher.publish(ros_poses);
+    vineslam_report_publisher.publish(report);
+
     // Publish the 2D map
     publish2DMap(depth_image->header, robot_pose, bearings, depths);
     // Publish 3D maps

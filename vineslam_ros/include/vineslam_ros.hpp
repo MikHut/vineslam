@@ -13,6 +13,10 @@
 #include <mapXML/map_writer.hpp>
 #include <mapXML/map_parser.hpp>
 #include <utils/save_data.hpp>
+// ----------------------------
+#include <vineslam_msgs/particle.h>
+#include <vineslam_msgs/report.h>
+// ----------------------------
 
 // std
 #include <iostream>
@@ -109,6 +113,7 @@ public:
   bool getGNSSHeading(const pose& gps_odom, const std_msgs::Header& header);
 
   // ROS publishers/services
+  ros::Publisher     vineslam_report_publisher;
   ros::Publisher     grid_map_publisher;
   ros::Publisher     map2D_publisher;
   ros::Publisher     map3D_features_publisher;

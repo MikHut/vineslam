@@ -40,7 +40,6 @@ SLAMNode::SLAMNode(int argc, char** argv)
   set_datum  = nh.serviceClient<agrob_map_transform::SetDatum>("datum");
 
   // Synchronize subscribers of both topics
-  std::cout << params.left_img_topic << std::endl;
   message_filters::Subscriber<sensor_msgs::Image> left_image_sub(
       nh, params.left_img_topic, 1);
   message_filters::Subscriber<sensor_msgs::Image> depth_image_sub(
@@ -70,6 +69,8 @@ SLAMNode::SLAMNode(int argc, char** argv)
                                                 dynamic_cast<VineSLAM_ros*>(this));
 
   // Publish maps and particle filter
+  vineslam_report_publisher =
+      nh.advertise<vineslam_msgs::report>("/vineslam/report", 1);
   grid_map_publisher =
       nh.advertise<visualization_msgs::MarkerArray>("/vineslam/occupancyMap", 1);
   map2D_publisher =

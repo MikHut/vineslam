@@ -47,6 +47,8 @@ ReplayNode::ReplayNode(int argc, char** argv)
   set_datum  = nh.serviceClient<agrob_map_transform::SetDatum>("datum");
 
   // Publish maps and particle filter
+  vineslam_report_publisher =
+      nh.advertise<vineslam_msgs::report>("/vineslam/report", 1);
   grid_map_publisher =
       nh.advertise<visualization_msgs::MarkerArray>("/vineslam/occupancyMap", 1);
   map2D_publisher =

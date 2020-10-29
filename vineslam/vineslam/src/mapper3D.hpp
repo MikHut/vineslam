@@ -7,6 +7,7 @@
 
 // Objects
 #include <params.hpp>
+#include <feature.hpp>
 #include <occupancy_map.hpp>
 #include <math/point.hpp>
 #include <math/pose.hpp>
@@ -20,7 +21,6 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/xfeatures2d.hpp>
 #include <opencv2/xfeatures2d/nonfree.hpp>
-#include <feature.hpp>
 
 namespace vineslam
 {

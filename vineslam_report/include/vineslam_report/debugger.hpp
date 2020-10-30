@@ -2,6 +2,7 @@
 
 #ifndef Q_MOC_RUN
 #include <ros/ros.h>
+#include <tf/transform_listener.h>
 #endif
 #include <vineslam_msgs/report.h>
 #include <math.h>

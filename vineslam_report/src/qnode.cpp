@@ -75,14 +75,8 @@ void QNode::reportSubscriber(const vineslam_msgs::reportConstPtr& msg)
   cv::Mat bx_hist, by_hist, bz_hist, ax_hist, ay_hist, az_hist;
   cv::Mat bR_hist, bP_hist, bY_hist, aR_hist, aP_hist, aY_hist;
 
-  bR_hist = cv::Mat::zeros(bx_hist.rows, bx_hist.cols, CV_8UC1);
-  bP_hist = cv::Mat::zeros(bx_hist.rows, bx_hist.cols, CV_8UC1);
-  bY_hist = cv::Mat::zeros(bx_hist.rows, bx_hist.cols, CV_8UC1);
-  bR_hist = cv::Mat::zeros(bx_hist.rows, bx_hist.cols, CV_8UC1);
-  bP_hist = cv::Mat::zeros(bx_hist.rows, bx_hist.cols, CV_8UC1);
-  bY_hist = cv::Mat::zeros(bx_hist.rows, bx_hist.cols, CV_8UC1);
-
   debugger.plotXYZHists(bx_hist, by_hist, bz_hist, ax_hist, ay_hist, az_hist);
+  debugger.plotRPYHists(bR_hist, bP_hist, bY_hist, aR_hist, aP_hist, aY_hist);
 
   drawHistOnGui(bx_hist,
                 by_hist,

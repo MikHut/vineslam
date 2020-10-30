@@ -159,6 +159,7 @@ void MainWindow::on_draw_hists_triggered(cv::Mat bx_hist,
                            aY_hist.step,
                            QImage::Format_RGB888);
 
+
   ui.b_hist_x->setPixmap(QPixmap::fromImage(bqx_hist));
   ui.b_hist_x->setScaledContents(true);
   ui.b_hist_y->setPixmap(QPixmap::fromImage(bqy_hist));
@@ -171,6 +172,19 @@ void MainWindow::on_draw_hists_triggered(cv::Mat bx_hist,
   ui.a_hist_y->setScaledContents(true);
   ui.a_hist_z->setPixmap(QPixmap::fromImage(aqz_hist));
   ui.a_hist_z->setScaledContents(true);
+
+  ui.b_hist_R->setPixmap(QPixmap::fromImage(bqR_hist));
+  ui.b_hist_R->setScaledContents(true);
+  ui.b_hist_P->setPixmap(QPixmap::fromImage(bqP_hist));
+  ui.b_hist_P->setScaledContents(true);
+  ui.b_hist_Y->setPixmap(QPixmap::fromImage(bqY_hist));
+  ui.b_hist_Y->setScaledContents(true);
+  ui.a_hist_R->setPixmap(QPixmap::fromImage(aqR_hist));
+  ui.a_hist_R->setScaledContents(true);
+  ui.a_hist_P->setPixmap(QPixmap::fromImage(aqP_hist));
+  ui.a_hist_P->setScaledContents(true);
+  ui.a_hist_Y->setPixmap(QPixmap::fromImage(aqY_hist));
+  ui.a_hist_Y->setScaledContents(true);
 }
 
 } // namespace vineslam_report

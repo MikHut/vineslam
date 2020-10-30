@@ -7,6 +7,7 @@ find_package(OpenCV 3.2.0 REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
         qt_build
         roscpp
+        vineslam
         vineslam_msgs)
 include_directories(${catkin_INCLUDE_DIRS})
 

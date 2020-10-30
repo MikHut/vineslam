@@ -133,161 +133,355 @@
        <attribute name="title">
         <string>Debug</string>
        </attribute>
-       <widget class="QLabel" name="b_hist_x">
+       <widget class="QToolBox" name="toolBox">
         <property name="geometry">
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>981</width>
-          <height>101</height>
+          <width>971</width>
+          <height>701</height>
          </rect>
         </property>
-        <property name="text">
-         <string/>
+        <property name="font">
+         <font>
+          <weight>75</weight>
+          <bold>true</bold>
+          <underline>false</underline>
+          <strikeout>false</strikeout>
+          <kerning>false</kerning>
+         </font>
         </property>
-       </widget>
-       <widget class="QLabel" name="label">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>0</y>
-          <width>151</width>
-          <height>17</height>
-         </rect>
+        <property name="frameShape">
+         <enum>QFrame::WinPanel</enum>
         </property>
-        <property name="text">
-         <string>X Before Resampling</string>
+        <property name="frameShadow">
+         <enum>QFrame::Plain</enum>
         </property>
-       </widget>
-       <widget class="QLabel" name="b_hist_y">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>110</y>
-          <width>981</width>
-          <height>111</height>
-         </rect>
+        <property name="lineWidth">
+         <number>1</number>
         </property>
-        <property name="text">
-         <string/>
-        </property>
-       </widget>
-       <widget class="QLabel" name="b_hist_z">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>230</y>
-          <width>981</width>
-          <height>111</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string/>
-        </property>
-       </widget>
-       <widget class="QLabel" name="a_hist_x">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>350</y>
-          <width>981</width>
-          <height>111</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string/>
-        </property>
-       </widget>
-       <widget class="QLabel" name="a_hist_y">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>470</y>
-          <width>981</width>
-          <height>101</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string/>
-        </property>
-       </widget>
-       <widget class="QLabel" name="a_hist_z">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>590</y>
-          <width>981</width>
-          <height>111</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string/>
-        </property>
-       </widget>
-       <widget class="QLabel" name="label_2">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>110</y>
-          <width>151</width>
-          <height>17</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Y Before Resampling</string>
-        </property>
-       </widget>
-       <widget class="QLabel" name="label_3">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>230</y>
-          <width>151</width>
-          <height>17</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Z Before Resampling</string>
-        </property>
-       </widget>
-       <widget class="QLabel" name="label_4">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>350</y>
-          <width>151</width>
-          <height>17</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>X After Resampling</string>
-        </property>
-       </widget>
-       <widget class="QLabel" name="label_5">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>470</y>
-          <width>151</width>
-          <height>17</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Y After Resampling</string>
-        </property>
-       </widget>
-       <widget class="QLabel" name="label_6">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>590</y>
-          <width>151</width>
-          <height>17</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Z After Resampling</string>
-        </property>
+        <widget class="QWidget" name="toolBoxPage1" native="true">
+         <attribute name="label">
+          <string>XYZ Particles distribution</string>
+         </attribute>
+         <widget class="QLabel" name="label">
+          <property name="geometry">
+           <rect>
+            <x>410</x>
+            <y>0</y>
+            <width>151</width>
+            <height>17</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>X Before Resampling</string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_2">
+          <property name="geometry">
+           <rect>
+            <x>410</x>
+            <y>110</y>
+            <width>151</width>
+            <height>17</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Y Before Resampling</string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_3">
+          <property name="geometry">
+           <rect>
+            <x>410</x>
+            <y>210</y>
+            <width>151</width>
+            <height>17</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Z Before Resampling</string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_4">
+          <property name="geometry">
+           <rect>
+            <x>410</x>
+            <y>320</y>
+            <width>151</width>
+            <height>17</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>X After Resampling</string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_5">
+          <property name="geometry">
+           <rect>
+            <x>410</x>
+            <y>430</y>
+            <width>151</width>
+            <height>17</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Y After Resampling</string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_6">
+          <property name="geometry">
+           <rect>
+            <x>410</x>
+            <y>530</y>
+            <width>151</width>
+            <height>17</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Z After Resampling</string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="b_hist_x">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>20</y>
+            <width>961</width>
+            <height>91</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+         <widget class="QLabel" name="b_hist_y">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>130</y>
+            <width>961</width>
+            <height>81</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+         <widget class="QLabel" name="a_hist_x">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>340</y>
+            <width>961</width>
+            <height>91</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+         <widget class="QLabel" name="a_hist_y">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>450</y>
+            <width>961</width>
+            <height>81</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+         <widget class="QLabel" name="b_hist_z">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>230</y>
+            <width>961</width>
+            <height>91</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+         <widget class="QLabel" name="a_hist_z">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>550</y>
+            <width>961</width>
+            <height>81</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </widget>
+        <widget class="QWidget" name="toolBoxPage2" native="true">
+         <attribute name="label">
+          <string>RPY Particles distribution</string>
+         </attribute>
+         <widget class="QLabel" name="label_7">
+          <property name="geometry">
+           <rect>
+            <x>400</x>
+            <y>320</y>
+            <width>161</width>
+            <height>20</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Roll After Resampling</string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="a_hist_R">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>340</y>
+            <width>961</width>
+            <height>91</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+         <widget class="QLabel" name="b_hist_Y">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>230</y>
+            <width>961</width>
+            <height>91</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+         <widget class="QLabel" name="b_hist_R">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>20</y>
+            <width>961</width>
+            <height>91</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+         <widget class="QLabel" name="a_hist_Y">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>550</y>
+            <width>961</width>
+            <height>81</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_8">
+          <property name="geometry">
+           <rect>
+            <x>400</x>
+            <y>430</y>
+            <width>171</width>
+            <height>20</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Pitch After Resampling</string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="a_hist_P">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>450</y>
+            <width>961</width>
+            <height>81</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_9">
+          <property name="geometry">
+           <rect>
+            <x>400</x>
+            <y>530</y>
+            <width>161</width>
+            <height>20</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Yaw After Resampling</string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_10">
+          <property name="geometry">
+           <rect>
+            <x>400</x>
+            <y>110</y>
+            <width>181</width>
+            <height>20</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Pitch Before Resampling</string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="b_hist_P">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>130</y>
+            <width>961</width>
+            <height>81</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_11">
+          <property name="geometry">
+           <rect>
+            <x>400</x>
+            <y>0</y>
+            <width>171</width>
+            <height>20</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Roll Before Resampling</string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_12">
+          <property name="geometry">
+           <rect>
+            <x>400</x>
+            <y>210</y>
+            <width>171</width>
+            <height>20</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Yaw Before Resampling</string>
+          </property>
+         </widget>
+        </widget>
        </widget>
       </widget>
      </widget>

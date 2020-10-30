@@ -51,7 +51,8 @@ public:
   // Export the final pose resultant from the localization procedure
   pose getPose() const;
   // Export the all the poses referent to all the particles
-  void getParticles(std::vector<pose>& in) const;
+  void getParticles(std::vector<Particle>& in) const;
+  void getParticlesBeforeResampling(std::vector<Particle>& in) const;
 
 private:
   // Average particles pose
@@ -59,8 +60,8 @@ private:
   // Particle filter object
   PF* pf{};
 
-  // Visualization tools
-  Visual vis;
+  // Particles before resampling
+  std::vector<Particle> m_particles;
 
   // Input parameters
   Parameters params;

@@ -318,30 +318,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<Planar>& planars,
 void VineSLAM_ros::visDebug(const std::vector<Plane>& planes,
                             const Plane&              ground_plane)
 {
-  // Publish all poses for DEBUG
-  // ----------------------------------------------------------------------------
-  std::vector<pose> poses;
-  (*localizer).getParticles(poses);
-  geometry_msgs::PoseArray ros_poses;
-  ros_poses.header.stamp    = ros::Time::now();
-  ros_poses.header.frame_id = "odom";
-  for (const auto& pose : poses) {
-    tf::Quaternion m_q;
-    m_q.setRPY(pose.roll, pose.pitch, pose.yaw);
-    m_q.normalize();
 
-    geometry_msgs::Pose m_pose;
-    m_pose.position.x    = pose.x;
-    m_pose.position.y    = pose.y;
-    m_pose.position.z    = pose.z;
-    m_pose.orientation.x = m_q.x();
-    m_pose.orientation.y = m_q.y();
-    m_pose.orientation.z = m_q.z();
-    m_pose.orientation.w = m_q.w();
-
-    ros_poses.poses.push_back(m_pose);
-  }
-  poses_publisher.publish(ros_poses);
 
   // - Publish associations between corners
   visualization_msgs::MarkerArray markers;

@@ -13,6 +13,10 @@
 #include <mapXML/map_writer.hpp>
 #include <mapXML/map_parser.hpp>
 #include <utils/save_data.hpp>
+// ----------------------------
+#include <vineslam_msgs/particle.h>
+#include <vineslam_msgs/report.h>
+// ----------------------------
 
 // std
 #include <iostream>
@@ -53,9 +57,6 @@ namespace vineslam
 class VineSLAM_ros
 {
 public:
-  // Class constructor that
-  // - Initializes the ROS node
-  // - Defines the publish and subscribe topics
   VineSLAM_ros() = default;
 
   // Callback function that subscribes a rgb image, a  disparity image,
@@ -89,16 +90,14 @@ public:
   void publish3DMap() const;
   // Publish the 3D PCL planes
   void publish3DMap(const std::vector<Plane>& planes, const ros::Publisher& pub);
-  // Publish the 3D PCL lines
-  void publish3DMap(const std::vector<Line>& vegetation_lines,
-                    const ros::Publisher&    pub);
   // Publish a 3D PCL corners map
   void publish3DMap(const std::vector<Corner>& corners, const ros::Publisher& pub);
+  // Publish a 3D PCL planar features map
+  void publish3DMap(const std::vector<Planar>& planars, const ros::Publisher& pub);
   // Publish the grid map that contains all the maps
   void publishGridMap(const std_msgs::Header& header) const;
   // Publishes debug visualization objects
-  void visDebug(const std::vector<Line>&    m_vegetation_lines,
-                const std::vector<Cluster>& m_clusters);
+  void visDebug(const std::vector<Plane>& planes, const Plane& ground_plane);
 
   // Computes the bearing depth of an object using the ZED disparity image
   // - Uses the point with minimum depth inside the bounding box
@@ -114,19 +113,20 @@ public:
   bool getGNSSHeading(const pose& gps_odom, const std_msgs::Header& header);
 
   // ROS publishers/services
-  ros::Publisher     mapOCC_publisher;
+  ros::Publisher     vineslam_report_publisher;
+  ros::Publisher     grid_map_publisher;
   ros::Publisher     map2D_publisher;
   ros::Publisher     map3D_features_publisher;
   ros::Publisher     map3D_corners_publisher;
-  ros::Publisher     map3D_planes_publisher;
-  ros::Publisher     map3D_lines_publisher;
+  ros::Publisher     map3D_planars_publisher;
   ros::Publisher     pose_publisher;
   ros::Publisher     path_publisher;
   ros::Publisher     poses_publisher;
   ros::Publisher     gps_publisher;
   ros::Publisher     corners_local_publisher;
+  ros::Publisher     planars_local_publisher;
+  ros::Publisher     planes_local_publisher;
   ros::Publisher     debug_markers;
-  ros::Publisher     exec_boolean;
   ros::ServiceClient polar2pose;
   ros::ServiceClient set_datum;
 
@@ -134,6 +134,7 @@ public:
   Parameters    params;
   Localizer*    localizer;
   OccupancyMap* grid_map;
+  OccupancyMap* previous_map;
   Mapper2D*     mapper2D;
   Mapper3D*     mapper3D;
 
@@ -143,6 +144,7 @@ public:
 
   // Motion variables
   pose odom;
+  pose init_odom_pose;
   pose p_odom;
   pose robot_pose;
   pose gps_pose;

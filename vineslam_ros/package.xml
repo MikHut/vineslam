@@ -21,6 +21,7 @@
   <build_depend>tf</build_depend>
   <build_depend>pcl_ros</build_depend>
   <build_depend>vineslam</build_depend>
+  <build_depend>vineslam_msgs</build_depend>
   <build_depend>agrob_map_transform</build_depend>
   <build_depend>message_generation</build_depend>
   <exec_depend>roscpp</exec_depend>

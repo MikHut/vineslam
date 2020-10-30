@@ -19,6 +19,8 @@ ReplayNode::ReplayNode(int argc, char** argv)
   ros::init(argc, argv, "ReplayNode");
   ros::NodeHandle nh;
 
+  ROS_INFO("Initializing node ...");
+
   // Load params
   loadParameters(nh, "/replay_node", params);
 
@@ -26,10 +28,12 @@ ReplayNode::ReplayNode(int argc, char** argv)
   nmessages = 0;
   bag_state = PLAYING;
 
-  std::thread th1(&ReplayNode::replayFct, this, nh);
-  th1.detach();
-  std::thread th2(&ReplayNode::listenStdin, this);
-  th2.detach();
+  // Declare the Mappers and Localizer objects
+  localizer = new Localizer(params);
+  grid_map  = new OccupancyMap(params);
+  mapper2D  = new Mapper2D(params);
+  mapper3D  = new Mapper3D(params);
+
 
   // Set initialization flags default values
   init             = true;
@@ -38,39 +42,36 @@ ReplayNode::ReplayNode(int argc, char** argv)
   register_map     = true;
   estimate_heading = true;
 
-  // Declare the Mappers and Localizer objects
-  localizer = new Localizer(params);
-  grid_map  = new OccupancyMap(params);
-  mapper2D  = new Mapper2D(params);
-  mapper3D  = new Mapper3D(params);
-
   // Services
   polar2pose = nh.serviceClient<agrob_map_transform::GetPose>("polar_to_pose");
   set_datum  = nh.serviceClient<agrob_map_transform::SetDatum>("datum");
 
   // Publish maps and particle filter
-  mapOCC_publisher =
-      nh.advertise<nav_msgs::OccupancyGrid>("/vineslam/occupancyMap", 1);
+  vineslam_report_publisher =
+      nh.advertise<vineslam_msgs::report>("/vineslam/report", 1);
+  grid_map_publisher =
+      nh.advertise<visualization_msgs::MarkerArray>("/vineslam/occupancyMap", 1);
   map2D_publisher =
       nh.advertise<visualization_msgs::MarkerArray>("/vineslam/map2D", 1);
   map3D_features_publisher =
       nh.advertise<pcl::PointCloud<pcl::PointXYZRGB>>("/vineslam/map3D/SURF", 1);
   map3D_corners_publisher =
       nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners", 1);
-  map3D_planes_publisher =
-      nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planes", 1);
-  map3D_lines_publisher =
-      nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/lines", 1);
+  map3D_planars_publisher =
+      nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planars", 1);
+  corners_local_publisher = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>(
+      "/vineslam/map3D/corners_local", 1);
+  planars_local_publisher = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>(
+      "/vineslam/map3D/planars_local", 1);
+  planes_local_publisher = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>(
+      "/vineslam/map3D/planes_local", 1);
   pose_publisher  = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/pose", 1);
   gps_publisher   = nh.advertise<nav_msgs::Path>("/vineslam/gps", 1);
   path_publisher  = nh.advertise<nav_msgs::Path>("/vineslam/path", 1);
   poses_publisher = nh.advertise<geometry_msgs::PoseArray>("/vineslam/poses", 1);
   // Debug publishers
-  corners_local_publisher = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>(
-      "/vineslam/map3D/corners_local", 1);
   debug_markers =
       nh.advertise<visualization_msgs::MarkerArray>("/vineslam/debug_markers", 1);
-  exec_boolean = nh.advertise<std_msgs::Bool>("/vineslam/execution_bool", 1);
 
   // ROS services
   ros::ServiceServer start_reg_srv =
@@ -126,7 +127,12 @@ ReplayNode::ReplayNode(int argc, char** argv)
     mapper3D->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
   }
 
-  ROS_INFO("Got the transforms! Initializing maps...");
+  ROS_INFO("Done! Execution started.");
+
+  std::thread th1(&ReplayNode::replayFct, this, nh);
+  th1.detach();
+  std::thread th2(&ReplayNode::listenStdin, this);
+  th2.detach();
 
   ros::spin();
 }
@@ -149,8 +155,6 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
   // -------------------------------------------------------------------------------
   ros::Publisher clock_pub = nh.advertise<rosgraph_msgs::Clock>("/clock", 1);
   ros::Publisher odom_pub  = nh.advertise<nav_msgs::Odometry>(params.odom_topic, 1);
-  ros::Publisher rs_odom_pub =
-      nh.advertise<nav_msgs::Odometry>(params.rs_odom_topic, 1);
   ros::Publisher tf_pub  = nh.advertise<tf2_msgs::TFMessage>(params.tf_topic, 1);
   ros::Publisher fix_pub = nh.advertise<sensor_msgs::NavSatFix>(params.fix_topic, 1);
   ros::Publisher depth_img_pub =
@@ -160,7 +164,7 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
   ros::Publisher pcl_pub =
       nh.advertise<sensor_msgs::PointCloud2>(params.pcl_topic, 1);
 
-  rosgraph_msgs::ClockConstPtr     clock_ptr;
+  rosgraph_msgs::Clock             clock_ptr;
   tf2_msgs::TFMessageConstPtr      tf_ptr;
   nav_msgs::OdometryConstPtr       rs_odom_ptr;
   nav_msgs::OdometryConstPtr       odom_ptr;
@@ -172,14 +176,15 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
   ROS_INFO("Reading ROSBAG topics...");
   bool tf_bool = false, clock_bool = false, odom_bool = false, fix_bool = false,
        depth_bool = false, left_bool = false, pcl_bool = false;
-  for (rosbag::MessageInstance const m : rosbag::View(bag)) {
+  for (rosbag::MessageInstance m : rosbag::View(bag)) {
     while (ros::ok()) {
       if (bag_state == PLAYING)
         break;
     }
 
     // Publish clock
-    clock_pub.publish(m.getTime());
+    clock_ptr.clock = m.getTime();
+    clock_pub.publish(clock_ptr);
 
     // Publish rosbag topics of interest
     const std::string& topic = m.getTopic();

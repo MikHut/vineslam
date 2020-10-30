@@ -69,28 +69,31 @@ SLAMNode::SLAMNode(int argc, char** argv)
                                                 dynamic_cast<VineSLAM_ros*>(this));
 
   // Publish maps and particle filter
-  mapOCC_publisher =
-      nh.advertise<nav_msgs::OccupancyGrid>("/vineslam/occupancyMap", 1);
+  vineslam_report_publisher =
+      nh.advertise<vineslam_msgs::report>("/vineslam/report", 1);
+  grid_map_publisher =
+      nh.advertise<visualization_msgs::MarkerArray>("/vineslam/occupancyMap", 1);
   map2D_publisher =
       nh.advertise<visualization_msgs::MarkerArray>("/vineslam/map2D", 1);
   map3D_features_publisher =
       nh.advertise<pcl::PointCloud<pcl::PointXYZRGB>>("/vineslam/map3D/SURF", 1);
   map3D_corners_publisher =
       nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners", 1);
-  map3D_planes_publisher =
-      nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/ground", 1);
-  map3D_lines_publisher =
-      nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/lines", 1);
+  map3D_planars_publisher =
+      nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planars", 1);
+  planes_local_publisher = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>(
+      "/vineslam/map3D/planes_local", 1);
+  corners_local_publisher = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>(
+      "/vineslam/map3D/corners_local", 1);
+  planars_local_publisher = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>(
+      "/vineslam/map3D/planars_local", 1);
   pose_publisher  = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/pose", 1);
   gps_publisher   = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/gps", 1);
   path_publisher  = nh.advertise<nav_msgs::Path>("/vineslam/path", 1);
   poses_publisher = nh.advertise<geometry_msgs::PoseArray>("/vineslam/poses", 1);
   // Debug publishers
-  corners_local_publisher = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>(
-      "/vineslam/map3D/corners_local", 1);
   debug_markers =
       nh.advertise<visualization_msgs::MarkerArray>("/vineslam/debug_markers", 1);
-  exec_boolean = nh.advertise<std_msgs::Bool>("/vineslam/execution_bool", 1);
 
   // ROS services
   ros::ServiceServer start_reg_srv =
@@ -118,9 +121,12 @@ SLAMNode::SLAMNode(int argc, char** argv)
     got_tfs = true;
 
     tf::Transform cam2base;
-    cam2base.setRotation(tf::Quaternion(-0.002, 0.100, -0.004, 0.995));
-    //    cam2base.setRotation(tf::Quaternion(0, 0.1691, 0, 0.9856));
-    cam2base.setOrigin(tf::Vector3(0.343, 0.079, 0.820));
+    cam2base.setRotation(tf::Quaternion(params.cam2base[3],
+                                        params.cam2base[4],
+                                        params.cam2base[5],
+                                        params.cam2base[6]));
+    cam2base.setOrigin(
+        tf::Vector3(params.cam2base[0], params.cam2base[1], params.cam2base[2]));
     cam2base      = cam2base.inverse();
     tf::Vector3 t = cam2base.getOrigin();
     tfScalar    roll, pitch, yaw;
@@ -130,8 +136,12 @@ SLAMNode::SLAMNode(int argc, char** argv)
     mapper2D->setCamPitch(pitch);
 
     tf::Transform vel2base;
-    vel2base.setRotation(tf::Quaternion(-0.010, 0.002, -0.045, 0.999));
-    vel2base.setOrigin(tf::Vector3(0.286, 0.025, 0.920));
+    vel2base.setRotation(tf::Quaternion(params.vel2base[3],
+                                        params.vel2base[4],
+                                        params.vel2base[5],
+                                        params.vel2base[6]));
+    vel2base.setOrigin(
+        tf::Vector3(params.vel2base[0], params.vel2base[1], params.vel2base[2]));
     vel2base = vel2base.inverse();
     t        = vel2base.getOrigin();
     vel2base.getBasis().getRPY(roll, pitch, yaw);
@@ -139,7 +149,7 @@ SLAMNode::SLAMNode(int argc, char** argv)
     mapper3D->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
   }
 
-  ROS_INFO("Got the transforms! Initializing maps...");
+  ROS_INFO("Done! Execution started.");
 
   ros::spin();
   ROS_INFO("ROS shutting down...");

@@ -5,53 +5,70 @@ namespace vineslam
 
 void VineSLAM_ros::publishGridMap(const std_msgs::Header& header) const
 {
+  // -------------------------------------------------------------------------------
+  // -------------------------------------------------------------------------------
+  // ----
+  // ---- WARNING : This visualization function is very slow. Use only for debug (!)
+  // ----
+  // -------------------------------------------------------------------------------
+  // -------------------------------------------------------------------------------
+
   // Define ROS occupancy grid map
-  nav_msgs::OccupancyGrid occ_map;
-  occ_map.header.stamp    = ros::Time::now();
-  occ_map.header.frame_id = "map";
+  visualization_msgs::MarkerArray occ_map;
 
-  // Set the map metadata
-  nav_msgs::MapMetaData metadata;
-  metadata.origin.position.x    = params.gridmap_origin_x;
-  metadata.origin.position.y    = params.gridmap_origin_y;
-  metadata.origin.position.z    = 0;
-  metadata.origin.orientation.x = 0.;
-  metadata.origin.orientation.y = 0.;
-  metadata.origin.orientation.z = 0.;
-  metadata.origin.orientation.w = 1.;
-  metadata.resolution           = params.gridmap_resolution;
-  metadata.width                = params.gridmap_width / params.gridmap_resolution;
-  metadata.height               = params.gridmap_height / params.gridmap_resolution;
-  occ_map.info                  = metadata;
+  int idx = 0;
+  for (auto layer : *grid_map) {
+    // Compute map layer bounds
+    float xmin = layer.second.origin.x;
+    float xmax = xmin + layer.second.width;
+    float ymin = layer.second.origin.y;
+    float ymax = xmin + layer.second.lenght;
+    float zmin = static_cast<float>(layer.first) * grid_map->resolution_z +
+                 grid_map->origin.z;
+    for (float i = xmin; i < xmax - grid_map->resolution;) {
+      for (float j = ymin; j < ymax - grid_map->resolution;) {
+        int8_t number_objs = layer.second(i, j).landmarks.size() +
+                             layer.second(i, j).surf_features.size() +
+                             layer.second(i, j).corner_features.size();
 
-  // Fill the occupancy grid map
-  occ_map.data.resize(metadata.width * metadata.height);
-  // - compute x and y bounds
-  int xmin = static_cast<int>(params.gridmap_origin_x / params.gridmap_resolution);
-  int xmax = static_cast<int>((float)xmin +
-                              params.gridmap_width / params.gridmap_resolution - 1);
-  int ymin = static_cast<int>(params.gridmap_origin_y / params.gridmap_resolution);
-  int ymax = static_cast<int>((float)ymin +
-                              params.gridmap_height / params.gridmap_resolution - 1);
-  for (int i = xmin; i < xmax; i++) {
-    for (int j = ymin; j < ymax; j++) {
-      int8_t number_objs = (*grid_map)(i, j).landmarks.size() +
-                           (*grid_map)(i, j).surf_features.size() +
-                           (*grid_map)(i, j).corner_features.size();
+        if (number_objs == 0) {
+          j += grid_map->resolution;
+          continue;
+        }
 
-      int m_i =
-          i - static_cast<int>(params.gridmap_origin_x / params.gridmap_resolution);
-      int m_j =
-          j - static_cast<int>(params.gridmap_origin_y / params.gridmap_resolution);
-      int idx = m_i + m_j * static_cast<int>(
-                                (params.gridmap_width / params.gridmap_resolution));
+        visualization_msgs::Marker cube_cell;
+        cube_cell.header.frame_id = "odom";
+        cube_cell.header.stamp    = ros::Time::now();
+        cube_cell.id              = idx;
+        cube_cell.type            = visualization_msgs::Marker::CUBE;
+        cube_cell.action          = visualization_msgs::Marker::ADD;
+        cube_cell.color.a         = 0.7;
+        cube_cell.color.r         = 0;
+        cube_cell.color.b =
+            1 - (static_cast<float>(1) / static_cast<float>(number_objs));
+        cube_cell.color.g            = 0;
+        cube_cell.pose.position.x    = i;
+        cube_cell.pose.position.y    = j;
+        cube_cell.pose.position.z    = zmin;
+        cube_cell.pose.orientation.x = 0;
+        cube_cell.pose.orientation.y = 0;
+        cube_cell.pose.orientation.z = 0;
+        cube_cell.pose.orientation.w = 1;
+        cube_cell.scale.x            = grid_map->resolution;
+        cube_cell.scale.y            = grid_map->resolution;
+        cube_cell.scale.z            = grid_map->resolution_z;
 
-      occ_map.data[idx] = number_objs * 10;
+        occ_map.markers.push_back(cube_cell);
+
+        idx++;
+        j += grid_map->resolution;
+      }
+      i += grid_map->resolution;
     }
   }
 
   // Publish the map
-  mapOCC_publisher.publish(occ_map);
+  grid_map_publisher.publish(occ_map);
 }
 
 void VineSLAM_ros::publish2DMap(const std_msgs::Header&   header,
@@ -96,12 +113,12 @@ void VineSLAM_ros::publish2DMap(const std_msgs::Header&   header,
 
   // Publish markers
   int id = 1;
-  for (auto& it : (*grid_map)) {
+  for (auto& it : (*grid_map)(0)) {
     for (const auto& m_sfeature : it.landmarks) {
       // Draw sfeature mean
       marker.id              = id;
       marker.header.stamp    = ros::Time::now();
-      marker.header.frame_id = "map";
+      marker.header.frame_id = "odom";
       marker.pose.position.x = m_sfeature.second.pos.x;
       marker.pose.position.y = m_sfeature.second.pos.y;
       marker.pose.position.z = m_sfeature.second.pos.z;
@@ -114,7 +131,7 @@ void VineSLAM_ros::publish2DMap(const std_msgs::Header&   header,
 
       ellipse.id                 = id;
       ellipse.header.stamp       = ros::Time::now();
-      ellipse.header.frame_id    = "map";
+      ellipse.header.frame_id    = "odom";
       ellipse.pose.position.x    = m_sfeature.second.pos.x;
       ellipse.pose.position.y    = m_sfeature.second.pos.y;
       ellipse.pose.position.z    = m_sfeature.second.pos.z;
@@ -137,7 +154,7 @@ void VineSLAM_ros::publish2DMap(const std_msgs::Header&   header,
 
   ellipse.id                 = id;
   ellipse.header.stamp       = ros::Time::now();
-  ellipse.header.frame_id    = "map";
+  ellipse.header.frame_id    = "odom";
   ellipse.pose.position.x    = pose.x;
   ellipse.pose.position.y    = pose.y;
   ellipse.pose.position.z    = pose.z;
@@ -163,31 +180,48 @@ void VineSLAM_ros::publish3DMap() const
       new pcl::PointCloud<pcl::PointXYZRGB>);
   pcl::PointCloud<pcl::PointXYZI>::Ptr corner_cloud(
       new pcl::PointCloud<pcl::PointXYZI>);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr planar_cloud(
+      new pcl::PointCloud<pcl::PointXYZI>);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr plane_cloud(
+      new pcl::PointCloud<pcl::PointXYZI>);
 
-  for (const auto& it : *grid_map) {
-    for (const auto& feature : it.surf_features) {
-      pcl::PointXYZRGB m_pt(feature.r, feature.g, feature.b);
-      m_pt.x = feature.pos.x;
-      m_pt.y = feature.pos.y;
-      m_pt.z = feature.pos.z;
+  for (auto& it : *grid_map) {
+    for (const auto& cell : it.second) {
+      for (const auto& feature : cell.surf_features) {
+        pcl::PointXYZRGB m_pt(feature.r, feature.g, feature.b);
+        m_pt.x = feature.pos.x;
+        m_pt.y = feature.pos.y;
+        m_pt.z = feature.pos.z;
 
-      feature_cloud->points.push_back(m_pt);
-    }
+        feature_cloud->points.push_back(m_pt);
+      }
 
-    for (const auto& corner : it.corner_features) {
-      pcl::PointXYZI m_pt(static_cast<float>(corner.which_cluster));
-      m_pt.x = corner.pos.x;
-      m_pt.y = corner.pos.y;
-      m_pt.z = corner.pos.z;
+      for (const auto& corner : cell.corner_features) {
+        pcl::PointXYZI m_pt(static_cast<float>(corner.which_cluster));
+        m_pt.x = corner.pos.x;
+        m_pt.y = corner.pos.y;
+        m_pt.z = corner.pos.z;
 
-      corner_cloud->points.push_back(m_pt);
+        corner_cloud->points.push_back(m_pt);
+      }
+
+      for (const auto& planar : cell.planar_features) {
+        pcl::PointXYZI m_pt(static_cast<float>(planar.which_cluster));
+        m_pt.x = planar.pos.x;
+        m_pt.y = planar.pos.y;
+        m_pt.z = planar.pos.z;
+
+        planar_cloud->points.push_back(m_pt);
+      }
     }
   }
 
-  feature_cloud->header.frame_id = "map";
-  corner_cloud->header.frame_id  = "map";
+  feature_cloud->header.frame_id = "odom";
+  corner_cloud->header.frame_id  = "odom";
+  planar_cloud->header.frame_id  = "odom";
   map3D_features_publisher.publish(feature_cloud);
   map3D_corners_publisher.publish(corner_cloud);
+  map3D_planars_publisher.publish(planar_cloud);
 }
 
 void VineSLAM_ros::publish3DMap(const std::vector<Plane>& planes,
@@ -196,59 +230,27 @@ void VineSLAM_ros::publish3DMap(const std::vector<Plane>& planes,
   pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(
       new pcl::PointCloud<pcl::PointXYZI>);
 
+  std::array<float, 9> robot_R{};
+  robot_pose.toRotMatrix(robot_R);
+  TF robot_tf(robot_R,
+              std::array<float, 3>{robot_pose.x, robot_pose.y, robot_pose.z});
+
   int i = 0;
   for (const auto& plane : planes) {
     for (const auto& pt : plane.points) {
-      std::array<float, 9> robot_R{};
-      robot_pose.toRotMatrix(robot_R);
-      TF robot_tf(robot_R,
-                  std::array<float, 3>{robot_pose.x, robot_pose.y, robot_pose.z});
+      point m_pt = pt * robot_tf;
 
-      pcl::PointXYZI m_pt(i);
-      m_pt.x = pt.x * robot_tf.R[0] + pt.y * robot_tf.R[1] + pt.z * robot_tf.R[2] +
-               robot_tf.t[0];
-      m_pt.y = pt.x * robot_tf.R[3] + pt.y * robot_tf.R[4] + pt.z * robot_tf.R[5] +
-               robot_tf.t[1];
-      m_pt.z = pt.x * robot_tf.R[6] + pt.y * robot_tf.R[7] + pt.z * robot_tf.R[8] +
-               robot_tf.t[2];
+      pcl::PointXYZI pcl_pt(i);
+      pcl_pt.x = m_pt.x;
+      pcl_pt.y = m_pt.y;
+      pcl_pt.z = m_pt.z;
 
-      cloud_out->points.push_back(m_pt);
+      cloud_out->points.push_back(pcl_pt);
     }
     i++;
   }
 
-  cloud_out->header.frame_id = "map";
-  pub.publish(cloud_out);
-}
-
-void VineSLAM_ros::publish3DMap(const std::vector<Line>& vegetation_lines,
-                                const ros::Publisher&    pub)
-{
-  pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(
-      new pcl::PointCloud<pcl::PointXYZI>);
-
-  int i = 0;
-  for (const auto& line : vegetation_lines) {
-    for (const auto& pt : line.pts) {
-      std::array<float, 9> robot_R{};
-      robot_pose.toRotMatrix(robot_R);
-      TF robot_tf(robot_R,
-                  std::array<float, 3>{robot_pose.x, robot_pose.y, robot_pose.z});
-
-      pcl::PointXYZI m_pt(i);
-      m_pt.x = pt.x * robot_tf.R[0] + pt.y * robot_tf.R[1] + pt.z * robot_tf.R[2] +
-               robot_tf.t[0];
-      m_pt.y = pt.x * robot_tf.R[3] + pt.y * robot_tf.R[4] + pt.z * robot_tf.R[5] +
-               robot_tf.t[1];
-      m_pt.z = pt.x * robot_tf.R[6] + pt.y * robot_tf.R[7] + pt.z * robot_tf.R[8] +
-               robot_tf.t[2];
-
-      cloud_out->points.push_back(m_pt);
-    }
-    i++;
-  }
-
-  cloud_out->header.frame_id = "map";
+  cloud_out->header.frame_id = "odom";
   pub.publish(cloud_out);
 }
 
@@ -277,60 +279,68 @@ void VineSLAM_ros::publish3DMap(const std::vector<Corner>& corners,
     cloud_out->points.push_back(m_pt);
   }
 
-  cloud_out->header.frame_id = "map";
+  cloud_out->header.frame_id = "odom";
   pub.publish(cloud_out);
 }
 
-void VineSLAM_ros::visDebug(const std::vector<Line>& m_vegetation_lines, const std::vector<Cluster>& m_clusters)
+void VineSLAM_ros::publish3DMap(const std::vector<Planar>& planars,
+                                const ros::Publisher&      pub)
 {
-  // Publish all poses for DEBUG
-  // ----------------------------------------------------------------------------
-  std::vector<pose> poses;
-  (*localizer).getParticles(poses);
-  geometry_msgs::PoseArray ros_poses;
-  ros_poses.header.stamp    = ros::Time::now();
-  ros_poses.header.frame_id = "map";
-  for (const auto& pose : poses) {
-    tf::Quaternion m_q;
-    m_q.setRPY(pose.roll, pose.pitch, pose.yaw);
-    m_q.normalize();
+  pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(
+      new pcl::PointCloud<pcl::PointXYZI>);
 
-    geometry_msgs::Pose m_pose;
-    m_pose.position.x    = pose.x;
-    m_pose.position.y    = pose.y;
-    m_pose.position.z    = pose.z;
-    m_pose.orientation.x = m_q.x();
-    m_pose.orientation.y = m_q.y();
-    m_pose.orientation.z = m_q.z();
-    m_pose.orientation.w = m_q.w();
+  pcl::PointXYZI m_pt;
 
-    ros_poses.poses.push_back(m_pose);
+  for (const auto& planar_feature : planars) {
+    std::array<float, 9> robot_R{};
+    robot_pose.toRotMatrix(robot_R);
+    TF robot_tf(robot_R,
+                std::array<float, 3>{robot_pose.x, robot_pose.y, robot_pose.z});
+
+    m_pt.x = planar_feature.pos.x * robot_tf.R[0] +
+             planar_feature.pos.y * robot_tf.R[1] +
+             planar_feature.pos.z * robot_tf.R[2] + robot_tf.t[0];
+    m_pt.y = planar_feature.pos.x * robot_tf.R[3] +
+             planar_feature.pos.y * robot_tf.R[4] +
+             planar_feature.pos.z * robot_tf.R[5] + robot_tf.t[1];
+    m_pt.z = planar_feature.pos.x * robot_tf.R[6] +
+             planar_feature.pos.y * robot_tf.R[7] +
+             planar_feature.pos.z * robot_tf.R[8] + robot_tf.t[2];
+
+    m_pt.intensity = static_cast<float>(planar_feature.which_cluster) * 10.0f;
+    cloud_out->points.push_back(m_pt);
   }
-  poses_publisher.publish(ros_poses);
+
+  cloud_out->header.frame_id = "odom";
+  pub.publish(cloud_out);
+}
+
+void VineSLAM_ros::visDebug(const std::vector<Plane>& planes,
+                            const Plane&              ground_plane)
+{
+
 
   // - Publish associations between corners
   visualization_msgs::MarkerArray markers;
 
-  // - Publish vegetation lines for debug
-  if (m_vegetation_lines.size() == 2) {
+  // - Publish lines for debug
+  if (planes.size() == 2) {
     geometry_msgs::Point P1_a, P2_a, P1_b, P2_b;
-    float                x_min_a = m_vegetation_lines[0].pts[0].x;
-    float                x_max_a =
-        m_vegetation_lines[0].pts[m_vegetation_lines[0].pts.size() - 1].x;
-    float x_min_b = m_vegetation_lines[1].pts[0].x;
-    float x_max_b =
-        m_vegetation_lines[1].pts[m_vegetation_lines[1].pts.size() - 1].x;
-    P1_a.x = x_min_a;
-    P1_a.y = x_min_a * m_vegetation_lines[0].m + m_vegetation_lines[0].b;
+    float                x_min_a = planes[0].points[0].x;
+    float                x_max_a = planes[0].points[planes[0].points.size() - 1].x;
+    float                x_min_b = planes[1].points[0].x;
+    float                x_max_b = planes[1].points[planes[1].points.size() - 1].x;
+    P1_a.x                       = x_min_a;
+    P1_a.y = x_min_a * planes[0].regression.m + planes[0].regression.b;
     P1_a.z = 0;
     P2_a.x = x_max_a;
-    P2_a.y = x_max_a * m_vegetation_lines[0].m + m_vegetation_lines[0].b;
+    P2_a.y = x_max_a * planes[0].regression.m + planes[0].regression.b;
     P2_a.z = 0;
     P1_b.x = x_min_b;
-    P1_b.y = x_min_b * m_vegetation_lines[1].m + m_vegetation_lines[1].b;
+    P1_b.y = x_min_b * planes[1].regression.m + planes[1].regression.b;
     P1_b.z = 0;
     P2_b.x = x_max_b;
-    P2_b.y = x_max_b * m_vegetation_lines[1].m + m_vegetation_lines[1].b;
+    P2_b.y = x_max_b * planes[1].regression.m + planes[1].regression.b;
     P2_b.z = 0;
 
     visualization_msgs::Marker marker_a;
@@ -369,51 +379,7 @@ void VineSLAM_ros::visDebug(const std::vector<Line>& m_vegetation_lines, const s
     markers.markers.push_back(marker_b);
   }
 
-  for (const auto& cluster : m_clusters) {
-    std::array<float, 9> robot_R{};
-    robot_pose.toRotMatrix(robot_R);
-    TF    robot_tf(robot_R,
-                   std::array<float, 3>{robot_pose.x, robot_pose.y, robot_pose.z});
-    point m_pt;
-    m_pt.x = cluster.center.x * robot_tf.R[0] +
-             cluster.center.y * robot_tf.R[1] +
-             cluster.center.z * robot_tf.R[2] + robot_tf.t[0];
-    m_pt.y = cluster.center.x * robot_tf.R[3] +
-             cluster.center.y * robot_tf.R[4] +
-             cluster.center.z * robot_tf.R[5] + robot_tf.t[1];
-    m_pt.z = cluster.center.x * robot_tf.R[6] +
-             cluster.center.y * robot_tf.R[7] +
-             cluster.center.z * robot_tf.R[8] + robot_tf.t[2];
-
-    point radius = cluster.radius;
-    if (cluster.items.size() == 1)
-      radius = point(0.06, 0.06, 0.06);
-
-    visualization_msgs::Marker ros_cluster;
-    ros_cluster.header.frame_id    = "map";
-    ros_cluster.header.stamp       = ros::Time::now();
-    ros_cluster.ns                 = "sphere_" + std::to_string(cluster.id);
-    ros_cluster.type               = visualization_msgs::Marker::CUBE;
-    ros_cluster.action             = visualization_msgs::Marker::ADD;
-    ros_cluster.pose.position.x    = m_pt.x;
-    ros_cluster.pose.position.y    = m_pt.y;
-    ros_cluster.pose.position.z    = m_pt.z;
-    ros_cluster.pose.orientation.x = 0;
-    ros_cluster.pose.orientation.y = 0;
-    ros_cluster.pose.orientation.z = 0;
-    ros_cluster.pose.orientation.w = 1;
-    ros_cluster.color.a            = 0.5;
-    ros_cluster.color.r            = 0.5;
-    ros_cluster.color.b            = 1;
-    ros_cluster.color.g            = 0.5;
-    ros_cluster.scale.x            = radius.x * 2;
-    ros_cluster.scale.y            = radius.y * 2;
-    ros_cluster.scale.z            = radius.z * 2;
-
-    markers.markers.push_back(ros_cluster);
-  }
   debug_markers.publish(markers);
-
 }
 
 } // namespace vineslam

@@ -33,10 +33,17 @@ struct Particle {
     (*this).id = id;
     (*this).p  = p;
     (*this).w  = w;
+
+    std::array<float, 9> Rot{};
+    p.toRotMatrix(Rot);
+    std::array<float, 3> trans = {p.x, p.y, p.z};
+    tf                         = TF(Rot, trans);
   }
 
   int   id{};
   pose  p;
+  pose  pp; // previous pose
+  TF    tf; // pose resented as an homogeneous transformation
   float w{};
   int   which_cluster{};
 };
@@ -60,10 +67,12 @@ public:
   // Update particles weights using the multi-layer map
   void update(const std::vector<SemanticFeature>& landmarks,
               const std::vector<Corner>&          corners,
-              const std::vector<Line>&            vegetation_lines,
+              const std::vector<Planar>&          planars,
+              const std::vector<Plane>&           planes,
               const Plane&                        ground_plane,
               const std::vector<ImageFeature>&    surf_features,
               const pose&                         gps_pose,
+              OccupancyMap*                       previous_map,
               OccupancyMap*                       grid_map);
   // Normalize particles weights
   void normalizeWeights();
@@ -89,11 +98,16 @@ private:
   void mediumLevelCorners(const std::vector<Corner>& corners,
                           OccupancyMap*              grid_map,
                           std::vector<float>&        ws);
+  // - Medium level planar features layer
+  void mediumLevelPlanars(const std::vector<Planar>& planars,
+                          OccupancyMap*              grid_map,
+                          std::vector<float>&        ws);
   // - Medium level ground plane layer
   void mediumLevelGround(const Plane& ground_plane, std::vector<float>& ws);
   // - Medium level vegetation lines layer
-  void mediumLevelLines(const std::vector<Line>& vegetation_lines,
-                        std::vector<float>&      ws);
+  void mediumLevelPlanes(const std::vector<Plane>&  planes,
+                         OccupancyMap*       grid_map,
+                         std::vector<float>& ws);
   // - Low level image features layer
   void lowLevel(const std::vector<ImageFeature>& surf_features,
                 OccupancyMap*                    grid_map,
@@ -114,6 +128,10 @@ private:
   // Iteration number
   int n_it;
 
+  // Previous iterations
+  std::vector<Plane> p_planes;
+  Plane              p_ground;
+
   // Motion state
   MOTION_STATE motion_state;
 
@@ -123,7 +141,8 @@ private:
   // - General parameters
   bool  use_landmarks;
   bool  use_corners;
-  bool  use_vegetation_lines;
+  bool  use_planars;
+  bool  use_planes;
   bool  use_ground_plane;
   bool  use_icp;
   bool  use_gps;
@@ -142,7 +161,8 @@ private:
   float sigma_landmark_matching;
   float sigma_feature_matching;
   float sigma_corner_matching;
-  float sigma_vegetation_lines_yaw;
+  float sigma_planar_matching;
+  float sigma_planes_yaw;
   float sigma_ground_rp;
   float sigma_gps;
   // - Clustering parameters

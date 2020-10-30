@@ -10,6 +10,7 @@
 
 namespace vineslam
 {
+
 struct point {
   // Default constructor
   point()
@@ -86,6 +87,17 @@ struct point {
     return result;
   }
 
+  // Scalar multiplication operator
+  point operator*(const float& scalar) const
+  {
+    point result(*this);
+    result.x *= scalar;
+    result.y *= scalar;
+    result.z *= scalar;
+
+    return result;
+  }
+
   // Multiplication by homogeneous transformation
   point operator*(const TF& tf) const
   {
@@ -156,7 +168,7 @@ struct point {
 // stdout operator
 static std::ostream& operator<<(std::ostream& out, point const& p)
 {
-  return out << '(' << p.x << ' ' << p.y << ' ' << p.z << ")\n";
+  return out << '(' << p.x << ' ' << p.y << ' ' << p.z << ")";
 }
 
 } // namespace vineslam

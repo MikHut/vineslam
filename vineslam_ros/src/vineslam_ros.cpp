@@ -95,7 +95,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
   // -- here is where all the runtime localization and mapping procedures take place
   // -- the multi-layer map is created
   // -- the particle filter is used to localize the robot
-  // -- visualization funtions are invocated to publish maps
+  // -- visualization functions are invocated to publish maps
   // }
 
   if (init && !init_odom && (!init_gps || !params.use_gps) &&
@@ -104,7 +104,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // ---------------------------------------------------------
     // ----- Initialize the localizer and get first particles distribution
     // ---------------------------------------------------------
-    localizer->init(pose(0, 0, 0, 0, 0, odom.yaw));
+    localizer->init(init_odom_pose);
     robot_pose = localizer->getPose();
 
     if (register_map) {
@@ -116,19 +116,24 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
       mapper2D->init(robot_pose, bearings, depths, labels, *grid_map);
 
       // - 3D PCL corner map estimation
-      std::vector<Corner>  m_corners;
-      std::vector<Cluster> m_clusters;
-      std::vector<Line>    m_vegetation_lines;
-      Plane                m_ground_plane;
+      std::vector<Corner> m_corners;
+      std::vector<Planar> m_planars;
+      std::vector<Plane>  m_planes;
+      Plane               m_ground_plane;
       mapper3D->localPCLMap(
-          scan_pts, m_corners, m_clusters, m_vegetation_lines, m_ground_plane);
-      mapper3D->globalCornerMap(robot_pose, m_corners, *grid_map);
+          scan_pts, m_corners, m_planars, m_planes, m_ground_plane);
 
       // - 3D image feature map estimation
       auto*                     raw_depths = (float*)(&(*depth_image).data[0]);
       std::vector<ImageFeature> m_surf_features;
       mapper3D->localSurfMap(left_image, raw_depths, m_surf_features);
-      mapper3D->globalSurfMap(m_surf_features, robot_pose, *grid_map);
+
+      // - Register 3D maps
+      mapper3D->registerMaps(
+          robot_pose, m_surf_features, m_corners, m_planars, m_planes, *grid_map);
+
+      // - Save local map for next iteration
+      previous_map = mapper3D->local_map;
     }
 
     ROS_INFO("Localization and Mapping has started.");
@@ -144,12 +149,11 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     mapper2D->localMap(bearings, depths, m_landmarks);
 
     // - Compute 3D PCL corners and ground plane on robot's referential frame
-    std::vector<Corner>  m_corners;
-    std::vector<Cluster> m_clusters;
-    std::vector<Line>    m_vegetation_lines;
-    Plane                m_ground_plane;
-    mapper3D->localPCLMap(
-        scan_pts, m_corners, m_clusters, m_vegetation_lines, m_ground_plane);
+    std::vector<Corner> m_corners;
+    std::vector<Planar> m_planars;
+    std::vector<Plane>  m_planes;
+    Plane               m_ground_plane;
+    mapper3D->localPCLMap(scan_pts, m_corners, m_planars, m_planes, m_ground_plane);
 
     // - Compute 3D image features on robot's referential frame
     std::vector<ImageFeature> m_surf_features;
@@ -168,33 +172,39 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     Observation obsv;
     if (params.use_landmarks)
       obsv.landmarks = m_landmarks;
-    obsv.corners          = m_corners;
-    obsv.vegetation_lines = m_vegetation_lines;
+    obsv.corners = m_corners;
+    obsv.planars = m_planars;
+    obsv.planes  = m_planes;
     if (std::fabs(m_ground_plane.mean_height) > mapper3D->lidar_height / 2)
       obsv.ground_plane = m_ground_plane;
-    obsv.surf_features    = m_surf_features;
+    obsv.surf_features = m_surf_features;
     if (has_converged && params.use_gps)
       obsv.gps_pose = gps_pose;
     else
       obsv.gps_pose = pose(0., 0., 0., 0., 0., 0.);
 
     // ---------------------------------------------------------
+    // ----- Localization procedure
+    // ---------------------------------------------------------
+    localizer->process(odom, obsv, previous_map, grid_map);
+    robot_pose = localizer->getPose();
+
+    // ---------------------------------------------------------
     // ----- Register multi-layer map (if performing SLAM)
     // ---------------------------------------------------------
     if (register_map) {
-      // - 2D high-level semantic map estimation
       mapper2D->process(robot_pose, m_landmarks, labels, *grid_map);
-      // - 3D PCL corner map estimation
-      mapper3D->globalCornerMap(robot_pose, m_corners, *grid_map);
-      // - 3D image feature map estimation
-      mapper3D->globalSurfMap(m_surf_features, robot_pose, *grid_map);
-    }
 
-    // ---------------------------------------------------------
-    // ----- Localization procedure
-    // ---------------------------------------------------------
-    localizer->process(odom, obsv, grid_map);
-    robot_pose = localizer->getPose();
+      pose delta_pose = robot_pose - mapper3D->last_registering_pose;
+      delta_pose.normalize();
+
+      if (std::fabs(delta_pose.x) > 0.1 || std::fabs(delta_pose.y) > 0.1 ||
+          std::fabs(delta_pose.yaw) > 2 * DEGREE_TO_RAD) {
+        mapper3D->registerMaps(
+            robot_pose, m_surf_features, m_corners, m_planars, m_planes, *grid_map);
+        grid_map->downsamplePlanars();
+      }
+    }
 
     // ---------------------------------------------------------
     // ----- ROS publishers and tf broadcasting
@@ -211,7 +221,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // Convert vineslam pose to ROS pose and publish it
     geometry_msgs::PoseStamped pose_stamped;
     pose_stamped.header.stamp       = ros::Time::now();
-    pose_stamped.header.frame_id    = "map";
+    pose_stamped.header.frame_id    = "odom";
     pose_stamped.pose.position.x    = robot_pose.x;
     pose_stamped.pose.position.y    = robot_pose.y;
     pose_stamped.pose.position.z    = robot_pose.z;
@@ -225,25 +235,83 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     path.push_back(pose_stamped);
     nav_msgs::Path ros_path;
     ros_path.header.stamp    = ros::Time::now();
-    ros_path.header.frame_id = "map";
+    ros_path.header.frame_id = "odom";
     ros_path.poses           = path;
     path_publisher.publish(ros_path);
 
-    // Publish the grid map
-    publishGridMap(depth_image->header);
+    // Publish particle poses (after and before resampling)
+    // - Get the particles
+    std::vector<Particle> b_particles, a_particles;
+    (*localizer).getParticlesBeforeResampling(b_particles);
+    (*localizer).getParticles(a_particles);
+    // - Convert them to ROS pose array and fill the vineslam report msgs
+    vineslam_msgs::report    report;
+    geometry_msgs::PoseArray ros_poses;
+    ros_poses.header.stamp    = ros::Time::now();
+    ros_poses.header.frame_id = "odom";
+    report.header.stamp       = ros_poses.header.stamp;
+    report.header.frame_id    = ros_poses.header.frame_id;
+    for (const auto& particle : b_particles) {
+      tf::Quaternion m_q;
+      m_q.setRPY(particle.p.roll, particle.p.pitch, particle.p.yaw);
+      m_q.normalize();
+
+      geometry_msgs::Pose m_pose;
+      m_pose.position.x    = particle.p.x;
+      m_pose.position.y    = particle.p.y;
+      m_pose.position.z    = particle.p.z;
+      m_pose.orientation.x = m_q.x();
+      m_pose.orientation.y = m_q.y();
+      m_pose.orientation.z = m_q.z();
+      m_pose.orientation.w = m_q.w();
+
+      vineslam_msgs::particle particle_info;
+      particle_info.id   = particle.id;
+      particle_info.pose = m_pose;
+      particle_info.w    = particle.w;
+
+      report.b_particles.push_back(particle_info);
+    }
+    for (const auto& particle : a_particles) {
+      tf::Quaternion m_q;
+      m_q.setRPY(particle.p.roll, particle.p.pitch, particle.p.yaw);
+      m_q.normalize();
+
+      geometry_msgs::Pose m_pose;
+      m_pose.position.x    = particle.p.x;
+      m_pose.position.y    = particle.p.y;
+      m_pose.position.z    = particle.p.z;
+      m_pose.orientation.x = m_q.x();
+      m_pose.orientation.y = m_q.y();
+      m_pose.orientation.z = m_q.z();
+      m_pose.orientation.w = m_q.w();
+
+      ros_poses.poses.push_back(m_pose);
+
+      vineslam_msgs::particle particle_info;
+      particle_info.id   = particle.id;
+      particle_info.pose = m_pose;
+      particle_info.w    = particle.w;
+
+      report.a_particles.push_back(particle_info);
+    }
+    poses_publisher.publish(ros_poses);
+    vineslam_report_publisher.publish(report);
+
     // Publish the 2D map
     publish2DMap(depth_image->header, robot_pose, bearings, depths);
     // Publish 3D maps
     publish3DMap();
     publish3DMap(m_corners, corners_local_publisher);
-    publish3DMap(m_vegetation_lines, map3D_lines_publisher);
+    publish3DMap(m_planars, planars_local_publisher);
     std::vector<Plane> planes = {m_ground_plane};
-    publish3DMap(planes, map3D_planes_publisher);
+    for (const auto& plane : m_planes) planes.push_back(plane);
+    publish3DMap(planes, planes_local_publisher);
 
     // Publish cam-to-map tf::Transform
     static tf::TransformBroadcaster br;
     br.sendTransform(
-        tf::StampedTransform(base2map, ros::Time::now(), "map", "base_link"));
+        tf::StampedTransform(base2map, ros::Time::now(), "odom", "base_link"));
     // Publish other tf::Trasforms
     tf::Transform cam2base(
         tf::Quaternion(params.cam2base[3],
@@ -261,12 +329,21 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
         tf::Vector3(params.vel2base[0], params.vel2base[1], params.vel2base[2]));
     br.sendTransform(
         tf::StampedTransform(vel2base, ros::Time::now(), "base_link", "velodyne"));
+    tf::Quaternion o2m_q;
+    o2m_q.setRPY(init_odom_pose.roll, init_odom_pose.pitch, init_odom_pose.yaw);
+    tf::Transform odom2map(
+        o2m_q, tf::Vector3(init_odom_pose.x, init_odom_pose.y, init_odom_pose.z));
+    br.sendTransform(
+        tf::StampedTransform(odom2map, ros::Time::now(), "odom", "map"));
+
+    // - Save local map for next iteration
+    previous_map = mapper3D->local_map;
 
     // --------------------------------------------------
     // ----- Debug area : publishes the robot path & the vegetation lines
     // --------------------------------------------------
     if (params.debug) {
-      visDebug(m_vegetation_lines, m_clusters);
+      visDebug(m_planes, m_ground_plane);
     }
   }
 }
@@ -287,28 +364,6 @@ void VineSLAM_ros::scanListener(const sensor_msgs::PointCloud2ConstPtr& msg)
     scan_pts.push_back(m_pt);
     intensities.push_back(pt.intensity);
   }
-
-  //  cv::Mat image_top, image_top_depth;
-  //  vineslam::Mapper3D::birdEyeImage(scan_pts, image_top, image_top_depth);
-  //  cv::Mat imagepXZ, imagenXZ, imagepXZ_depth, imagenXZ_depth;
-  //  vineslam::Mapper3D::sideViewImageXZ(
-  //      scan_pts, imagepXZ, imagenXZ, imagepXZ_depth, imagenXZ_depth);
-  //  cv::Mat imageYZ, imageYZ_depth;
-  //  vineslam::Mapper3D::sideViewImageYZ(scan_pts, imageYZ, imageYZ_depth);
-  //  vineslam::Mapper3D::extractPCLDescriptors(
-  //      image_top_depth, imagepXZ_depth, imagenXZ_depth, imageYZ_depth);
-
-  // Convert grayscale image to colormap
-  //  cv::Mat cm_top, cmpXZ, cmnXZ, cmYZ;
-  //  cv::applyColorMap(image_top_depth, cm_top, cv::COLORMAP_JET);
-  //  cv::applyColorMap(imagepXZ_depth, cmpXZ, cv::COLORMAP_JET);
-  //  cv::applyColorMap(imagenXZ_depth, cmnXZ, cv::COLORMAP_JET);
-  //  cv::applyColorMap(imageYZ_depth, cmYZ, cv::COLORMAP_JET);
-  //  cv::imshow("Birds eye view depth variance image", cm_top);
-  //  cv::imshow("Side positive view depth variance image XZ", cmpXZ);
-  //  cv::imshow("Side negative view depth variance image XZ", cmnXZ);
-  //  cv::imshow("Back view depth variance image YZ", cmYZ);
-  //  cv::waitKey(1000);
 }
 
 void VineSLAM_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)
@@ -326,11 +381,12 @@ void VineSLAM_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)
   // If it is the first iteration - initialize the Pose
   // relative to the previous frame
   if (init_odom) {
-    p_odom.x   = (*msg).pose.pose.position.x;
-    p_odom.y   = (*msg).pose.pose.position.y;
-    p_odom.yaw = yaw;
-    odom       = vineslam::pose(0., 0., 0., 0., 0., yaw);
-    init_odom  = false;
+    p_odom.x       = (*msg).pose.pose.position.x;
+    p_odom.y       = (*msg).pose.pose.position.y;
+    p_odom.yaw     = yaw;
+    odom           = vineslam::pose(p_odom.x, p_odom.y, 0., 0., 0., yaw);
+    init_odom_pose = odom;
+    init_odom      = false;
     return;
   }
 
@@ -408,7 +464,11 @@ void VineSLAM_ros::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
     gnss_pose.header.frame_id    = "enu";
 
     gps_poses.push_back(gnss_pose);
-    gps_publisher.publish(gps_poses);
+    nav_msgs::Path ros_path;
+    ros_path.header.stamp    = ros::Time::now();
+    ros_path.header.frame_id = "map";
+    ros_path.poses           = gps_poses;
+    gps_publisher.publish(ros_path);
 
     // Transform locally the gps pose from enu to map to use in localization
     tf::Matrix3x3 Rot = ned2map.getBasis().inverse();

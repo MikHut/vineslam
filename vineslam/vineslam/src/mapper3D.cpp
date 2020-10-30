@@ -1,5 +1,6 @@
 #include "mapper3D.hpp"
 #include <chrono>
+#include <set>
 
 namespace vineslam
 {
@@ -30,10 +31,11 @@ Mapper3D::Mapper3D(const Parameters& params)
   correspondence_threshold = 0.02;
 
   // Set velodyne configuration parameters
-  picked_num              = 20;
-  planes_th               = static_cast<float>(60.) * DEGREE_TO_RAD;
-  ground_th               = static_cast<float>(10.) * DEGREE_TO_RAD;
+  picked_num              = 2;
+  planes_th               = static_cast<float>(45.) * DEGREE_TO_RAD;
+  ground_th               = static_cast<float>(5.) * DEGREE_TO_RAD;
   edge_threshold          = 0.1;
+  planar_threshold        = 0.1;
   vertical_scans          = 16;
   horizontal_scans        = 1800;
   ground_scan_idx         = 7;
@@ -46,14 +48,33 @@ Mapper3D::Mapper3D(const Parameters& params)
 
   // Initialize local map for clustering
   Parameters local_map_params;
-  local_map_params.gridmap_origin_x   = -35;
-  local_map_params.gridmap_origin_y   = -20;
-  local_map_params.gridmap_resolution = 0.25;
-  local_map_params.gridmap_width      = 70;
-  local_map_params.gridmap_height     = 30;
+  local_map_params.gridmap_origin_x   = -30;
+  local_map_params.gridmap_origin_y   = -30;
+  local_map_params.gridmap_origin_z   = -0.5;
+  local_map_params.gridmap_resolution = 0.20;
+  local_map_params.gridmap_width      = 60;
+  local_map_params.gridmap_lenght     = 60;
+  local_map_params.gridmap_height     = 2.5;
   local_map_params.gridmap_metric     = "euclidean";
 
   local_map = new OccupancyMap(local_map_params);
+}
+
+void Mapper3D::registerMaps(const pose&                robot_pose,
+                            std::vector<ImageFeature>& img_features,
+                            std::vector<Corner>&       corners,
+                            std::vector<Planar>&       planars,
+                            std::vector<Plane>&        planes,
+                            OccupancyMap&              grid_map)
+{
+  // - 3D image feature map estimation
+  globalSurfMap(img_features, robot_pose, grid_map);
+  // - 3D PCL corner map estimation
+  globalCornerMap(robot_pose, corners, grid_map);
+  // - 3D PCL corner map estimation
+  globalPlanarMap(robot_pose, planars, grid_map);
+
+  last_registering_pose = robot_pose;
 }
 
 // -------------------------------------------------------------------------------
@@ -110,27 +131,22 @@ void Mapper3D::globalSurfMap(const std::vector<ImageFeature>& features,
   std::array<float, 9> Rot{};
   robot_pose.toRotMatrix(Rot);
   std::array<float, 3> trans = {robot_pose.x, robot_pose.y, robot_pose.z};
+  TF                   tf(Rot, trans);
 
   // ------ Insert features into the grid map
   for (const auto& image_feature : features) {
     // - First convert them to map's referential using the robot pose
+    point m_pt = image_feature.pos * tf;
+
     ImageFeature m_feature = image_feature;
-
-    point m_pt;
-    m_pt.x = image_feature.pos.x * Rot[0] + image_feature.pos.y * Rot[1] +
-             image_feature.pos.z * Rot[2] + trans[0];
-    m_pt.y = image_feature.pos.x * Rot[3] + image_feature.pos.y * Rot[4] +
-             image_feature.pos.z * Rot[5] + trans[1];
-    m_pt.z = image_feature.pos.x * Rot[6] + image_feature.pos.y * Rot[7] +
-             image_feature.pos.z * Rot[8] + trans[2];
-
-    m_feature.pos = m_pt;
+    m_feature.pos          = m_pt;
 
     // - Then, look for correspondences in the local map
     ImageFeature correspondence{};
     float        best_correspondence = correspondence_threshold;
     bool         found               = false;
-    for (const auto& m_image_feature : grid_map(m_pt.x, m_pt.y).surf_features) {
+    for (const auto& m_image_feature :
+         grid_map(m_pt.x, m_pt.y, m_pt.z).surf_features) {
       float dist_min = m_pt.distance(m_image_feature.pos);
 
       if (dist_min < best_correspondence) {
@@ -143,7 +159,7 @@ void Mapper3D::globalSurfMap(const std::vector<ImageFeature>& features,
     // Only search in the adjacent cells if we do not find in the source cell
     if (!found) {
       std::vector<Cell> adjacents;
-      grid_map.getAdjacent(m_pt.x, m_pt.y, 2, adjacents);
+      grid_map.getAdjacent(m_pt.x, m_pt.y, m_pt.z, 2, adjacents);
       for (const auto& m_cell : adjacents) {
         for (const auto& m_image_feature : m_cell.surf_features) {
           float dist_min = m_pt.distance(m_image_feature.pos);
@@ -158,15 +174,19 @@ void Mapper3D::globalSurfMap(const std::vector<ImageFeature>& features,
 
     // - Then, insert the image feature into the grid map
     if (found) {
-      point        new_pt = (m_pt + correspondence.pos) / 2.;
+      point new_pt =
+          ((correspondence.pos * static_cast<float>(correspondence.n_observations)) +
+           m_pt) /
+          static_cast<float>(correspondence.n_observations + 1);
       ImageFeature new_image_feature(image_feature.u,
                                      image_feature.v,
                                      image_feature.r,
                                      image_feature.g,
                                      image_feature.b,
                                      new_pt);
-      new_image_feature.laplacian = image_feature.laplacian;
-      new_image_feature.signature = image_feature.signature;
+      new_image_feature.laplacian      = image_feature.laplacian;
+      new_image_feature.signature      = image_feature.signature;
+      new_image_feature.n_observations = correspondence.n_observations++;
       grid_map.update(correspondence, new_image_feature);
     } else {
       ImageFeature new_image_feature(image_feature.u,
@@ -237,8 +257,8 @@ void Mapper3D::reset()
 
 void Mapper3D::localPCLMap(const std::vector<point>& pcl,
                            std::vector<Corner>&      out_corners,
-                           std::vector<Cluster>&     out_clusters,
-                           std::vector<Line>&        out_vegetation_lines,
+                           std::vector<Planar>&      out_planars,
+                           std::vector<Plane>&       out_planes,
                            Plane&                    out_groundplane)
 {
   std::vector<point> transformed_pcl;
@@ -277,7 +297,7 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
       continue;
     }
 
-    if (range < 1.0 || range > 50.0) {
+    if (range < 1.0 && range > 25.0) {
       continue;
     }
 
@@ -296,7 +316,8 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
   // -------------------------------------------------------------------------------
   // ----- Mark ground points
   // -------------------------------------------------------------------------------
-  for (const auto& index : out_groundplane.indexes) {
+  for (const auto& index : gplane_unfilt.indexes) {
+    //  for (const auto& index : out_groundplane.indexes) {
     int i = static_cast<int>(index.x);
     int j = static_cast<int>(index.y);
 
@@ -305,15 +326,14 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
   }
 
   // - Planes that are not the ground
-  std::vector<PlanePoint> cloud_seg;
-  cloudSegmentation(transformed_pcl, cloud_seg);
+  std::vector<PlanePoint> cloud_seg, cloud_seg_pure;
+  cloudSegmentation(transformed_pcl, cloud_seg, cloud_seg_pure);
 
-  // - Vegetation 2 planes
-  extractVegetationPlanes(cloud_seg, out_vegetation_lines);
+  // - Extract two planes (right and left) from point cloud
+  extractHighLevelPlanes(cloud_seg, out_planes);
 
   //- Corners feature extraction
-  extractCorners(cloud_seg, out_corners);
-  //  downsampleCorners(out_corners, 0.40, out_clusters, 1, 500);
+  extract3DFeatures(cloud_seg, out_corners, out_planars);
 
   // Convert features to base_link referential frame
   pose tf_pose;
@@ -336,14 +356,11 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
   for (auto& corner : out_corners) {
     corner.pos = corner.pos * tf.inverse();
   }
-  for (auto& cluster : out_clusters) {
-    cluster.center = cluster.center * tf.inverse();
-    for (auto& corner : cluster.items) {
-      corner.pos = corner.pos * tf.inverse();
-    }
+  for (auto& planar : out_planars) {
+    planar.pos = planar.pos * tf.inverse();
   }
-  for (auto& line : out_vegetation_lines) {
-    for (auto& pt : line.pts) {
+  for (auto& plane : out_planes) {
+    for (auto& pt : plane.points) {
       pt = pt * tf.inverse();
     }
   }
@@ -358,23 +375,19 @@ void Mapper3D::globalCornerMap(const pose&          robot_pose,
   std::array<float, 9> Rot{};
   robot_pose.toRotMatrix(Rot);
   std::array<float, 3> trans = {robot_pose.x, robot_pose.y, robot_pose.z};
+  TF                   tf(Rot, trans);
 
   // ------ Insert corner into the grid map
   for (auto& corner : corners) {
     // - First convert them to map's referential using the robot pose
-    point m_pt;
-    m_pt.x = corner.pos.x * Rot[0] + corner.pos.y * Rot[1] + corner.pos.z * Rot[2] +
-             trans[0];
-    m_pt.y = corner.pos.x * Rot[3] + corner.pos.y * Rot[4] + corner.pos.z * Rot[5] +
-             trans[1];
-    m_pt.z = corner.pos.x * Rot[6] + corner.pos.y * Rot[7] + corner.pos.z * Rot[8] +
-             trans[2];
+    point m_pt = corner.pos * tf;
 
     // - Then, look for correspondences in the local map
-    Corner correspondence{};
-    float  best_correspondence = correspondence_threshold;
-    bool   found               = false;
-    for (const auto& m_corner : grid_map(m_pt.x, m_pt.y).corner_features) {
+    Corner              correspondence{};
+    float               best_correspondence = correspondence_threshold;
+    bool                found               = false;
+    std::vector<Corner> m_corners = grid_map(m_pt.x, m_pt.y, m_pt.z).corner_features;
+    for (const auto& m_corner : m_corners) {
       float dist_min = m_pt.distance(m_corner.pos);
 
       if (dist_min < best_correspondence) {
@@ -385,30 +398,67 @@ void Mapper3D::globalCornerMap(const pose&          robot_pose,
     }
 
     found &= (best_correspondence < 0.02);
-    // Only search in the adjacent cells if we do not find in the source cell
-    //    if (!found) {
-    //      std::vector<Cell> adjacents;
-    //      grid_map.getAdjacent(m_pt.x, m_pt.y, 2, adjacents);
-    //      for (const auto& m_cell : adjacents) {
-    //        for (const auto& m_corner : m_cell.corner_features) {
-    //          float dist_min = m_pt.distance(m_corner.pos);
-    //          if (dist_min < best_correspondence) {
-    //            correspondence      = m_corner;
-    //            best_correspondence = dist_min;
-    //            found               = true;
-    //          }
-    //        }
-    //      }
-    //    }
 
     // - Then, insert the corner into the grid map
     if (found) {
-      point  new_pt = (m_pt + correspondence.pos) / 2.;
+      point new_pt =
+          ((correspondence.pos * static_cast<float>(correspondence.n_observations)) +
+           m_pt) /
+          static_cast<float>(correspondence.n_observations + 1);
       Corner new_corner(new_pt, corner.which_plane);
+      new_corner.n_observations = correspondence.n_observations + 1;
       grid_map.update(correspondence, new_corner);
     } else {
       Corner new_corner(m_pt, corner.which_plane);
       grid_map.insert(new_corner);
+    }
+  }
+}
+
+void Mapper3D::globalPlanarMap(const pose&          robot_pose,
+                               std::vector<Planar>& planars,
+                               OccupancyMap&        grid_map) const
+{
+  // ------ Convert robot pose into homogeneous transformation
+  std::array<float, 9> Rot{};
+  robot_pose.toRotMatrix(Rot);
+  std::array<float, 3> trans = {robot_pose.x, robot_pose.y, robot_pose.z};
+  TF                   tf(Rot, trans);
+
+  // ------ Insert planar into the grid map
+  for (auto& planar : planars) {
+    // - First convert them to map's referential using the robot pose
+    point m_pt = planar.pos * tf;
+
+    // - Then, look for correspondences in the local map
+    Planar              correspondence{};
+    float               best_correspondence = correspondence_threshold;
+    bool                found               = false;
+    std::vector<Planar> m_planars = grid_map(m_pt.x, m_pt.y, m_pt.z).planar_features;
+    for (const auto& m_planar : m_planars) {
+      float dist_min = m_pt.distance(m_planar.pos);
+
+      if (dist_min < best_correspondence) {
+        correspondence      = m_planar;
+        best_correspondence = dist_min;
+        found               = true;
+      }
+    }
+
+    found &= (best_correspondence < 0.02);
+
+    // - Then, insert the planar into the grid map
+    if (found) {
+      point new_pt =
+          ((correspondence.pos * static_cast<float>(correspondence.n_observations)) +
+           m_pt) /
+          static_cast<float>(correspondence.n_observations + 1);
+      Planar new_planar(new_pt, planar.which_plane);
+      new_planar.n_observations = correspondence.n_observations + 1;
+      grid_map.update(correspondence, new_planar);
+    } else {
+      Planar new_planar(m_pt, planar.which_plane);
+      grid_map.insert(new_planar);
     }
   }
 }
@@ -427,9 +477,7 @@ void Mapper3D::groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl)
       point upper_pt = in_pts[upper_idx];
       point lower_pt = in_pts[lower_idx];
 
-      if (range_mat(i, j) == -1 || range_mat(i + 1, j) == -1 ||
-          std::fabs(lower_pt.z) < lidar_height / 2 ||
-          std::fabs(upper_pt.z) < lidar_height / 2) {
+      if (range_mat(i, j) == -1 || range_mat(i + 1, j) == -1) {
         // no info to check, invalid points
         ground_mat(i, j) = -1;
         continue;
@@ -441,7 +489,8 @@ void Mapper3D::groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl)
 
       float vertical_angle = std::atan2(dZ, std::sqrt(dX * dX + dY * dY + dZ * dZ));
 
-      if (vertical_angle <= ground_th) {
+      if (vertical_angle <= ground_th && std::fabs(lower_pt.z) > lidar_height / 2 &&
+          std::fabs(upper_pt.z) > lidar_height / 2) {
         out_pcl.points.push_back(lower_pt);
         out_pcl.points.push_back(upper_pt);
         out_pcl.indexes.emplace_back(i, j);
@@ -583,29 +632,42 @@ bool Mapper3D::ransac(const Plane& in_plane, Plane& out_plane) const
 }
 
 void Mapper3D::cloudSegmentation(const std::vector<point>& in_pts,
-                                 std::vector<PlanePoint>&  out_plane_pts)
+                                 std::vector<PlanePoint>&  cloud_seg,
+                                 std::vector<PlanePoint>&  cloud_seg_pure)
 {
   // Segmentation process
   int label = 1;
-  for (int i = 0; i < vertical_scans;) {
-    for (int j = 0; j < horizontal_scans;) {
+  for (int i = 0; i < vertical_scans; i++) {
+    for (int j = 0; j < horizontal_scans; j++) {
       if (label_mat(i, j) == 0 && range_mat(i, j) != -1)
         labelComponents(i, j, in_pts, label);
-      j += 1;
     }
-    i += 1;
   }
 
   // Extract segmented cloud for visualization
   int seg_cloud_size = 0;
   for (int i = 0; i < vertical_scans; i++) {
+
     seg_pcl.start_col_idx[i] = seg_cloud_size - 1 + 5;
+
     for (int j = 0; j < horizontal_scans; j++) {
-      if (label_mat(i, j) > 0 && label_mat(i, j) != 999999) {
+      if (label_mat(i, j) > 0 || ground_mat(i, j) == 1) {
+        if (label_mat(i, j) == 999999)
+          continue;
+
+        // The majority of ground points are skipped
+        if (ground_mat(i, j) == 1) {
+          //          if (j % 1 != 0 && j > 1 && j < horizontal_scans - 1)
+          continue;
+        }
+
+        // Mark ground points so they will not be considered as edge features later
+        seg_pcl.is_ground[seg_cloud_size] = (ground_mat(i, j) == 1);
+
         // Save segmented cloud into a pcl
         point      pt = in_pts[j + i * horizontal_scans];
         PlanePoint m_ppoint(pt, label_mat(i, j));
-        out_plane_pts.push_back(m_ppoint);
+        cloud_seg.push_back(m_ppoint);
         // ------------------------------------------
         // Save segmented cloud in the given structure
         seg_pcl.col_idx[seg_cloud_size] = j;
@@ -616,6 +678,17 @@ void Mapper3D::cloudSegmentation(const std::vector<point>& in_pts,
     }
     seg_pcl.end_col_idx[i] = seg_cloud_size - 1 - 5;
   }
+
+  // Save pure segmented cloud (without unfiltered ground)
+  //  for (int i = 0; i < vertical_scans; i++) {
+  //    for (int j = 0; j < horizontal_scans; j++) {
+  //      if (label_mat(i, j) > 0 && label_mat(i, j) != 999999) {
+  //        point      pt = in_pts[j + i * horizontal_scans];
+  //        PlanePoint m_ppoint(pt, label_mat(i, j));
+  //        cloud_seg_pure.push_back(m_ppoint);
+  //      }
+  //    }
+  //  }
 }
 
 void Mapper3D::labelComponents(const int&                row,
@@ -708,8 +781,8 @@ void Mapper3D::labelComponents(const int&                row,
   }
 }
 
-void Mapper3D::extractVegetationPlanes(const std::vector<PlanePoint>& in_plane_pts,
-                                       std::vector<Line>& out_vegetation_lines)
+void Mapper3D::extractHighLevelPlanes(const std::vector<PlanePoint>& in_plane_pts,
+                                      std::vector<Plane>&            out_planes)
 {
   // -------------------------------------------------------------------------------
   // ----- Segment plane points in two different sets
@@ -737,6 +810,8 @@ void Mapper3D::extractVegetationPlanes(const std::vector<PlanePoint>& in_plane_p
   Plane side_plane_a_filtered, side_plane_b_filtered;
   ransac(side_plane_a, side_plane_a_filtered);
   ransac(side_plane_b, side_plane_b_filtered);
+  side_plane_a_filtered.id = 0;
+  side_plane_b_filtered.id = 1;
 
   // -------------------------------------------------------------------------------
   // ----- Fit both plane points by two lines
@@ -744,17 +819,51 @@ void Mapper3D::extractVegetationPlanes(const std::vector<PlanePoint>& in_plane_p
   Line line_a(side_plane_a_filtered.points);
   Line line_b(side_plane_b_filtered.points);
 
-  out_vegetation_lines.clear();
-  out_vegetation_lines = {line_a, line_b};
+  side_plane_a_filtered.regression = line_a;
+  side_plane_b_filtered.regression = line_b;
+
+  // -------------------------------------------------------------------------------
+  // ----- Check the validity of the extracted planes
+  // -------------------------------------------------------------------------------
+  std::vector<Plane> planes = {side_plane_a_filtered, side_plane_b_filtered};
+
+  for (auto plane : planes) {
+    bool A = false, B = false;
+
+    // (A) - Check if the plane have a minimum number of points
+    if (plane.points.size() > 500)
+      A = true;
+
+    // (B) - Compute point to line distance and check if the average distance is
+    //       bellow a threshold
+    float dist = 0;
+    if (!plane.points.empty()) {
+      for (const auto& pt : plane.points) {
+        dist += plane.regression.dist(pt);
+      }
+      dist /= static_cast<float>(plane.points.size());
+    }
+
+    if (dist > 0 && dist < 0.05)
+      B = true;
+
+    // (C) - Save plane if in case of success
+    if (A && B)
+      out_planes.push_back(plane);
+  }
 }
 
-void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,
-                              std::vector<Corner>&           out_corners)
+void Mapper3D::extract3DFeatures(const std::vector<PlanePoint>& in_plane_pts,
+                                 std::vector<Corner>&           out_corners,
+                                 std::vector<Planar>&           out_planars)
+
 {
   // -------------------------------------------------------------------------------
   // ----- Compute cloud smoothness
   // -------------------------------------------------------------------------------
-  int                       m_cloud_size = in_plane_pts.size();
+  int* cloudPlanarLabel = new int[vertical_scans * horizontal_scans];
+  int* cloudCornerLabel = new int[vertical_scans * horizontal_scans];
+  int  m_cloud_size     = in_plane_pts.size();
   std::vector<smoothness_t> cloud_smoothness(vertical_scans * horizontal_scans);
   std::vector<int>          neighbor_picked(vertical_scans * horizontal_scans);
   for (int i = 5; i < m_cloud_size - 5; i++) {
@@ -768,15 +877,59 @@ void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,
     cloud_smoothness[i].value = diff_range * diff_range;
     cloud_smoothness[i].idx   = i;
 
+    cloudPlanarLabel[i] = 0;
+    cloudCornerLabel[i] = 0;
+
     // Reset neighborhood flag array
     neighbor_picked[i] = 0;
   }
 
   // -------------------------------------------------------------------------------
+  // ----- Mark occluded points
+  // -------------------------------------------------------------------------------
+
+  for (int i = 5; i < m_cloud_size - 6; ++i) {
+
+    float depth1   = seg_pcl.range[i];
+    float depth2   = seg_pcl.range[i + 1];
+    int   col_diff = std::abs(int(seg_pcl.col_idx[i + 1] - seg_pcl.col_idx[i]));
+
+    if (col_diff < 10) {
+
+      if (depth1 - depth2 > 0.3) {
+        neighbor_picked[i - 5] = 1;
+        neighbor_picked[i - 4] = 1;
+        neighbor_picked[i - 3] = 1;
+        neighbor_picked[i - 2] = 1;
+        neighbor_picked[i - 1] = 1;
+        neighbor_picked[i]     = 1;
+      } else if (depth2 - depth1 > 0.3) {
+        neighbor_picked[i + 1] = 1;
+        neighbor_picked[i + 2] = 1;
+        neighbor_picked[i + 3] = 1;
+        neighbor_picked[i + 4] = 1;
+        neighbor_picked[i + 5] = 1;
+        neighbor_picked[i + 6] = 1;
+      }
+    }
+
+    float diff1 = std::abs(float(seg_pcl.range[i - 1] - seg_pcl.range[i]));
+    float diff2 = std::abs(float(seg_pcl.range[i + 1] - seg_pcl.range[i]));
+
+    if (diff1 > 0.02 * seg_pcl.range[i] && diff2 > 0.02 * seg_pcl.range[i])
+      neighbor_picked[i] = 1;
+  }
+
+  // -------------------------------------------------------------------------------
   // ----- Extract features from the 3D cloud
   // -------------------------------------------------------------------------------
-  int corner_id = 0;
+  std::vector<Planar> planar_points_less_flat;
+  int                 corner_id = 0;
+  int                 planar_id = 0;
   for (int i = 0; i < vertical_scans; i++) {
+
+    planar_points_less_flat.clear();
+
     for (int k = 0; k < 6; k++) {
       // Compute start and end indexes of the sub-region
       int sp =
@@ -794,14 +947,13 @@ void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,
           cloud_smoothness.begin() + sp, cloud_smoothness.begin() + ep, by_value());
 
       // -- Extract edge features
-      // -----------------------------------------------------
       int picked_counter = 0;
       for (int l = ep; l >= sp; l--) {
         int idx = cloud_smoothness[l].idx;
 
         // Check if the current point is an edge feature
         if (neighbor_picked[idx] == 0 &&
-            cloud_smoothness[l].value > edge_threshold) {
+            cloud_smoothness[l].value > edge_threshold && !seg_pcl.is_ground[idx]) {
           picked_counter++;
           if (picked_counter <= picked_num) {
             Corner m_corner(
@@ -811,6 +963,8 @@ void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,
           } else {
             break;
           }
+
+          cloudCornerLabel[idx] = -1;
 
           // Mark neighbor points to reject as future features
           neighbor_picked[idx] = 1;
@@ -836,115 +990,66 @@ void Mapper3D::extractCorners(const std::vector<PlanePoint>& in_plane_pts,
           }
         }
       }
-      // -----------------------------------------------------
-    }
-  }
-}
 
-void Mapper3D::downsampleCorners(std::vector<Corner>&  corners,
-                                 const float&          tolerance,
-                                 std::vector<Cluster>& clusters,
-                                 const unsigned int&   min_pts_per_cluster,
-                                 const unsigned int&   max_points_per_cluster)
-{
-  // -----------------------------------------------------------------------------
-  // ------ (1) Create and fill local grid map to speed up the search
-  // -----------------------------------------------------------------------------
-  local_map->clear();
-  for (const auto& corner : corners) local_map->insert(corner);
+      // -- Extract planar features
+      picked_counter = 0;
+      for (int l = sp; l <= ep; l++) {
+        int idx = cloud_smoothness[l].idx;
 
-  // -----------------------------------------------------------------------------
-  // ------ (2) Euclidean clustering algorithm
-  // -----------------------------------------------------------------------------
-  std::vector<bool> processed(corners.size(), false);
+        // Check if the current point is a planar feature
+        if (neighbor_picked[idx] == 0 &&
+            cloud_smoothness[l].value < planar_threshold) {
 
-  int cluster_id    = 0;
-  int clustered_pts = 0;
-  for (size_t i = 0; i < corners.size(); i++) {
-    if (processed[i])
-      continue;
-    else
-      processed[i] = true;
+          cloudPlanarLabel[idx] = -1;
 
-    std::vector<int>   nn_indices;
-    std::vector<float> nn_distances;
-    std::vector<int>   seed_queue;
-    int                sq_idx = 0;
-    seed_queue.push_back(i);
+          picked_counter++;
+          if (picked_counter >= 4)
+            break;
 
-    while (sq_idx < seed_queue.size()) {
-      // Search for neighbours inside the radius tolerance
-      int   idx = seed_queue[sq_idx];
-      point pt  = corners[idx].pos;
-      for (const auto& m_corner : (*local_map)(pt.x, pt.y).corner_features) {
-        float dist = pt.distance(m_corner.pos);
+          neighbor_picked[idx] = 1;
+          for (int m = 1; m <= 5; m++) {
+            int col_diff =
+                std::abs(seg_pcl.col_idx[idx + m] - seg_pcl.col_idx[idx + m - 1]);
 
-        if (dist < tolerance) {
-          nn_indices.push_back(m_corner.id);
-          nn_distances.push_back(dist);
-        }
-      }
-
-      std::vector<Cell> adjacents;
-      local_map->getAdjacent(pt.x, pt.y, 1, adjacents);
-      for (const auto& m_cell : adjacents) {
-        for (const auto& m_corner : m_cell.corner_features) {
-          float dist = pt.distance(m_corner.pos);
-          if (dist < tolerance) {
-            nn_indices.push_back(m_corner.id);
-            nn_distances.push_back(dist);
+            if (col_diff > 10)
+              break;
+            else
+              neighbor_picked[idx + m] = 1;
+          }
+          for (int m = -1; m >= -5; m--) {
+            if (idx + m < 0)
+              continue;
+            int col_diff =
+                std::abs(seg_pcl.col_idx[idx + m] - seg_pcl.col_idx[idx + m + 1]);
+            if (col_diff > 10)
+              break;
+            else
+              neighbor_picked[idx + m] = 1;
           }
         }
       }
 
-      if (nn_indices.empty()) {
-        sq_idx++;
-        continue;
+      for (int l = sp; l <= ep; l++) {
+        if (cloudPlanarLabel[l] <= 0 && cloudCornerLabel[l] >= 0) {
+          Planar m_planar(
+              in_plane_pts[l].pos, in_plane_pts[l].which_plane, planar_id);
+          planar_points_less_flat.push_back(m_planar);
+        }
       }
-
-      // If we found valid neighbours, insert them into a cluster
-      for (int& nn_indice : nn_indices) {
-        // Check if corners has already been processed
-        if (processed[nn_indice])
-          continue;
-
-        // Perform a simple Euclidean clustering
-        seed_queue.push_back(nn_indice);
-        processed[nn_indice] = true;
-      }
-
-      sq_idx++;
     }
 
-    // Check if we found a valid cluster, and if so, save it
-    if (seed_queue.size() >= min_pts_per_cluster &&
-        seed_queue.size() <= max_points_per_cluster) {
-      std::vector<Corner> clustered_corners;
-      point               center(0., 0., 0.);
-      point               radius(0., 0., 0.);
-      for (int j : seed_queue) {
-        clustered_corners.push_back(corners[j]);
-        corners[j].which_cluster = cluster_id;
-
-        center = center + corners[j].pos;
-      }
-      center = center / static_cast<float>(seed_queue.size());
-      for (const auto& m_corner : clustered_corners) {
-        float dist_x = std::fabs(m_corner.pos.x - center.x);
-        float dist_y = std::fabs(m_corner.pos.y - center.y);
-        float dist_z = std::fabs(m_corner.pos.z - center.z);
-
-        radius.x = (dist_x > radius.x) ? dist_x : radius.x;
-        radius.y = (dist_y > radius.y) ? dist_y : radius.y;
-        radius.z = (dist_z > radius.z) ? dist_z : radius.z;
-
-        clustered_pts++;
-      }
-      Cluster cluster(center, radius, clustered_corners, cluster_id);
-      clusters.push_back(cluster);
-      cluster_id++;
-    }
+    out_planars.insert(out_planars.end(),
+                       planar_points_less_flat.begin(),
+                       planar_points_less_flat.end());
   }
+
+  local_map->clear();
+  for (const auto& planar : out_planars) local_map->insert(planar);
+  for (const auto& corner : out_corners) local_map->insert(corner);
+  local_map->downsamplePlanars();
+
+  out_planars.clear();
+  out_planars = local_map->getPlanars();
 }
 
 void Mapper3D::extractPCLDescriptors(const cv::Mat& by_image_var,

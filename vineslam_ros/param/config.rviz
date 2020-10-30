@@ -5,8 +5,8 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /TFs1/Frames1
-      Splitter Ratio: 0.5812274217605591
-    Tree Height: 806
+      Splitter Ratio: 0.7247474789619446
+    Tree Height: 833
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -88,7 +88,7 @@ Visualization Manager:
       Frames:
         All Enabled: false
         base_link:
-          Value: true
+          Value: false
         camerat265_odom_frame:
           Value: false
         camerat265_pose_frame:
@@ -170,6 +170,14 @@ Visualization Manager:
       Topic: /vineslam/path
       Unreliable: false
       Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /vineslam/occupancyMap
+      Name: Grid Map
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
     - Alpha: 1
       Arrow Length: 1
       Axes Length: 0.30000001192092896
@@ -186,16 +194,6 @@ Visualization Manager:
       Topic: /vineslam/poses
       Unreliable: false
       Value: true
-    - Alpha: 0.699999988079071
-      Class: rviz/Map
-      Color Scheme: map
-      Draw Behind: false
-      Enabled: false
-      Name: Grid Map
-      Topic: /vineslam/occupancyMap
-      Unreliable: false
-      Use Timestamp: false
-      Value: false
     - Class: rviz/MarkerArray
       Enabled: false
       Marker Topic: /vineslam/map2D
@@ -207,16 +205,16 @@ Visualization Manager:
     - Alpha: 0.800000011920929
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 1.9428613185882568
-        Min Value: 0.11041492223739624
+        Max Value: 10.518110275268555
+        Min Value: -4.855116844177246
         Value: true
       Axis: Z
       Channel Name: intensity
       Class: rviz/PointCloud2
       Color: 237; 212; 0
-      Color Transformer: FlatColor
+      Color Transformer: AxisColor
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 0
@@ -233,7 +231,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -274,19 +272,19 @@ Visualization Manager:
       Channel Name: intensity
       Class: rviz/PointCloud2
       Color: 38; 139; 210
-      Color Transformer: FlatColor
+      Color Transformer: Intensity
       Decay Time: 0
       Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
-      Max Intensity: 0
+      Max Intensity: 2
       Min Color: 0; 0; 0
       Min Intensity: 0
-      Name: Local Map 1 - Ground Plane
+      Name: Local Map 1 - Planes
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
-      Size (Pixels): 6
+      Size (Pixels): 2
       Size (m): 0.05000000074505806
       Style: Points
       Topic: /vineslam/map3D/planes
@@ -297,29 +295,29 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
+        Max Value: 3.7397921085357666
+        Min Value: -3.7327821254730225
         Value: true
       Axis: Z
       Channel Name: intensity
       Class: rviz/PointCloud2
       Color: 255; 255; 255
-      Color Transformer: Intensity
+      Color Transformer: AxisColor
       Decay Time: 0
       Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
-      Max Intensity: 1
+      Max Intensity: -999999
       Min Color: 0; 0; 0
-      Min Intensity: 0
-      Name: Local Map 2 - Vegetation Lines
+      Min Intensity: 999999
+      Name: Local Map 2 - Planar features
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.05000000074505806
-      Style: Flat Squares
-      Topic: /vineslam/map3D/lines
+      Size (m): 0.009999999776482582
+      Style: Points
+      Topic: /vineslam/map3D/planars_local
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -327,33 +325,33 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
+        Max Value: 5.310560703277588
+        Min Value: -0.15216638147830963
         Value: true
       Axis: Z
       Channel Name: intensity
       Class: rviz/PointCloud2
-      Color: 255; 255; 255
-      Color Transformer: Intensity
+      Color: 32; 74; 135
+      Color Transformer: FlatColor
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
-      Max Intensity: 850
+      Max Intensity: 0
       Min Color: 0; 0; 0
       Min Intensity: 0
       Name: "Local MAP 3 - Corners "
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
-      Size (Pixels): 3
+      Size (Pixels): 4
       Size (m): 0.05000000074505806
-      Style: Spheres
+      Style: Points
       Topic: /vineslam/map3D/corners_local
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Class: rviz/MarkerArray
       Enabled: false
       Marker Topic: /vineslam/debug_markers
@@ -390,35 +388,35 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 17.960058212280273
+      Distance: 76.28743743896484
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.9529528617858887
-        Y: -0.941077709197998
-        Z: -1.0806124919326976e-5
+        X: -11.940053939819336
+        Y: 6.834393501281738
+        Z: -9.852450602920726e-6
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: -0.11520285159349442
+      Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
       Value: XYOrbit (rviz)
-      Yaw: 4.661983966827393
+      Yaw: 3.1749019622802734
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 1025
+  Height: 1052
   Hide Left Dock: false
   Hide Right Dock: false
   Image:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd00000004000000000000022c00000363fc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d00000363000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000017d00000363fc0200000004fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a0049006d006100670065010000003d000002160000001600fffffffc0000025900000147000000c10100001cfa000000000100000002fb0000000a0049006d0061006700650100000000ffffffff0000005e00fffffffb0000000a00560069006500770073010000062e0000010f0000010000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e100000197000000030000073d0000003efc0100000002fb0000000800540069006d006501000000000000073d000002eb00fffffffb0000000800540069006d00650100000000000004500000000000000000000003880000036300000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd00000004000000000000018e0000037efc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d0000037e000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000017d0000037efc0200000004fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a0049006d006100670065010000003d000002270000001600fffffffc0000026a00000151000000c10100001cfa000000000100000002fb0000000a0049006d0061006700650100000000ffffffff0000005e00fffffffb0000000a00560069006500770073010000062e0000010f0000010000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000007800000003efc0100000002fb0000000800540069006d0065010000000000000780000002eb00fffffffb0000000800540069006d00650100000000000004500000000000000000000004690000037e00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -427,6 +425,6 @@ Window Geometry:
     collapsed: false
   Views:
     collapsed: false
-  Width: 1853
-  X: 67
-  Y: 27
+  Width: 1920
+  X: 0
+  Y: 0

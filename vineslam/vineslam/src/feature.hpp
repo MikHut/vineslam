@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <math/pose.hpp>
 #include <math/stat.hpp>
 #include <math/point.hpp>
 #include <math/vector3D.hpp>
@@ -17,6 +18,11 @@ struct Feature {
   {
     id  = m_id;
     pos = m_pos;
+  }
+
+  bool operator==(Feature m_feature)
+  {
+    return m_feature.pos == pos;
   }
 
   int   id{};
@@ -131,24 +137,27 @@ struct ImageFeature : public Feature {
                const uint8_t& b,
                const point&   pos)
   {
-    (*this).u         = u;
-    (*this).v         = v;
-    (*this).r         = r;
-    (*this).g         = g;
-    (*this).b         = b;
-    (*this).signature = std::vector<float>();
-    (*this).pos       = pos;
+    (*this).u              = u;
+    (*this).v              = v;
+    (*this).r              = r;
+    (*this).g              = g;
+    (*this).b              = b;
+    (*this).signature      = std::vector<float>();
+    (*this).pos            = pos;
+    (*this).n_observations = 0;
   }
 
   // Class constructor
   // - initializes its image
   ImageFeature(const int& u, const int& v)
   {
-    (*this).u         = u;
-    (*this).v         = v;
-    (*this).signature = std::vector<float>();
+    (*this).u              = u;
+    (*this).v              = v;
+    (*this).signature      = std::vector<float>();
+    (*this).n_observations = 0;
   }
 
+  int n_observations{};
   // Image pixel position
   int u{};
   int v{};
@@ -171,11 +180,33 @@ struct Corner : public Feature {
 
   Corner(const point& m_pt, const int& m_which_plane, const int& m_id = 0)
   {
-    pos         = m_pt;
-    which_plane = m_which_plane;
-    id          = m_id;
+    pos            = m_pt;
+    which_plane    = m_which_plane;
+    id             = m_id;
+    n_observations = 0;
   }
 
+  int n_observations{};
+  int which_plane{};   // sets the plane where the corner belongs
+  int which_cluster{}; // sets the cluster where the corner belongs
+};
+
+// ---------------------------------------------------------------------------------
+// ----- Point cloud medium-level planar feature
+// ---------------------------------------------------------------------------------
+
+struct Planar : public Feature {
+  Planar() = default;
+
+  Planar(const point& m_pt, const int& m_which_plane, const int& m_id = 0)
+  {
+    pos            = m_pt;
+    which_plane    = m_which_plane;
+    id             = m_id;
+    n_observations = 0;
+  }
+
+  int n_observations{};
   int which_plane{};   // sets the plane where the corner belongs
   int which_cluster{}; // sets the cluster where the corner belongs
 };
@@ -225,7 +256,55 @@ struct Cluster : public Feature {
   point center; // Cluster centre
   point radius; // Cluster radius
 
-  std::vector<Corner> items; // Items located inside the sphere feature
+  std::vector<Corner> items; // Items located inside the cluster
+};
+
+// ---------------------------------------------------------------------------------
+// ----- Point cloud medium-level line feature
+// ---------------------------------------------------------------------------------
+
+struct Line {
+  Line() = default;
+
+  Line(const float& m_m, const float& m_b)
+  {
+    m = m_m;
+    b = m_b;
+  }
+
+  // - This constructor fits a line in a set of points using a linear regression
+  explicit Line(const std::vector<point>& m_pts)
+  {
+    float sumX = 0., sumX2, sumY = 0., sumXY = 0.;
+    float n      = 0;
+    float x_mean = 0., x_max = 0.;
+    for (const auto& pt : m_pts) {
+      sumX += pt.x;
+      sumX2 += pt.x * pt.x;
+      sumY += pt.y;
+      sumXY += pt.x * pt.y;
+
+      x_mean += pt.x;
+      x_max = (pt.x > x_max) ? pt.x : x_max;
+      n += 1.;
+    }
+
+    if (n == 0) {
+      m = 0;
+      b = 0;
+    } else {
+      m = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+      b = (sumY - m * sumX) / n;
+    }
+  }
+
+  float dist(const point& pt)
+  {
+    return std::sqrt(std::pow(b + m * pt.x - pt.y, 2) / std::pow(m * m + 1, 2));
+  }
+
+  float m; // slope
+  float b; // zero intercept
 };
 
 // ---------------------------------------------------------------------------------
@@ -243,56 +322,12 @@ struct Plane {
     points = m_points;
   }
 
+  int                id{};    // plane identifier
   vector3D           normal;  // plane normal vector
   std::vector<point> points;  // set of points that belong to the plane
   std::vector<point> indexes; // indexes of points projected into the range image
+  Line               regression{};  // XY linear fitting of plane points into a line
   float              mean_height{}; // ground plane mean height - used for validation
-};
-
-// ---------------------------------------------------------------------------------
-// ----- Point cloud medium-level line feature
-// ---------------------------------------------------------------------------------
-
-struct Line {
-  Line() = default;
-
-  Line(const float& m_m, const float& m_b, const std::vector<point>& m_pts)
-  {
-    m = m_m;
-    b = m_b;
-
-    pts.clear();
-    pts = m_pts;
-  }
-
-  // - This constructor fits a line in a set of points using a linear regression
-  explicit Line(const std::vector<point>& m_pts)
-  {
-    float sumX = 0., sumX2, sumY = 0., sumXY = 0.;
-    float n      = 0;
-    float x_mean = 0., x_max = 0.;
-    for (const auto& pt : m_pts) {
-      sumX += pt.x;
-      sumX2 += pt.x * pt.x;
-      sumY += pt.y;
-      sumXY += pt.x * pt.y;
-
-      x_mean += pt.x;
-      x_max = (pt.x > x_max) ? pt.x : x_max;
-      n++;
-    }
-
-    m = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-    b = (sumY - m * sumX) / n;
-
-    pts.clear();
-    pts = m_pts;
-  }
-
-  float m{}; // slope
-  float b{}; // zero intercept
-
-  std::vector<point> pts; // points on line
 };
 
 } // namespace vineslam

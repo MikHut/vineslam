@@ -17,6 +17,7 @@
 #define ORIGIN "origin"
 #define WIDTH "width"
 #define HEIGHT "height"
+#define LENGHT "lenght"
 #define RESOLUTION "resolution"
 #define METRIC "metric"
 // -- Map data

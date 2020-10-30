@@ -12,7 +12,6 @@ struct Parameters {
   // -----------------------------------
   std::string bagfile_name;
   std::string odom_topic;
-  std::string rs_odom_topic;
   std::string tf_topic;
   std::string fix_topic;
   std::string depth_img_topic;
@@ -24,10 +23,11 @@ struct Parameters {
   // ------ System flags
   // -----------------------------------
   bool debug{};
-  bool use_vegetation_lines{};
+  bool use_planes{};
   bool use_landmarks{};
   bool use_ground_plane{};
   bool use_corners{};
+  bool use_planars{};
   bool use_icp{};
   bool use_gps{};
 
@@ -62,7 +62,9 @@ struct Parameters {
   // - Grid map
   float       gridmap_origin_x{};
   float       gridmap_origin_y{};
+  float       gridmap_origin_z{};
   float       gridmap_width{};
+  float       gridmap_lenght{};
   float       gridmap_height{};
   float       gridmap_resolution{};
   std::string gridmap_metric;
@@ -73,7 +75,6 @@ struct Parameters {
   int   hessian_threshold{};
   float max_range{};
   float max_height{};
-  int   downsample_factor{};
   int   icp_max_iters{};
   float icp_distance_threshold{};
   bool  icp_reject_outliers{};
@@ -94,7 +95,8 @@ struct Parameters {
   float sigma_landmark_matching{};
   float sigma_feature_matching{};
   float sigma_corner_matching{};
-  float sigma_vegetation_lines_yaw{};
+  float sigma_planar_matching{};
+  float sigma_planes_yaw{};
   float sigma_ground_rp{};
   float sigma_gps{};
   int   number_clusters{};

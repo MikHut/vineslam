@@ -24,6 +24,7 @@ void Localizer::init(const pose& initial_pose)
 
 void Localizer::process(const pose&        odom,
                         const Observation& obsv,
+                        OccupancyMap*      previous_map,
                         OccupancyMap*      grid_map)
 {
   auto before = std::chrono::high_resolution_clock::now();
@@ -39,10 +40,12 @@ void Localizer::process(const pose&        odom,
   // ------------------------------------------------------------------------------
   pf->update(obsv.landmarks,
              obsv.corners,
-             obsv.vegetation_lines,
+             obsv.planars,
+             obsv.planes,
              obsv.ground_plane,
              obsv.surf_features,
              obsv.gps_pose,
+             previous_map,
              grid_map);
 
   // ------------------------------------------------------------------------------
@@ -53,6 +56,9 @@ void Localizer::process(const pose&        odom,
   // ------------------------------------------------------------------------------
   // ---------------- Resample particles
   // ------------------------------------------------------------------------------
+  // - Save not resampled particles
+  m_particles.clear();
+  for (const auto& particle : pf->particles) m_particles.push_back(particle);
   pf->resample();
 
   // - Compute final robot pose using the mean of the particles poses
@@ -70,10 +76,16 @@ void Localizer::process(const pose&        odom,
 
 pose Localizer::getPose() const { return average_pose; }
 
-void Localizer::getParticles(std::vector<pose>& in) const
+void Localizer::getParticles(std::vector<Particle>& in) const
 {
   in.resize(pf->particles.size());
-  for (size_t i = 0; i < in.size(); i++) in[i] = pf->particles[i].p;
+  for (size_t i = 0; i < in.size(); i++) in[i] = pf->particles[i];
+}
+
+void Localizer::getParticlesBeforeResampling(std::vector<Particle>& in) const
+{
+  in.resize(m_particles.size());
+  for (size_t i = 0; i < in.size(); i++) in[i] = m_particles[i];
 }
 
 } // namespace vineslam

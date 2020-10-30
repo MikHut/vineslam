@@ -10,19 +10,17 @@ static void loadParameters(const ros::NodeHandle& nh,
                            const std::string&     prefix,
                            Parameters&            params)
 {
+  const std::string& node_name = ros::this_node::getName();
+
   // Load params
-  if (!nh.getParam(prefix + "/bagfile_name", params.bagfile_name)) {
+  if (!nh.getParam(prefix + "/bagfile_name", params.bagfile_name) &&
+      node_name == "/replay_node") {
     ROS_ERROR("%s/bagfile_name parameter not found. Shutting down...",
               prefix.c_str());
     exit(-1);
   }
   if (!nh.getParam(prefix + "/odom_topic", params.odom_topic)) {
     ROS_ERROR("%s/odom_topic parameter not found. Shutting down...", prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/rs_odom_topic", params.rs_odom_topic)) {
-    ROS_ERROR("%s/rs_odom_topic parameter not found. Shutting down...",
-              prefix.c_str());
     exit(-1);
   }
   if (!nh.getParam(prefix + "/tf_topic", params.tf_topic)) {
@@ -62,9 +60,8 @@ static void loadParameters(const ros::NodeHandle& nh,
               prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/system/use_vegetation_lines",
-                   params.use_vegetation_lines)) {
-    ROS_ERROR("%s/system/use_vegetation_lines parameter not found. Shutting down...",
+  if (!nh.getParam(prefix + "/system/use_planes", params.use_planes)) {
+    ROS_ERROR("%s/system/use_planes parameter not found. Shutting down...",
               prefix.c_str());
     exit(-1);
   }
@@ -75,6 +72,11 @@ static void loadParameters(const ros::NodeHandle& nh,
   }
   if (!nh.getParam(prefix + "/system/use_corners", params.use_corners)) {
     ROS_ERROR("%s/system/use_corners parameter not found. Shutting down...",
+              prefix.c_str());
+    exit(-1);
+  }
+  if (!nh.getParam(prefix + "/system/use_planars", params.use_planars)) {
+    ROS_ERROR("%s/system/use_planars parameter not found. Shutting down...",
               prefix.c_str());
     exit(-1);
   }
@@ -174,13 +176,6 @@ static void loadParameters(const ros::NodeHandle& nh,
               prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/multilayer_mapping/cloud_feature/downsample_factor",
-                   params.downsample_factor)) {
-    ROS_ERROR("%s/multilayer_mapping/cloud_feature/downsample_factor parameter "
-              "not found. Shutting down...",
-              prefix.c_str());
-    exit(-1);
-  }
   if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/origin/x",
                    params.gridmap_origin_x)) {
     ROS_ERROR("%s/multilayer_mapping/grid_map/origin/x parameter "
@@ -195,9 +190,23 @@ static void loadParameters(const ros::NodeHandle& nh,
               prefix.c_str());
     exit(-1);
   }
+  if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/origin/z",
+                   params.gridmap_origin_z)) {
+    ROS_ERROR("%s/multilayer_mapping/grid_map/origin/z parameter "
+              "not found. Shutting down...",
+              prefix.c_str());
+    exit(-1);
+  }
   if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/width",
                    params.gridmap_width)) {
     ROS_ERROR("%s/multilayer_mapping/grid_map/width "
+              "not found. Shutting down...",
+              prefix.c_str());
+    exit(-1);
+  }
+  if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/lenght",
+                   params.gridmap_lenght)) {
+    ROS_ERROR("%s/multilayer_mapping/grid_map/lenght "
               "not found. Shutting down...",
               prefix.c_str());
     exit(-1);
@@ -338,9 +347,15 @@ static void loadParameters(const ros::NodeHandle& nh,
               prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/pf/sigma_vegetation_lines_yaw",
-                   params.sigma_vegetation_lines_yaw)) {
-    ROS_ERROR("%s/pf/sigma_vegetation_lines_yaw not found. "
+  if (!nh.getParam(prefix + "/pf/sigma_planar_matching",
+                   params.sigma_planar_matching)) {
+    ROS_ERROR("%s/pf/sigma_planar_matching not found. "
+              "Shutting down...",
+              prefix.c_str());
+    exit(-1);
+  }
+  if (!nh.getParam(prefix + "/pf/sigma_planes_yaw", params.sigma_planes_yaw)) {
+    ROS_ERROR("%s/pf/sigma_planes_yaw not found. "
               "Shutting down...",
               prefix.c_str());
     exit(-1);

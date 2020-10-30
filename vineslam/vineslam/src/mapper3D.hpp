@@ -7,6 +7,7 @@
 
 // Objects
 #include <params.hpp>
+#include <feature.hpp>
 #include <occupancy_map.hpp>
 #include <math/point.hpp>
 #include <math/pose.hpp>
@@ -20,7 +21,6 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/xfeatures2d.hpp>
 #include <opencv2/xfeatures2d/nonfree.hpp>
-#include <feature.hpp>
 
 namespace vineslam
 {
@@ -60,6 +60,13 @@ public:
   // parameters
   explicit Mapper3D(const Parameters& params);
 
+  void registerMaps(const pose&                robot_pose,
+                    std::vector<ImageFeature>& img_features,
+                    std::vector<Corner>&       corners,
+                    std::vector<Planar>&       planars,
+                    std::vector<Plane>&        planes,
+                    OccupancyMap&              grid_map);
+
   // -------------------------------------------------------------------------------
   // ---- 3D image feature map
   // -------------------------------------------------------------------------------
@@ -68,51 +75,15 @@ public:
                     const float*               depths,
                     std::vector<ImageFeature>& out_features);
 
-  // Adds the image features to the global map
-  void globalSurfMap(const std::vector<ImageFeature>& features,
-                     const pose&                      robot_pose,
-                     OccupancyMap&                    grid_map) const;
-
   // -------------------------------------------------------------------------------
   // ---- 3D pointcloud feature map
   // -------------------------------------------------------------------------------
   // Builds local map given the current 3D point cloud - for velodyne
   void localPCLMap(const std::vector<point>& pcl,
                    std::vector<Corner>&      out_corners,
-                   std::vector<Cluster>&     out_clusters,
-                   std::vector<Line>&        out_vegetation_lines,
+                   std::vector<Planar>&      out_planars,
+                   std::vector<Plane>&       out_planes,
                    Plane&                    out_groundplane);
-
-  // Adds the corner features to the global map
-  void globalCornerMap(const pose&          robot_pose,
-                       std::vector<Corner>& corners,
-                       OccupancyMap&        grid_map) const;
-
-  // Computes a range image from a raw point cloud
-  static void rangeImage(const std::vector<point>& pcl,
-                         const std::vector<float>& intensities,
-                         cv::Mat&                  out_image);
-
-  // Computes a birds eye image from a raw point cloud
-  static void birdEyeImage(const std::vector<point>& pcl,
-                           cv::Mat&                  out_image,
-                           cv::Mat&                  out_image_var);
-
-  // Computes a projection of the point cloud into different side view images
-  static void sideViewImageXZ(const std::vector<point>& pcl,
-                              cv::Mat&                  image_pside,
-                              cv::Mat&                  image_nside,
-                              cv::Mat&                  image_pside_var,
-                              cv::Mat&                  image_nside_var);
-  static void sideViewImageYZ(const std::vector<point>& pcl,
-                              cv::Mat&                  out_image,
-                              cv::Mat&                  out_image_var);
-  // Extract point cloud descriptors from variance images
-  static void extractPCLDescriptors(const cv::Mat& by_image_var,
-                                    const cv::Mat& pside_image_var,
-                                    const cv::Mat& nside_image_var,
-                                    const cv::Mat& back_image_var);
-  // -------------------------------------------------------------------------------
 
   // Setter functions
   void setCam2Base(const float& x,
@@ -145,18 +116,34 @@ public:
   }
 
   // Public vars
-  float lidar_height;
+  float         lidar_height;
+  pose          last_registering_pose;
+  OccupancyMap* local_map;
 
 private:
   // -------------------------------------------------------------------------------
   // ---- 3D image feature map
   // -------------------------------------------------------------------------------
+  // Adds the image features to the global map
+  void globalSurfMap(const std::vector<ImageFeature>& features,
+                     const pose&                      robot_pose,
+                     OccupancyMap&                    grid_map) const;
+
   // Perform feature extraction
   void extractSurfFeatures(const cv::Mat& in, std::vector<ImageFeature>& out) const;
 
   // -------------------------------------------------------------------------------
   // ---- 3D pointcloud feature map
   // -------------------------------------------------------------------------------
+  // Adds the corner features to the global map
+  void globalCornerMap(const pose&          robot_pose,
+                       std::vector<Corner>& corners,
+                       OccupancyMap&        grid_map) const;
+  // Adds the planar features to the global map
+  void globalPlanarMap(const pose&          robot_pose,
+                       std::vector<Planar>& planars,
+                       OccupancyMap&        grid_map) const;
+
   // Method to reset all the global variables and members
   void reset();
 
@@ -168,7 +155,8 @@ private:
 
   // Cloud generic plane segmentation
   void cloudSegmentation(const std::vector<point>& in_pts,
-                         std::vector<PlanePoint>&  out_plane_pts);
+                         std::vector<PlanePoint>&  cloud_seg,
+                         std::vector<PlanePoint>&  cloud_seg_pure);
 
   // Label a segment of a 3D point cloud
   void labelComponents(const int&                row,
@@ -177,28 +165,45 @@ private:
                        int&                      label);
 
   // Extract the couple of vegetation side planes
-  void extractVegetationPlanes(const std::vector<PlanePoint>& in_plane_pts,
-                               std::vector<Line>&             out_vegetation_lines);
+  void extractHighLevelPlanes(const std::vector<PlanePoint>& in_plane_pts,
+                              std::vector<Plane>&            out_planes);
 
   // 3D feature extraction from a point cloud
-  void extractCorners(const std::vector<PlanePoint>& in_plane_pts,
-                      std::vector<Corner>&           out_corners);
+  void extract3DFeatures(const std::vector<PlanePoint>& in_plane_pts,
+                         std::vector<Corner>&           out_corners,
+                         std::vector<Planar>&           out_planars);
 
-  // Downsample 3D corners point cloud using cluster and fitting algorithms
-  void downsampleCorners(std::vector<Corner>&  corners,
-                         const float&          tolerance,
-                         std::vector<Cluster>& clusters,
-                         const unsigned int&   min_pts_per_cluster,
-                         const unsigned int&   max_points_per_cluster);
+  // Computes a range image from a raw point cloud
+  static void rangeImage(const std::vector<point>& pcl,
+                         const std::vector<float>& intensities,
+                         cv::Mat&                  out_image);
+
+  // Computes a birds eye image from a raw point cloud
+  static void birdEyeImage(const std::vector<point>& pcl,
+                           cv::Mat&                  out_image,
+                           cv::Mat&                  out_image_var);
+
+  // Computes a projection of the point cloud into different side view images
+  static void sideViewImageXZ(const std::vector<point>& pcl,
+                              cv::Mat&                  image_pside,
+                              cv::Mat&                  image_nside,
+                              cv::Mat&                  image_pside_var,
+                              cv::Mat&                  image_nside_var);
+  static void sideViewImageYZ(const std::vector<point>& pcl,
+                              cv::Mat&                  out_image,
+                              cv::Mat&                  out_image_var);
+  // Extract point cloud descriptors from variance images
+  static void extractPCLDescriptors(const cv::Mat& by_image_var,
+                                    const cv::Mat& pside_image_var,
+                                    const cv::Mat& nside_image_var,
+                                    const cv::Mat& back_image_var);
+
   // Computes an histogram of a point cloud image
   static void computeHistogram(const cv::Mat& in_image, std::vector<int>& hist);
   // ------------------------------------------------------------------------------
 
   // Converts a pixel into world's coordinate reference
   void pixel2base(const point& in_pt, const float& depth, point& out_pt) const;
-
-  // Local grid map for clustering search
-  OccupancyMap* local_map;
 
   // Camera info parameters
   int   img_width;
@@ -223,6 +228,7 @@ private:
   float planes_th{};
   float ground_th{};
   float edge_threshold{};
+  float planar_threshold{};
   // ----------------------------
   int   picked_num{};
   int   vertical_scans{};

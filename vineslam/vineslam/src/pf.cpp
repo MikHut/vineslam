@@ -9,13 +9,14 @@ namespace vineslam
 PF::PF(const Parameters& params, const pose& initial_pose)
 {
   // - General parameters
-  use_landmarks        = params.use_landmarks;
-  use_corners          = params.use_corners;
-  use_vegetation_lines = params.use_vegetation_lines;
-  use_ground_plane     = params.use_ground_plane;
-  use_icp              = params.use_icp;
-  use_gps              = params.use_gps;
-  n_particles          = params.number_particles;
+  use_landmarks    = params.use_landmarks;
+  use_corners      = params.use_corners;
+  use_planars      = params.use_planars;
+  use_planes       = params.use_planes;
+  use_ground_plane = params.use_ground_plane;
+  use_icp          = params.use_icp;
+  use_gps          = params.use_gps;
+  n_particles      = params.number_particles;
   // - Motion model parameters
   srr = params.srr;
   str = params.str;
@@ -28,12 +29,13 @@ PF::PF(const Parameters& params, const pose& initial_pose)
   sigma_pitch = params.sigma_pitch * DEGREE_TO_RAD;
   sigma_yaw   = params.sigma_yaw * DEGREE_TO_RAD;
   // - Update standard deviations of each layer
-  sigma_landmark_matching    = params.sigma_landmark_matching;
-  sigma_feature_matching     = params.sigma_feature_matching;
-  sigma_corner_matching      = params.sigma_corner_matching;
-  sigma_vegetation_lines_yaw = params.sigma_vegetation_lines_yaw * DEGREE_TO_RAD;
-  sigma_ground_rp            = params.sigma_ground_rp * DEGREE_TO_RAD;
-  sigma_gps                  = params.sigma_gps;
+  sigma_landmark_matching = params.sigma_landmark_matching;
+  sigma_feature_matching  = params.sigma_feature_matching;
+  sigma_corner_matching   = params.sigma_corner_matching;
+  sigma_planar_matching   = params.sigma_planar_matching;
+  sigma_planes_yaw        = params.sigma_planes_yaw * DEGREE_TO_RAD;
+  sigma_ground_rp         = params.sigma_ground_rp * DEGREE_TO_RAD;
+  sigma_gps               = params.sigma_gps;
   // - Set clustering parameters
   k_clusters   = params.number_clusters;
   k_iterations = 20;
@@ -49,12 +51,12 @@ PF::PF(const Parameters& params, const pose& initial_pose)
     // Calculate the initial pose for each particle considering
     // - the input initial pose
     // - a sample distribution to spread the particles
-    pose m_pose(sampleGaussian(sigma_xy, i),
-                sampleGaussian(sigma_xy, i),
-                sampleGaussian(sigma_z, i),
-                sampleGaussian(sigma_roll, i),
-                sampleGaussian(sigma_pitch, i),
-                sampleGaussian(sigma_yaw, i));
+    pose m_pose = initial_pose + pose(sampleGaussian(sigma_xy, i),
+                                      sampleGaussian(sigma_xy, i),
+                                      sampleGaussian(sigma_z, i),
+                                      sampleGaussian(sigma_roll, i),
+                                      sampleGaussian(sigma_pitch, i),
+                                      sampleGaussian(sigma_yaw, i));
     // Compute initial weight of each particle
     float weight = 1.;
     // Insert the particle into the particles array
@@ -117,6 +119,9 @@ void PF::motionModel(const pose& odom)
     dt_pose.pitch = sampleGaussian(sigma_pitch);
     dt_pose.yaw   = s_rot_a + s_rot_b;
 
+    // Save particle previous pose
+    particle.pp = particle.p;
+
     // Innovate particles using the odometry motion model
     particle.p.x += dt_pose.x;
     particle.p.y += dt_pose.y;
@@ -124,6 +129,12 @@ void PF::motionModel(const pose& odom)
     particle.p.roll += dt_pose.roll;
     particle.p.pitch += dt_pose.pitch;
     particle.p.yaw += dt_pose.yaw;
+
+    // Save particle homogeneous transformation
+    std::array<float, 9> Rot{};
+    particle.p.toRotMatrix(Rot);
+    std::array<float, 3> trans = {particle.p.x, particle.p.y, particle.p.z};
+    particle.tf                = TF(Rot, trans);
   }
 
   p_odom = odom;
@@ -131,15 +142,18 @@ void PF::motionModel(const pose& odom)
 
 void PF::update(const std::vector<SemanticFeature>& landmarks,
                 const std::vector<Corner>&          corners,
-                const std::vector<Line>&            vegetation_lines,
+                const std::vector<Planar>&          planars,
+                const std::vector<Plane>&           planes,
                 const Plane&                        ground_plane,
                 const std::vector<ImageFeature>&    surf_features,
                 const pose&                         gps_pose,
+                OccupancyMap*                       previous_map,
                 OccupancyMap*                       grid_map)
 {
   std::vector<float> semantic_weights(n_particles, 0.);
   std::vector<float> corner_weights(n_particles, 0.);
-  std::vector<float> vegetation_lines_weights(n_particles, 0.);
+  std::vector<float> planar_weights(n_particles, 0.);
+  std::vector<float> planes_weights(n_particles, 0.);
   std::vector<float> ground_weights(n_particles, 0.);
   std::vector<float> surf_weights(n_particles, 0.);
   std::vector<float> gps_weights(n_particles, 0.);
@@ -157,14 +171,20 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
   after    = std::chrono::high_resolution_clock::now();
   duration = after - before;
   std::cout << "Time elapsed on PF - corner features (msecs): " << duration.count()
-            << " (" << corners.size() << ", " << grid_map->n_corner_features << ")"
-            << std::endl;
+            << " (" << corners.size() << ")" << std::endl;
   before = std::chrono::high_resolution_clock::now();
-  if (use_vegetation_lines)
-    mediumLevelLines(vegetation_lines, vegetation_lines_weights);
+  if (use_planars)
+    mediumLevelPlanars(planars, grid_map, planar_weights);
   after    = std::chrono::high_resolution_clock::now();
   duration = after - before;
-  std::cout << "Time elapsed on PF - vegetation lines (msecs): " << duration.count()
+  std::cout << "Time elapsed on PF - planar features (msecs): " << duration.count()
+            << " (" << planars.size() << ")" << std::endl;
+  before = std::chrono::high_resolution_clock::now();
+  if (use_planes)
+    mediumLevelPlanes(planes, grid_map, planes_weights);
+  after    = std::chrono::high_resolution_clock::now();
+  duration = after - before;
+  std::cout << "Time elapsed on PF - side planes (msecs): " << duration.count()
             << std::endl;
   before = std::chrono::high_resolution_clock::now();
   if (use_ground_plane)
@@ -191,8 +211,9 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
       *std::max_element(semantic_weights.begin(), semantic_weights.end());
   float corners_max =
       *std::max_element(corner_weights.begin(), corner_weights.end());
-  float veg_lines_max = *std::max_element(vegetation_lines_weights.begin(),
-                                          vegetation_lines_weights.end());
+  float planars_max =
+      *std::max_element(planar_weights.begin(), planar_weights.end());
+  float planes_max = *std::max_element(planes_weights.begin(), planes_weights.end());
   float ground_max = *std::max_element(ground_weights.begin(), ground_weights.end());
   float surf_max   = *std::max_element(surf_weights.begin(), surf_weights.end());
   float gps_max    = *std::max_element(gps_weights.begin(), gps_weights.end());
@@ -201,8 +222,10 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
         (semantic_max > 0.) ? semantic_weights[particle.id] : static_cast<float>(1.);
     float m_cw =
         (corners_max > 0.) ? corner_weights[particle.id] : static_cast<float>(1.);
-    float m_vw = (veg_lines_max > 0.) ? vegetation_lines_weights[particle.id]
-                                      : static_cast<float>(1.);
+    float m_rw =
+        (planars_max > 0.) ? planar_weights[particle.id] : static_cast<float>(1.);
+    float m_pw =
+        (planes_max > 0.) ? planes_weights[particle.id] : static_cast<float>(1.);
     float m_gw =
         (ground_max > 0.) ? ground_weights[particle.id] : static_cast<float>(1.);
     float m_sw =
@@ -210,7 +233,7 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
     float m_gpsw =
         (gps_max > 0.) ? gps_weights[particle.id] : static_cast<float>(1.);
 
-    particle.w = m_lw * m_cw * m_vw * m_gw * m_sw * m_gpsw;
+    particle.w = m_lw * m_cw * m_rw * m_pw * m_gw * m_sw * m_gpsw;
     w_sum += particle.w;
   }
 
@@ -264,7 +287,7 @@ void PF::highLevel(const std::vector<SemanticFeature>& landmarks,
       // Search for a correspondence in the current cell first
       float best_correspondence = std::numeric_limits<float>::max();
       bool  found               = false;
-      for (const auto& m_landmark : (*grid_map)(X.x, X.y).landmarks) {
+      for (const auto& m_landmark : (*grid_map)(X.x, X.y, 0).landmarks) {
         float dist_min = X.distanceXY(m_landmark.second.pos);
 
         if (dist_min < best_correspondence) {
@@ -276,7 +299,7 @@ void PF::highLevel(const std::vector<SemanticFeature>& landmarks,
       // Only search in the adjacent cells if we do not find in the source cell
       if (!found) {
         std::vector<Cell> adjacents;
-        grid_map->getAdjacent(X.x, X.y, 2, adjacents);
+        grid_map->getAdjacent(X.x, X.y, 0, 2, adjacents);
         for (const auto& m_cell : adjacents) {
           for (const auto& m_landmark : m_cell.landmarks) {
             float dist_min = X.distanceXY(m_landmark.second.pos);
@@ -322,72 +345,79 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
     // ------------------------------------------------------
     // --- 3D corner map fitting
     // ------------------------------------------------------
-    std::array<float, 9> Rot{};
-    particle.p.toRotMatrix(Rot);
+    float              w_corners = 0;
     std::vector<float> dcornervec;
     for (const auto& corner : corners) {
       // Convert landmark to the particle's referential frame
-      point X;
-      X.x = corner.pos.x * Rot[0] + corner.pos.y * Rot[1] + corner.pos.z * Rot[2] +
-            particle.p.x;
-      X.y = corner.pos.x * Rot[3] + corner.pos.y * Rot[4] + corner.pos.z * Rot[5] +
-            particle.p.y;
-      X.z = corner.pos.x * Rot[6] + corner.pos.y * Rot[7] + corner.pos.z * Rot[8] +
-            particle.p.z;
+      point X = corner.pos * particle.tf;
+      //      point X = corner.pos;
+
+      std::vector<Corner> m_corners = (*grid_map)(X.x, X.y, X.z).corner_features;
 
       // Search for a correspondence in the current cell first
-      point dpos;
-      float best_correspondence = std::numeric_limits<float>::max();
+      float best_correspondence = 0.02;
       bool  found               = false;
-      for (const auto& m_corner : (*grid_map)(X.x, X.y).corner_features) {
+      for (const auto& m_corner : m_corners) {
         float dist_min = X.distance(m_corner.pos);
 
         if (dist_min < best_correspondence) {
-          dpos                = m_corner.pos;
           best_correspondence = dist_min;
           found               = true;
         }
       }
 
-      // NOTE (André Aguiar): with this, the filter becomes to slow ...
-      found &= (best_correspondence < 0.02);
-      // Only search in the adjacent cells if we do not find in the source cell
-      //  if (!found) {
-      //    std::vector<Cell> adjacents;
-      //    grid_map.getAdjacent(X.x, X.y, 1, adjacents);
-      //    for (const auto& m_cell : adjacents) {
-      //      for (const auto& m_corner : m_cell.corner_features) {
-      //        float dist_min = X.distance(m_corner.pos);
-      //        if (dist_min < best_correspondence) {
-      //          dpos                = m_corner.pos;
-      //          best_correspondence = dist_min;
-      //          found               = true;
-      //        }
-      //      }
-      //    }
-      //  }
-
       // Save distance if a correspondence was found
-      if (!found)
-        continue;
-      else
-        dcornervec.push_back(best_correspondence);
-    }
-
-    // - Corner feature matching [x, y, z, roll, pitch, yaw] weight
-    float w_corners = 0.;
-    if (dcornervec.size() <= 1) {
-      w_corners = 0.;
-    } else {
-
-      for (const auto& dist : dcornervec) {
-        w_corners +=
-            (normalizer_corner *
-             static_cast<float>(std::exp(-1. / sigma_corner_matching * dist)));
-      }
+      if (found)
+        w_corners += (normalizer_corner *
+                      static_cast<float>(std::exp(-1. / sigma_corner_matching *
+                                                  best_correspondence)));
     }
 
     ws[particle.id] = w_corners;
+  }
+}
+
+void PF::mediumLevelPlanars(const std::vector<Planar>& planars,
+                            OccupancyMap*              grid_map,
+                            std::vector<float>&        ws)
+{
+  float normalizer_planar =
+      static_cast<float>(1.) / (sigma_planar_matching * std::sqrt(M_2PI));
+
+  // Loop over all particles
+  for (const auto& particle : particles) {
+    // ------------------------------------------------------
+    // --- 3D planar map fitting
+    // ------------------------------------------------------
+    float w_planars = 0.;
+    for (const auto& planar : planars) {
+      // Convert landmark to the particle's referential frame
+      point X = planar.pos * particle.tf;
+      //      point X = planar.pos;
+
+      std::vector<Planar> m_planars = (*grid_map)(X.x, X.y, X.z).planar_features;
+
+      // Search for a correspondence in the current cell first
+      float best_correspondence = 0.1;
+      bool  found               = false;
+      for (const auto& m_planar : m_planars) {
+        float dist_min = X.distance(m_planar.pos);
+
+        if (dist_min < best_correspondence) {
+          best_correspondence = dist_min;
+          found               = true;
+        }
+      }
+
+      // Save distance if a correspondence was found
+      if (found) {
+        w_planars += (normalizer_planar *
+                      static_cast<float>(std::exp((-1. / sigma_planar_matching) *
+                                                  best_correspondence)));
+      }
+    }
+
+    ws[particle.id] = w_planars;
   }
 }
 
@@ -396,87 +426,99 @@ void PF::mediumLevelGround(const Plane& ground_plane, std::vector<float>& ws)
   // -------------------------------------------------------------------------------
   // --- 3D ground plane [roll, pitch, z] estimation
   // -------------------------------------------------------------------------------
-  pose                   pose_from_ground;
-  Gaussian<float, float> ground_plane_gauss{};
-  if (ground_plane.points.size() > 1) {
-    // - Compute rotation matrix that transform the normal vector into a vector
-    // parelel to the plane z = 0
-    // ---- in other words, the rotation matrix that aligns the ground plane with
-    // the plane z = 0
-    // ---- this matrix will encode the absolute roll and pitch of the robot
-    std::array<float, 9> R{};
-    vector3D             m_normal = ground_plane.normal;
-    float norm = std::sqrt(m_normal.x * m_normal.x + m_normal.y * m_normal.y);
-    R[0]       = +m_normal.y / norm;
-    R[1]       = -m_normal.x / norm;
-    R[2]       = 0.;
-    R[3]       = (m_normal.x * m_normal.z) / norm;
-    R[4]       = (m_normal.y * m_normal.z) / norm;
-    R[5]       = -norm;
-    R[6]       = m_normal.x;
-    R[7]       = m_normal.y;
-    R[8]       = m_normal.z;
-
-    pose_from_ground = pose(R, std::array<float, 3>{0., 0., 0});
+  if (p_ground.points.empty() || ground_plane.points.empty()) {
+    for (const auto& particle : particles) ws[particle.id] = 0;
   } else {
-    ground_plane_gauss = Gaussian<float, float>(0., 0.);
-  }
+    float normalizer_ground =
+        static_cast<float>(1.) / (sigma_ground_rp * std::sqrt(M_2PI));
 
-  // Compute static vars to use in the PF loop
-  float normalizer_ground_rp =
-      static_cast<float>(1.) / (sigma_ground_rp * std::sqrt(M_2PI));
+    // -----------------------------------------------------------------------------
+    // --- Find the rotation matrix that transforms one normal vector into another
+    // -----------------------------------------------------------------------------
+    vector3D u = p_ground.normal;
+    vector3D v = ground_plane.normal;
 
-  for (const auto& particle : particles) {
-    // - Ground plane [roll, pitch] weight
-    float w_ground = 0.;
-    if (ground_plane_gauss.mean != 0. && ground_plane_gauss.stdev != 0.) {
-      w_ground =
-          (normalizer_ground_rp *
-           static_cast<float>(
-               std::exp(-1. / sigma_ground_rp *
-                        std::fabs(particle.p.roll - pose_from_ground.roll)))) *
-          (normalizer_ground_rp *
-           static_cast<float>(
-               std::exp(-1. / sigma_ground_rp *
-                        std::fabs(particle.p.pitch - pose_from_ground.pitch))));
-    }
+    std::array<float, 9> R = u.rotation(v);
 
-    ws[particle.id] = w_ground;
-  }
-}
-
-void PF::mediumLevelLines(const std::vector<Line>& vegetation_lines,
-                          std::vector<float>&      ws)
-{
-  bool c1 = vegetation_lines.size() == 2;
-  bool c2;
-
-  if (c1) {
-    float theta_left  = std::atan(vegetation_lines[0].m);
-    float theta_right = std::atan(vegetation_lines[1].m);
-
-    // Check if current vineyard lines are approximately parallel
-    c2 = std::fabs(theta_left - theta_right) < (3. * DEGREE_TO_RAD);
-
-    // Compute static vars to use in the PF loop
-    const float normalizer_veg_lines =
-        static_cast<float>(1.) / (sigma_vegetation_lines_yaw * std::sqrt(M_2PI));
+    // -----------------------------------------------------------------------------
+    // --- Extract the euler angles from the rotation matrix
+    // -----------------------------------------------------------------------------
+    pose delta_ground_rot(R, std::array<float, 3>{0, 0, 0});
 
     for (const auto& particle : particles) {
-      // Vegetation lines yaw orientation weight
-      float w_veg_lines = 0.;
-      if (c2) {
-        float error = std::fabs((theta_left + particle.p.yaw) +
-                                (theta_right + particle.p.yaw)) /
-                      static_cast<float>(2.);
-        w_veg_lines =
-            (normalizer_veg_lines *
-             static_cast<float>(std::exp(-1. / sigma_vegetation_lines_yaw * error)));
-      }
+      float w_ground = 0.;
 
-      ws[particle.id] = w_veg_lines;
+      // Particle delta rotation and planes delta rotation should null each
+      float delta_p_roll  = particle.p.yaw - particle.pp.yaw;
+      float delta_p_pitch = particle.p.pitch - particle.pp.pitch;
+      float dist_roll     = std::fabs(delta_ground_rot.roll + delta_p_roll);
+      float dist_pitch    = std::fabs(delta_ground_rot.pitch + delta_p_pitch);
+
+      w_ground = (normalizer_ground *
+                  static_cast<float>(std::exp(-1. / sigma_ground_rp * dist_roll))) +
+                 (normalizer_ground *
+                  static_cast<float>(std::exp(-1. / sigma_ground_rp * dist_pitch)));
+
+      ws[particle.id] = w_ground;
     }
   }
+
+  p_ground = ground_plane;
+}
+
+void PF::mediumLevelPlanes(const std::vector<Plane>& planes,
+                           OccupancyMap*             grid_map,
+                           std::vector<float>&       ws)
+{
+  const float normalizer_planes =
+      static_cast<float>(1.) / (sigma_planes_yaw * std::sqrt(M_2PI));
+
+  std::vector<float> dvec;
+  for (const auto& plane : planes) {
+
+    float dist_min     = 3 * DEGREE_TO_RAD;
+    float displacement = 0;
+    bool  found        = false;
+    for (const auto& p_plane : p_planes) {
+      if (plane.id == p_plane.id) {
+        // -----------------------------------------------
+        // ---- Search for correspondence
+        // -----------------------------------------------
+        float ang_diff = std::fabs(normalizeAngle(std::atan(plane.regression.m) -
+                                                  std::atan(p_plane.regression.m)));
+
+        if (ang_diff < dist_min) {
+          dist_min = ang_diff;
+          found    = true;
+
+          displacement = normalizeAngle(std::atan(plane.regression.m) -
+                                        std::atan(p_plane.regression.m));
+        }
+      }
+    }
+
+    if (found)
+      dvec.push_back(displacement);
+  }
+
+
+  for (const auto& particle : particles) {
+    float w_planes = 0.;
+    for (const auto& displacement : dvec) {
+
+      // Particle delta rotation and planes delta rotation should null each other
+      float delta_p_yaw = normalizeAngle(particle.p.yaw - particle.pp.yaw);
+      float error       = std::fabs(displacement + delta_p_yaw);
+      w_planes += (normalizer_planes *
+                   static_cast<float>(std::exp(-1. / sigma_planes_yaw * error)));
+      float ww = (normalizer_planes *
+                  static_cast<float>(std::exp(-1. / sigma_planes_yaw * error)));
+    }
+
+    ws[particle.id] = w_planes;
+  }
+
+  p_planes = planes;
 }
 
 void PF::lowLevel(const std::vector<ImageFeature>& surf_features,

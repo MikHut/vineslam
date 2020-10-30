@@ -2,8 +2,11 @@
 #include <QApplication>
 #include "../include/vineslam_report/main_window.hpp"
 
+Q_DECLARE_METATYPE(cv::Mat)
+
 int main(int argc, char** argv)
 {
+  qRegisterMetaType<cv::Mat>();
   QApplication                app(argc, argv);
   vineslam_report::MainWindow w(argc, argv);
   w.show();

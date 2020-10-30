@@ -32,7 +32,7 @@ Mapper3D::Mapper3D(const Parameters& params)
 
   // Set velodyne configuration parameters
   picked_num              = 2;
-  planes_th               = static_cast<float>(60.) * DEGREE_TO_RAD;
+  planes_th               = static_cast<float>(45.) * DEGREE_TO_RAD;
   ground_th               = static_cast<float>(5.) * DEGREE_TO_RAD;
   edge_threshold          = 0.1;
   planar_threshold        = 0.1;
@@ -330,7 +330,7 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
   cloudSegmentation(transformed_pcl, cloud_seg, cloud_seg_pure);
 
   // - Extract two planes (right and left) from point cloud
-  extractHighLevelPlanes(cloud_seg_pure, out_planes);
+  extractHighLevelPlanes(cloud_seg, out_planes);
 
   //- Corners feature extraction
   extract3DFeatures(cloud_seg, out_corners, out_planars);
@@ -657,8 +657,8 @@ void Mapper3D::cloudSegmentation(const std::vector<point>& in_pts,
 
         // The majority of ground points are skipped
         if (ground_mat(i, j) == 1) {
-          if (j % 2 != 0 && j > 2 && j < horizontal_scans - 2)
-            continue;
+          //          if (j % 1 != 0 && j > 1 && j < horizontal_scans - 1)
+          continue;
         }
 
         // Mark ground points so they will not be considered as edge features later
@@ -679,18 +679,16 @@ void Mapper3D::cloudSegmentation(const std::vector<point>& in_pts,
     seg_pcl.end_col_idx[i] = seg_cloud_size - 1 - 5;
   }
 
-  cloud_seg.clear();
   // Save pure segmented cloud (without unfiltered ground)
-  for (int i = 0; i < vertical_scans; i++) {
-    for (int j = 0; j < horizontal_scans; j++) {
-      if (label_mat(i, j) > 0 && label_mat(i, j) != 999999) {
-        point      pt = in_pts[j + i * horizontal_scans];
-        PlanePoint m_ppoint(pt, label_mat(i, j));
-        cloud_seg_pure.push_back(m_ppoint);
-        cloud_seg.push_back(m_ppoint);
-      }
-    }
-  }
+  //  for (int i = 0; i < vertical_scans; i++) {
+  //    for (int j = 0; j < horizontal_scans; j++) {
+  //      if (label_mat(i, j) > 0 && label_mat(i, j) != 999999) {
+  //        point      pt = in_pts[j + i * horizontal_scans];
+  //        PlanePoint m_ppoint(pt, label_mat(i, j));
+  //        cloud_seg_pure.push_back(m_ppoint);
+  //      }
+  //    }
+  //  }
 }
 
 void Mapper3D::labelComponents(const int&                row,
@@ -884,6 +882,42 @@ void Mapper3D::extract3DFeatures(const std::vector<PlanePoint>& in_plane_pts,
 
     // Reset neighborhood flag array
     neighbor_picked[i] = 0;
+  }
+
+  // -------------------------------------------------------------------------------
+  // ----- Mark occluded points
+  // -------------------------------------------------------------------------------
+
+  for (int i = 5; i < m_cloud_size - 6; ++i) {
+
+    float depth1   = seg_pcl.range[i];
+    float depth2   = seg_pcl.range[i + 1];
+    int   col_diff = std::abs(int(seg_pcl.col_idx[i + 1] - seg_pcl.col_idx[i]));
+
+    if (col_diff < 10) {
+
+      if (depth1 - depth2 > 0.3) {
+        neighbor_picked[i - 5] = 1;
+        neighbor_picked[i - 4] = 1;
+        neighbor_picked[i - 3] = 1;
+        neighbor_picked[i - 2] = 1;
+        neighbor_picked[i - 1] = 1;
+        neighbor_picked[i]     = 1;
+      } else if (depth2 - depth1 > 0.3) {
+        neighbor_picked[i + 1] = 1;
+        neighbor_picked[i + 2] = 1;
+        neighbor_picked[i + 3] = 1;
+        neighbor_picked[i + 4] = 1;
+        neighbor_picked[i + 5] = 1;
+        neighbor_picked[i + 6] = 1;
+      }
+    }
+
+    float diff1 = std::abs(float(seg_pcl.range[i - 1] - seg_pcl.range[i]));
+    float diff2 = std::abs(float(seg_pcl.range[i + 1] - seg_pcl.range[i]));
+
+    if (diff1 > 0.02 * seg_pcl.range[i] && diff2 > 0.02 * seg_pcl.range[i])
+      neighbor_picked[i] = 1;
   }
 
   // -------------------------------------------------------------------------------

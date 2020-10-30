@@ -198,9 +198,12 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
       pose delta_pose = robot_pose - mapper3D->last_registering_pose;
       delta_pose.normalize();
 
-      mapper3D->registerMaps(
-          robot_pose, m_surf_features, m_corners, m_planars, m_planes, *grid_map);
-      grid_map->downsamplePlanars();
+      if (std::fabs(delta_pose.x) > 0.1 || std::fabs(delta_pose.y) > 0.1 ||
+          std::fabs(delta_pose.yaw) > 2 * DEGREE_TO_RAD) {
+        mapper3D->registerMaps(
+            robot_pose, m_surf_features, m_corners, m_planars, m_planes, *grid_map);
+        grid_map->downsamplePlanars();
+      }
     }
 
     // ---------------------------------------------------------

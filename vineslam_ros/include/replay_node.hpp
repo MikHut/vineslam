@@ -2,6 +2,7 @@
 
 #include "vineslam_ros.hpp"
 #include <vineslam_ros/change_replay_node_state.h>
+#include <vineslam_ros/change_replay_node_features.h>
 
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
@@ -37,6 +38,8 @@ private:
   // Node services
   bool changeNodeState(vineslam_ros::change_replay_node_state::Request&,
                        vineslam_ros::change_replay_node_state::Response&);
+  bool changeNodeFeatures(vineslam_ros::change_replay_node_features::Request&,
+                          vineslam_ros::change_replay_node_features::Response&);
 
   // Input keyboard reader thread to pause and play the bagfile
   void listenStdin();

@@ -162,7 +162,7 @@
         <property name="alignment">
          <set>Qt::AlignCenter</set>
         </property>
-        <widget class="QCheckBox" name="high_level">
+        <widget class="QCheckBox" name="check_box_high_level">
          <property name="enabled">
           <bool>false</bool>
          </property>
@@ -178,7 +178,7 @@
           <string>High-level features</string>
          </property>
         </widget>
-        <widget class="QCheckBox" name="corners">
+        <widget class="QCheckBox" name="check_box_corners">
          <property name="enabled">
           <bool>true</bool>
          </property>
@@ -197,7 +197,7 @@
           <bool>true</bool>
          </property>
         </widget>
-        <widget class="QCheckBox" name="planar">
+        <widget class="QCheckBox" name="check_box_planar">
          <property name="geometry">
           <rect>
            <x>10</x>
@@ -213,7 +213,7 @@
           <bool>true</bool>
          </property>
         </widget>
-        <widget class="QCheckBox" name="planes">
+        <widget class="QCheckBox" name="check_box_planes">
          <property name="geometry">
           <rect>
            <x>10</x>
@@ -229,7 +229,7 @@
           <bool>true</bool>
          </property>
         </widget>
-        <widget class="QCheckBox" name="ground">
+        <widget class="QCheckBox" name="check_box_ground">
          <property name="geometry">
           <rect>
            <x>10</x>
@@ -245,7 +245,7 @@
           <bool>true</bool>
          </property>
         </widget>
-        <widget class="QCheckBox" name="image_features">
+        <widget class="QCheckBox" name="check_box_image_features">
          <property name="geometry">
           <rect>
            <x>10</x>
@@ -258,7 +258,7 @@
           <string>Image features </string>
          </property>
         </widget>
-        <widget class="QCheckBox" name="gps">
+        <widget class="QCheckBox" name="check_box_gps">
          <property name="enabled">
           <bool>false</bool>
          </property>
@@ -1267,7 +1267,7 @@
  <connections>
   <connection>
    <sender>action_Quit</sender>
-   <signal>triggered()</signal>
+   <signal>toggled(bool)</signal>
    <receiver>MainWindowDesign</receiver>
    <slot>close()</slot>
    <hints>

@@ -28,6 +28,13 @@ public Q_SLOTS:
   void on_button_pause_clicked(bool check);
   void on_button_play_clicked(bool check);
   void on_button_iterate_clicked(bool check);
+  void on_check_box_high_level_clicked(bool check);
+  void on_check_box_corners_clicked(bool check);
+  void on_check_box_planar_clicked(bool check);
+  void on_check_box_planes_clicked(bool check);
+  void on_check_box_ground_clicked(bool check);
+  void on_check_box_image_features_clicked(bool check);
+  void on_check_box_gps_clicked(bool check);
   void on_draw_hists_triggered(const cv::Mat& bx_hist,
                                const cv::Mat& by_hist,
                                const cv::Mat& bz_hist,

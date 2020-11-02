@@ -12,6 +12,7 @@
 #include <QStringListModel>
 
 #include <vineslam_ros/change_replay_node_state.h>
+#include <vineslam_ros/change_replay_node_features.h>
 #include <vineslam_msgs/report.h>
 #include "debugger.hpp"
 
@@ -30,6 +31,13 @@ public:
   void changeReplayNodeState(const std_msgs::Bool& pause,
                              const std_msgs::Bool& play,
                              const std_msgs::Bool& iterate);
+  void changeReplayNodeFeatures(const std_msgs::Bool& use_high_level,
+                                const std_msgs::Bool& use_corners,
+                                const std_msgs::Bool& use_planars,
+                                const std_msgs::Bool& use_planes,
+                                const std_msgs::Bool& use_ground,
+                                const std_msgs::Bool& use_image_features,
+                                const std_msgs::Bool& use_gps);
 
   // Logging
   enum LogLevel { Debug, Info, Warn, Error, Fatal };
@@ -57,7 +65,8 @@ private:
   void reportSubscriber(const vineslam_msgs::reportConstPtr& msg);
 
   ros::Subscriber    report_sub;
-  ros::ServiceClient rnode_srv_client;
+  ros::ServiceClient rnode_state_srv_client;
+  ros::ServiceClient rnode_features_srv_client;
   Debugger           debugger;
   int                init_argc;
   char**             init_argv;

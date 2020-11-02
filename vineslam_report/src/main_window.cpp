@@ -115,6 +115,165 @@ void MainWindow::on_button_iterate_clicked(bool check)
   qnode.changeReplayNodeState(pause, play, iterate);
 }
 
+void MainWindow::on_check_box_high_level_clicked(bool check)
+{
+  std_msgs::Bool use_high_level, use_corners, use_planars, use_planes, use_ground,
+      use_image_features, use_gps;
+
+  use_high_level.data     = ui.check_box_high_level->isChecked();
+  use_corners.data        = ui.check_box_corners->isChecked();
+  use_planars.data        = ui.check_box_planar->isChecked();
+  use_planes.data         = ui.check_box_planes->isChecked();
+  use_ground.data         = ui.check_box_ground->isChecked();
+  use_image_features.data = ui.check_box_image_features->isChecked();
+  use_gps.data            = ui.check_box_gps->isChecked();
+
+  qnode.changeReplayNodeFeatures(use_high_level,
+                                 use_corners,
+                                 use_planars,
+                                 use_planes,
+                                 use_ground,
+                                 use_image_features,
+                                 use_gps);
+}
+
+void MainWindow::on_check_box_corners_clicked(bool check)
+{
+  std_msgs::Bool use_high_level, use_corners, use_planars, use_planes, use_ground,
+      use_image_features, use_gps;
+
+  use_high_level.data     = ui.check_box_high_level->isChecked();
+  use_corners.data        = ui.check_box_corners->isChecked();
+  use_planars.data        = ui.check_box_planar->isChecked();
+  use_planes.data         = ui.check_box_planes->isChecked();
+  use_ground.data         = ui.check_box_ground->isChecked();
+  use_image_features.data = ui.check_box_image_features->isChecked();
+  use_gps.data            = ui.check_box_gps->isChecked();
+
+  qnode.changeReplayNodeFeatures(use_high_level,
+                                 use_corners,
+                                 use_planars,
+                                 use_planes,
+                                 use_ground,
+                                 use_image_features,
+                                 use_gps);
+}
+
+void MainWindow::on_check_box_planar_clicked(bool check)
+{
+
+  std_msgs::Bool use_high_level, use_corners, use_planars, use_planes, use_ground,
+      use_image_features, use_gps;
+
+  use_high_level.data     = ui.check_box_high_level->isChecked();
+  use_corners.data        = ui.check_box_corners->isChecked();
+  use_planars.data        = ui.check_box_planar->isChecked();
+  use_planes.data         = ui.check_box_planes->isChecked();
+  use_ground.data         = ui.check_box_ground->isChecked();
+  use_image_features.data = ui.check_box_image_features->isChecked();
+  use_gps.data            = ui.check_box_gps->isChecked();
+
+  qnode.changeReplayNodeFeatures(use_high_level,
+                                 use_corners,
+                                 use_planars,
+                                 use_planes,
+                                 use_ground,
+                                 use_image_features,
+                                 use_gps);
+}
+
+void MainWindow::on_check_box_planes_clicked(bool check)
+{
+
+  std_msgs::Bool use_high_level, use_corners, use_planars, use_planes, use_ground,
+      use_image_features, use_gps;
+
+  use_high_level.data     = ui.check_box_high_level->isChecked();
+  use_corners.data        = ui.check_box_corners->isChecked();
+  use_planars.data        = ui.check_box_planar->isChecked();
+  use_planes.data         = ui.check_box_planes->isChecked();
+  use_ground.data         = ui.check_box_ground->isChecked();
+  use_image_features.data = ui.check_box_image_features->isChecked();
+  use_gps.data            = ui.check_box_gps->isChecked();
+
+  qnode.changeReplayNodeFeatures(use_high_level,
+                                 use_corners,
+                                 use_planars,
+                                 use_planes,
+                                 use_ground,
+                                 use_image_features,
+                                 use_gps);
+}
+
+void MainWindow::on_check_box_ground_clicked(bool check)
+{
+
+  std_msgs::Bool use_high_level, use_corners, use_planars, use_planes, use_ground,
+      use_image_features, use_gps;
+
+  use_high_level.data     = ui.check_box_high_level->isChecked();
+  use_corners.data        = ui.check_box_corners->isChecked();
+  use_planars.data        = ui.check_box_planar->isChecked();
+  use_planes.data         = ui.check_box_planes->isChecked();
+  use_ground.data         = ui.check_box_ground->isChecked();
+  use_image_features.data = ui.check_box_image_features->isChecked();
+  use_gps.data            = ui.check_box_gps->isChecked();
+
+  qnode.changeReplayNodeFeatures(use_high_level,
+                                 use_corners,
+                                 use_planars,
+                                 use_planes,
+                                 use_ground,
+                                 use_image_features,
+                                 use_gps);
+}
+
+void MainWindow::on_check_box_image_features_clicked(bool check)
+{
+
+  std_msgs::Bool use_high_level, use_corners, use_planars, use_planes, use_ground,
+      use_image_features, use_gps;
+
+  use_high_level.data     = ui.check_box_high_level->isChecked();
+  use_corners.data        = ui.check_box_corners->isChecked();
+  use_planars.data        = ui.check_box_planar->isChecked();
+  use_planes.data         = ui.check_box_planes->isChecked();
+  use_ground.data         = ui.check_box_ground->isChecked();
+  use_image_features.data = ui.check_box_image_features->isChecked();
+  use_gps.data            = ui.check_box_gps->isChecked();
+
+  qnode.changeReplayNodeFeatures(use_high_level,
+                                 use_corners,
+                                 use_planars,
+                                 use_planes,
+                                 use_ground,
+                                 use_image_features,
+                                 use_gps);
+}
+
+void MainWindow::on_check_box_gps_clicked(bool check)
+{
+
+  std_msgs::Bool use_high_level, use_corners, use_planars, use_planes, use_ground,
+      use_image_features, use_gps;
+
+  use_high_level.data     = ui.check_box_high_level->isChecked();
+  use_corners.data        = ui.check_box_corners->isChecked();
+  use_planars.data        = ui.check_box_planar->isChecked();
+  use_planes.data         = ui.check_box_planes->isChecked();
+  use_ground.data         = ui.check_box_ground->isChecked();
+  use_image_features.data = ui.check_box_image_features->isChecked();
+  use_gps.data            = ui.check_box_gps->isChecked();
+
+  qnode.changeReplayNodeFeatures(use_high_level,
+                                 use_corners,
+                                 use_planars,
+                                 use_planes,
+                                 use_ground,
+                                 use_image_features,
+                                 use_gps);
+}
+
 void MainWindow::updateLoggingView() { ui.view_logging->scrollToBottom(); }
 
 void MainWindow::on_actionAbout_triggered()

@@ -88,6 +88,8 @@ ReplayNode::ReplayNode(int argc, char** argv)
                           dynamic_cast<VineSLAM_ros*>(this));
   ros::ServiceServer change_node_state_srv = nh.advertiseService(
       "change_replay_node_state", &ReplayNode::changeNodeState, this);
+  ros::ServiceServer change_node_features_srv = nh.advertiseService(
+      "change_replay_node_features", &ReplayNode::changeNodeFeatures, this);
 
   // GNSS varibales
   if (params.use_gps) {
@@ -277,6 +279,27 @@ bool ReplayNode::changeNodeState(
     have_iterated = false;
     bag_state     = ITERATING;
   }
+}
+
+bool ReplayNode::changeNodeFeatures(
+    vineslam_ros::change_replay_node_features::Request&  request,
+    vineslam_ros::change_replay_node_features::Response& response)
+{
+  params.use_landmarks    = request.use_high_level.data;
+  params.use_corners      = request.use_corners.data;
+  params.use_planars      = request.use_planars.data;
+  params.use_planes       = request.use_planes.data;
+  params.use_ground_plane = request.use_ground.data;
+  params.use_icp          = request.use_icp.data;
+  params.use_gps          = request.use_gps.data;
+
+  localizer->changeObservationsToUse(params.use_landmarks,
+                                     params.use_corners,
+                                     params.use_planars,
+                                     params.use_planes,
+                                     params.use_ground_plane,
+                                     params.use_icp,
+                                     params.use_gps);
 }
 
 void ReplayNode::debugPF(const cv::Mat&                               left_image,

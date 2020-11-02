@@ -172,12 +172,17 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     Observation obsv;
     if (params.use_landmarks)
       obsv.landmarks = m_landmarks;
-    obsv.corners = m_corners;
-    obsv.planars = m_planars;
-    obsv.planes  = m_planes;
-    if (std::fabs(m_ground_plane.mean_height) > mapper3D->lidar_height / 2)
+    if (params.use_corners)
+      obsv.corners = m_corners;
+    if (params.use_planars)
+      obsv.planars = m_planars;
+    if (params.use_planes)
+      obsv.planes = m_planes;
+    if (params.use_ground_plane &&
+        (std::fabs(m_ground_plane.mean_height) > mapper3D->lidar_height / 2))
       obsv.ground_plane = m_ground_plane;
-    obsv.surf_features = m_surf_features;
+    if (params.use_icp)
+      obsv.surf_features = m_surf_features;
     if (has_converged && params.use_gps)
       obsv.gps_pose = gps_pose;
     else

@@ -88,6 +88,15 @@ public:
   // Particles
   std::vector<Particle> particles;
 
+  // Observations to use
+  bool  use_landmarks;
+  bool  use_corners;
+  bool  use_planars;
+  bool  use_planes;
+  bool  use_ground_plane;
+  bool  use_icp;
+  bool  use_gps;
+
 private:
   // Update functions
   // - High level semantic features layer
@@ -139,13 +148,6 @@ private:
   std::string config_path;
   // Input numeric parameters
   // - General parameters
-  bool  use_landmarks;
-  bool  use_corners;
-  bool  use_planars;
-  bool  use_planes;
-  bool  use_ground_plane;
-  bool  use_icp;
-  bool  use_gps;
   float n_particles;
   // - Innovation parameters
   float srr;

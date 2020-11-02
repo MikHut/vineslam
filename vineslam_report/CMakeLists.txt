@@ -7,13 +7,13 @@ find_package(OpenCV 3.2.0 REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
         qt_build
         roscpp
-        vineslam
+        vineslam_ros
         vineslam_msgs)
 include_directories(${catkin_INCLUDE_DIRS})
 
 catkin_package()
 
-rosbuild_prepare_qt4(QtCore QtGui Qwt)
+rosbuild_prepare_qt4(QtCore QtGui)
 
 file(GLOB QT_FORMS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ui/*.ui)
 file(GLOB QT_RESOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} resources/*.qrc)

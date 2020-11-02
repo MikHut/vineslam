@@ -1,15 +1,3 @@
-/**
- * @file /src/qnode.cpp
- *
- * @brief Ros communication central!
- *
- * @date February 2011
- **/
-
-/*****************************************************************************
-** Includes
-*****************************************************************************/
-
 #include <ros/ros.h>
 #include <ros/network.h>
 #include <string>
@@ -17,16 +5,8 @@
 #include <sstream>
 #include "../include/vineslam_report/qnode.hpp"
 
-/*****************************************************************************
-** Namespaces
-*****************************************************************************/
-
 namespace vineslam_report
 {
-
-/*****************************************************************************
-** Implementation
-*****************************************************************************/
 
 QNode::QNode(int argc, char** argv)
     : init_argc(argc)
@@ -55,6 +35,9 @@ bool QNode::init()
 
   // ROS subscriptions
   report_sub = n.subscribe("/vineslam/report", 1, &QNode::reportSubscriber, this);
+  // ROS services
+  rnode_srv_client = n.serviceClient<vineslam_ros::change_replay_node_state>(
+      "change_replay_node_state");
 
   start();
   return true;
@@ -90,6 +73,18 @@ void QNode::reportSubscriber(const vineslam_msgs::reportConstPtr& msg)
                 aR_hist,
                 aP_hist,
                 aY_hist);
+}
+
+void QNode::changeReplayNodeState(const std_msgs::Bool& pause,
+                                  const std_msgs::Bool& play,
+                                  const std_msgs::Bool& iterate)
+{
+  vineslam_ros::change_replay_node_state srv;
+  srv.request.pause_node   = pause;
+  srv.request.play_node    = play;
+  srv.request.iterate_node = iterate;
+
+  rnode_srv_client.call(srv);
 }
 
 void QNode::log(const LogLevel& level, const std::string& msg)

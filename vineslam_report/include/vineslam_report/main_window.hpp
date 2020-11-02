@@ -7,6 +7,7 @@
 #include "ui_main_window.h"
 #include "qnode.hpp"
 
+class MainWindowDesign;
 namespace vineslam_report
 {
 
@@ -24,18 +25,21 @@ public:
 public Q_SLOTS:
   void on_actionAbout_triggered();
   void on_button_connect_clicked(bool check);
-  void on_draw_hists_triggered(cv::Mat bx_hist,
-                               cv::Mat by_hist,
-                               cv::Mat bz_hist,
-                               cv::Mat ax_hist,
-                               cv::Mat ay_hist,
-                               cv::Mat az_hist,
-                               cv::Mat bR_hist,
-                               cv::Mat bP_hist,
-                               cv::Mat bY_hist,
-                               cv::Mat aR_hist,
-                               cv::Mat aP_hist,
-                               cv::Mat aY_hist);
+  void on_button_pause_clicked(bool check);
+  void on_button_play_clicked(bool check);
+  void on_button_iterate_clicked(bool check);
+  void on_draw_hists_triggered(const cv::Mat& bx_hist,
+                               const cv::Mat& by_hist,
+                               const cv::Mat& bz_hist,
+                               const cv::Mat& ax_hist,
+                               const cv::Mat& ay_hist,
+                               const cv::Mat& az_hist,
+                               const cv::Mat& bR_hist,
+                               const cv::Mat& bP_hist,
+                               const cv::Mat& bY_hist,
+                               const cv::Mat& aR_hist,
+                               const cv::Mat& aP_hist,
+                               const cv::Mat& aY_hist);
 
   void updateLoggingView(); // no idea why this can't connect automatically
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vineslam_ros.hpp"
+#include <vineslam_ros/change_replay_node_state.h>
 
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
@@ -11,7 +12,7 @@
 namespace vineslam
 {
 
-enum BAG_STATE { PAUSED, PLAYING };
+enum BAG_STATE { PAUSED, PLAYING, ITERATING };
 
 class ReplayNode : public VineSLAM_ros
 {
@@ -33,6 +34,10 @@ private:
                const sensor_msgs::ImageConstPtr&            depth_image,
                const vision_msgs::Detection2DArrayConstPtr& dets);
 
+  // Node services
+  bool changeNodeState(vineslam_ros::change_replay_node_state::Request&,
+                       vineslam_ros::change_replay_node_state::Response&);
+
   // Input keyboard reader thread to pause and play the bagfile
   void listenStdin();
 
@@ -52,6 +57,7 @@ private:
   // System flags
   int       nmessages;
   BAG_STATE bag_state;
+  bool      have_iterated;
 };
 
 } // namespace vineslam

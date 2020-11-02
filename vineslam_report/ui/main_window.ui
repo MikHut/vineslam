@@ -163,6 +163,9 @@
          <set>Qt::AlignCenter</set>
         </property>
         <widget class="QCheckBox" name="high_level">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
          <property name="geometry">
           <rect>
            <x>10</x>
@@ -176,6 +179,9 @@
          </property>
         </widget>
         <widget class="QCheckBox" name="corners">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
          <property name="geometry">
           <rect>
            <x>10</x>
@@ -186,6 +192,9 @@
          </property>
          <property name="text">
           <string>Corner features</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
          </property>
         </widget>
         <widget class="QCheckBox" name="planar">
@@ -200,6 +209,9 @@
          <property name="text">
           <string>Planar features</string>
          </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
         </widget>
         <widget class="QCheckBox" name="planes">
          <property name="geometry">
@@ -213,6 +225,9 @@
          <property name="text">
           <string>Side planes</string>
          </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
         </widget>
         <widget class="QCheckBox" name="ground">
          <property name="geometry">
@@ -225,6 +240,9 @@
          </property>
          <property name="text">
           <string>Ground plane</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
          </property>
         </widget>
         <widget class="QCheckBox" name="image_features">
@@ -241,6 +259,9 @@
          </property>
         </widget>
         <widget class="QCheckBox" name="gps">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
          <property name="geometry">
           <rect>
            <x>10</x>
@@ -694,19 +715,6 @@
           <number>500</number>
          </property>
         </widget>
-        <widget class="QPushButton" name="emulate_pf">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>30</y>
-           <width>271</width>
-           <height>41</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Emulate PF</string>
-         </property>
-        </widget>
         <widget class="QLabel" name="label_26">
          <property name="geometry">
           <rect>
@@ -726,6 +734,19 @@
           <string>Number of particles</string>
          </property>
         </widget>
+        <widget class="QCheckBox" name="emulate_pf">
+         <property name="geometry">
+          <rect>
+           <x>20</x>
+           <y>30</y>
+           <width>271</width>
+           <height>41</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Emulate particle filter</string>
+         </property>
+        </widget>
        </widget>
        <widget class="QLabel" name="description_actions">
         <property name="geometry">
@@ -738,6 +759,7 @@
         </property>
         <property name="text">
          <string>In this tab, the user can:
+
   - Pause/play/iterate over the VineSLAM replay node;
   - Choose the features to use in SLAM;
   - Emulate a particle filter to test localization, setting the number of particles and the limits to consider.</string>
@@ -761,7 +783,7 @@
         <property name="title">
          <string>VineSLAM - Node actions</string>
         </property>
-        <widget class="QPushButton" name="pause">
+        <widget class="QPushButton" name="button_pause">
          <property name="geometry">
           <rect>
            <x>10</x>
@@ -777,7 +799,10 @@
           <string>Pause</string>
          </property>
         </widget>
-        <widget class="QPushButton" name="play">
+        <widget class="QPushButton" name="button_play">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
          <property name="geometry">
           <rect>
            <x>10</x>
@@ -789,8 +814,14 @@
          <property name="text">
           <string>Play</string>
          </property>
+         <property name="checkable">
+          <bool>false</bool>
+         </property>
         </widget>
-        <widget class="QPushButton" name="iterate">
+        <widget class="QPushButton" name="button_iterate">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
          <property name="geometry">
           <rect>
            <x>10</x>

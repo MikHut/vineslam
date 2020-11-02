@@ -86,6 +86,8 @@ ReplayNode::ReplayNode(int argc, char** argv)
       nh.advertiseService("stop_gps_heading_estimation",
                           &VineSLAM_ros::stopHeadingEstimation,
                           dynamic_cast<VineSLAM_ros*>(this));
+  ros::ServiceServer change_node_state_srv = nh.advertiseService(
+      "change_replay_node_state", &ReplayNode::changeNodeState, this);
 
   // GNSS varibales
   if (params.use_gps) {
@@ -174,11 +176,11 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
   sensor_msgs::PointCloud2ConstPtr pcl_ptr;
 
   ROS_INFO("Reading ROSBAG topics...");
-  bool tf_bool = false, clock_bool = false, odom_bool = false, fix_bool = false,
-       depth_bool = false, left_bool = false, pcl_bool = false;
+  bool tf_bool = false, odom_bool = false, fix_bool = false, depth_bool = false,
+       left_bool = false, pcl_bool = false;
   for (rosbag::MessageInstance m : rosbag::View(bag)) {
     while (ros::ok()) {
-      if (bag_state == PLAYING)
+      if (bag_state == PLAYING || (bag_state == ITERATING && !have_iterated))
         break;
     }
 
@@ -249,17 +251,32 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
       // gpsListener(fix_ptr);
       mainFct(left_img, depth_img_ptr, nullptr);
 
-      tf_bool    = false;
-      odom_bool  = false;
-      fix_bool   = false;
-      depth_bool = false;
-      left_bool  = false;
-      pcl_bool   = false;
-      nmessages  = 0;
+      tf_bool       = false;
+      odom_bool     = false;
+      fix_bool      = false;
+      depth_bool    = false;
+      left_bool     = false;
+      pcl_bool      = false;
+      nmessages     = 0;
+      have_iterated = true;
     }
   }
 
   bag.close();
+}
+
+bool ReplayNode::changeNodeState(
+    vineslam_ros::change_replay_node_state::Request&  request,
+    vineslam_ros::change_replay_node_state::Response& response)
+{
+  if (request.pause_node.data == true)
+    bag_state = PAUSED;
+  if (request.play_node.data == true)
+    bag_state = PLAYING;
+  if (request.iterate_node.data == true) {
+    have_iterated = false;
+    bag_state     = ITERATING;
+  }
 }
 
 void ReplayNode::debugPF(const cv::Mat&                               left_image,

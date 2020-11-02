@@ -11,6 +11,7 @@
 #include <QThread>
 #include <QStringListModel>
 
+#include <vineslam_ros/change_replay_node_state.h>
 #include <vineslam_msgs/report.h>
 #include "debugger.hpp"
 
@@ -25,6 +26,10 @@ public:
   virtual ~QNode();
   bool init();
   void run();
+
+  void changeReplayNodeState(const std_msgs::Bool& pause,
+                             const std_msgs::Bool& play,
+                             const std_msgs::Bool& iterate);
 
   // Logging
   enum LogLevel { Debug, Info, Warn, Error, Fatal };
@@ -51,11 +56,12 @@ Q_SIGNALS:
 private:
   void reportSubscriber(const vineslam_msgs::reportConstPtr& msg);
 
-  ros::Subscriber  report_sub;
-  Debugger         debugger;
-  int              init_argc;
-  char**           init_argv;
-  QStringListModel logging_model;
+  ros::Subscriber    report_sub;
+  ros::ServiceClient rnode_srv_client;
+  Debugger           debugger;
+  int                init_argc;
+  char**             init_argv;
+  QStringListModel   logging_model;
 };
 
 } // namespace vineslam_report

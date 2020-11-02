@@ -36,11 +36,17 @@
         <height>0</height>
        </size>
       </property>
+      <property name="focusPolicy">
+       <enum>Qt::TabFocus</enum>
+      </property>
+      <property name="contextMenuPolicy">
+       <enum>Qt::DefaultContextMenu</enum>
+      </property>
       <property name="locale">
        <locale language="English" country="Australia"/>
       </property>
       <property name="currentIndex">
-       <number>2</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="main_tab">
        <attribute name="title">
@@ -84,10 +90,10 @@
               </sizepolicy>
              </property>
              <property name="toolTip">
-              <string>Set the target to the current joint trajectory state.</string>
+              <string>Connect GUI to VineSLAM replay node</string>
              </property>
              <property name="statusTip">
-              <string>Clear all waypoints and set the target to the current joint trajectory state.</string>
+              <string>Connect GUI to VineSLAM replay node</string>
              </property>
              <property name="text">
               <string>Connect</string>
@@ -110,7 +116,14 @@
           </property>
           <layout class="QGridLayout" name="gridLayout_3">
            <item row="1" column="0">
-            <widget class="QListView" name="view_logging"/>
+            <widget class="QListView" name="view_logging">
+             <property name="toolTip">
+              <string>Connect GUI to VineSLAM replay node</string>
+             </property>
+             <property name="statusTip">
+              <string>Connect GUI to VineSLAM replay node</string>
+             </property>
+            </widget>
            </item>
            <item row="0" column="0">
             <widget class="QLabel" name="log_label">
@@ -126,12 +139,675 @@
       </widget>
       <widget class="QWidget" name="actions_tab">
        <attribute name="title">
-        <string>Actions</string>
+        <string>Node actions</string>
        </attribute>
+       <widget class="QGroupBox" name="observations">
+        <property name="geometry">
+         <rect>
+          <x>40</x>
+          <y>310</y>
+          <width>291</width>
+          <height>371</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <weight>75</weight>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="title">
+         <string>VineSLAM - Active observations</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+        <widget class="QCheckBox" name="high_level">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>40</y>
+           <width>271</width>
+           <height>31</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>High-level features</string>
+         </property>
+        </widget>
+        <widget class="QCheckBox" name="corners">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>90</y>
+           <width>271</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Corner features</string>
+         </property>
+        </widget>
+        <widget class="QCheckBox" name="planar">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>140</y>
+           <width>271</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Planar features</string>
+         </property>
+        </widget>
+        <widget class="QCheckBox" name="planes">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>190</y>
+           <width>271</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Side planes</string>
+         </property>
+        </widget>
+        <widget class="QCheckBox" name="ground">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>240</y>
+           <width>271</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Ground plane</string>
+         </property>
+        </widget>
+        <widget class="QCheckBox" name="image_features">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>290</y>
+           <width>271</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Image features </string>
+         </property>
+        </widget>
+        <widget class="QCheckBox" name="gps">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>340</y>
+           <width>271</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>GPS</string>
+         </property>
+        </widget>
+       </widget>
+       <widget class="QGroupBox" name="pf_emulation">
+        <property name="geometry">
+         <rect>
+          <x>380</x>
+          <y>140</y>
+          <width>551</width>
+          <height>531</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <weight>75</weight>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="title">
+         <string>VineSLAM - Particle Filter emulation</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+        <property name="flat">
+         <bool>false</bool>
+        </property>
+        <property name="checkable">
+         <bool>false</bool>
+        </property>
+        <widget class="QGroupBox" name="groupBox_2">
+         <property name="geometry">
+          <rect>
+           <x>20</x>
+           <y>140</y>
+           <width>511</width>
+           <height>391</height>
+          </rect>
+         </property>
+         <property name="font">
+          <font>
+           <weight>50</weight>
+           <bold>false</bold>
+          </font>
+         </property>
+         <property name="title">
+          <string>6-DoF settings - innovation limits</string>
+         </property>
+         <widget class="QDoubleSpinBox" name="xmin">
+          <property name="geometry">
+           <rect>
+            <x>20</x>
+            <y>50</y>
+            <width>201</width>
+            <height>31</height>
+           </rect>
+          </property>
+          <property name="minimum">
+           <double>-10.000000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>10.000000000000000</double>
+          </property>
+          <property name="value">
+           <double>-1.000000000000000</double>
+          </property>
+         </widget>
+         <widget class="QDoubleSpinBox" name="xmax">
+          <property name="geometry">
+           <rect>
+            <x>270</x>
+            <y>50</y>
+            <width>201</width>
+            <height>31</height>
+           </rect>
+          </property>
+          <property name="minimum">
+           <double>-10.000000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>10.000000000000000</double>
+          </property>
+          <property name="value">
+           <double>1.000000000000000</double>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_13">
+          <property name="geometry">
+           <rect>
+            <x>20</x>
+            <y>30</y>
+            <width>71</width>
+            <height>16</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>X Min  (m)</string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_14">
+          <property name="geometry">
+           <rect>
+            <x>270</x>
+            <y>30</y>
+            <width>71</width>
+            <height>16</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>X Max (m)</string>
+          </property>
+         </widget>
+         <widget class="QDoubleSpinBox" name="ymin">
+          <property name="geometry">
+           <rect>
+            <x>20</x>
+            <y>110</y>
+            <width>201</width>
+            <height>31</height>
+           </rect>
+          </property>
+          <property name="minimum">
+           <double>-10.000000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>10.000000000000000</double>
+          </property>
+          <property name="value">
+           <double>-1.000000000000000</double>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_15">
+          <property name="geometry">
+           <rect>
+            <x>270</x>
+            <y>90</y>
+            <width>71</width>
+            <height>16</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Y Max (m)</string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_16">
+          <property name="geometry">
+           <rect>
+            <x>20</x>
+            <y>90</y>
+            <width>71</width>
+            <height>16</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Y Min (m)</string>
+          </property>
+         </widget>
+         <widget class="QDoubleSpinBox" name="ymax">
+          <property name="geometry">
+           <rect>
+            <x>270</x>
+            <y>110</y>
+            <width>201</width>
+            <height>31</height>
+           </rect>
+          </property>
+          <property name="minimum">
+           <double>-10.000000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>10.000000000000000</double>
+          </property>
+          <property name="value">
+           <double>1.000000000000000</double>
+          </property>
+         </widget>
+         <widget class="QDoubleSpinBox" name="zmax">
+          <property name="geometry">
+           <rect>
+            <x>270</x>
+            <y>170</y>
+            <width>201</width>
+            <height>31</height>
+           </rect>
+          </property>
+          <property name="minimum">
+           <double>-10.000000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>10.000000000000000</double>
+          </property>
+          <property name="value">
+           <double>1.000000000000000</double>
+          </property>
+         </widget>
+         <widget class="QDoubleSpinBox" name="zmin">
+          <property name="geometry">
+           <rect>
+            <x>20</x>
+            <y>170</y>
+            <width>201</width>
+            <height>31</height>
+           </rect>
+          </property>
+          <property name="minimum">
+           <double>-10.000000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>10.000000000000000</double>
+          </property>
+          <property name="value">
+           <double>-1.000000000000000</double>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_17">
+          <property name="geometry">
+           <rect>
+            <x>20</x>
+            <y>150</y>
+            <width>71</width>
+            <height>16</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Z Min (m)</string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_18">
+          <property name="geometry">
+           <rect>
+            <x>270</x>
+            <y>150</y>
+            <width>71</width>
+            <height>16</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Z Max (m)</string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_19">
+          <property name="geometry">
+           <rect>
+            <x>20</x>
+            <y>210</y>
+            <width>131</width>
+            <height>16</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Roll Min (degrees) </string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_20">
+          <property name="geometry">
+           <rect>
+            <x>270</x>
+            <y>210</y>
+            <width>131</width>
+            <height>16</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Roll Max (degrees) </string>
+          </property>
+         </widget>
+         <widget class="QDoubleSpinBox" name="Rmax">
+          <property name="geometry">
+           <rect>
+            <x>270</x>
+            <y>230</y>
+            <width>201</width>
+            <height>31</height>
+           </rect>
+          </property>
+          <property name="minimum">
+           <double>-180.000000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>180.000000000000000</double>
+          </property>
+          <property name="value">
+           <double>15.000000000000000</double>
+          </property>
+         </widget>
+         <widget class="QDoubleSpinBox" name="Rmin">
+          <property name="geometry">
+           <rect>
+            <x>20</x>
+            <y>230</y>
+            <width>201</width>
+            <height>31</height>
+           </rect>
+          </property>
+          <property name="minimum">
+           <double>-180.000000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>180.000000000000000</double>
+          </property>
+          <property name="value">
+           <double>-15.000000000000000</double>
+          </property>
+         </widget>
+         <widget class="QDoubleSpinBox" name="Pmin">
+          <property name="geometry">
+           <rect>
+            <x>20</x>
+            <y>290</y>
+            <width>201</width>
+            <height>31</height>
+           </rect>
+          </property>
+          <property name="minimum">
+           <double>-180.000000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>180.000000000000000</double>
+          </property>
+          <property name="value">
+           <double>-15.000000000000000</double>
+          </property>
+         </widget>
+         <widget class="QDoubleSpinBox" name="Pmax">
+          <property name="geometry">
+           <rect>
+            <x>270</x>
+            <y>290</y>
+            <width>201</width>
+            <height>31</height>
+           </rect>
+          </property>
+          <property name="value">
+           <double>15.000000000000000</double>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_21">
+          <property name="geometry">
+           <rect>
+            <x>270</x>
+            <y>270</y>
+            <width>141</width>
+            <height>16</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Pitch Max (degrees) </string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_22">
+          <property name="geometry">
+           <rect>
+            <x>20</x>
+            <y>270</y>
+            <width>141</width>
+            <height>16</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Pitch Min (degrees)  </string>
+          </property>
+         </widget>
+         <widget class="QDoubleSpinBox" name="Ymin">
+          <property name="geometry">
+           <rect>
+            <x>20</x>
+            <y>350</y>
+            <width>201</width>
+            <height>31</height>
+           </rect>
+          </property>
+          <property name="minimum">
+           <double>-180.000000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>180.000000000000000</double>
+          </property>
+          <property name="value">
+           <double>-60.000000000000000</double>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_23">
+          <property name="geometry">
+           <rect>
+            <x>270</x>
+            <y>330</y>
+            <width>141</width>
+            <height>16</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Yaw Max (degrees) </string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_24">
+          <property name="geometry">
+           <rect>
+            <x>20</x>
+            <y>330</y>
+            <width>131</width>
+            <height>16</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Yaw Min (degrees) </string>
+          </property>
+         </widget>
+         <widget class="QDoubleSpinBox" name="Ymax">
+          <property name="geometry">
+           <rect>
+            <x>270</x>
+            <y>350</y>
+            <width>201</width>
+            <height>31</height>
+           </rect>
+          </property>
+          <property name="value">
+           <double>60.000000000000000</double>
+          </property>
+         </widget>
+        </widget>
+        <widget class="QSpinBox" name="n_particles">
+         <property name="geometry">
+          <rect>
+           <x>20</x>
+           <y>100</y>
+           <width>271</width>
+           <height>31</height>
+          </rect>
+         </property>
+         <property name="font">
+          <font>
+           <weight>50</weight>
+           <bold>false</bold>
+          </font>
+         </property>
+         <property name="maximum">
+          <number>2000</number>
+         </property>
+         <property name="value">
+          <number>500</number>
+         </property>
+        </widget>
+        <widget class="QPushButton" name="emulate_pf">
+         <property name="geometry">
+          <rect>
+           <x>20</x>
+           <y>30</y>
+           <width>271</width>
+           <height>41</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Emulate PF</string>
+         </property>
+        </widget>
+        <widget class="QLabel" name="label_26">
+         <property name="geometry">
+          <rect>
+           <x>20</x>
+           <y>80</y>
+           <width>191</width>
+           <height>17</height>
+          </rect>
+         </property>
+         <property name="font">
+          <font>
+           <weight>50</weight>
+           <bold>false</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Number of particles</string>
+         </property>
+        </widget>
+       </widget>
+       <widget class="QLabel" name="description_actions">
+        <property name="geometry">
+         <rect>
+          <x>30</x>
+          <y>20</y>
+          <width>921</width>
+          <height>81</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>In this tab, the user can:
+  - Pause/play/iterate over the VineSLAM replay node;
+  - Choose the features to use in SLAM;
+  - Emulate a particle filter to test localization, setting the number of particles and the limits to consider.</string>
+        </property>
+       </widget>
+       <widget class="QGroupBox" name="node_actions">
+        <property name="geometry">
+         <rect>
+          <x>40</x>
+          <y>140</y>
+          <width>291</width>
+          <height>161</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <weight>75</weight>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="title">
+         <string>VineSLAM - Node actions</string>
+        </property>
+        <widget class="QPushButton" name="pause">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>30</y>
+           <width>271</width>
+           <height>31</height>
+          </rect>
+         </property>
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="text">
+          <string>Pause</string>
+         </property>
+        </widget>
+        <widget class="QPushButton" name="play">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>70</y>
+           <width>271</width>
+           <height>31</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Play</string>
+         </property>
+        </widget>
+        <widget class="QPushButton" name="iterate">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>110</y>
+           <width>271</width>
+           <height>31</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Iterate once</string>
+         </property>
+        </widget>
+       </widget>
       </widget>
       <widget class="QWidget" name="debug_tab">
        <attribute name="title">
-        <string>Debug</string>
+        <string>Particles distribution</string>
        </attribute>
        <widget class="QToolBox" name="toolBox">
         <property name="geometry">
@@ -160,7 +836,15 @@
         <property name="lineWidth">
          <number>1</number>
         </property>
-        <widget class="QWidget" name="toolBoxPage1" native="true">
+        <widget class="QWidget" name="toolBoxPage1">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>0</y>
+           <width>967</width>
+           <height>635</height>
+          </rect>
+         </property>
          <attribute name="label">
           <string>XYZ Particles distribution</string>
          </attribute>
@@ -321,7 +1005,15 @@
           </property>
          </widget>
         </widget>
-        <widget class="QWidget" name="toolBoxPage2" native="true">
+        <widget class="QWidget" name="toolBoxPage2">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>0</y>
+           <width>967</width>
+           <height>635</height>
+          </rect>
+         </property>
          <attribute name="label">
           <string>RPY Particles distribution</string>
          </attribute>

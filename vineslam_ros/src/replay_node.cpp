@@ -33,7 +33,7 @@ ReplayNode::ReplayNode(int argc, char** argv)
   grid_map  = new OccupancyMap(params);
   mapper2D  = new Mapper2D(params);
   mapper3D  = new Mapper3D(params);
-
+  pf        = new PF(params, pose(0, 0, 0, 0, 0, 0));
 
   // Set initialization flags default values
   init             = true;
@@ -155,7 +155,7 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
   // -------------------------------------------------------------------------------
   ros::Publisher clock_pub = nh.advertise<rosgraph_msgs::Clock>("/clock", 1);
   ros::Publisher odom_pub  = nh.advertise<nav_msgs::Odometry>(params.odom_topic, 1);
-  ros::Publisher tf_pub  = nh.advertise<tf2_msgs::TFMessage>(params.tf_topic, 1);
+  ros::Publisher tf_pub    = nh.advertise<tf2_msgs::TFMessage>(params.tf_topic, 1);
   ros::Publisher fix_pub = nh.advertise<sensor_msgs::NavSatFix>(params.fix_topic, 1);
   ros::Publisher depth_img_pub =
       nh.advertise<sensor_msgs::Image>(params.depth_img_topic, 1);
@@ -262,6 +262,13 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
   bag.close();
 }
 
+void ReplayNode::debugPF(const cv::Mat&                               left_image,
+                         const sensor_msgs::ImageConstPtr&            depth_image,
+                         const vision_msgs::Detection2DArrayConstPtr& dets)
+{
+  std::vector<Particle> particles;
+}
+
 void ReplayNode::listenStdin()
 {
   std::string input;
@@ -287,9 +294,6 @@ ReplayNode::~ReplayNode()
     MapWriter mw(params);
     mw.writeToFile(*grid_map);
   }
-
-  // Save path data
-  saveRobotPathKitti(gps_path, odom_path, robot_path);
 }
 
 } // namespace vineslam

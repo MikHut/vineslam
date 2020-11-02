@@ -380,8 +380,6 @@ void Debugger::plotRPYHists(cv::Mat& bR_hist,
     int idx_P = static_cast<int>((pitch - min) * (n / (2 * angular_width)));
     int idx_Y = static_cast<int>((yaw - min) * (n / (2 * angular_width)));
 
-    std::cout << roll * 180 / M_PI << " -> " << idx_R << "\n";
-
     if (idx_R < 0 || idx_R >= n || idx_P < 0 || idx_P >= n || idx_Y < 0 ||
         idx_Y >= n) {
       continue;

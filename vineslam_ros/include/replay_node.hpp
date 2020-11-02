@@ -28,8 +28,16 @@ private:
   // Bag file iterator function - for offline mode
   void replayFct(ros::NodeHandle nh);
 
+  // Debug particle filter
+  void debugPF(const cv::Mat&                               left_image,
+               const sensor_msgs::ImageConstPtr&            depth_image,
+               const vision_msgs::Detection2DArrayConstPtr& dets);
+
   // Input keyboard reader thread to pause and play the bagfile
   void listenStdin();
+
+  // Private replay node objects
+  PF* pf;
 
   // Topic and rosbag names
   std::string bagfile_str;

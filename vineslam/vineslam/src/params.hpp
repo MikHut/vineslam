@@ -22,7 +22,6 @@ struct Parameters {
   // -----------------------------------
   // ------ System flags
   // -----------------------------------
-  bool debug{};
   bool use_planes{};
   bool use_landmarks{};
   bool use_ground_plane{};

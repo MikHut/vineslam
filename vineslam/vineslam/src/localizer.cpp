@@ -88,4 +88,21 @@ void Localizer::getParticlesBeforeResampling(std::vector<Particle>& in) const
   for (size_t i = 0; i < in.size(); i++) in[i] = m_particles[i];
 }
 
+void Localizer::changeObservationsToUse(const bool& use_high_level,
+                                        const bool& use_corners,
+                                        const bool& use_planars,
+                                        const bool& use_planes,
+                                        const bool& use_ground,
+                                        const bool& use_icp,
+                                        const bool& use_gps)
+{
+  pf->use_landmarks    = use_high_level;
+  pf->use_corners      = use_corners;
+  pf->use_planars      = use_planars;
+  pf->use_planes       = use_planes;
+  pf->use_ground_plane = use_ground;
+  pf->use_icp          = use_icp;
+  pf->use_gps          = use_gps;
+}
+
 } // namespace vineslam

@@ -1,15 +1,3 @@
-/**
- * @file /src/qnode.cpp
- *
- * @brief Ros communication central!
- *
- * @date February 2011
- **/
-
-/*****************************************************************************
-** Includes
-*****************************************************************************/
-
 #include <ros/ros.h>
 #include <ros/network.h>
 #include <string>
@@ -17,16 +5,8 @@
 #include <sstream>
 #include "../include/vineslam_report/qnode.hpp"
 
-/*****************************************************************************
-** Namespaces
-*****************************************************************************/
-
 namespace vineslam_report
 {
-
-/*****************************************************************************
-** Implementation
-*****************************************************************************/
 
 QNode::QNode(int argc, char** argv)
     : init_argc(argc)
@@ -55,6 +35,14 @@ bool QNode::init()
 
   // ROS subscriptions
   report_sub = n.subscribe("/vineslam/report", 1, &QNode::reportSubscriber, this);
+  // ROS services
+  rnode_state_srv_client = n.serviceClient<vineslam_ros::change_replay_node_state>(
+      "change_replay_node_state");
+  rnode_features_srv_client =
+      n.serviceClient<vineslam_ros::change_replay_node_features>(
+          "change_replay_node_features");
+  rnode_debug_pf_srv_client =
+      n.serviceClient<vineslam_ros::debug_particle_filter>("debug_pf");
 
   start();
   return true;
@@ -90,6 +78,56 @@ void QNode::reportSubscriber(const vineslam_msgs::reportConstPtr& msg)
                 aR_hist,
                 aP_hist,
                 aY_hist);
+}
+
+void QNode::changeReplayNodeState(const std_msgs::Bool& pause,
+                                  const std_msgs::Bool& play,
+                                  const std_msgs::Bool& iterate)
+{
+  vineslam_ros::change_replay_node_state srv;
+  srv.request.pause_node   = pause;
+  srv.request.play_node    = play;
+  srv.request.iterate_node = iterate;
+
+  rnode_state_srv_client.call(srv);
+}
+
+void QNode::changeReplayNodeFeatures(const std_msgs::Bool& use_high_level,
+                                     const std_msgs::Bool& use_corners,
+                                     const std_msgs::Bool& use_planars,
+                                     const std_msgs::Bool& use_planes,
+                                     const std_msgs::Bool& use_ground,
+                                     const std_msgs::Bool& use_image_features,
+                                     const std_msgs::Bool& use_gps)
+{
+  vineslam_ros::change_replay_node_features srv;
+  srv.request.use_high_level = use_high_level;
+  srv.request.use_corners    = use_corners;
+  srv.request.use_planars    = use_planars;
+  srv.request.use_planes     = use_planes;
+  srv.request.use_ground     = use_ground;
+  srv.request.use_icp        = use_image_features;
+  srv.request.use_gps        = use_gps;
+
+  rnode_features_srv_client.call(srv);
+}
+
+void QNode::callParticleFilterDebugger(const float& x_std,
+                                       const float& y_std,
+                                       const float& z_std,
+                                       const float& R_std,
+                                       const float& P_std,
+                                       const float& Y_std)
+{
+  vineslam_ros::debug_particle_filter srv;
+  srv.request.x_std = x_std;
+  srv.request.y_std = y_std;
+  srv.request.z_std = z_std;
+  srv.request.R_std = R_std;
+  srv.request.P_std = P_std;
+  srv.request.Y_std = Y_std;
+
+  rnode_debug_pf_srv_client.call(srv);
 }
 
 void QNode::log(const LogLevel& level, const std::string& msg)

@@ -54,6 +54,14 @@ public:
   void getParticles(std::vector<Particle>& in) const;
   void getParticlesBeforeResampling(std::vector<Particle>& in) const;
 
+  void changeObservationsToUse(const bool& use_high_level,
+                               const bool& use_corners,
+                               const bool& use_planars,
+                               const bool& use_planes,
+                               const bool& use_ground,
+                               const bool& use_icp,
+                               const bool& use_gps);
+
 private:
   // Average particles pose
   pose average_pose;

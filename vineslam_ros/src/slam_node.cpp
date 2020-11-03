@@ -91,9 +91,6 @@ SLAMNode::SLAMNode(int argc, char** argv)
   gps_publisher   = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/gps", 1);
   path_publisher  = nh.advertise<nav_msgs::Path>("/vineslam/path", 1);
   poses_publisher = nh.advertise<geometry_msgs::PoseArray>("/vineslam/poses", 1);
-  // Debug publishers
-  debug_markers =
-      nh.advertise<visualization_msgs::MarkerArray>("/vineslam/debug_markers", 1);
 
   // ROS services
   ros::ServiceServer start_reg_srv =

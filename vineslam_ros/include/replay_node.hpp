@@ -1,6 +1,10 @@
 #pragma once
 
 #include "vineslam_ros.hpp"
+#include <math/stat.hpp>
+#include <vineslam_ros/change_replay_node_state.h>
+#include <vineslam_ros/change_replay_node_features.h>
+#include <vineslam_ros/debug_particle_filter.h>
 
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
@@ -11,7 +15,7 @@
 namespace vineslam
 {
 
-enum BAG_STATE { PAUSED, PLAYING };
+enum BAG_STATE { PAUSED, PLAYING, ITERATING };
 
 class ReplayNode : public VineSLAM_ros
 {
@@ -28,8 +32,30 @@ private:
   // Bag file iterator function - for offline mode
   void replayFct(ros::NodeHandle nh);
 
+  // Debug particle filter
+  bool debugPF(vineslam_ros::debug_particle_filter::Request&  request,
+               vineslam_ros::debug_particle_filter::Response& response);
+
+  // Node services
+  bool changeNodeState(vineslam_ros::change_replay_node_state::Request&,
+                       vineslam_ros::change_replay_node_state::Response&);
+  bool changeNodeFeatures(vineslam_ros::change_replay_node_features::Request&,
+                          vineslam_ros::change_replay_node_features::Response&);
+
   // Input keyboard reader thread to pause and play the bagfile
   void listenStdin();
+
+  // Private replay node objects
+  PF*                   pf;
+  OccupancyMap*         m_grid_map{};
+  std::vector<Particle> m_particles;
+
+  // Replay node ROS publishers
+  ros::Publisher debug_pf_particles_pub;
+  ros::Publisher debug_pf_weights_pub;
+  ros::Publisher debug_pf_corners_local_pub;
+  ros::Publisher debug_pf_planars_local_pub;
+  ros::Publisher debug_pf_planes_local_pub;
 
   // Topic and rosbag names
   std::string bagfile_str;
@@ -44,6 +70,7 @@ private:
   // System flags
   int       nmessages;
   BAG_STATE bag_state;
+  bool      have_iterated{};
 };
 
 } // namespace vineslam

@@ -10,8 +10,8 @@ int main(int argc, char** argv)
   QApplication                app(argc, argv);
   vineslam_report::MainWindow w(argc, argv);
   w.show();
-  app.connect(&app, SIGNAL(lastWindowClosed()), &app, SLOT(quit()));
-  int result = app.exec();
+  QApplication::connect(&app, SIGNAL(lastWindowClosed()), &app, SLOT(quit()));
+  int result = QApplication::exec();
 
   return result;
 }

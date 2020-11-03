@@ -90,14 +90,21 @@ public:
   void publish3DMap() const;
   // Publish the 3D PCL planes
   void publish3DMap(const std::vector<Plane>& planes, const ros::Publisher& pub);
+  void publish3DMap(const pose&               r_pose,
+                    const std::vector<Plane>& planes,
+                    const ros::Publisher&     pub);
   // Publish a 3D PCL corners map
   void publish3DMap(const std::vector<Corner>& corners, const ros::Publisher& pub);
+  void publish3DMap(const pose&                r_pose,
+                    const std::vector<Corner>& corners,
+                    const ros::Publisher&      pub);
   // Publish a 3D PCL planar features map
   void publish3DMap(const std::vector<Planar>& planars, const ros::Publisher& pub);
+  void publish3DMap(const pose&                r_pose,
+                    const std::vector<Planar>& planars,
+                    const ros::Publisher&      pub);
   // Publish the grid map that contains all the maps
   void publishGridMap(const std_msgs::Header& header) const;
-  // Publishes debug visualization objects
-  void visDebug(const std::vector<Plane>& planes, const Plane& ground_plane);
 
   // Computes the bearing depth of an object using the ZED disparity image
   // - Uses the point with minimum depth inside the bounding box
@@ -137,6 +144,7 @@ public:
   OccupancyMap* previous_map;
   Mapper2D*     mapper2D;
   Mapper3D*     mapper3D;
+  Observation   obsv;
 
   // Array of poses to store and publish the robot path
   std::vector<geometry_msgs::PoseStamped> path;

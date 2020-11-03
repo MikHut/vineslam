@@ -54,7 +54,7 @@ MainWindow::MainWindow(int argc, char** argv, QWidget* parent)
                                                 cv::Mat)));
 }
 
-MainWindow::~MainWindow() {}
+MainWindow::~MainWindow() = default;
 
 void MainWindow::showNoMasterMessage()
 {
@@ -73,6 +73,217 @@ void MainWindow::on_button_connect_clicked(bool check)
   }
 }
 
+void MainWindow::on_button_pause_clicked(bool check)
+{
+  ui.button_pause->setEnabled(false);
+  ui.button_play->setEnabled(true);
+  ui.button_iterate->setEnabled(true);
+
+  std_msgs::Bool pause, play, iterate;
+  pause.data   = true;
+  play.data    = false;
+  iterate.data = false;
+
+  qnode.changeReplayNodeState(pause, play, iterate);
+}
+
+void MainWindow::on_button_play_clicked(bool check)
+{
+  ui.button_pause->setEnabled(true);
+  ui.button_play->setEnabled(false);
+  ui.button_iterate->setEnabled(false);
+
+  std_msgs::Bool pause, play, iterate;
+  pause.data   = false;
+  play.data    = true;
+  iterate.data = false;
+
+  qnode.changeReplayNodeState(pause, play, iterate);
+}
+
+void MainWindow::on_button_iterate_clicked(bool check)
+{
+  ui.button_pause->setEnabled(false);
+  ui.button_play->setEnabled(true);
+  ui.button_iterate->setEnabled(true);
+
+  std_msgs::Bool pause, play, iterate;
+  pause.data   = false;
+  play.data    = false;
+  iterate.data = true;
+
+  qnode.changeReplayNodeState(pause, play, iterate);
+
+  if (ui.emulate_pf->isChecked()) {
+    float xstd = ui.xstd->value();
+    float ystd = ui.ystd->value();
+    float zstd = ui.zstd->value();
+    float Rstd = ui.Rstd->value();
+    float Pstd = ui.Pstd->value();
+    float Ystd = ui.Ystd->value();
+    qnode.callParticleFilterDebugger(xstd, ystd, zstd, Rstd, Pstd, Ystd);
+  }
+}
+
+void MainWindow::on_check_box_high_level_clicked(bool check)
+{
+  std_msgs::Bool use_high_level, use_corners, use_planars, use_planes, use_ground,
+      use_image_features, use_gps;
+
+  use_high_level.data     = ui.check_box_high_level->isChecked();
+  use_corners.data        = ui.check_box_corners->isChecked();
+  use_planars.data        = ui.check_box_planar->isChecked();
+  use_planes.data         = ui.check_box_planes->isChecked();
+  use_ground.data         = ui.check_box_ground->isChecked();
+  use_image_features.data = ui.check_box_image_features->isChecked();
+  use_gps.data            = ui.check_box_gps->isChecked();
+
+  qnode.changeReplayNodeFeatures(use_high_level,
+                                 use_corners,
+                                 use_planars,
+                                 use_planes,
+                                 use_ground,
+                                 use_image_features,
+                                 use_gps);
+}
+
+void MainWindow::on_check_box_corners_clicked(bool check)
+{
+  std_msgs::Bool use_high_level, use_corners, use_planars, use_planes, use_ground,
+      use_image_features, use_gps;
+
+  use_high_level.data     = ui.check_box_high_level->isChecked();
+  use_corners.data        = ui.check_box_corners->isChecked();
+  use_planars.data        = ui.check_box_planar->isChecked();
+  use_planes.data         = ui.check_box_planes->isChecked();
+  use_ground.data         = ui.check_box_ground->isChecked();
+  use_image_features.data = ui.check_box_image_features->isChecked();
+  use_gps.data            = ui.check_box_gps->isChecked();
+
+  qnode.changeReplayNodeFeatures(use_high_level,
+                                 use_corners,
+                                 use_planars,
+                                 use_planes,
+                                 use_ground,
+                                 use_image_features,
+                                 use_gps);
+}
+
+void MainWindow::on_check_box_planar_clicked(bool check)
+{
+
+  std_msgs::Bool use_high_level, use_corners, use_planars, use_planes, use_ground,
+      use_image_features, use_gps;
+
+  use_high_level.data     = ui.check_box_high_level->isChecked();
+  use_corners.data        = ui.check_box_corners->isChecked();
+  use_planars.data        = ui.check_box_planar->isChecked();
+  use_planes.data         = ui.check_box_planes->isChecked();
+  use_ground.data         = ui.check_box_ground->isChecked();
+  use_image_features.data = ui.check_box_image_features->isChecked();
+  use_gps.data            = ui.check_box_gps->isChecked();
+
+  qnode.changeReplayNodeFeatures(use_high_level,
+                                 use_corners,
+                                 use_planars,
+                                 use_planes,
+                                 use_ground,
+                                 use_image_features,
+                                 use_gps);
+}
+
+void MainWindow::on_check_box_planes_clicked(bool check)
+{
+
+  std_msgs::Bool use_high_level, use_corners, use_planars, use_planes, use_ground,
+      use_image_features, use_gps;
+
+  use_high_level.data     = ui.check_box_high_level->isChecked();
+  use_corners.data        = ui.check_box_corners->isChecked();
+  use_planars.data        = ui.check_box_planar->isChecked();
+  use_planes.data         = ui.check_box_planes->isChecked();
+  use_ground.data         = ui.check_box_ground->isChecked();
+  use_image_features.data = ui.check_box_image_features->isChecked();
+  use_gps.data            = ui.check_box_gps->isChecked();
+
+  qnode.changeReplayNodeFeatures(use_high_level,
+                                 use_corners,
+                                 use_planars,
+                                 use_planes,
+                                 use_ground,
+                                 use_image_features,
+                                 use_gps);
+}
+
+void MainWindow::on_check_box_ground_clicked(bool check)
+{
+
+  std_msgs::Bool use_high_level, use_corners, use_planars, use_planes, use_ground,
+      use_image_features, use_gps;
+
+  use_high_level.data     = ui.check_box_high_level->isChecked();
+  use_corners.data        = ui.check_box_corners->isChecked();
+  use_planars.data        = ui.check_box_planar->isChecked();
+  use_planes.data         = ui.check_box_planes->isChecked();
+  use_ground.data         = ui.check_box_ground->isChecked();
+  use_image_features.data = ui.check_box_image_features->isChecked();
+  use_gps.data            = ui.check_box_gps->isChecked();
+
+  qnode.changeReplayNodeFeatures(use_high_level,
+                                 use_corners,
+                                 use_planars,
+                                 use_planes,
+                                 use_ground,
+                                 use_image_features,
+                                 use_gps);
+}
+
+void MainWindow::on_check_box_image_features_clicked(bool check)
+{
+
+  std_msgs::Bool use_high_level, use_corners, use_planars, use_planes, use_ground,
+      use_image_features, use_gps;
+
+  use_high_level.data     = ui.check_box_high_level->isChecked();
+  use_corners.data        = ui.check_box_corners->isChecked();
+  use_planars.data        = ui.check_box_planar->isChecked();
+  use_planes.data         = ui.check_box_planes->isChecked();
+  use_ground.data         = ui.check_box_ground->isChecked();
+  use_image_features.data = ui.check_box_image_features->isChecked();
+  use_gps.data            = ui.check_box_gps->isChecked();
+
+  qnode.changeReplayNodeFeatures(use_high_level,
+                                 use_corners,
+                                 use_planars,
+                                 use_planes,
+                                 use_ground,
+                                 use_image_features,
+                                 use_gps);
+}
+
+void MainWindow::on_check_box_gps_clicked(bool check)
+{
+
+  std_msgs::Bool use_high_level, use_corners, use_planars, use_planes, use_ground,
+      use_image_features, use_gps;
+
+  use_high_level.data     = ui.check_box_high_level->isChecked();
+  use_corners.data        = ui.check_box_corners->isChecked();
+  use_planars.data        = ui.check_box_planar->isChecked();
+  use_planes.data         = ui.check_box_planes->isChecked();
+  use_ground.data         = ui.check_box_ground->isChecked();
+  use_image_features.data = ui.check_box_image_features->isChecked();
+  use_gps.data            = ui.check_box_gps->isChecked();
+
+  qnode.changeReplayNodeFeatures(use_high_level,
+                                 use_corners,
+                                 use_planars,
+                                 use_planes,
+                                 use_ground,
+                                 use_image_features,
+                                 use_gps);
+}
+
 void MainWindow::updateLoggingView() { ui.view_logging->scrollToBottom(); }
 
 void MainWindow::on_actionAbout_triggered()
@@ -85,18 +296,18 @@ void MainWindow::on_actionAbout_triggered()
 
 void MainWindow::closeEvent(QCloseEvent* event) { QMainWindow::closeEvent(event); }
 
-void MainWindow::on_draw_hists_triggered(cv::Mat bx_hist,
-                                         cv::Mat by_hist,
-                                         cv::Mat bz_hist,
-                                         cv::Mat ax_hist,
-                                         cv::Mat ay_hist,
-                                         cv::Mat az_hist,
-                                         cv::Mat bR_hist,
-                                         cv::Mat bP_hist,
-                                         cv::Mat bY_hist,
-                                         cv::Mat aR_hist,
-                                         cv::Mat aP_hist,
-                                         cv::Mat aY_hist)
+void MainWindow::on_draw_hists_triggered(const cv::Mat& bx_hist,
+                                         const cv::Mat& by_hist,
+                                         const cv::Mat& bz_hist,
+                                         const cv::Mat& ax_hist,
+                                         const cv::Mat& ay_hist,
+                                         const cv::Mat& az_hist,
+                                         const cv::Mat& bR_hist,
+                                         const cv::Mat& bP_hist,
+                                         const cv::Mat& bY_hist,
+                                         const cv::Mat& aR_hist,
+                                         const cv::Mat& aP_hist,
+                                         const cv::Mat& aY_hist)
 {
   QImage bqx_hist = QImage((uchar*)bx_hist.data,
                            bx_hist.cols,
@@ -158,7 +369,6 @@ void MainWindow::on_draw_hists_triggered(cv::Mat bx_hist,
                            aY_hist.rows,
                            aY_hist.step,
                            QImage::Format_RGB888);
-
 
   ui.b_hist_x->setPixmap(QPixmap::fromImage(bqx_hist));
   ui.b_hist_x->setScaledContents(true);

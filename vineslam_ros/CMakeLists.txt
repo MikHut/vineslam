@@ -26,7 +26,10 @@ find_package(catkin REQUIRED
 add_service_files(FILES
         start_map_registration.srv
         stop_map_registration.srv
-        stop_gps_heading_estimation.srv)
+        stop_gps_heading_estimation.srv
+        debug_particle_filter.srv
+        change_replay_node_state.srv
+        change_replay_node_features.srv)
 
 generate_messages(
         DEPENDENCIES

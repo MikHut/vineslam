@@ -254,6 +254,36 @@ void VineSLAM_ros::publish3DMap(const std::vector<Plane>& planes,
   pub.publish(cloud_out);
 }
 
+void VineSLAM_ros::publish3DMap(const pose&               r_pose,
+                                const std::vector<Plane>& planes,
+                                const ros::Publisher&     pub)
+{
+  pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(
+      new pcl::PointCloud<pcl::PointXYZI>);
+
+  std::array<float, 9> robot_R{};
+  r_pose.toRotMatrix(robot_R);
+  TF robot_tf(robot_R, std::array<float, 3>{r_pose.x, r_pose.y, r_pose.z});
+
+  int i = 0;
+  for (const auto& plane : planes) {
+    for (const auto& pt : plane.points) {
+      point m_pt = pt * robot_tf;
+
+      pcl::PointXYZI pcl_pt(i);
+      pcl_pt.x = m_pt.x;
+      pcl_pt.y = m_pt.y;
+      pcl_pt.z = m_pt.z;
+
+      cloud_out->points.push_back(pcl_pt);
+    }
+    i++;
+  }
+
+  cloud_out->header.frame_id = "odom";
+  pub.publish(cloud_out);
+}
+
 void VineSLAM_ros::publish3DMap(const std::vector<Corner>& corners,
                                 const ros::Publisher&      pub)
 {
@@ -267,6 +297,35 @@ void VineSLAM_ros::publish3DMap(const std::vector<Corner>& corners,
     robot_pose.toRotMatrix(robot_R);
     TF robot_tf(robot_R,
                 std::array<float, 3>{robot_pose.x, robot_pose.y, robot_pose.z});
+
+    m_pt.x = corner.pos.x * robot_tf.R[0] + corner.pos.y * robot_tf.R[1] +
+             corner.pos.z * robot_tf.R[2] + robot_tf.t[0];
+    m_pt.y = corner.pos.x * robot_tf.R[3] + corner.pos.y * robot_tf.R[4] +
+             corner.pos.z * robot_tf.R[5] + robot_tf.t[1];
+    m_pt.z = corner.pos.x * robot_tf.R[6] + corner.pos.y * robot_tf.R[7] +
+             corner.pos.z * robot_tf.R[8] + robot_tf.t[2];
+
+    m_pt.intensity = static_cast<float>(corner.which_cluster) * 10.0f;
+    cloud_out->points.push_back(m_pt);
+  }
+
+  cloud_out->header.frame_id = "odom";
+  pub.publish(cloud_out);
+}
+
+void VineSLAM_ros::publish3DMap(const pose&                r_pose,
+                                const std::vector<Corner>& corners,
+                                const ros::Publisher&      pub)
+{
+  pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(
+      new pcl::PointCloud<pcl::PointXYZI>);
+
+  pcl::PointXYZI m_pt;
+
+  for (const auto& corner : corners) {
+    std::array<float, 9> robot_R{};
+    r_pose.toRotMatrix(robot_R);
+    TF robot_tf(robot_R, std::array<float, 3>{r_pose.x, r_pose.y, r_pose.z});
 
     m_pt.x = corner.pos.x * robot_tf.R[0] + corner.pos.y * robot_tf.R[1] +
              corner.pos.z * robot_tf.R[2] + robot_tf.t[0];
@@ -315,71 +374,36 @@ void VineSLAM_ros::publish3DMap(const std::vector<Planar>& planars,
   pub.publish(cloud_out);
 }
 
-void VineSLAM_ros::visDebug(const std::vector<Plane>& planes,
-                            const Plane&              ground_plane)
+void VineSLAM_ros::publish3DMap(const pose&                r_pose,
+                                const std::vector<Planar>& planars,
+                                const ros::Publisher&      pub)
 {
+  pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(
+      new pcl::PointCloud<pcl::PointXYZI>);
 
+  pcl::PointXYZI m_pt;
 
-  // - Publish associations between corners
-  visualization_msgs::MarkerArray markers;
+  for (const auto& planar_feature : planars) {
+    std::array<float, 9> robot_R{};
+    r_pose.toRotMatrix(robot_R);
+    TF robot_tf(robot_R, std::array<float, 3>{r_pose.x, r_pose.y, r_pose.z});
 
-  // - Publish lines for debug
-  if (planes.size() == 2) {
-    geometry_msgs::Point P1_a, P2_a, P1_b, P2_b;
-    float                x_min_a = planes[0].points[0].x;
-    float                x_max_a = planes[0].points[planes[0].points.size() - 1].x;
-    float                x_min_b = planes[1].points[0].x;
-    float                x_max_b = planes[1].points[planes[1].points.size() - 1].x;
-    P1_a.x                       = x_min_a;
-    P1_a.y = x_min_a * planes[0].regression.m + planes[0].regression.b;
-    P1_a.z = 0;
-    P2_a.x = x_max_a;
-    P2_a.y = x_max_a * planes[0].regression.m + planes[0].regression.b;
-    P2_a.z = 0;
-    P1_b.x = x_min_b;
-    P1_b.y = x_min_b * planes[1].regression.m + planes[1].regression.b;
-    P1_b.z = 0;
-    P2_b.x = x_max_b;
-    P2_b.y = x_max_b * planes[1].regression.m + planes[1].regression.b;
-    P2_b.z = 0;
+    m_pt.x = planar_feature.pos.x * robot_tf.R[0] +
+             planar_feature.pos.y * robot_tf.R[1] +
+             planar_feature.pos.z * robot_tf.R[2] + robot_tf.t[0];
+    m_pt.y = planar_feature.pos.x * robot_tf.R[3] +
+             planar_feature.pos.y * robot_tf.R[4] +
+             planar_feature.pos.z * robot_tf.R[5] + robot_tf.t[1];
+    m_pt.z = planar_feature.pos.x * robot_tf.R[6] +
+             planar_feature.pos.y * robot_tf.R[7] +
+             planar_feature.pos.z * robot_tf.R[8] + robot_tf.t[2];
 
-    visualization_msgs::Marker marker_a;
-    marker_a.header.frame_id = "base_link";
-    marker_a.header.stamp    = ros::Time::now();
-    marker_a.ns              = "line_a";
-    marker_a.id              = 0;
-    marker_a.type            = visualization_msgs::Marker::LINE_STRIP;
-    marker_a.action          = visualization_msgs::Marker::ADD;
-    marker_a.points.push_back(P1_a);
-    marker_a.points.push_back(P2_a);
-    marker_a.color.a = 1;
-    marker_a.color.r = 1;
-    marker_a.color.b = 0;
-    marker_a.color.g = 0;
-    marker_a.scale.x = 0.1;
-    marker_a.scale.y = 0.1;
-    marker_a.scale.z = 0.1;
-    visualization_msgs::Marker marker_b;
-    marker_b.header.frame_id = "base_link";
-    marker_b.header.stamp    = ros::Time::now();
-    marker_b.ns              = "line_b";
-    marker_b.id              = 1;
-    marker_b.type            = visualization_msgs::Marker::LINE_STRIP;
-    marker_b.action          = visualization_msgs::Marker::ADD;
-    marker_b.points.push_back(P1_b);
-    marker_b.points.push_back(P2_b);
-    marker_b.color.a = 1;
-    marker_b.color.r = 0;
-    marker_b.color.b = 1;
-    marker_b.color.g = 0;
-    marker_b.scale.x = 0.1;
-    marker_b.scale.y = 0.1;
-    marker_b.scale.z = 0.1;
-    markers.markers.push_back(marker_a);
-    markers.markers.push_back(marker_b);
+    m_pt.intensity = static_cast<float>(planar_feature.which_cluster) * 10.0f;
+    cloud_out->points.push_back(m_pt);
   }
 
-  debug_markers.publish(markers);
+  cloud_out->header.frame_id = "odom";
+  pub.publish(cloud_out);
 }
 
 } // namespace vineslam

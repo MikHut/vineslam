@@ -70,8 +70,16 @@ ReplayNode::ReplayNode(int argc, char** argv)
   path_publisher  = nh.advertise<nav_msgs::Path>("/vineslam/path", 1);
   poses_publisher = nh.advertise<geometry_msgs::PoseArray>("/vineslam/poses", 1);
   // Debug publishers
-  debug_markers =
-      nh.advertise<visualization_msgs::MarkerArray>("/vineslam/debug_markers", 1);
+  debug_pf_particles_pub =
+      nh.advertise<geometry_msgs::PoseArray>("/vineslam/debug/poses", 1);
+  debug_pf_weights_pub =
+      nh.advertise<visualization_msgs::MarkerArray>("/vineslam/debug/weights", 1);
+  debug_pf_corners_local_pub = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>(
+      "/vineslam/debug/map3D/corners_local", 1);
+  debug_pf_planars_local_pub = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>(
+      "/vineslam/debug/map3D/planars_local", 1);
+  debug_pf_planes_local_pub = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>(
+      "/vineslam/debug/map3D/planes_local", 1);
 
   // ROS services
   ros::ServiceServer start_reg_srv =
@@ -90,6 +98,8 @@ ReplayNode::ReplayNode(int argc, char** argv)
       "change_replay_node_state", &ReplayNode::changeNodeState, this);
   ros::ServiceServer change_node_features_srv = nh.advertiseService(
       "change_replay_node_features", &ReplayNode::changeNodeFeatures, this);
+  ros::ServiceServer debug_pf_srv =
+      nh.advertiseService("debug_pf", &ReplayNode::debugPF, this);
 
   // GNSS varibales
   if (params.use_gps) {
@@ -148,13 +158,6 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
   bag.open(params.bagfile_name);
 
   // -------------------------------------------------------------------------------
-  // ----- Set static TFs
-  // -------------------------------------------------------------------------------
-  tf::Transform unit_tf;
-  unit_tf.setRotation(tf::Quaternion(0., 0., 0., 1.));
-  unit_tf.setOrigin(tf::Vector3(0., 0., 0.));
-
-  // -------------------------------------------------------------------------------
   // ----- Set rosbags topics of interest
   // -------------------------------------------------------------------------------
   ros::Publisher clock_pub = nh.advertise<rosgraph_msgs::Clock>("/clock", 1);
@@ -178,6 +181,7 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
   sensor_msgs::PointCloud2ConstPtr pcl_ptr;
 
   ROS_INFO("Reading ROSBAG topics...");
+
   bool tf_bool = false, odom_bool = false, fix_bool = false, depth_bool = false,
        left_bool = false, pcl_bool = false;
   for (rosbag::MessageInstance m : rosbag::View(bag)) {
@@ -247,6 +251,13 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
     nmessages = tf_bool + odom_bool + fix_bool + depth_bool + left_bool + pcl_bool;
 
     if (nmessages == 6) {
+      // Save data to use on debug procedure
+      if (!init) {
+        m_particles.clear();
+        localizer->getParticles(m_particles);
+        m_grid_map = grid_map;
+      }
+
       scanListener(pcl_ptr);
       odomListener(odom_ptr);
       // TODO (Andre Aguiar): GPS should be supported in the future
@@ -279,6 +290,8 @@ bool ReplayNode::changeNodeState(
     have_iterated = false;
     bag_state     = ITERATING;
   }
+
+  return true;
 }
 
 bool ReplayNode::changeNodeFeatures(
@@ -300,13 +313,137 @@ bool ReplayNode::changeNodeFeatures(
                                      params.use_ground_plane,
                                      params.use_icp,
                                      params.use_gps);
+
+  return true;
 }
 
-void ReplayNode::debugPF(const cv::Mat&                               left_image,
-                         const sensor_msgs::ImageConstPtr&            depth_image,
-                         const vision_msgs::Detection2DArrayConstPtr& dets)
+bool ReplayNode::debugPF(vineslam_ros::debug_particle_filter::Request&  request,
+                         vineslam_ros::debug_particle_filter::Response& response)
 {
-  std::vector<Particle> particles;
+  ROS_INFO("Particle filter debugging procedure has started ...");
+
+  // -------------------------------------------------------------------------------
+  // ---- Create set of particles from the limits established by the user
+  // -------------------------------------------------------------------------------
+  float w = 1 / static_cast<float>(m_particles.size());
+  for (size_t i = 0; i < m_particles.size(); i++) {
+    pose p_pose = m_particles[i].p;
+    pose m_pose =
+        m_particles[i].p + pose(sampleGaussian(request.x_std),
+                                sampleGaussian(request.y_std),
+                                sampleGaussian(request.z_std),
+                                sampleGaussian(request.R_std * DEGREE_TO_RAD),
+                                sampleGaussian(request.P_std * DEGREE_TO_RAD),
+                                sampleGaussian(request.Y_std * DEGREE_TO_RAD));
+
+    pf->particles[i]    = Particle(i, m_pose, w);
+    pf->particles[i].pp = p_pose;
+  }
+
+  // -------------------------------------------------------------------------------
+  // ---- Update debug PF settings
+  // -------------------------------------------------------------------------------
+  pf->use_landmarks    = params.use_landmarks;
+  pf->use_corners      = params.use_corners;
+  pf->use_planars      = params.use_planars;
+  pf->use_planes       = params.use_planes;
+  pf->use_ground_plane = params.use_ground_plane;
+  pf->use_icp          = params.use_icp;
+  pf->use_gps          = params.use_gps;
+
+  // -------------------------------------------------------------------------------
+  // ---- Call particle filter update routine
+  // -------------------------------------------------------------------------------
+  // - Wait until normal vineslam procedure end
+  while (ros::ok())
+    if (have_iterated)
+      break;
+
+  // - Particle filter update
+  pf->update(obsv.landmarks,
+             obsv.corners,
+             obsv.planars,
+             obsv.planes,
+             obsv.ground_plane,
+             obsv.surf_features,
+             obsv.gps_pose,
+             previous_map,
+             m_grid_map);
+  pf->normalizeWeights();
+
+  // - Get particle with higher weight
+  pose  f_pose;
+  float w_max = 0;
+  for (const auto& particle : pf->particles) {
+    std::cout << particle.w << ", ";
+    if (particle.w > w_max) {
+      w_max  = particle.w;
+      f_pose = particle.p;
+    }
+  }
+  std::cout << "\n--\n";
+
+  // -------------------------------------------------------------------------------
+  // ---- Publish output data
+  // -------------------------------------------------------------------------------
+  // - Debug particles
+  geometry_msgs::PoseArray ros_poses;
+  ros_poses.header.stamp    = ros::Time::now();
+  ros_poses.header.frame_id = "odom";
+  for (const auto& particle : pf->particles) {
+    tf::Quaternion m_q;
+    m_q.setRPY(particle.p.roll, particle.p.pitch, particle.p.yaw);
+    m_q.normalize();
+
+    geometry_msgs::Pose m_pose;
+    m_pose.position.x    = particle.p.x;
+    m_pose.position.y    = particle.p.y;
+    m_pose.position.z    = particle.p.z;
+    m_pose.orientation.x = m_q.x();
+    m_pose.orientation.y = m_q.y();
+    m_pose.orientation.z = m_q.z();
+    m_pose.orientation.w = m_q.w();
+
+    ros_poses.poses.push_back(m_pose);
+  }
+  debug_pf_particles_pub.publish(ros_poses);
+
+  // - Particles weights
+  visualization_msgs::MarkerArray spheres;
+  for (const auto& particle : pf->particles) {
+    visualization_msgs::Marker m_sphere;
+    m_sphere.header.frame_id    = "odom";
+    m_sphere.header.stamp       = ros::Time::now();
+    m_sphere.ns                 = "sphere_" + std::to_string(particle.id);
+    m_sphere.id                 = particle.id;
+    m_sphere.type               = visualization_msgs::Marker::SPHERE;
+    m_sphere.action             = visualization_msgs::Marker::ADD;
+    m_sphere.color.a            = 1;
+    m_sphere.color.r            = 0;
+    m_sphere.color.b            = 1;
+    m_sphere.color.g            = 0;
+    m_sphere.pose.position.x    = particle.p.x;
+    m_sphere.pose.position.y    = particle.p.y;
+    m_sphere.pose.position.z    = particle.p.z;
+    m_sphere.pose.orientation.x = 0;
+    m_sphere.pose.orientation.y = 0;
+    m_sphere.pose.orientation.z = 0;
+    m_sphere.pose.orientation.w = 1;
+    m_sphere.scale.x            = particle.w * (0.1 / w_max);
+    m_sphere.scale.y            = particle.w * (0.1 / w_max);
+    m_sphere.scale.z            = particle.w * (0.1 / w_max);
+
+    spheres.markers.push_back(m_sphere);
+  }
+  debug_pf_weights_pub.publish(spheres);
+
+  // - Local maps
+  publish3DMap(f_pose, obsv.corners, debug_pf_corners_local_pub);
+  publish3DMap(f_pose, obsv.planars, debug_pf_planars_local_pub);
+  publish3DMap(f_pose, obsv.planes, debug_pf_planes_local_pub);
+
+  ROS_INFO("Particle filter debugging procedure has ended. Results are being "
+           "published!...");
 }
 
 void ReplayNode::listenStdin()

@@ -13,6 +13,7 @@
 
 #include <vineslam_ros/change_replay_node_state.h>
 #include <vineslam_ros/change_replay_node_features.h>
+#include <vineslam_ros/debug_particle_filter.h>
 #include <vineslam_msgs/report.h>
 #include "debugger.hpp"
 
@@ -38,6 +39,12 @@ public:
                                 const std_msgs::Bool& use_ground,
                                 const std_msgs::Bool& use_image_features,
                                 const std_msgs::Bool& use_gps);
+  void callParticleFilterDebugger(const float& x_std,
+                                  const float& y_std,
+                                  const float& z_std,
+                                  const float& R_std,
+                                  const float& P_std,
+                                  const float& Y_std);
 
   // Logging
   enum LogLevel { Debug, Info, Warn, Error, Fatal };
@@ -67,6 +74,7 @@ private:
   ros::Subscriber    report_sub;
   ros::ServiceClient rnode_state_srv_client;
   ros::ServiceClient rnode_features_srv_client;
+  ros::ServiceClient rnode_debug_pf_srv_client;
   Debugger           debugger;
   int                init_argc;
   char**             init_argv;

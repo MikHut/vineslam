@@ -169,7 +169,6 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // * Ground plane (if it is at the right distance to the LiDAR sensor)
     // * SURF 3D image features
     // * GPS (if we're using it)
-    Observation obsv;
     if (params.use_landmarks)
       obsv.landmarks = m_landmarks;
     if (params.use_corners)
@@ -343,13 +342,6 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
 
     // - Save local map for next iteration
     previous_map = mapper3D->local_map;
-
-    // --------------------------------------------------
-    // ----- Debug area : publishes the robot path & the vegetation lines
-    // --------------------------------------------------
-    if (params.debug) {
-      visDebug(m_planes, m_ground_plane);
-    }
   }
 }
 

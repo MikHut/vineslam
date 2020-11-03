@@ -50,11 +50,6 @@ static void loadParameters(const ros::NodeHandle& nh,
     ROS_ERROR("%s/pcl_topic parameter not found. Shutting down...", prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/system/debug", params.debug)) {
-    ROS_ERROR("%s/system/debug parameter not found. Shutting down...",
-              prefix.c_str());
-    exit(-1);
-  }
   if (!nh.getParam(prefix + "/system/use_landmarks", params.use_landmarks)) {
     ROS_ERROR("%s/system/debug parameter not found. Shutting down...",
               prefix.c_str());

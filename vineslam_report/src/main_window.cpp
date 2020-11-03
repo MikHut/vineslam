@@ -113,6 +113,16 @@ void MainWindow::on_button_iterate_clicked(bool check)
   iterate.data = true;
 
   qnode.changeReplayNodeState(pause, play, iterate);
+
+  if (ui.emulate_pf->isChecked()) {
+    float xstd = ui.xstd->value();
+    float ystd = ui.ystd->value();
+    float zstd = ui.zstd->value();
+    float Rstd = ui.Rstd->value();
+    float Pstd = ui.Pstd->value();
+    float Ystd = ui.Ystd->value();
+    qnode.callParticleFilterDebugger(xstd, ystd, zstd, Rstd, Pstd, Ystd);
+  }
 }
 
 void MainWindow::on_check_box_high_level_clicked(bool check)

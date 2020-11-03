@@ -41,6 +41,8 @@ bool QNode::init()
   rnode_features_srv_client =
       n.serviceClient<vineslam_ros::change_replay_node_features>(
           "change_replay_node_features");
+  rnode_debug_pf_srv_client =
+      n.serviceClient<vineslam_ros::debug_particle_filter>("debug_pf");
 
   start();
   return true;
@@ -108,6 +110,24 @@ void QNode::changeReplayNodeFeatures(const std_msgs::Bool& use_high_level,
   srv.request.use_gps        = use_gps;
 
   rnode_features_srv_client.call(srv);
+}
+
+void QNode::callParticleFilterDebugger(const float& x_std,
+                                       const float& y_std,
+                                       const float& z_std,
+                                       const float& R_std,
+                                       const float& P_std,
+                                       const float& Y_std)
+{
+  vineslam_ros::debug_particle_filter srv;
+  srv.request.x_std = x_std;
+  srv.request.y_std = y_std;
+  srv.request.z_std = z_std;
+  srv.request.R_std = R_std;
+  srv.request.P_std = P_std;
+  srv.request.Y_std = Y_std;
+
+  rnode_debug_pf_srv_client.call(srv);
 }
 
 void QNode::log(const LogLevel& level, const std::string& msg)

@@ -31,7 +31,7 @@ Mapper3D::Mapper3D(const Parameters& params)
   correspondence_threshold = 0.02;
 
   // Set velodyne configuration parameters
-  picked_num              = 2;
+  picked_num              = 20;
   planes_th               = static_cast<float>(45.) * DEGREE_TO_RAD;
   ground_th               = static_cast<float>(5.) * DEGREE_TO_RAD;
   edge_threshold          = 0.1;
@@ -73,8 +73,6 @@ void Mapper3D::registerMaps(const pose&                robot_pose,
   globalCornerMap(robot_pose, corners, grid_map);
   // - 3D PCL corner map estimation
   globalPlanarMap(robot_pose, planars, grid_map);
-
-  last_registering_pose = robot_pose;
 }
 
 // -------------------------------------------------------------------------------

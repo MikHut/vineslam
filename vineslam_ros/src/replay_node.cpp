@@ -369,7 +369,7 @@ bool ReplayNode::debugPF(vineslam_ros::debug_particle_filter::Request&  request,
              obsv.gps_pose,
              previous_map,
              m_grid_map);
-  pf->normalizeWeights();
+//  pf->normalizeWeights();
 
   // - Get particle with higher weight
   pose  f_pose;

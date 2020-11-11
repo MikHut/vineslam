@@ -117,7 +117,6 @@ public:
 
   // Public vars
   float         lidar_height;
-  pose          last_registering_pose;
   OccupancyMap* local_map;
 
 private:

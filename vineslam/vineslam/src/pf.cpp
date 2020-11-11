@@ -16,7 +16,7 @@ PF::PF(const Parameters& params, const pose& initial_pose)
   use_ground_plane = params.use_ground_plane;
   use_icp          = params.use_icp;
   use_gps          = params.use_gps;
-  n_particles      = params.number_particles;
+  n_particles      = static_cast<float>(params.number_particles);
   // - Motion model parameters
   srr = params.srr;
   str = params.str;
@@ -76,32 +76,26 @@ void PF::motionModel(const pose& odom)
   pose odom_inc = odom - p_odom;
   odom_inc.normalize();
 
-  // Update motion state
-  if (odom_inc.norm2D() > 0.01 && std::fabs(odom_inc.yaw) < 0.027) {
-    motion_state = FORWARD;
-  } else if (std::fabs(odom_inc.yaw) > 0.027) {
-    motion_state = ROTATING;
-  } else if (odom_inc.norm2D() < 0.01 && std::fabs(odom_inc.yaw) < 0.027) {
-    motion_state = STOPED;
-  }
-
   // Compute the relative pose given by the odometry motion model
   float dt_trans = odom_inc.norm2D();
   float dt_rot_a =
       ((odom_inc.x != 0) || (odom_inc.y != 0))
           ? normalizeAngle(std::atan2(odom_inc.y, odom_inc.x) - p_odom.yaw)
           : static_cast<float>(0.);
+
+  // Prevent huge particles innovation due to wheel slippage
+  if (dt_rot_a > 160 * DEGREE_TO_RAD)
+    dt_rot_a -= M_PI;
+  if (dt_rot_a < -160 * DEGREE_TO_RAD)
+    dt_rot_a += M_PI;
+
   float dt_rot_b = normalizeAngle(odom_inc.yaw - dt_rot_a);
 
   // Motion sample standard deviations
-  float comp         = (odom_inc.x < 0)
-                           ? M_PI
-                           : static_cast<float>(
-                         0.); // PREVENT ERROR WHEN ROBOT IS MOVING BACKWARDS :-)
-  float s_rot_a_draw = srr * (std::fabs(dt_rot_a) - comp) + srt * dt_trans;
-  float s_rot_b_draw = srr * (std::fabs(dt_rot_b) - comp) + srt * dt_trans;
+  float s_rot_a_draw = srr * std::fabs(dt_rot_a) + srt * dt_trans;
+  float s_rot_b_draw = srr * std::fabs(dt_rot_b) + srt * dt_trans;
   float s_trans_draw =
-      stt * dt_trans + str * (std::fabs(dt_rot_a) + std::fabs(dt_rot_b) - 2 * comp);
+      stt * dt_trans + str * (std::fabs(dt_rot_a) + std::fabs(dt_rot_b));
 
   // Apply the motion model to all particles
   for (auto& particle : particles) {
@@ -158,53 +152,57 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
   std::vector<float> surf_weights(n_particles, 0.);
   std::vector<float> gps_weights(n_particles, 0.);
 
+  logs = "\n";
+
   auto before = std::chrono::high_resolution_clock::now();
-  if (use_landmarks && motion_state != ROTATING)
+  if (use_landmarks)
     highLevel(landmarks, grid_map, semantic_weights);
   auto after = std::chrono::high_resolution_clock::now();
   std::chrono::duration<float, std::milli> duration = after - before;
-  std::cout << "Time elapsed on PF - high-level features (msecs): "
-            << duration.count() << std::endl;
+  logs += "Time elapsed on PF - high-level features (msecs): " +
+          std::to_string(duration.count()) + "\n";
   before = std::chrono::high_resolution_clock::now();
   if (use_corners)
     mediumLevelCorners(corners, grid_map, corner_weights);
   after    = std::chrono::high_resolution_clock::now();
   duration = after - before;
-  std::cout << "Time elapsed on PF - corner features (msecs): " << duration.count()
-            << " (" << corners.size() << ")" << std::endl;
+  logs += "Time elapsed on PF - corner features (msecs): " +
+          std::to_string(duration.count()) + "\n";
   before = std::chrono::high_resolution_clock::now();
   if (use_planars)
     mediumLevelPlanars(planars, grid_map, planar_weights);
   after    = std::chrono::high_resolution_clock::now();
   duration = after - before;
-  std::cout << "Time elapsed on PF - planar features (msecs): " << duration.count()
-            << " (" << planars.size() << ")" << std::endl;
+  logs += "Time elapsed on PF - planar features (msecs): " +
+          std::to_string(duration.count()) + "\n";
   before = std::chrono::high_resolution_clock::now();
   if (use_planes)
     mediumLevelPlanes(planes, grid_map, planes_weights);
   after    = std::chrono::high_resolution_clock::now();
   duration = after - before;
-  std::cout << "Time elapsed on PF - side planes (msecs): " << duration.count()
-            << std::endl;
+  logs += "Time elapsed on PF - side planes features (msecs): " +
+          std::to_string(duration.count()) + "\n";
   before = std::chrono::high_resolution_clock::now();
   if (use_ground_plane)
     mediumLevelGround(ground_plane, ground_weights);
   after    = std::chrono::high_resolution_clock::now();
   duration = after - before;
-  std::cout << "Time elapsed on PF - ground (msecs): " << duration.count()
-            << std::endl;
+  logs += "Time elapsed on PF - ground features (msecs): " +
+          std::to_string(duration.count()) + "\n";
   before = std::chrono::high_resolution_clock::now();
   if (use_icp)
     lowLevel(surf_features, grid_map, surf_weights);
   after    = std::chrono::high_resolution_clock::now();
   duration = after - before;
-  std::cout << "Time elapsed on PF - icp (msecs): " << duration.count() << std::endl;
+  logs +=
+      "Time elapsed on PF - icp (msecs): " + std::to_string(duration.count()) + "\n";
   before = std::chrono::high_resolution_clock::now();
   if (use_gps)
     gps(gps_pose, gps_weights);
   after    = std::chrono::high_resolution_clock::now();
   duration = after - before;
-  std::cout << "Time elapsed on PF - gps (msecs): " << duration.count() << std::endl;
+  logs +=
+      "Time elapsed on PF - gps (msecs): " + std::to_string(duration.count()) + "\n";
 
   // Multi-modal weights normalization
   float semantic_max =
@@ -355,7 +353,7 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
       std::vector<Corner> m_corners = (*grid_map)(X.x, X.y, X.z).corner_features;
 
       // Search for a correspondence in the current cell first
-      float best_correspondence = 0.02;
+      float best_correspondence = 0.5;
       bool  found               = false;
       for (const auto& m_corner : m_corners) {
         float dist_min = X.distance(m_corner.pos);
@@ -371,6 +369,7 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners,
         w_corners += (normalizer_corner *
                       static_cast<float>(std::exp(-1. / sigma_corner_matching *
                                                   best_correspondence)));
+      //        w_corners += static_cast<float>(1 / best_correspondence);
     }
 
     ws[particle.id] = w_corners;
@@ -398,7 +397,7 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars,
       std::vector<Planar> m_planars = (*grid_map)(X.x, X.y, X.z).planar_features;
 
       // Search for a correspondence in the current cell first
-      float best_correspondence = 0.1;
+      float best_correspondence = 0.5;
       bool  found               = false;
       for (const auto& m_planar : m_planars) {
         float dist_min = X.distance(m_planar.pos);
@@ -414,6 +413,7 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars,
         w_planars += (normalizer_planar *
                       static_cast<float>(std::exp((-1. / sigma_planar_matching) *
                                                   best_correspondence)));
+        //        w_planars += static_cast<float>(1 / best_correspondence);
       }
     }
 
@@ -500,7 +500,6 @@ void PF::mediumLevelPlanes(const std::vector<Plane>& planes,
     if (found)
       dvec.push_back(displacement);
   }
-
 
   for (const auto& particle : particles) {
     float w_planes = 0.;

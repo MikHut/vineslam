@@ -19,7 +19,8 @@ void Localizer::init(const pose& initial_pose)
   // first distribution
   std::vector<pose> poses;
   for (auto& particle : pf->particles) poses.push_back(particle.p);
-  average_pose = pose(poses);
+  average_pose     = pose(poses);
+  last_update_pose = average_pose;
 }
 
 void Localizer::process(const pose&        odom,
@@ -38,6 +39,10 @@ void Localizer::process(const pose&        odom,
   // ------------------------------------------------------------------------------
   // ---------------- Update particles weights using multi-layer map
   // ------------------------------------------------------------------------------
+  pose delta_pose = odom - last_update_pose;
+  delta_pose.normalize();
+  //  if (std::fabs(delta_pose.x) > 0.2 || std::fabs(delta_pose.y) > 0.2 ||
+  //      std::fabs(delta_pose.yaw) > 2 * DEGREE_TO_RAD) {
   pf->update(obsv.landmarks,
              obsv.corners,
              obsv.planars,
@@ -47,6 +52,7 @@ void Localizer::process(const pose&        odom,
              obsv.gps_pose,
              previous_map,
              grid_map);
+  //  }
 
   // ------------------------------------------------------------------------------
   // ---------------- Normalize particle weights
@@ -64,14 +70,16 @@ void Localizer::process(const pose&        odom,
   // - Compute final robot pose using the mean of the particles poses
   std::vector<pose> poses;
   for (const auto& particle : pf->particles) poses.push_back(particle.p);
-  average_pose = pose(poses);
+  average_pose     = pose(poses);
+  last_update_pose = average_pose;
 
   // - Save current control to use in the next iteration
   pf->p_odom = odom;
   auto after = std::chrono::high_resolution_clock::now();
   std::chrono::duration<float, std::milli> duration = after - before;
-  std::cout << "Time elapsed on PF (msecs): " << duration.count() << std::endl
-            << std::endl;
+
+  logs = pf->logs +
+         "Time elapsed on PF (msecs): " + std::to_string(duration.count()) + "\n\n";
 }
 
 pose Localizer::getPose() const { return average_pose; }

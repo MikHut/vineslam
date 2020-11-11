@@ -199,15 +199,9 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     if (register_map) {
       mapper2D->process(robot_pose, m_landmarks, labels, *grid_map);
 
-      pose delta_pose = robot_pose - mapper3D->last_registering_pose;
-      delta_pose.normalize();
-
-      if (std::fabs(delta_pose.x) > 0.1 || std::fabs(delta_pose.y) > 0.1 ||
-          std::fabs(delta_pose.yaw) > 2 * DEGREE_TO_RAD) {
-        mapper3D->registerMaps(
-            robot_pose, m_surf_features, m_corners, m_planars, m_planes, *grid_map);
-        grid_map->downsamplePlanars();
-      }
+      mapper3D->registerMaps(
+          robot_pose, m_surf_features, m_corners, m_planars, m_planes, *grid_map);
+      grid_map->downsamplePlanars();
     }
 
     // ---------------------------------------------------------
@@ -300,6 +294,14 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
       report.a_particles.push_back(particle_info);
     }
     poses_publisher.publish(ros_poses);
+
+    report.log.data            = localizer->logs;
+    report.use_high_level.data = params.use_landmarks;
+    report.use_corners.data    = params.use_corners;
+    report.use_planars.data    = params.use_planars;
+    report.use_planes.data     = params.use_planes;
+    report.use_icp.data        = params.use_icp;
+    report.use_gps.data        = params.use_gps;
     vineslam_report_publisher.publish(report);
 
     // Publish the 2D map

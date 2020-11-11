@@ -78,6 +78,8 @@ void QNode::reportSubscriber(const vineslam_msgs::reportConstPtr& msg)
                 aR_hist,
                 aP_hist,
                 aY_hist);
+
+  log(Debug, msg->log.data);
 }
 
 void QNode::changeReplayNodeState(const std_msgs::Bool& pause,

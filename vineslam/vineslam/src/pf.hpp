@@ -20,8 +20,6 @@
 namespace vineslam
 {
 
-enum MOTION_STATE { FORWARD, ROTATING, STOPED };
-
 // Struct that represents a single particle with
 // - identification number
 // - 6-DOF pose
@@ -88,6 +86,9 @@ public:
   // Particles
   std::vector<Particle> particles;
 
+  // Logs
+  std::string logs;
+
   // Observations to use
   bool  use_landmarks;
   bool  use_corners;
@@ -140,9 +141,6 @@ private:
   // Previous iterations
   std::vector<Plane> p_planes;
   Plane              p_ground;
-
-  // Motion state
-  MOTION_STATE motion_state;
 
   // Input parameters file name
   std::string config_path;

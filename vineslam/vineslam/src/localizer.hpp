@@ -62,9 +62,13 @@ public:
                                const bool& use_icp,
                                const bool& use_gps);
 
+  // Localization logs
+  std::string logs;
+
 private:
   // Average particles pose
   pose average_pose;
+  pose last_update_pose;
   // Particle filter object
   PF* pf{};
 

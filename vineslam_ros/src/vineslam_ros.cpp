@@ -106,6 +106,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // ---------------------------------------------------------
     localizer->init(init_odom_pose);
     robot_pose = localizer->getPose();
+    grid_map  = new OccupancyMap(params, init_odom_pose);
 
     if (register_map) {
       // ---------------------------------------------------------
@@ -207,14 +208,42 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // ---------------------------------------------------------
     // ----- ROS publishers and tf broadcasting
     // ---------------------------------------------------------
+
     // Convert robot pose to tf::Transform corresponding
-    // to the camera to map transformation
     tf::Quaternion q;
     q.setRPY(robot_pose.roll, robot_pose.pitch, robot_pose.yaw);
     q.normalize();
     tf::Transform base2map;
     base2map.setRotation(q);
     base2map.setOrigin(tf::Vector3(robot_pose.x, robot_pose.y, robot_pose.z));
+
+    // Publish tf::Trasforms
+    static tf::TransformBroadcaster br;
+    br.sendTransform(
+        tf::StampedTransform(base2map, ros::Time::now(), "odom", "base_link"));
+    tf::Transform cam2base(
+        tf::Quaternion(params.cam2base[3],
+                       params.cam2base[4],
+                       params.cam2base[5],
+                       params.cam2base[6]),
+        tf::Vector3(params.cam2base[0], params.cam2base[1], params.cam2base[2]));
+    br.sendTransform(tf::StampedTransform(
+        cam2base, ros::Time::now(), "base_link", "zed_camera_left_optical_frame"));
+    tf::Transform vel2base(
+        tf::Quaternion(params.vel2base[3],
+                       params.vel2base[4],
+                       params.vel2base[5],
+                       params.vel2base[6]),
+        tf::Vector3(params.vel2base[0], params.vel2base[1], params.vel2base[2]));
+    br.sendTransform(
+        tf::StampedTransform(vel2base, ros::Time::now(), "base_link", "velodyne"));
+    tf::Quaternion o2m_q;
+    o2m_q.setRPY(init_odom_pose.roll, init_odom_pose.pitch, init_odom_pose.yaw);
+    tf::Transform odom2map(
+        o2m_q, tf::Vector3(init_odom_pose.x, init_odom_pose.y, init_odom_pose.z));
+    br.sendTransform(
+        tf::StampedTransform(odom2map, ros::Time::now(), "odom", "map"));
+
 
     // Convert vineslam pose to ROS pose and publish it
     geometry_msgs::PoseStamped pose_stamped;
@@ -313,34 +342,6 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     std::vector<Plane> planes = {m_ground_plane};
     for (const auto& plane : m_planes) planes.push_back(plane);
     publish3DMap(planes, planes_local_publisher);
-
-    // Publish cam-to-map tf::Transform
-    static tf::TransformBroadcaster br;
-    br.sendTransform(
-        tf::StampedTransform(base2map, ros::Time::now(), "odom", "base_link"));
-    // Publish other tf::Trasforms
-    tf::Transform cam2base(
-        tf::Quaternion(params.cam2base[3],
-                       params.cam2base[4],
-                       params.cam2base[5],
-                       params.cam2base[6]),
-        tf::Vector3(params.cam2base[0], params.cam2base[1], params.cam2base[2]));
-    br.sendTransform(tf::StampedTransform(
-        cam2base, ros::Time::now(), "base_link", "zed_camera_left_optical_frame"));
-    tf::Transform vel2base(
-        tf::Quaternion(params.vel2base[3],
-                       params.vel2base[4],
-                       params.vel2base[5],
-                       params.vel2base[6]),
-        tf::Vector3(params.vel2base[0], params.vel2base[1], params.vel2base[2]));
-    br.sendTransform(
-        tf::StampedTransform(vel2base, ros::Time::now(), "base_link", "velodyne"));
-    tf::Quaternion o2m_q;
-    o2m_q.setRPY(init_odom_pose.roll, init_odom_pose.pitch, init_odom_pose.yaw);
-    tf::Transform odom2map(
-        o2m_q, tf::Vector3(init_odom_pose.x, init_odom_pose.y, init_odom_pose.z));
-    br.sendTransform(
-        tf::StampedTransform(odom2map, ros::Time::now(), "odom", "map"));
 
     // - Save local map for next iteration
     previous_map = mapper3D->local_map;

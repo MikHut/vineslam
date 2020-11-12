@@ -4,11 +4,11 @@
 namespace vineslam
 {
 
-MapLayer::MapLayer(const Parameters& params)
+MapLayer::MapLayer(const Parameters& params, const pose& origin_offset)
 {
   // Read input parameters
-  origin.x   = params.gridmap_origin_x;
-  origin.y   = params.gridmap_origin_y;
+  origin.x   = params.gridmap_origin_x + origin_offset.x;
+  origin.y   = params.gridmap_origin_y + origin_offset.y;
   resolution = params.gridmap_resolution;
   width      = params.gridmap_width;
   lenght     = params.gridmap_lenght;
@@ -671,11 +671,11 @@ bool MapLayer::findNearestOnCell(const ImageFeature& input, ImageFeature& neares
   return true;
 }
 
-OccupancyMap::OccupancyMap(const Parameters& params)
+OccupancyMap::OccupancyMap(const Parameters& params, const pose& origin_offset)
 {
   // Read input parameters
-  origin.x     = params.gridmap_origin_x;
-  origin.y     = params.gridmap_origin_y;
+  origin.x     = params.gridmap_origin_x + origin_offset.x;
+  origin.y     = params.gridmap_origin_y + origin_offset.x;
   origin.z     = params.gridmap_origin_z;
   resolution   = params.gridmap_resolution;
   resolution_z = resolution / 8;
@@ -690,7 +690,7 @@ OccupancyMap::OccupancyMap(const Parameters& params)
   float i = origin.z;
   while (i < origin.z + height) {
     int layer_num       = getLayerNumber(i);
-    m_layers[layer_num] = MapLayer(params);
+    m_layers[layer_num] = MapLayer(params, origin_offset);
     i += resolution_z;
   }
 

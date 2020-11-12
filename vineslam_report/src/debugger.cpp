@@ -13,7 +13,7 @@ void Debugger::plotXYZHists(cv::Mat& bx_hist,
   int   cols          = 1080;
   int   bar_width     = 2;
   float spatial_width = 0.2;
-  float n             = static_cast<float>(cols / bar_width);
+  auto n             = static_cast<float>(cols / bar_width);
   int   hist_size     = static_cast<int>(cols / bar_width);
   bx_hist             = cv::Mat::zeros(rows + 50, cols + 1, CV_8UC3);
   by_hist             = cv::Mat::zeros(rows + 50, cols + 1, CV_8UC3);
@@ -25,7 +25,7 @@ void Debugger::plotXYZHists(cv::Mat& bx_hist,
   // -------------------------------------------------------------------------------
   // ----- Compute average of XYZ components
   // -------------------------------------------------------------------------------
-  float bsize   = static_cast<float>(m_report.b_particles.size());
+  auto bsize   = static_cast<float>(m_report.b_particles.size());
   float bx_mean = 0, by_mean = 0, bz_mean = 0;
   for (const auto& particle : m_report.b_particles) {
     bx_mean += particle.pose.position.x;
@@ -36,7 +36,7 @@ void Debugger::plotXYZHists(cv::Mat& bx_hist,
   by_mean /= bsize;
   bz_mean /= bsize;
 
-  float asize   = static_cast<float>(m_report.b_particles.size());
+  auto asize   = static_cast<float>(m_report.b_particles.size());
   float ax_mean = 0, ay_mean = 0, az_mean = 0;
   for (const auto& particle : m_report.a_particles) {
     ax_mean += particle.pose.position.x;
@@ -361,8 +361,8 @@ void Debugger::plotRPYHists(cv::Mat& bR_hist,
   // -------------------------------------------------------------------------------
   // ----- Compute XYZ histograms
   // -------------------------------------------------------------------------------
-  float bsize = static_cast<float>(m_report.b_particles.size());
-  float asize = static_cast<float>(m_report.a_particles.size());
+  auto bsize = static_cast<float>(m_report.b_particles.size());
+  auto asize = static_cast<float>(m_report.a_particles.size());
 
   std::vector<int> bhist_Rvec(hist_size, 0);
   std::vector<int> bhist_Pvec(hist_size, 0);

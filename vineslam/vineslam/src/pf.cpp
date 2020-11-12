@@ -53,9 +53,9 @@ PF::PF(const Parameters& params, const pose& initial_pose)
     // - a sample distribution to spread the particles
     pose m_pose = initial_pose + pose(sampleGaussian(sigma_xy, i),
                                       sampleGaussian(sigma_xy, i),
-                                      sampleGaussian(sigma_z, i),
-                                      sampleGaussian(sigma_roll, i),
-                                      sampleGaussian(sigma_pitch, i),
+                                      sampleGaussian(sigma_z * 2, i),
+                                      sampleGaussian(sigma_roll * 2, i),
+                                      sampleGaussian(sigma_pitch * 2, i),
                                       sampleGaussian(sigma_yaw, i));
     // Compute initial weight of each particle
     float weight = 1.;

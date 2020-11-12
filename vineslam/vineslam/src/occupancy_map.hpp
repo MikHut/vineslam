@@ -53,7 +53,7 @@ public:
 
   // Class constructor
   // - initializes the grid map given the input parameters
-  explicit MapLayer(const Parameters& params);
+  MapLayer(const Parameters& params, const pose& origin_offset);
 
   // Copy contructor
   MapLayer(const MapLayer& grid_map);
@@ -261,7 +261,7 @@ class OccupancyMap
 public:
   // Class constructor
   // - initializes the multi-layer grid map given the input parameters
-  explicit OccupancyMap(const Parameters& params);
+  OccupancyMap(const Parameters& params, const pose& origin_offset);
 
   // Copy constructor
   OccupancyMap(const OccupancyMap& grid_map);

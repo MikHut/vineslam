@@ -75,6 +75,9 @@ private:
   // Particles before resampling
   std::vector<Particle> m_particles;
 
+  // Flags
+  bool init_flag;
+
   // Input parameters
   Parameters params;
 };

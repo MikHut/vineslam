@@ -20,7 +20,9 @@ void Localizer::init(const pose& initial_pose)
   std::vector<pose> poses;
   for (auto& particle : pf->particles) poses.push_back(particle.p);
   average_pose     = pose(poses);
-  last_update_pose = average_pose;
+  last_update_pose = initial_pose;
+
+  init_flag = true;
 }
 
 void Localizer::process(const pose&        odom,
@@ -36,45 +38,52 @@ void Localizer::process(const pose&        odom,
   // ---------------- Draw particles using odometry motion model
   // ------------------------------------------------------------------------------
   pf->motionModel(odom);
-  // ------------------------------------------------------------------------------
-  // ---------------- Update particles weights using multi-layer map
-  // ------------------------------------------------------------------------------
-  pose delta_pose = odom - last_update_pose;
-  delta_pose.normalize();
-  //  if (std::fabs(delta_pose.x) > 0.2 || std::fabs(delta_pose.y) > 0.2 ||
-  //      std::fabs(delta_pose.yaw) > 2 * DEGREE_TO_RAD) {
-  pf->update(obsv.landmarks,
-             obsv.corners,
-             obsv.planars,
-             obsv.planes,
-             obsv.ground_plane,
-             obsv.surf_features,
-             obsv.gps_pose,
-             previous_map,
-             grid_map);
-  //  }
-
-  // ------------------------------------------------------------------------------
-  // ---------------- Normalize particle weights
-  // ------------------------------------------------------------------------------
-  pf->normalizeWeights();
-
-  // ------------------------------------------------------------------------------
-  // ---------------- Resample particles
-  // ------------------------------------------------------------------------------
   // - Save not resampled particles
   m_particles.clear();
   for (const auto& particle : pf->particles) m_particles.push_back(particle);
-  pf->resample();
+
+  pose delta_pose = odom - last_update_pose;
+  delta_pose.normalize();
+
+  if (std::fabs(delta_pose.x) > 0.2 || std::fabs(delta_pose.y) > 0.2 ||
+      std::fabs(delta_pose.yaw) > 10 * DEGREE_TO_RAD || init_flag) {
+
+    // ------------------------------------------------------------------------------
+    // ---------------- Update particles weights using multi-layer map
+    // ------------------------------------------------------------------------------
+    pf->update(obsv.landmarks,
+               obsv.corners,
+               obsv.planars,
+               obsv.planes,
+               obsv.ground_plane,
+               obsv.surf_features,
+               obsv.gps_pose,
+               previous_map,
+               grid_map);
+
+    // ------------------------------------------------------------------------------
+    // ---------------- Normalize particle weights
+    // ------------------------------------------------------------------------------
+    pf->normalizeWeights();
+
+    // ------------------------------------------------------------------------------
+    // ---------------- Resample particles
+    // ------------------------------------------------------------------------------
+    pf->resample();
+
+    last_update_pose = odom;
+    init_flag        = false;
+  }
 
   // - Compute final robot pose using the mean of the particles poses
   std::vector<pose> poses;
   for (const auto& particle : pf->particles) poses.push_back(particle.p);
   average_pose     = pose(poses);
-  last_update_pose = average_pose;
 
   // - Save current control to use in the next iteration
   pf->p_odom = odom;
+
+  // - Save pf logs
   auto after = std::chrono::high_resolution_clock::now();
   std::chrono::duration<float, std::milli> duration = after - before;
 

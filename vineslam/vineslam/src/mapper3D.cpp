@@ -57,7 +57,7 @@ Mapper3D::Mapper3D(const Parameters& params)
   local_map_params.gridmap_height     = 2.5;
   local_map_params.gridmap_metric     = "euclidean";
 
-  local_map = new OccupancyMap(local_map_params);
+  local_map = new OccupancyMap(local_map_params, pose(0, 0, 0, 0, 0, 0));
 }
 
 void Mapper3D::registerMaps(const pose&                robot_pose,
@@ -398,7 +398,7 @@ void Mapper3D::globalCornerMap(const pose&          robot_pose,
     found &= (best_correspondence < 0.02);
 
     // - Then, insert the corner into the grid map
-    if (found) {
+    if (0) {
       point new_pt =
           ((correspondence.pos * static_cast<float>(correspondence.n_observations)) +
            m_pt) /
@@ -446,7 +446,7 @@ void Mapper3D::globalPlanarMap(const pose&          robot_pose,
     found &= (best_correspondence < 0.02);
 
     // - Then, insert the planar into the grid map
-    if (found) {
+    if (0) {
       point new_pt =
           ((correspondence.pos * static_cast<float>(correspondence.n_observations)) +
            m_pt) /

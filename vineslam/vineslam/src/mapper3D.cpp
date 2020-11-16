@@ -23,10 +23,6 @@ Mapper3D::Mapper3D(const Parameters& params)
   // Feature detector
   hessian_threshold = params.hessian_threshold;
 
-  // Set pointcloud feature parameters
-  max_iters      = 20;
-  dist_threshold = 0.08;
-
   // Threshold to consider correspondences
   correspondence_threshold = 0.02;
 
@@ -306,16 +302,12 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
   }
 
   // - GROUND PLANE
-  Plane gplane_unfilt;
-  groundRemoval(transformed_pcl, gplane_unfilt);
-  // Filter outliers using RANSAC
-  ransac(gplane_unfilt, out_groundplane);
+  groundRemoval(transformed_pcl, out_groundplane);
 
   // -------------------------------------------------------------------------------
   // ----- Mark ground points
   // -------------------------------------------------------------------------------
-  for (const auto& index : gplane_unfilt.indexes) {
-    //  for (const auto& index : out_groundplane.indexes) {
+  for (const auto& index : out_groundplane.indexes) {
     int i = static_cast<int>(index.x);
     int j = static_cast<int>(index.y);
 
@@ -333,16 +325,9 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
   //- Corners feature extraction
   extract3DFeatures(cloud_seg, out_corners, out_planars);
 
-  // Convert features to base_link referential frame
+  // - Convert local maps to base link
   pose tf_pose;
   TF   tf;
-
-  tf_pose = pose(vel2base_x,
-                 vel2base_y,
-                 vel2base_z,
-                 vel2base_roll,
-                 vel2base_pitch,
-                 vel2base_yaw);
 
   std::array<float, 9> tf_rot{};
   tf_pose.toRotMatrix(tf_rot);
@@ -362,7 +347,6 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
       pt = pt * tf.inverse();
     }
   }
-  // -------------------------------------------
 }
 
 void Mapper3D::globalCornerMap(const pose&          robot_pose,
@@ -496,137 +480,6 @@ void Mapper3D::groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl)
       }
     }
   }
-}
-
-bool Mapper3D::ransac(const Plane& in_plane, Plane& out_plane) const
-{
-  int   max_idx       = in_plane.points.size();
-  int   min_idx       = 0;
-  int   max_tries     = 1000;
-  int   c_max_inliers = 0;
-  float best_a        = 0.;
-  float best_b        = 0.;
-  float best_c        = 0.;
-  float best_d        = 0.;
-
-  for (int i = 0; i < max_iters; i++) {
-    // Declare private point cloud to store current solution
-    std::vector<point> m_pcl;
-
-    // Reset number of inliers in each iteration
-    int num_inliers = 0;
-
-    // Randomly select three points that cannot be cohincident
-    // TODO (André Aguiar): Also check if points are collinear
-    bool found_valid_pts = false;
-    int  n               = 0;
-    int  idx1, idx2, idx3;
-    while (!found_valid_pts) {
-      idx1 = std::rand() % (max_idx - min_idx + 1) + min_idx;
-      idx2 = std::rand() % (max_idx - min_idx + 1) + min_idx;
-      idx3 = std::rand() % (max_idx - min_idx + 1) + min_idx;
-
-      if (idx1 != idx2 && idx1 != idx3 && idx2 != idx3)
-        found_valid_pts = true;
-
-      n++;
-      if (n > max_tries)
-        break;
-    }
-
-    if (!found_valid_pts) {
-      std::cout << "WARNING (ransac): No valid set of points found ... "
-                << std::endl;
-      return false;
-    }
-
-    // Declarate the 3 points selected on this iteration
-    point pt1 = point(
-        in_plane.points[idx1].x, in_plane.points[idx1].y, in_plane.points[idx1].z);
-    point pt2 = point(
-        in_plane.points[idx2].x, in_plane.points[idx2].y, in_plane.points[idx2].z);
-    point pt3 = point(
-        in_plane.points[idx3].x, in_plane.points[idx3].y, in_plane.points[idx3].z);
-
-    // Extract the plane hessian coefficients
-    vector3D v1(pt2, pt1);
-    vector3D v2(pt3, pt1);
-    vector3D abc = v1.cross(v2);
-    float    a   = abc.x;
-    float    b   = abc.y;
-    float    c   = abc.z;
-    float    d   = -(a * pt1.x + b * pt1.y + c * pt1.z);
-
-    for (const auto& m_pt : in_plane.points) {
-      // Compute the distance each point to the plane - from
-      // https://www.geeksforgeeks.org/distance-between-a-point-and-a-plane-in-3-d/
-      auto norm = std::sqrt(a * a + b * b + c * c);
-      if (std::fabs(a * m_pt.x + b * m_pt.y + c * m_pt.z + d) / norm <
-          dist_threshold) {
-        num_inliers++;
-        m_pcl.push_back(m_pt);
-      }
-    }
-
-    if (num_inliers > c_max_inliers) {
-      c_max_inliers = num_inliers;
-
-      best_a = a;
-      best_b = b;
-      best_c = c;
-      best_d = d;
-
-      out_plane.points.clear();
-      out_plane.points = m_pcl;
-    }
-  }
-
-  // -------------------------------------------------------------------------------
-  // ----- Set ground plane mean height for future validation
-  // -------------------------------------------------------------------------------
-  out_plane.mean_height = 0.;
-  for (const auto& pt : out_plane.points) out_plane.mean_height += pt.z;
-  out_plane.mean_height /= static_cast<float>(out_plane.points.size());
-
-  // -------------------------------------------------------------------------------
-  // ----- Use PCA to refine th normal vector using all the inliers
-  // -------------------------------------------------------------------------------
-  // - 1st: assemble data matrix
-  Eigen::MatrixXf data_mat;
-  data_mat.conservativeResize(out_plane.points.size(), 3);
-  for (size_t i = 0; i < out_plane.points.size(); i++) {
-    point                      pt = out_plane.points[i];
-    Eigen::Matrix<float, 1, 3> pt_mat(pt.x, pt.y, pt.z);
-    data_mat.block<1, 3>(i, 0) = pt_mat;
-  }
-  // - 2nd: calculate mean and subtract it to the data matrix
-  Eigen::MatrixXf centered_mat = data_mat.rowwise() - data_mat.colwise().mean();
-  // - 3rd: calculate covariance matrix
-  Eigen::MatrixXf covariance_mat = (centered_mat.adjoint() * centered_mat);
-  // - 4rd: calculate eigenvectors and eigenvalues of the covariance matrix
-  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXf> eigen_solver(covariance_mat);
-  const Eigen::VectorXf& eigen_values  = eigen_solver.eigenvalues();
-  Eigen::MatrixXf        eigen_vectors = eigen_solver.eigenvectors();
-
-  vector3D normal(
-      eigen_vectors.col(0)[0], eigen_vectors.col(0)[1], eigen_vectors.col(0)[2]);
-  if (normal.z < 0) {
-    vector3D             m_vec = normal;
-    std::array<float, 9> Rot{};
-    pose                 transf(0., 0., 0., 0., M_PI, 0.);
-    transf.toRotMatrix(Rot);
-
-    m_vec.x = normal.x * Rot[0] + normal.y * Rot[1] + normal.z * Rot[2];
-    m_vec.y = normal.x * Rot[3] + normal.y * Rot[4] + normal.z * Rot[5];
-    m_vec.z = normal.x * Rot[6] + normal.y * Rot[7] + normal.z * Rot[8];
-
-    normal = m_vec;
-  }
-
-  normal.normalize();
-  out_plane.normal = normal;
-
-  return c_max_inliers > 0;
 }
 
 void Mapper3D::cloudSegmentation(const std::vector<point>& in_pts,
@@ -806,19 +659,10 @@ void Mapper3D::extractHighLevelPlanes(const std::vector<PlanePoint>& in_plane_pt
 
   // - Remove outliers using RANSAC
   Plane side_plane_a_filtered, side_plane_b_filtered;
-  ransac(side_plane_a, side_plane_a_filtered);
-  ransac(side_plane_b, side_plane_b_filtered);
+  side_plane_a_filtered.ransac(side_plane_a, 100);
+  side_plane_b_filtered.ransac(side_plane_b, 100);
   side_plane_a_filtered.id = 0;
   side_plane_b_filtered.id = 1;
-
-  // -------------------------------------------------------------------------------
-  // ----- Fit both plane points by two lines
-  // -------------------------------------------------------------------------------
-  Line line_a(side_plane_a_filtered.points);
-  Line line_b(side_plane_b_filtered.points);
-
-  side_plane_a_filtered.regression = line_a;
-  side_plane_b_filtered.regression = line_b;
 
   // -------------------------------------------------------------------------------
   // ----- Check the validity of the extracted planes
@@ -846,7 +690,7 @@ void Mapper3D::extractHighLevelPlanes(const std::vector<PlanePoint>& in_plane_pt
       B = true;
 
     // (C) - Save plane if in case of success
-    if (A && B)
+//    if (A && B)
       out_planes.push_back(plane);
   }
 }

@@ -336,7 +336,7 @@
            <double>10.000000000000000</double>
           </property>
           <property name="value">
-           <double>1.000000000000000</double>
+           <double>0.100000000000000</double>
           </property>
          </widget>
          <widget class="QLabel" name="label_13">
@@ -368,7 +368,7 @@
            <double>10.000000000000000</double>
           </property>
           <property name="value">
-           <double>0.500000000000000</double>
+           <double>0.100000000000000</double>
           </property>
          </widget>
          <widget class="QLabel" name="label_16">
@@ -445,7 +445,7 @@
            <double>180.000000000000000</double>
           </property>
           <property name="value">
-           <double>5.000000000000000</double>
+           <double>10.000000000000000</double>
           </property>
          </widget>
          <widget class="QDoubleSpinBox" name="Pstd">
@@ -464,7 +464,7 @@
            <double>180.000000000000000</double>
           </property>
           <property name="value">
-           <double>5.000000000000000</double>
+           <double>10.000000000000000</double>
           </property>
          </widget>
          <widget class="QLabel" name="label_22">
@@ -496,7 +496,7 @@
            <double>180.000000000000000</double>
           </property>
           <property name="value">
-           <double>20.000000000000000</double>
+           <double>10.000000000000000</double>
           </property>
          </widget>
          <widget class="QLabel" name="label_24">
@@ -651,8 +651,8 @@
           <rect>
            <x>0</x>
            <y>0</y>
-           <width>967</width>
-           <height>635</height>
+           <width>98</width>
+           <height>28</height>
           </rect>
          </property>
          <attribute name="label">
@@ -820,8 +820,8 @@
           <rect>
            <x>0</x>
            <y>0</y>
-           <width>100</width>
-           <height>30</height>
+           <width>98</width>
+           <height>28</height>
           </rect>
          </property>
          <attribute name="label">

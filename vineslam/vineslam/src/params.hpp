@@ -95,8 +95,7 @@ struct Parameters {
   float sigma_feature_matching{};
   float sigma_corner_matching{};
   float sigma_planar_matching{};
-  float sigma_planes_yaw{};
-  float sigma_ground_rp{};
+  float sigma_planes{};
   float sigma_gps{};
   int   number_clusters{};
 

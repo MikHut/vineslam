@@ -149,9 +149,6 @@ private:
   // Method that extracts the ground plane of an input point cloud
   void groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl);
 
-  // Fit a 3D plane on a set of points using ransac
-  bool ransac(const Plane& in_plane, Plane& out_plane) const;
-
   // Cloud generic plane segmentation
   void cloudSegmentation(const std::vector<point>& in_pts,
                          std::vector<PlanePoint>&  cloud_seg,

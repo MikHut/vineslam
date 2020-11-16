@@ -64,6 +64,10 @@ public:
 
   // Localization logs
   std::string logs;
+  // Flags
+  bool update;
+  // Ground plane used for localization
+  Plane ground_plane;
 
 private:
   // Average particles pose

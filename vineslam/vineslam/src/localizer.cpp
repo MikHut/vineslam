@@ -31,8 +31,9 @@ void Localizer::process(const pose&        odom,
                         OccupancyMap*      grid_map)
 {
   auto before = std::chrono::high_resolution_clock::now();
-  // Reset weights sum
+  // Resets
   pf->w_sum = 0.;
+  update    = false;
 
   // ------------------------------------------------------------------------------
   // ---------------- Draw particles using odometry motion model
@@ -45,8 +46,8 @@ void Localizer::process(const pose&        odom,
   pose delta_pose = odom - last_update_pose;
   delta_pose.normalize();
 
-  if (std::fabs(delta_pose.x) > 0.2 || std::fabs(delta_pose.y) > 0.2 ||
-      std::fabs(delta_pose.yaw) > 10 * DEGREE_TO_RAD || init_flag) {
+  if (std::fabs(delta_pose.x) > 0.1 || std::fabs(delta_pose.y) > 0.1 ||
+      std::fabs(delta_pose.yaw) > 5 * DEGREE_TO_RAD || init_flag) {
 
     // ------------------------------------------------------------------------------
     // ---------------- Update particles weights using multi-layer map
@@ -73,12 +74,13 @@ void Localizer::process(const pose&        odom,
 
     last_update_pose = odom;
     init_flag        = false;
+    update           = true;
   }
 
   // - Compute final robot pose using the mean of the particles poses
   std::vector<pose> poses;
   for (const auto& particle : pf->particles) poses.push_back(particle.p);
-  average_pose     = pose(poses);
+  average_pose = pose(poses);
 
   // - Save current control to use in the next iteration
   pf->p_odom = odom;

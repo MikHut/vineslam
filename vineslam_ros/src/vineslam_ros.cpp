@@ -106,7 +106,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // ---------------------------------------------------------
     localizer->init(init_odom_pose);
     robot_pose = localizer->getPose();
-    grid_map  = new OccupancyMap(params, init_odom_pose);
+    grid_map   = new OccupancyMap(params, init_odom_pose);
 
     if (register_map) {
       // ---------------------------------------------------------
@@ -178,8 +178,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
       obsv.planars = m_planars;
     if (params.use_planes)
       obsv.planes = m_planes;
-    if (params.use_ground_plane &&
-        (std::fabs(m_ground_plane.mean_height) > mapper3D->lidar_height / 2))
+    if (params.use_ground_plane)
       obsv.ground_plane = m_ground_plane;
     if (params.use_icp)
       obsv.surf_features = m_surf_features;
@@ -243,7 +242,6 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
         o2m_q, tf::Vector3(init_odom_pose.x, init_odom_pose.y, init_odom_pose.z));
     br.sendTransform(
         tf::StampedTransform(odom2map, ros::Time::now(), "odom", "map"));
-
 
     // Convert vineslam pose to ROS pose and publish it
     geometry_msgs::PoseStamped pose_stamped;

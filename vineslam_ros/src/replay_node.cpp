@@ -79,6 +79,8 @@ ReplayNode::ReplayNode(int argc, char** argv)
       "/vineslam/debug/map3D/planars_local", 1);
   debug_pf_planes_local_pub = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>(
       "/vineslam/debug/map3D/planes_local", 1);
+  debug_pf_ground_local_pub = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>(
+      "/vineslam/debug/map3D/ground_local", 1);
 
   // ROS services
   ros::ServiceServer start_reg_srv =
@@ -368,7 +370,6 @@ bool ReplayNode::debugPF(vineslam_ros::debug_particle_filter::Request&  request,
              obsv.gps_pose,
              previous_map,
              m_grid_map);
-//  pf->normalizeWeights();
 
   // - Get particle with higher weight
   pose  f_pose;
@@ -381,6 +382,17 @@ bool ReplayNode::debugPF(vineslam_ros::debug_particle_filter::Request&  request,
     }
   }
   std::cout << "\n--\n";
+
+  // - Filter ground plane to use in the next PF iteration
+  std::array<float, 9> R{};
+  f_pose.toRotMatrix(R);
+  TF    tf(R, std::array<float, 3>{f_pose.x, f_pose.y, f_pose.z});
+  Plane m_plane;
+  for (const auto& i : obsv.ground_plane.points) {
+    point pt = i * tf;
+    m_plane.points.push_back(pt);
+  }
+  pf->p_ground.ransac(m_plane);
 
   // -------------------------------------------------------------------------------
   // ---- Publish output data
@@ -440,6 +452,19 @@ bool ReplayNode::debugPF(vineslam_ros::debug_particle_filter::Request&  request,
   publish3DMap(f_pose, obsv.corners, debug_pf_corners_local_pub);
   publish3DMap(f_pose, obsv.planars, debug_pf_planars_local_pub);
   publish3DMap(f_pose, obsv.planes, debug_pf_planes_local_pub);
+  publish3DMap(f_pose, {obsv.ground_plane}, debug_pf_ground_local_pub);
+
+  // Convert robot pose to tf::Transform corresponding
+  tf::Quaternion q;
+  q.setRPY(f_pose.roll, f_pose.pitch, f_pose.yaw);
+  q.normalize();
+  tf::Transform debug2map;
+  debug2map.setRotation(q);
+  debug2map.setOrigin(tf::Vector3(f_pose.x, f_pose.y, f_pose.z));
+  // Publish tf::Trasforms
+  static tf::TransformBroadcaster br;
+  br.sendTransform(
+      tf::StampedTransform(debug2map, ros::Time::now(), "odom", "debug"));
 
   ROS_INFO("Particle filter debugging procedure has ended. Results are being "
            "published!...");

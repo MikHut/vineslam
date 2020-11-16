@@ -56,6 +56,7 @@ private:
   ros::Publisher debug_pf_corners_local_pub;
   ros::Publisher debug_pf_planars_local_pub;
   ros::Publisher debug_pf_planes_local_pub;
+  ros::Publisher debug_pf_ground_local_pub;
 
   // Topic and rosbag names
   std::string bagfile_str;

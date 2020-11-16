@@ -20,10 +20,7 @@ struct Feature {
     pos = m_pos;
   }
 
-  bool operator==(Feature m_feature)
-  {
-    return m_feature.pos == pos;
-  }
+  bool operator==(Feature m_feature) { return m_feature.pos == pos; }
 
   int   id{};
   point pos;
@@ -314,20 +311,106 @@ struct Line {
 struct Plane {
   Plane() = default;
 
-  explicit Plane(const vector3D& m_normal) { normal = m_normal; }
-
-  Plane(const vector3D& m_normal, const std::vector<point>& m_points)
+  Plane(const float&              m_a,
+        const float&              m_b,
+        const float&              m_c,
+        const float&              m_d,
+        const std::vector<point>& m_points)
   {
-    normal = m_normal;
+    a      = m_a;
+    b      = m_b;
+    c      = m_c;
+    d      = m_d;
     points = m_points;
   }
 
-  int                id{};    // plane identifier
-  vector3D           normal;  // plane normal vector
-  std::vector<point> points;  // set of points that belong to the plane
+  // RANSAC routine
+  bool ransac(const Plane& in_plane, int max_iters = 20, float dist_threshold = 0.08)
+  {
+    int max_idx       = in_plane.points.size();
+    int min_idx       = 0;
+    int max_tries     = 1000;
+    int c_max_inliers = 0;
+
+    for (int i = 0; i < max_iters; i++) {
+      // Declare private point cloud to store current solution
+      std::vector<point> m_pcl;
+
+      // Reset number of inliers in each iteration
+      int num_inliers = 0;
+
+      // Randomly select three points that cannot be cohincident
+      // TODO (André Aguiar): Also check if points are collinear
+      bool found_valid_pts = false;
+      int  n               = 0;
+      int  idx1, idx2, idx3;
+      while (!found_valid_pts) {
+        idx1 = std::rand() % (max_idx - min_idx + 1) + min_idx;
+        idx2 = std::rand() % (max_idx - min_idx + 1) + min_idx;
+        idx3 = std::rand() % (max_idx - min_idx + 1) + min_idx;
+
+        if (idx1 != idx2 && idx1 != idx3 && idx2 != idx3)
+          found_valid_pts = true;
+
+        n++;
+        if (n > max_tries)
+          break;
+      }
+
+      if (!found_valid_pts) {
+        std::cout << "WARNING (ransac): No valid set of points found ... "
+                  << std::endl;
+        return false;
+      }
+
+      // Declarate the 3 points selected on this iteration
+      point pt1 = point(
+          in_plane.points[idx1].x, in_plane.points[idx1].y, in_plane.points[idx1].z);
+      point pt2 = point(
+          in_plane.points[idx2].x, in_plane.points[idx2].y, in_plane.points[idx2].z);
+      point pt3 = point(
+          in_plane.points[idx3].x, in_plane.points[idx3].y, in_plane.points[idx3].z);
+
+      // Extract the plane hessian coefficients
+      vector3D v1(pt2, pt1);
+      vector3D v2(pt3, pt1);
+      vector3D abc = v1.cross(v2);
+      float    m_a = abc.x;
+      float    m_b = abc.y;
+      float    m_c = abc.z;
+      float    m_d = -(m_a * pt1.x + m_b * pt1.y + m_c * pt1.z);
+
+      for (const auto& m_pt : in_plane.points) {
+        // Compute the distance each point to the plane - from
+        // https://www.geeksforgeeks.org/distance-between-a-point-and-a-plane-in-3-d/
+        auto norm = std::sqrt(m_a * m_a + m_b * m_b + m_c * m_c);
+        if (std::fabs(m_a * m_pt.x + m_b * m_pt.y + m_c * m_pt.z + m_d) / norm <
+            dist_threshold) {
+          num_inliers++;
+          m_pcl.push_back(m_pt);
+        }
+      }
+
+      if (num_inliers > c_max_inliers) {
+        c_max_inliers = num_inliers;
+
+        points.clear();
+        points = m_pcl;
+        a      = m_a;
+        b      = m_b;
+        c      = m_c;
+        d      = m_d;
+      }
+    }
+
+    return c_max_inliers > 0;
+  }
+
+  int                id{};               // plane identifier
+  float              a{}, b{}, c{}, d{}; // plane hessian coefficients
+  std::vector<point> points;             // set of points that belong to the plane
   std::vector<point> indexes; // indexes of points projected into the range image
-  Line               regression{};  // XY linear fitting of plane points into a line
-  float              mean_height{}; // ground plane mean height - used for validation
+  Line               regression{}; // XY linear fitting of plane points into a line
 };
 
 } // namespace vineslam

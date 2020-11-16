@@ -290,23 +290,21 @@ void VineSLAM_ros::publish3DMap(const std::vector<Corner>& corners,
   pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(
       new pcl::PointCloud<pcl::PointXYZI>);
 
-  pcl::PointXYZI m_pt;
+  std::array<float, 9> robot_R{};
+  robot_pose.toRotMatrix(robot_R);
+  TF robot_tf(robot_R,
+              std::array<float, 3>{robot_pose.x, robot_pose.y, robot_pose.z});
 
   for (const auto& corner : corners) {
-    std::array<float, 9> robot_R{};
-    robot_pose.toRotMatrix(robot_R);
-    TF robot_tf(robot_R,
-                std::array<float, 3>{robot_pose.x, robot_pose.y, robot_pose.z});
+    point m_pt = corner.pos * robot_tf;
 
-    m_pt.x = corner.pos.x * robot_tf.R[0] + corner.pos.y * robot_tf.R[1] +
-             corner.pos.z * robot_tf.R[2] + robot_tf.t[0];
-    m_pt.y = corner.pos.x * robot_tf.R[3] + corner.pos.y * robot_tf.R[4] +
-             corner.pos.z * robot_tf.R[5] + robot_tf.t[1];
-    m_pt.z = corner.pos.x * robot_tf.R[6] + corner.pos.y * robot_tf.R[7] +
-             corner.pos.z * robot_tf.R[8] + robot_tf.t[2];
+    pcl::PointXYZI pcl_pt;
+    pcl_pt.x = m_pt.x;
+    pcl_pt.y = m_pt.y;
+    pcl_pt.z = m_pt.z;
 
-    m_pt.intensity = static_cast<float>(corner.which_cluster) * 10.0f;
-    cloud_out->points.push_back(m_pt);
+    pcl_pt.intensity = static_cast<float>(corner.which_cluster) * 10.0f;
+    cloud_out->points.push_back(pcl_pt);
   }
 
   cloud_out->header.frame_id = "odom";
@@ -320,22 +318,20 @@ void VineSLAM_ros::publish3DMap(const pose&                r_pose,
   pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(
       new pcl::PointCloud<pcl::PointXYZI>);
 
-  pcl::PointXYZI m_pt;
+  std::array<float, 9> robot_R{};
+  r_pose.toRotMatrix(robot_R);
+  TF robot_tf(robot_R, std::array<float, 3>{r_pose.x, r_pose.y, r_pose.z});
 
   for (const auto& corner : corners) {
-    std::array<float, 9> robot_R{};
-    r_pose.toRotMatrix(robot_R);
-    TF robot_tf(robot_R, std::array<float, 3>{r_pose.x, r_pose.y, r_pose.z});
+    point m_pt = corner.pos * robot_tf;
 
-    m_pt.x = corner.pos.x * robot_tf.R[0] + corner.pos.y * robot_tf.R[1] +
-             corner.pos.z * robot_tf.R[2] + robot_tf.t[0];
-    m_pt.y = corner.pos.x * robot_tf.R[3] + corner.pos.y * robot_tf.R[4] +
-             corner.pos.z * robot_tf.R[5] + robot_tf.t[1];
-    m_pt.z = corner.pos.x * robot_tf.R[6] + corner.pos.y * robot_tf.R[7] +
-             corner.pos.z * robot_tf.R[8] + robot_tf.t[2];
+    pcl::PointXYZI pcl_pt;
+    pcl_pt.x = m_pt.x;
+    pcl_pt.y = m_pt.y;
+    pcl_pt.z = m_pt.z;
 
-    m_pt.intensity = static_cast<float>(corner.which_cluster) * 10.0f;
-    cloud_out->points.push_back(m_pt);
+    pcl_pt.intensity = static_cast<float>(corner.which_cluster) * 10.0f;
+    cloud_out->points.push_back(pcl_pt);
   }
 
   cloud_out->header.frame_id = "odom";
@@ -348,26 +344,21 @@ void VineSLAM_ros::publish3DMap(const std::vector<Planar>& planars,
   pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(
       new pcl::PointCloud<pcl::PointXYZI>);
 
-  pcl::PointXYZI m_pt;
+  std::array<float, 9> robot_R{};
+  robot_pose.toRotMatrix(robot_R);
+  TF robot_tf(robot_R,
+              std::array<float, 3>{robot_pose.x, robot_pose.y, robot_pose.z});
 
   for (const auto& planar_feature : planars) {
-    std::array<float, 9> robot_R{};
-    robot_pose.toRotMatrix(robot_R);
-    TF robot_tf(robot_R,
-                std::array<float, 3>{robot_pose.x, robot_pose.y, robot_pose.z});
+    point m_pt = planar_feature.pos * robot_tf;
 
-    m_pt.x = planar_feature.pos.x * robot_tf.R[0] +
-             planar_feature.pos.y * robot_tf.R[1] +
-             planar_feature.pos.z * robot_tf.R[2] + robot_tf.t[0];
-    m_pt.y = planar_feature.pos.x * robot_tf.R[3] +
-             planar_feature.pos.y * robot_tf.R[4] +
-             planar_feature.pos.z * robot_tf.R[5] + robot_tf.t[1];
-    m_pt.z = planar_feature.pos.x * robot_tf.R[6] +
-             planar_feature.pos.y * robot_tf.R[7] +
-             planar_feature.pos.z * robot_tf.R[8] + robot_tf.t[2];
+    pcl::PointXYZI pcl_pt;
+    pcl_pt.x = m_pt.x;
+    pcl_pt.y = m_pt.y;
+    pcl_pt.z = m_pt.z;
 
-    m_pt.intensity = static_cast<float>(planar_feature.which_cluster) * 10.0f;
-    cloud_out->points.push_back(m_pt);
+    pcl_pt.intensity = static_cast<float>(planar_feature.which_cluster) * 10.0f;
+    cloud_out->points.push_back(pcl_pt);
   }
 
   cloud_out->header.frame_id = "odom";
@@ -381,25 +372,20 @@ void VineSLAM_ros::publish3DMap(const pose&                r_pose,
   pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(
       new pcl::PointCloud<pcl::PointXYZI>);
 
-  pcl::PointXYZI m_pt;
+  std::array<float, 9> robot_R{};
+  r_pose.toRotMatrix(robot_R);
+  TF robot_tf(robot_R, std::array<float, 3>{r_pose.x, r_pose.y, r_pose.z});
 
   for (const auto& planar_feature : planars) {
-    std::array<float, 9> robot_R{};
-    r_pose.toRotMatrix(robot_R);
-    TF robot_tf(robot_R, std::array<float, 3>{r_pose.x, r_pose.y, r_pose.z});
+    point m_pt = planar_feature.pos * robot_tf;
 
-    m_pt.x = planar_feature.pos.x * robot_tf.R[0] +
-             planar_feature.pos.y * robot_tf.R[1] +
-             planar_feature.pos.z * robot_tf.R[2] + robot_tf.t[0];
-    m_pt.y = planar_feature.pos.x * robot_tf.R[3] +
-             planar_feature.pos.y * robot_tf.R[4] +
-             planar_feature.pos.z * robot_tf.R[5] + robot_tf.t[1];
-    m_pt.z = planar_feature.pos.x * robot_tf.R[6] +
-             planar_feature.pos.y * robot_tf.R[7] +
-             planar_feature.pos.z * robot_tf.R[8] + robot_tf.t[2];
+    pcl::PointXYZI pcl_pt;
+    pcl_pt.x = m_pt.x;
+    pcl_pt.y = m_pt.y;
+    pcl_pt.z = m_pt.z;
 
-    m_pt.intensity = static_cast<float>(planar_feature.which_cluster) * 10.0f;
-    cloud_out->points.push_back(m_pt);
+    pcl_pt.intensity = static_cast<float>(planar_feature.which_cluster) * 10.0f;
+    cloud_out->points.push_back(pcl_pt);
   }
 
   cloud_out->header.frame_id = "odom";

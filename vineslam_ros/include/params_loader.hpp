@@ -349,14 +349,8 @@ static void loadParameters(const ros::NodeHandle& nh,
               prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/pf/sigma_planes_yaw", params.sigma_planes_yaw)) {
+  if (!nh.getParam(prefix + "/pf/sigma_planes", params.sigma_planes)) {
     ROS_ERROR("%s/pf/sigma_planes_yaw not found. "
-              "Shutting down...",
-              prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/pf/sigma_ground_rp", params.sigma_ground_rp)) {
-    ROS_ERROR("%s/pf/sigma_ground_rp not found. "
               "Shutting down...",
               prefix.c_str());
     exit(-1);

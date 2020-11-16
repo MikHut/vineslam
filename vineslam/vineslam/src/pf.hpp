@@ -39,9 +39,10 @@ struct Particle {
   }
 
   int   id{};
-  pose  p;
-  pose  pp; // previous pose
-  TF    tf; // pose resented as an homogeneous transformation
+  pose  p;   // pose
+  pose  pp;  // previous pose
+  TF    tf;  // pose resented as an homogeneous transformation
+  TF    ptf; // previous homogeneous transformation
   float w{};
   int   which_cluster{};
 };
@@ -89,14 +90,18 @@ public:
   // Logs
   std::string logs;
 
+  // Previous iterations
+  std::vector<Plane> p_planes;
+  Plane              p_ground;
+
   // Observations to use
-  bool  use_landmarks;
-  bool  use_corners;
-  bool  use_planars;
-  bool  use_planes;
-  bool  use_ground_plane;
-  bool  use_icp;
-  bool  use_gps;
+  bool use_landmarks;
+  bool use_corners;
+  bool use_planars;
+  bool use_planes;
+  bool use_ground_plane;
+  bool use_icp;
+  bool use_gps;
 
 private:
   // Update functions
@@ -115,9 +120,9 @@ private:
   // - Medium level ground plane layer
   void mediumLevelGround(const Plane& ground_plane, std::vector<float>& ws);
   // - Medium level vegetation lines layer
-  void mediumLevelPlanes(const std::vector<Plane>&  planes,
-                         OccupancyMap*       grid_map,
-                         std::vector<float>& ws);
+  void mediumLevelPlanes(const std::vector<Plane>& planes,
+                         OccupancyMap*             grid_map,
+                         std::vector<float>&       ws);
   // - Low level image features layer
   void lowLevel(const std::vector<ImageFeature>& surf_features,
                 OccupancyMap*                    grid_map,
@@ -137,10 +142,6 @@ private:
 
   // Iteration number
   int n_it;
-
-  // Previous iterations
-  std::vector<Plane> p_planes;
-  Plane              p_ground;
 
   // Input parameters file name
   std::string config_path;
@@ -162,8 +163,7 @@ private:
   float sigma_feature_matching;
   float sigma_corner_matching;
   float sigma_planar_matching;
-  float sigma_planes_yaw;
-  float sigma_ground_rp;
+  float sigma_planes;
   float sigma_gps;
   // - Clustering parameters
   int k_clusters;

@@ -57,7 +57,6 @@ multilayer_mapping:
     lenght: 150
     height: 2.5
     resolution: 0.25 # meters
-    metric: "euclidean"
     save_map: True
     output_folder: "/home/andre-criis/Source/vineslam_data/raw_data/maps/"
     input_file: "/home/andre-criis/map.xml"
@@ -71,17 +70,25 @@ multilayer_mapping:
   # ICP definitions
   ICP:
     max_iters: 20
-    distance_threshold: 0.02
+    distance_threshold: 0.20
     reject_outliers: True
 
 
 pf:
   n_particles: 500
 
-  srr: 0.050 # rotation - rotation (rad / rad)
-  srt: 0.200 # rotation - translation (rad / meter)
-  str: 0.080 # translation - rotation (meter / rad)
-  stt: 0.200 # translation - translation (meter / meter)
+  # motion model weights
+  alpha1: 0.050 # rotation - rotation (rad / rad)
+  alpha2: 0.200 # rotation - translation (rad / meter)
+  alpha3: 0.200 # translation - translation (meter / meter)
+  alpha4: 0.080 # translation - rotation (meter / rad)
+  # additional motion model weights - considering 6-DoF innovation
+  alpha5: 0.100
+  alpha6: 0.100
+  alpha7: 0.100
+  alpha8: 0.100
+  alpha9: 0.100
+  alpha10: 0.100
 
   ## --- PARTICLES INNOVATION -- #
   sigma_xy: 0.15 # meters (just for initialization)

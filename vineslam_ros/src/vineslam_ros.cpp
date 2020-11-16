@@ -104,9 +104,9 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // ---------------------------------------------------------
     // ----- Initialize the localizer and get first particles distribution
     // ---------------------------------------------------------
-    localizer->init(init_odom_pose);
+    localizer->init(pose(0, 0, 0, 0, 0, 0));
     robot_pose = localizer->getPose();
-    grid_map   = new OccupancyMap(params, init_odom_pose);
+    grid_map   = new OccupancyMap(params, pose(0, 0, 0, 0, 0, 0));
 
     if (register_map) {
       // ---------------------------------------------------------
@@ -134,7 +134,10 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
           robot_pose, m_surf_features, m_corners, m_planars, m_planes, *grid_map);
 
       // - Save local map for next iteration
-      previous_map = mapper3D->local_map;
+      previous_map->clear();
+      for (const auto& planar : m_planars) previous_map->insert(planar);
+      for (const auto& corner : m_corners) previous_map->insert(corner);
+      previous_map->downsamplePlanars();
     }
 
     ROS_INFO("Localization and Mapping has started.");
@@ -190,8 +193,11 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // ---------------------------------------------------------
     // ----- Localization procedure
     // ---------------------------------------------------------
-    localizer->process(odom, obsv, previous_map, grid_map);
-    robot_pose = localizer->getPose();
+    //    localizer->process(odom, obsv, previous_map, grid_map);
+    //    robot_pose = localizer->getPose();
+    TF tf;
+    localizer->predictMotion(odom, m_corners, m_planars, previous_map, tf);
+    robot_pose = robot_pose + pose(tf.R, tf.t);
 
     // ---------------------------------------------------------
     // ----- Register multi-layer map (if performing SLAM)
@@ -219,7 +225,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // Publish tf::Trasforms
     static tf::TransformBroadcaster br;
     br.sendTransform(
-        tf::StampedTransform(base2map, ros::Time::now(), "odom", "base_link"));
+        tf::StampedTransform(base2map, ros::Time::now(), "map", "base_link"));
     tf::Transform cam2base(
         tf::Quaternion(params.cam2base[3],
                        params.cam2base[4],
@@ -240,13 +246,13 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     o2m_q.setRPY(init_odom_pose.roll, init_odom_pose.pitch, init_odom_pose.yaw);
     tf::Transform odom2map(
         o2m_q, tf::Vector3(init_odom_pose.x, init_odom_pose.y, init_odom_pose.z));
-    br.sendTransform(
-        tf::StampedTransform(odom2map, ros::Time::now(), "odom", "map"));
+//    br.sendTransform(
+//        tf::StampedTransform(odom2map, ros::Time::now(), "odom", "map"));
 
     // Convert vineslam pose to ROS pose and publish it
     geometry_msgs::PoseStamped pose_stamped;
     pose_stamped.header.stamp       = ros::Time::now();
-    pose_stamped.header.frame_id    = "odom";
+    pose_stamped.header.frame_id    = "map";
     pose_stamped.pose.position.x    = robot_pose.x;
     pose_stamped.pose.position.y    = robot_pose.y;
     pose_stamped.pose.position.z    = robot_pose.z;
@@ -260,7 +266,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     path.push_back(pose_stamped);
     nav_msgs::Path ros_path;
     ros_path.header.stamp    = ros::Time::now();
-    ros_path.header.frame_id = "odom";
+    ros_path.header.frame_id = "map";
     ros_path.poses           = path;
     path_publisher.publish(ros_path);
 
@@ -273,7 +279,7 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     vineslam_msgs::report    report;
     geometry_msgs::PoseArray ros_poses;
     ros_poses.header.stamp    = ros::Time::now();
-    ros_poses.header.frame_id = "odom";
+    ros_poses.header.frame_id = "map";
     report.header.stamp       = ros_poses.header.stamp;
     report.header.frame_id    = ros_poses.header.frame_id;
     for (const auto& particle : b_particles) {
@@ -342,7 +348,10 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     publish3DMap(planes, planes_local_publisher);
 
     // - Save local map for next iteration
-    previous_map = mapper3D->local_map;
+    previous_map->clear();
+    for (const auto& planar : m_planars) previous_map->insert(planar);
+    for (const auto& corner : m_corners) previous_map->insert(corner);
+    previous_map->downsamplePlanars();
   }
 }
 

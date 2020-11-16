@@ -63,6 +63,7 @@ public:
 
   // Apply odometry motion model to all particles
   void motionModel(const pose& odom);
+  void motionModel3D(const pose& odom);
   // Update particles weights using the multi-layer map
   void update(const std::vector<SemanticFeature>& landmarks,
               const std::vector<Corner>&          corners,
@@ -90,10 +91,6 @@ public:
   // Logs
   std::string logs;
 
-  // Previous iterations
-  std::vector<Plane> p_planes;
-  Plane              p_ground;
-
   // Observations to use
   bool use_landmarks;
   bool use_corners;
@@ -117,12 +114,6 @@ private:
   void mediumLevelPlanars(const std::vector<Planar>& planars,
                           OccupancyMap*              grid_map,
                           std::vector<float>&        ws);
-  // - Medium level ground plane layer
-  void mediumLevelGround(const Plane& ground_plane, std::vector<float>& ws);
-  // - Medium level vegetation lines layer
-  void mediumLevelPlanes(const std::vector<Plane>& planes,
-                         OccupancyMap*             grid_map,
-                         std::vector<float>&       ws);
   // - Low level image features layer
   void lowLevel(const std::vector<ImageFeature>& surf_features,
                 OccupancyMap*                    grid_map,
@@ -138,7 +129,7 @@ private:
   void gps(const pose& gps_pose, std::vector<float>& ws);
 
   // Iterative closest point member
-  ICP* icp;
+  ICP<ImageFeature>* icp;
 
   // Iteration number
   int n_it;
@@ -149,10 +140,16 @@ private:
   // - General parameters
   float n_particles;
   // - Innovation parameters
-  float srr;
-  float str;
-  float stt;
-  float srt;
+  float alpha1;
+  float alpha2;
+  float alpha3;
+  float alpha4;
+  float alpha5;
+  float alpha6;
+  float alpha7;
+  float alpha8;
+  float alpha9;
+  float alpha10;
   float sigma_xy;
   float sigma_z;
   float sigma_roll;

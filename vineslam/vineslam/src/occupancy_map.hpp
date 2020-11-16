@@ -174,11 +174,15 @@ public:
                    const int&         layers,
                    std::vector<Cell>& adjacent);
 
-  // Find nearest neighbor of a feature considering adjacent cells
-  bool findNearest(const ImageFeature& input,
-                   ImageFeature&       nearest,
-                   float&              sdist,
-                   float&              ddist);
+  // Find nearest neighbor of an image feature considering adjacent cells
+  bool findNearest(const ImageFeature& input, ImageFeature& nearest, float& ddist);
+
+  // Find nearest neighbor of a corner feature considering adjacent cells
+  bool findNearest(const Corner& input, Corner& nearest, float& sdist);
+
+  // Find nearest neighbor of a planar feature considering adjacent cells
+  bool findNearest(const Planar& input, Planar& nearest, float& sdist);
+
   // Find nearest neighbor of a feature on its cell
   bool findNearestOnCell(const ImageFeature& input, ImageFeature& nearest);
 
@@ -187,7 +191,7 @@ public:
   {
     std::vector<Corner> out_corners;
     for (const auto& i : corner_indexes)
-      for (const auto & corner : m_gmap[i].corner_features)
+      for (const auto& corner : m_gmap[i].corner_features)
         out_corners.push_back(corner);
 
     return out_corners;
@@ -196,7 +200,7 @@ public:
   {
     std::vector<Planar> out_planars;
     for (const auto& i : planar_indexes)
-      for (const auto & planar : m_gmap[i].planar_features)
+      for (const auto& planar : m_gmap[i].planar_features)
         out_planars.push_back(planar);
 
     return out_planars;
@@ -240,8 +244,6 @@ public:
   float width{};
   float lenght{};
   float resolution{};
-  // Search metric to use: euclidean / descriptor
-  std::string metric;
 
 private:
   // Private grid map to store all the cells
@@ -339,10 +341,14 @@ public:
                    std::vector<Cell>& adjacent);
 
   // Find nearest neighbor of a feature considering adjacent cells
-  bool findNearest(const ImageFeature& input,
-                   ImageFeature&       nearest,
-                   float&              sdist,
-                   float&              ddist);
+  bool findNearest(const ImageFeature& input, ImageFeature& nearest, float& ddist);
+
+  // Find nearest neighbor of a corner feature considering adjacent cells
+  bool findNearest(const Corner& input, Corner& nearest, float& sdist);
+
+  // Find nearest neighbor of a planar feature considering adjacent cells
+  bool findNearest(const Planar& input, Planar& nearest, float& sdist);
+
   // Find nearest neighbor of a feature on its cell
   bool findNearestOnCell(const ImageFeature& input, ImageFeature& nearest);
   // Recover the layer number from the feature z component
@@ -386,15 +392,14 @@ public:
   }
 
   // Grid map dimensions
-  point       origin;
-  float       width;
-  float       lenght;
-  float       height;
-  float       resolution;
-  float       resolution_z;
-  int         zmin;
-  int         zmax;
-  std::string metric;
+  point origin;
+  float width;
+  float lenght;
+  float height;
+  float resolution;
+  float resolution_z;
+  int   zmin;
+  int   zmax;
 
   // Grid map high level features (not stored in cells)
   std::vector<Plane> map_planes;

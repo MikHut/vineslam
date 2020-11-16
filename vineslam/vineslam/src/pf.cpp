@@ -18,10 +18,16 @@ PF::PF(const Parameters& params, const pose& initial_pose)
   use_gps          = params.use_gps;
   n_particles      = static_cast<float>(params.number_particles);
   // - Motion model parameters
-  srr = params.srr;
-  str = params.str;
-  stt = params.stt;
-  srt = params.srt;
+  alpha1  = params.alpha1;
+  alpha2  = params.alpha2;
+  alpha3  = params.alpha3;
+  alpha4  = params.alpha4;
+  alpha5  = params.alpha5;
+  alpha6  = params.alpha6;
+  alpha7  = params.alpha7;
+  alpha8  = params.alpha8;
+  alpha9  = params.alpha9;
+  alpha10 = params.alpha10;
   // - Innovation parameters
   sigma_xy    = params.sigma_xy;
   sigma_z     = params.sigma_z;
@@ -40,7 +46,7 @@ PF::PF(const Parameters& params, const pose& initial_pose)
   k_iterations = 20;
 
   // Initialize and set ICP parameters
-  icp = new ICP(params);
+  icp = new ICP<ImageFeature>(params);
 
   // Initialize normal distributions
   particles.resize(n_particles);
@@ -91,10 +97,10 @@ void PF::motionModel(const pose& odom)
   float dt_rot_b = normalizeAngle(odom_inc.yaw - dt_rot_a);
 
   // Motion sample standard deviations
-  float s_rot_a_draw = srr * std::fabs(dt_rot_a) + srt * dt_trans;
-  float s_rot_b_draw = srr * std::fabs(dt_rot_b) + srt * dt_trans;
+  float s_rot_a_draw = alpha1 * std::fabs(dt_rot_a) + alpha2 * dt_trans;
+  float s_rot_b_draw = alpha1 * std::fabs(dt_rot_b) + alpha2 * dt_trans;
   float s_trans_draw =
-      stt * dt_trans + str * (std::fabs(dt_rot_a) + std::fabs(dt_rot_b));
+      alpha3 * dt_trans + alpha4 * (std::fabs(dt_rot_a) + std::fabs(dt_rot_b));
 
   // Apply the motion model to all particles
   for (auto& particle : particles) {
@@ -117,6 +123,74 @@ void PF::motionModel(const pose& odom)
     particle.ptf = particle.tf;
 
     // Innovate particles using the odometry motion model
+    particle.p.x += dt_pose.x;
+    particle.p.y += dt_pose.y;
+    particle.p.z += dt_pose.z;
+    particle.p.roll += dt_pose.roll;
+    particle.p.pitch += dt_pose.pitch;
+    particle.p.yaw += dt_pose.yaw;
+
+    // Save particle homogeneous transformation
+    std::array<float, 9> Rot{};
+    particle.p.toRotMatrix(Rot);
+    std::array<float, 3> trans = {particle.p.x, particle.p.y, particle.p.z};
+    particle.tf                = TF(Rot, trans);
+  }
+
+  p_odom = odom;
+}
+
+void PF::motionModel3D(const pose& odom)
+{
+  // From:
+  // The motion model: A. L. Ballardini, A. Furlan, A. Galbiati, M. Matteucci,
+  // F. Sacchi, D. G. Sorrenti An effective 6DoF motion model for 3D-6DoF
+  // Monte Carlo Localization 4th Workshop on Planning, Perception and
+  // Navigation for Intelligent Vehicles, IROS, 2012
+
+  // Compute odometry increment
+  pose odom_inc = odom - p_odom;
+  odom_inc.normalize();
+
+  // The increments in odometry:
+  float s_yaw1 =
+      (odom_inc.y != 0 || odom_inc.x != 0) ? std::atan2(odom_inc.y, odom_inc.x) : 0;
+
+  float s_trans = odom_inc.norm3D();
+
+  float s_pitch1 = (odom_inc.y != 0 || odom_inc.x != 0 || odom_inc.z != 0)
+                       ? std::atan2(odom_inc.z, odom_inc.norm3D())
+                       : 0;
+
+  float s_roll   = odom_inc.roll;
+  float s_pitch2 = odom_inc.pitch;
+  float s_yaw2   = odom_inc.yaw;
+
+  // Draw samples:
+  for (auto& particle : particles) {
+    float s_yaw1_draw = s_yaw1 + sampleGaussian(alpha1 * s_yaw1 + alpha2 * s_trans);
+    float s_pitch1_draw = s_pitch1 + sampleGaussian(alpha3 * odom_inc.z);
+    float s_trans_draw =
+        s_trans + sampleGaussian(alpha4 * s_trans + alpha5 * s_yaw2 +
+                                 alpha6 * (s_roll + s_pitch2));
+    float s_roll_draw   = s_roll + sampleGaussian(alpha7 * s_roll);
+    float s_pitch2_draw = s_pitch2 + sampleGaussian(alpha8 * s_pitch2);
+    float s_yaw2_draw = s_yaw2 + sampleGaussian(alpha9 * s_yaw2 + alpha10 * s_trans);
+
+    // Output:
+    pose dt_pose;
+    dt_pose.x     = s_trans_draw * std::cos(s_pitch1_draw) * std::cos(s_yaw1_draw);
+    dt_pose.y     = s_trans_draw * std::cos(s_pitch1_draw) * std::sin(s_yaw1_draw);
+    dt_pose.z     = -s_trans_draw * std::sin(s_pitch1_draw);
+    dt_pose.yaw   = s_yaw1_draw + s_yaw2_draw;
+    dt_pose.pitch = s_pitch1_draw + s_pitch2_draw;
+    dt_pose.roll  = s_roll_draw;
+
+    // Save particle previous pose
+    particle.pp  = particle.p;
+    particle.ptf = particle.tf;
+
+    // Innovate particles
     particle.p.x += dt_pose.x;
     particle.p.y += dt_pose.y;
     particle.p.z += dt_pose.z;
@@ -174,20 +248,6 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
   after    = std::chrono::high_resolution_clock::now();
   duration = after - before;
   logs += "Time elapsed on PF - planar features (msecs): " +
-          std::to_string(duration.count()) + "\n";
-  before = std::chrono::high_resolution_clock::now();
-  if (use_planes)
-    mediumLevelPlanes(planes, grid_map, planes_weights);
-  after    = std::chrono::high_resolution_clock::now();
-  duration = after - before;
-  logs += "Time elapsed on PF - side planes features (msecs): " +
-          std::to_string(duration.count()) + "\n";
-  before = std::chrono::high_resolution_clock::now();
-  if (use_ground_plane)
-    mediumLevelGround(ground_plane, ground_weights);
-  after    = std::chrono::high_resolution_clock::now();
-  duration = after - before;
-  logs += "Time elapsed on PF - ground features (msecs): " +
           std::to_string(duration.count()) + "\n";
   before = std::chrono::high_resolution_clock::now();
   if (use_icp)
@@ -420,94 +480,6 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars,
   }
 }
 
-void PF::mediumLevelGround(const Plane& ground_plane, std::vector<float>& ws)
-{
-  if (p_ground.points.empty())
-    return;
-
-  float normalizer_ground =
-      static_cast<float>(1.) / (sigma_planes * std::sqrt(M_2PI));
-
-  for (const auto& particle : particles) {
-
-    float w_ground = 0;
-    for (const auto& pt : ground_plane.points) {
-      // Convert ground point from previous local frame to current local frame
-      point m_pt = pt * particle.tf;
-
-      // Compute the distance each point to the plane - from
-      // https://www.geeksforgeeks.org/distance-between-a-point-and-a-plane-in-3-d/
-      auto  norm = std::sqrt(p_ground.a * p_ground.a + p_ground.b * p_ground.b +
-                            p_ground.c * p_ground.c);
-      float dist = std::fabs(p_ground.a * m_pt.x + p_ground.b * m_pt.y +
-                             p_ground.c * m_pt.z + p_ground.d) /
-                   norm;
-
-      float ww = (normalizer_ground *
-                  static_cast<float>(std::exp((-1. / sigma_planes) * dist)));
-
-      w_ground += (normalizer_ground *
-                   static_cast<float>(std::exp((-1. / sigma_planes) * dist)));
-    }
-
-    ws[particle.id] = w_ground;
-  }
-}
-
-void PF::mediumLevelPlanes(const std::vector<Plane>& planes,
-                           OccupancyMap*             grid_map,
-                           std::vector<float>&       ws)
-{
-  //  const float normalizer_planes =
-  //      static_cast<float>(1.) / (sigma_planes_yaw * std::sqrt(M_2PI));
-  //
-  //  std::vector<float> dvec;
-  //  for (const auto& plane : planes) {
-  //
-  //    float dist_min     = 3 * DEGREE_TO_RAD;
-  //    float displacement = 0;
-  //    bool  found        = false;
-  //    for (const auto& p_plane : p_planes) {
-  //      if (plane.id == p_plane.id) {
-  //        // -----------------------------------------------
-  //        // ---- Search for correspondence
-  //        // -----------------------------------------------
-  //        float ang_diff = std::fabs(normalizeAngle(std::atan(plane.regression.m) -
-  //                                                  std::atan(p_plane.regression.m)));
-  //
-  //        if (ang_diff < dist_min) {
-  //          dist_min = ang_diff;
-  //          found    = true;
-  //
-  //          displacement = normalizeAngle(std::atan(plane.regression.m) -
-  //                                        std::atan(p_plane.regression.m));
-  //        }
-  //      }
-  //    }
-  //
-  //    if (found)
-  //      dvec.push_back(displacement);
-  //  }
-  //
-  //  for (const auto& particle : particles) {
-  //    float w_planes = 0.;
-  //    for (const auto& displacement : dvec) {
-  //
-  //      // Particle delta rotation and planes delta rotation should null each other
-  //      float delta_p_yaw = normalizeAngle(particle.p.yaw - particle.pp.yaw);
-  //      float error       = std::fabs(displacement + delta_p_yaw);
-  //      w_planes += (normalizer_planes *
-  //                   static_cast<float>(std::exp(-1. / sigma_planes_yaw * error)));
-  //      float ww = (normalizer_planes *
-  //                  static_cast<float>(std::exp(-1. / sigma_planes_yaw * error)));
-  //    }
-  //
-  //    ws[particle.id] = w_planes;
-  //  }
-  //
-  //  p_planes = planes;
-}
-
 void PF::lowLevel(const std::vector<ImageFeature>& surf_features,
                   OccupancyMap*                    grid_map,
                   std::vector<float>&              ws)
@@ -522,8 +494,6 @@ void PF::lowLevel(const std::vector<ImageFeature>& surf_features,
   // ---------------- Scan match
   // ------------------------------------------------------------------------------
   scanMatch(surf_features, grid_map, gauss_map, ws);
-
-  /* saveParticleClusters(gauss_map, particles, k_clusters, n_it); */
 }
 
 void PF::cluster(std::map<int, Gaussian<pose, pose>>& gauss_map)
@@ -787,12 +757,7 @@ void PF::scanMatch(const std::vector<ImageFeature>&     features,
       // ---------------------------------------------------------------------------
       // ------------ Get homogeneous transformation result
       // ---------------------------------------------------------------------------
-      std::array<float, 9> final_Rot{};
-      std::array<float, 3> final_trans{};
-      icp->getTransform(final_Rot, final_trans);
-
-      m_tf.R = final_Rot;
-      m_tf.t = final_trans;
+      icp->getTransform(m_tf);
 
       final_tf = original_tf.inverse() * m_tf;
 
@@ -801,12 +766,10 @@ void PF::scanMatch(const std::vector<ImageFeature>&     features,
       // ---------------------------------------------------------------------------
       // - Get the correspondences errors both spatial and for the descriptors
       std::vector<float> serror;
-      std::vector<float> derror;
-      icp->getErrors(serror, derror);
+      icp->getErrors(serror);
 
       // - Prevent single correspondence - standard deviation = 0
-      if (derror.size() <= 1 || serror.size() <= 1 ||
-          serror.size() != derror.size()) {
+      if (serror.size() <= 1) {
         final_tf.R   = std::array<float, 9>{1., 0., 0., 0., 1., 0., 0., 0., 1.};
         final_tf.t   = std::array<float, 3>{0., 0., 0.};
         ws[it.first] = 0.;
@@ -818,9 +781,6 @@ void PF::scanMatch(const std::vector<ImageFeature>&     features,
       for (float i : serror) {
         w += static_cast<float>(normalizer_icp *
                                 exp(-1. / sigma_feature_matching * i));
-        //             static_cast<float>(normalizer_icp *
-        //                                exp(-1. / sigma_feature_matching *
-        //                                derror[i]));
       }
 
       cluster_ws[it.first] = w;

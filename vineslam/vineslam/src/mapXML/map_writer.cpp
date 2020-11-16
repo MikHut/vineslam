@@ -36,7 +36,6 @@ void MapWriter::writeToFile(OccupancyMap grid_map)
   xmlfile << TAB << open(LENGHT) << grid_map.lenght << close(LENGHT) << ENDL;
   xmlfile << TAB << open(RESOLUTION) << grid_map.resolution << close(RESOLUTION)
           << ENDL;
-  xmlfile << TAB << open(METRIC) << grid_map.metric << close(METRIC) << ENDL;
   xmlfile << close(INFO) << ENDL << ENDL;
 
   // -- Map data

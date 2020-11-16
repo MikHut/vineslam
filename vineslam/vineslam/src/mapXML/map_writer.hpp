@@ -19,7 +19,6 @@
 #define HEIGHT "height"
 #define LENGHT "lenght"
 #define RESOLUTION "resolution"
-#define METRIC "metric"
 // -- Map data
 #define VALUE "value"
 #define CELL "cell"

@@ -116,8 +116,7 @@ public:
   }
 
   // Public vars
-  float         lidar_height;
-  OccupancyMap* local_map;
+  float lidar_height;
 
 private:
   // -------------------------------------------------------------------------------
@@ -130,6 +129,8 @@ private:
 
   // Perform feature extraction
   void extractSurfFeatures(const cv::Mat& in, std::vector<ImageFeature>& out) const;
+  // Converts a pixel into world's coordinate reference
+  void pixel2base(const point& in_pt, const float& depth, point& out_pt) const;
 
   // -------------------------------------------------------------------------------
   // ---- 3D pointcloud feature map
@@ -161,45 +162,13 @@ private:
                        int&                      label);
 
   // Extract the couple of vegetation side planes
-  void extractHighLevelPlanes(const std::vector<PlanePoint>& in_plane_pts,
-                              std::vector<Plane>&            out_planes);
+  static void extractHighLevelPlanes(const std::vector<PlanePoint>& in_plane_pts,
+                                     std::vector<Plane>&            out_planes);
 
   // 3D feature extraction from a point cloud
   void extract3DFeatures(const std::vector<PlanePoint>& in_plane_pts,
                          std::vector<Corner>&           out_corners,
                          std::vector<Planar>&           out_planars);
-
-  // Computes a range image from a raw point cloud
-  static void rangeImage(const std::vector<point>& pcl,
-                         const std::vector<float>& intensities,
-                         cv::Mat&                  out_image);
-
-  // Computes a birds eye image from a raw point cloud
-  static void birdEyeImage(const std::vector<point>& pcl,
-                           cv::Mat&                  out_image,
-                           cv::Mat&                  out_image_var);
-
-  // Computes a projection of the point cloud into different side view images
-  static void sideViewImageXZ(const std::vector<point>& pcl,
-                              cv::Mat&                  image_pside,
-                              cv::Mat&                  image_nside,
-                              cv::Mat&                  image_pside_var,
-                              cv::Mat&                  image_nside_var);
-  static void sideViewImageYZ(const std::vector<point>& pcl,
-                              cv::Mat&                  out_image,
-                              cv::Mat&                  out_image_var);
-  // Extract point cloud descriptors from variance images
-  static void extractPCLDescriptors(const cv::Mat& by_image_var,
-                                    const cv::Mat& pside_image_var,
-                                    const cv::Mat& nside_image_var,
-                                    const cv::Mat& back_image_var);
-
-  // Computes an histogram of a point cloud image
-  static void computeHistogram(const cv::Mat& in_image, std::vector<int>& hist);
-  // ------------------------------------------------------------------------------
-
-  // Converts a pixel into world's coordinate reference
-  void pixel2base(const point& in_pt, const float& depth, point& out_pt) const;
 
   // Camera info parameters
   int   img_width;
@@ -212,10 +181,9 @@ private:
   float depth_vfov;
 
   // 3D map parameters
-  std::string metric;
-  float       max_range;
-  float       max_height;
-  int         hessian_threshold;
+  float max_range;
+  float max_height;
+  int   hessian_threshold;
 
   // 3D cloud feature parameters
   float correspondence_threshold;

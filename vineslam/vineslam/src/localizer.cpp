@@ -124,4 +124,46 @@ void Localizer::changeObservationsToUse(const bool& use_high_level,
   pf->use_gps          = use_gps;
 }
 
+void Localizer::predictMotion(const pose&                odom,
+                              const std::vector<Corner>& corners,
+                              const std::vector<Planar>& planars,
+                              OccupancyMap*              previous_map,
+                              TF&                        result)
+{
+  // -------------------------------------------------------------------------------
+  // ----- Planar features ICP
+  // -------------------------------------------------------------------------------
+
+  // - Set ICP input parameters
+  ICP<Planar> planar_icp(params);
+  planar_icp.setInputSource(planars);
+  planar_icp.setInputTarget(previous_map);
+  planar_icp.setMaxIterations(50);
+  planar_icp.setRejectOutliersFlag(false);
+
+  // - Convert odom increment pose to TF
+  pose odom_inc = odom - pf->p_odom;
+  odom_inc.normalize();
+  std::array<float, 9> odom_R{};
+  odom_inc.toRotMatrix(odom_R);
+  TF odom_tf(odom_R, std::array<float, 3>{odom_inc.x, odom_inc.y, odom_inc.z});
+
+  // - Compute ICP
+  float               rms_error;
+  std::vector<Planar> aligned;
+  planar_icp.align(rms_error, aligned);
+  //  planar_icp.align(odom_tf, rms_error, aligned);
+  planar_icp.getTransform(result);
+  pose m_res(result.R, result.t);
+
+  std::vector<float> errors;
+  planar_icp.getErrors(errors);
+
+  std::cout << "---- ICP ---- \n\n";
+  std::cout << "-> (initial guess): " << odom_inc;
+  std::cout << "-> (rms): " << rms_error << "\n";
+  std::cout << "-> (result): " << m_res << "---\n";
+  pf->p_odom = odom;
+}
+
 } // namespace vineslam

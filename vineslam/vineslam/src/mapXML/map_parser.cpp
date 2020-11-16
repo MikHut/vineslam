@@ -44,9 +44,6 @@ void MapParser::parseFile(OccupancyMap& grid_map)
       grid_map.lenght = getFloat(line);
     } else if (tag == openTag(RESOLUTION)) {
       grid_map.resolution = getFloat(line);
-    } else if (tag == openTag(METRIC)) {
-      grid_map.metric = getString(line);
-      readinginfo     = false;
     }
   }
 
@@ -237,7 +234,6 @@ void MapParser::printMap(OccupancyMap grid_map)
   std::cout << "  height: [" << grid_map.lenght << std::endl;
   std::cout << "  lenght: [" << grid_map.lenght << std::endl;
   std::cout << "  resolution: [" << grid_map.resolution << std::endl;
-  std::cout << "  metric: [" << grid_map.metric << std::endl << std::endl;
 
   std::cout << "-----------------------------------------------" << std::endl;
   std::cout << "----- Map data " << std::endl;

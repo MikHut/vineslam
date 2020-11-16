@@ -138,7 +138,7 @@ struct point {
   }
 
   // 3D point norm
-  float norm3D()
+  float norm3D() const
   {
     return std::sqrt(std::pow(x, 2) + std::pow(y, 2) + std::pow(z, 2));
   }

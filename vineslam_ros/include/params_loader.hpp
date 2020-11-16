@@ -220,13 +220,6 @@ static void loadParameters(const ros::NodeHandle& nh,
               prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/metric",
-                   params.gridmap_metric)) {
-    ROS_ERROR("%s/multilayer_mapping/grid_map/metric "
-              "not found. Shutting down...",
-              prefix.c_str());
-    exit(-1);
-  }
   if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/save_map",
                    params.save_map)) {
     ROS_ERROR("%s/multilayer_mapping/grid_map/save_map "
@@ -275,20 +268,44 @@ static void loadParameters(const ros::NodeHandle& nh,
               prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/pf/srr", params.srr)) {
-    ROS_ERROR("%s/pf/srr not found. Shutting down...", prefix.c_str());
+  if (!nh.getParam(prefix + "/pf/alpha1", params.alpha1)) {
+    ROS_ERROR("%s/pf/alpha1 not found. Shutting down...", prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/pf/srt", params.srt)) {
-    ROS_ERROR("%s/pf/srt not found. Shutting down...", prefix.c_str());
+  if (!nh.getParam(prefix + "/pf/alpha2", params.alpha2)) {
+    ROS_ERROR("%s/pf/alpha2 not found. Shutting down...", prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/pf/str", params.str)) {
-    ROS_ERROR("%s/pf/str not found. Shutting down...", prefix.c_str());
+  if (!nh.getParam(prefix + "/pf/alpha3", params.alpha3)) {
+    ROS_ERROR("%s/pf/alpha3 not found. Shutting down...", prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/pf/stt", params.stt)) {
-    ROS_ERROR("%s/pf/stt not found. Shutting down...", prefix.c_str());
+  if (!nh.getParam(prefix + "/pf/alpha4", params.alpha4)) {
+    ROS_ERROR("%s/pf/alpha4 not found. Shutting down...", prefix.c_str());
+    exit(-1);
+  }
+  if (!nh.getParam(prefix + "/pf/alpha5", params.alpha5)) {
+    ROS_ERROR("%s/pf/alpha5 not found. Shutting down...", prefix.c_str());
+    exit(-1);
+  }
+  if (!nh.getParam(prefix + "/pf/alpha6", params.alpha6)) {
+    ROS_ERROR("%s/pf/alpha6 not found. Shutting down...", prefix.c_str());
+    exit(-1);
+  }
+  if (!nh.getParam(prefix + "/pf/alpha7", params.alpha7)) {
+    ROS_ERROR("%s/pf/alpha7 not found. Shutting down...", prefix.c_str());
+    exit(-1);
+  }
+  if (!nh.getParam(prefix + "/pf/alpha8", params.alpha8)) {
+    ROS_ERROR("%s/pf/alpha8 not found. Shutting down...", prefix.c_str());
+    exit(-1);
+  }
+  if (!nh.getParam(prefix + "/pf/alpha9", params.alpha9)) {
+    ROS_ERROR("%s/pf/alpha9 not found. Shutting down...", prefix.c_str());
+    exit(-1);
+  }
+  if (!nh.getParam(prefix + "/pf/alpha10", params.alpha10)) {
+    ROS_ERROR("%s/pf/alpha10 not found. Shutting down...", prefix.c_str());
     exit(-1);
   }
   if (!nh.getParam(prefix + "/pf/sigma_xy", params.sigma_xy)) {

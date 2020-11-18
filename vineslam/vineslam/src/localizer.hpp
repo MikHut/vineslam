@@ -4,6 +4,7 @@
 #include <params.hpp>
 #include <feature.hpp>
 #include <occupancy_map.hpp>
+#include <icp.hpp>
 #include <pf.hpp>
 #include <math/point.hpp>
 #include <math/pose.hpp>
@@ -40,7 +41,7 @@ public:
 
   // Global function that handles all the localization process
   // Arguments:
-  // - odom:      wheel odometry pose
+  // - odom:      odometry pose
   // - obsv:      current multi-layer mapping observation
   // - grid_map:  occupancy grid map that encodes the multi-layer map information
   void process(const pose&        odom,
@@ -54,6 +55,7 @@ public:
   void getParticles(std::vector<Particle>& in) const;
   void getParticlesBeforeResampling(std::vector<Particle>& in) const;
 
+  // Routine to change the observations to use in the localization procedure
   void changeObservationsToUse(const bool& use_high_level,
                                const bool& use_corners,
                                const bool& use_planars,
@@ -62,17 +64,25 @@ public:
                                const bool& use_icp,
                                const bool& use_gps);
 
+  // LiDAR odometry implementation
+  void predictMotion(const std::vector<Planar>& planars,
+                     OccupancyMap*              previous_map,
+                     TF&                        result);
+  // Camera stereo odometry implementation
+  void predictMotion(const std::vector<ImageFeature>& corners,
+                     OccupancyMap*                    previous_map,
+                     TF&                              result);
+
   // Localization logs
   std::string logs;
   // Flags
   bool update;
-  // Ground plane used for localization
-  Plane ground_plane;
 
 private:
   // Average particles pose
   pose average_pose;
   pose last_update_pose;
+  pose p_odom;
   // Particle filter object
   PF* pf{};
 

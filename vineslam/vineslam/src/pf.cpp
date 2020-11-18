@@ -18,10 +18,10 @@ PF::PF(const Parameters& params, const pose& initial_pose)
   use_gps          = params.use_gps;
   n_particles      = static_cast<float>(params.number_particles);
   // - Motion model parameters
-  srr = params.srr;
-  str = params.str;
-  stt = params.stt;
-  srt = params.srt;
+  alpha1 = params.alpha1;
+  alpha2 = params.alpha2;
+  alpha3 = params.alpha3;
+  alpha4 = params.alpha4;
   // - Innovation parameters
   sigma_xy    = params.sigma_xy;
   sigma_z     = params.sigma_z;
@@ -40,7 +40,7 @@ PF::PF(const Parameters& params, const pose& initial_pose)
   k_iterations = 20;
 
   // Initialize and set ICP parameters
-  icp = new ICP(params);
+  icp = new ICP<ImageFeature>(params);
 
   // Initialize normal distributions
   particles.resize(n_particles);
@@ -50,88 +50,71 @@ PF::PF(const Parameters& params, const pose& initial_pose)
     // Calculate the initial pose for each particle considering
     // - the input initial pose
     // - a sample distribution to spread the particles
-    pose m_pose = initial_pose + pose(sampleGaussian(sigma_xy, i),
-                                      sampleGaussian(sigma_xy, i),
-                                      sampleGaussian(sigma_z * 2, i),
-                                      sampleGaussian(sigma_roll * 2, i),
-                                      sampleGaussian(sigma_pitch * 2, i),
-                                      sampleGaussian(sigma_yaw, i));
+    pose m_pose = initial_pose + pose(sampleGaussian(sigma_xy),
+                                      sampleGaussian(sigma_xy),
+                                      sampleGaussian(sigma_z * 2),
+                                      sampleGaussian(sigma_roll * 2),
+                                      sampleGaussian(sigma_pitch * 2),
+                                      sampleGaussian(sigma_yaw));
     // Compute initial weight of each particle
     float weight = 1.;
     // Insert the particle into the particles array
     particles[i] = Particle(i, m_pose, weight);
   }
 
-  // Set last iteration vars
-  p_odom = initial_pose;
-
   // Iteration number
   n_it = 0;
 }
 
-void PF::motionModel(const pose& odom)
+void PF::motionModel(const pose& odom_inc, const pose& p_odom)
 {
-  // Compute odometry increment
-  pose odom_inc = odom - p_odom;
-  odom_inc.normalize();
+  // Input parameters
+  float m_xx_noise = 0.2;
+  float m_yy_noise = 0.2;
+  float m_zz_noise = 0.1;
+  float m_RR_noise = 0.5;
+  float m_PP_noise = 0.5;
+  float m_YY_noise = 0.8;
 
-  // Compute the relative pose given by the odometry motion model
-  float dt_trans = odom_inc.norm2D();
-  float dt_rot_a =
-      ((odom_inc.x != 0) || (odom_inc.y != 0))
-          ? normalizeAngle(std::atan2(odom_inc.y, odom_inc.x) - p_odom.yaw)
-          : static_cast<float>(0.);
+  float d_trans = odom_inc.norm3D();
 
-  // Prevent huge particles innovation due to wheel slippage
-  if (dt_rot_a > 160 * DEGREE_TO_RAD)
-    dt_rot_a -= M_PI;
-  if (dt_rot_a < -160 * DEGREE_TO_RAD)
-    dt_rot_a += M_PI;
-
-  float dt_rot_b = normalizeAngle(odom_inc.yaw - dt_rot_a);
-
-  // Motion sample standard deviations
-  float s_rot_a_draw = srr * std::fabs(dt_rot_a) + srt * dt_trans;
-  float s_rot_b_draw = srr * std::fabs(dt_rot_b) + srt * dt_trans;
-  float s_trans_draw =
-      stt * dt_trans + str * (std::fabs(dt_rot_a) + std::fabs(dt_rot_b));
-
-  // Apply the motion model to all particles
+  // Innovate particles
   for (auto& particle : particles) {
-    // Sample the normal distribution functions
-    float s_rot_a = dt_rot_a + sampleGaussian(s_rot_a_draw);
-    float s_rot_b = dt_rot_b + sampleGaussian(s_rot_b_draw);
-    float s_trans = dt_trans + sampleGaussian(s_trans_draw);
+    // Build pose noise transformation matrix
+    pose pose_noise(
+        m_xx_noise, m_yy_noise, m_zz_noise, m_RR_noise, m_PP_noise, m_YY_noise);
 
-    // Compute the relative pose considering the samples
-    pose dt_pose;
-    dt_pose.x     = s_trans * std::cos(normalizeAngle(particle.p.yaw + s_rot_a));
-    dt_pose.y     = s_trans * std::sin(normalizeAngle(particle.p.yaw + s_rot_a));
-    dt_pose.z     = sampleGaussian(sigma_z);
-    dt_pose.roll  = sampleGaussian(sigma_roll);
-    dt_pose.pitch = sampleGaussian(sigma_pitch);
-    dt_pose.yaw   = s_rot_a + s_rot_b;
+    std::array<float, 6> gaussian_noise{};
+    for (float& i : gaussian_noise) i = d_trans * sampleGaussian(1.0);
 
-    // Save particle previous pose
+    pose_noise.x *= gaussian_noise[0];     // xx
+    pose_noise.y *= gaussian_noise[1];     // yy
+    pose_noise.z *= gaussian_noise[2];     // zz
+    pose_noise.roll *= gaussian_noise[3];  // RR
+    pose_noise.pitch *= gaussian_noise[4]; // PP
+    pose_noise.yaw *= gaussian_noise[5];   // YY
+
+    std::array<float, 9> R_noise{};
+    pose_noise.toRotMatrix(R_noise);
+    TF odom_noise_tf(R_noise,
+                     std::array<float, 3>{pose_noise.x, pose_noise.y, pose_noise.z});
+
+    // Built odom increment transformation matrix
+    std::array<float, 9> R_inc{};
+    odom_inc.toRotMatrix(R_inc);
+    TF odom_inc_tf(R_inc, std::array<float, 3>{odom_inc.x, odom_inc.y, odom_inc.z});
+
+    // Final pose increment
+    TF innovation_tf = odom_inc_tf * odom_noise_tf;
+
+    // Save info for the next iteration
     particle.pp  = particle.p;
     particle.ptf = particle.tf;
 
-    // Innovate particles using the odometry motion model
-    particle.p.x += dt_pose.x;
-    particle.p.y += dt_pose.y;
-    particle.p.z += dt_pose.z;
-    particle.p.roll += dt_pose.roll;
-    particle.p.pitch += dt_pose.pitch;
-    particle.p.yaw += dt_pose.yaw;
-
-    // Save particle homogeneous transformation
-    std::array<float, 9> Rot{};
-    particle.p.toRotMatrix(Rot);
-    std::array<float, 3> trans = {particle.p.x, particle.p.y, particle.p.z};
-    particle.tf                = TF(Rot, trans);
+    // Apply transformation
+    particle.tf = particle.ptf * innovation_tf;
+    particle.p  = pose(particle.tf.R, particle.tf.t);
   }
-
-  p_odom = odom;
 }
 
 void PF::update(const std::vector<SemanticFeature>& landmarks,
@@ -141,7 +124,6 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
                 const Plane&                        ground_plane,
                 const std::vector<ImageFeature>&    surf_features,
                 const pose&                         gps_pose,
-                OccupancyMap*                       previous_map,
                 OccupancyMap*                       grid_map)
 {
   std::vector<float> semantic_weights(n_particles, 0.);
@@ -167,28 +149,16 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
   after    = std::chrono::high_resolution_clock::now();
   duration = after - before;
   logs += "Time elapsed on PF - corner features (msecs): " +
-          std::to_string(duration.count()) + "\n";
+          std::to_string(duration.count()) + " (" + std::to_string(corners.size()) +
+          ")\n";
   before = std::chrono::high_resolution_clock::now();
   if (use_planars)
     mediumLevelPlanars(planars, grid_map, planar_weights);
   after    = std::chrono::high_resolution_clock::now();
   duration = after - before;
   logs += "Time elapsed on PF - planar features (msecs): " +
-          std::to_string(duration.count()) + "\n";
-  before = std::chrono::high_resolution_clock::now();
-  if (use_planes)
-    mediumLevelPlanes(planes, grid_map, planes_weights);
-  after    = std::chrono::high_resolution_clock::now();
-  duration = after - before;
-  logs += "Time elapsed on PF - side planes features (msecs): " +
-          std::to_string(duration.count()) + "\n";
-  before = std::chrono::high_resolution_clock::now();
-  if (use_ground_plane)
-    mediumLevelGround(ground_plane, ground_weights);
-  after    = std::chrono::high_resolution_clock::now();
-  duration = after - before;
-  logs += "Time elapsed on PF - ground features (msecs): " +
-          std::to_string(duration.count()) + "\n";
+          std::to_string(duration.count()) + +" (" + std::to_string(planars.size()) +
+          ")\n";
   before = std::chrono::high_resolution_clock::now();
   if (use_icp)
     lowLevel(surf_features, grid_map, surf_weights);
@@ -420,94 +390,6 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars,
   }
 }
 
-void PF::mediumLevelGround(const Plane& ground_plane, std::vector<float>& ws)
-{
-  if (p_ground.points.empty())
-    return;
-
-  float normalizer_ground =
-      static_cast<float>(1.) / (sigma_planes * std::sqrt(M_2PI));
-
-  for (const auto& particle : particles) {
-
-    float w_ground = 0;
-    for (const auto& pt : ground_plane.points) {
-      // Convert ground point from previous local frame to current local frame
-      point m_pt = pt * particle.tf;
-
-      // Compute the distance each point to the plane - from
-      // https://www.geeksforgeeks.org/distance-between-a-point-and-a-plane-in-3-d/
-      auto  norm = std::sqrt(p_ground.a * p_ground.a + p_ground.b * p_ground.b +
-                            p_ground.c * p_ground.c);
-      float dist = std::fabs(p_ground.a * m_pt.x + p_ground.b * m_pt.y +
-                             p_ground.c * m_pt.z + p_ground.d) /
-                   norm;
-
-      float ww = (normalizer_ground *
-                  static_cast<float>(std::exp((-1. / sigma_planes) * dist)));
-
-      w_ground += (normalizer_ground *
-                   static_cast<float>(std::exp((-1. / sigma_planes) * dist)));
-    }
-
-    ws[particle.id] = w_ground;
-  }
-}
-
-void PF::mediumLevelPlanes(const std::vector<Plane>& planes,
-                           OccupancyMap*             grid_map,
-                           std::vector<float>&       ws)
-{
-  //  const float normalizer_planes =
-  //      static_cast<float>(1.) / (sigma_planes_yaw * std::sqrt(M_2PI));
-  //
-  //  std::vector<float> dvec;
-  //  for (const auto& plane : planes) {
-  //
-  //    float dist_min     = 3 * DEGREE_TO_RAD;
-  //    float displacement = 0;
-  //    bool  found        = false;
-  //    for (const auto& p_plane : p_planes) {
-  //      if (plane.id == p_plane.id) {
-  //        // -----------------------------------------------
-  //        // ---- Search for correspondence
-  //        // -----------------------------------------------
-  //        float ang_diff = std::fabs(normalizeAngle(std::atan(plane.regression.m) -
-  //                                                  std::atan(p_plane.regression.m)));
-  //
-  //        if (ang_diff < dist_min) {
-  //          dist_min = ang_diff;
-  //          found    = true;
-  //
-  //          displacement = normalizeAngle(std::atan(plane.regression.m) -
-  //                                        std::atan(p_plane.regression.m));
-  //        }
-  //      }
-  //    }
-  //
-  //    if (found)
-  //      dvec.push_back(displacement);
-  //  }
-  //
-  //  for (const auto& particle : particles) {
-  //    float w_planes = 0.;
-  //    for (const auto& displacement : dvec) {
-  //
-  //      // Particle delta rotation and planes delta rotation should null each other
-  //      float delta_p_yaw = normalizeAngle(particle.p.yaw - particle.pp.yaw);
-  //      float error       = std::fabs(displacement + delta_p_yaw);
-  //      w_planes += (normalizer_planes *
-  //                   static_cast<float>(std::exp(-1. / sigma_planes_yaw * error)));
-  //      float ww = (normalizer_planes *
-  //                  static_cast<float>(std::exp(-1. / sigma_planes_yaw * error)));
-  //    }
-  //
-  //    ws[particle.id] = w_planes;
-  //  }
-  //
-  //  p_planes = planes;
-}
-
 void PF::lowLevel(const std::vector<ImageFeature>& surf_features,
                   OccupancyMap*                    grid_map,
                   std::vector<float>&              ws)
@@ -522,8 +404,6 @@ void PF::lowLevel(const std::vector<ImageFeature>& surf_features,
   // ---------------- Scan match
   // ------------------------------------------------------------------------------
   scanMatch(surf_features, grid_map, gauss_map, ws);
-
-  /* saveParticleClusters(gauss_map, particles, k_clusters, n_it); */
 }
 
 void PF::cluster(std::map<int, Gaussian<pose, pose>>& gauss_map)
@@ -787,12 +667,7 @@ void PF::scanMatch(const std::vector<ImageFeature>&     features,
       // ---------------------------------------------------------------------------
       // ------------ Get homogeneous transformation result
       // ---------------------------------------------------------------------------
-      std::array<float, 9> final_Rot{};
-      std::array<float, 3> final_trans{};
-      icp->getTransform(final_Rot, final_trans);
-
-      m_tf.R = final_Rot;
-      m_tf.t = final_trans;
+      icp->getTransform(m_tf);
 
       final_tf = original_tf.inverse() * m_tf;
 
@@ -801,12 +676,10 @@ void PF::scanMatch(const std::vector<ImageFeature>&     features,
       // ---------------------------------------------------------------------------
       // - Get the correspondences errors both spatial and for the descriptors
       std::vector<float> serror;
-      std::vector<float> derror;
-      icp->getErrors(serror, derror);
+      icp->getErrors(serror);
 
       // - Prevent single correspondence - standard deviation = 0
-      if (derror.size() <= 1 || serror.size() <= 1 ||
-          serror.size() != derror.size()) {
+      if (serror.size() <= 1) {
         final_tf.R   = std::array<float, 9>{1., 0., 0., 0., 1., 0., 0., 0., 1.};
         final_tf.t   = std::array<float, 3>{0., 0., 0.};
         ws[it.first] = 0.;
@@ -818,9 +691,6 @@ void PF::scanMatch(const std::vector<ImageFeature>&     features,
       for (float i : serror) {
         w += static_cast<float>(normalizer_icp *
                                 exp(-1. / sigma_feature_matching * i));
-        //             static_cast<float>(normalizer_icp *
-        //                                exp(-1. / sigma_feature_matching *
-        //                                derror[i]));
       }
 
       cluster_ws[it.first] = w;
@@ -901,8 +771,12 @@ void PF::resample()
 
   // - Update particle set
   for (size_t j = 0; j < indexes.size(); j++) {
-    particles[j].p = particles[indexes[j]].p;
-    particles[j].w = particles[indexes[j]].w;
+    particles[j].pp            = particles[indexes[j]].pp;
+    particles[j].ptf           = particles[indexes[j]].ptf;
+    particles[j].p             = particles[indexes[j]].p;
+    particles[j].tf            = particles[indexes[j]].tf;
+    particles[j].w             = particles[indexes[j]].w;
+    particles[j].which_cluster = particles[indexes[j]].which_cluster;
   }
 }
 

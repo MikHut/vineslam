@@ -34,6 +34,17 @@ SLAMNode::SLAMNode(int argc, char** argv)
   mapper2D  = new Mapper2D(params);
   mapper3D  = new Mapper3D(params);
 
+  // Initialize local grid map that will be used for relative motion calculation
+  Parameters local_map_params;
+  local_map_params.gridmap_origin_x   = -30;
+  local_map_params.gridmap_origin_y   = -30;
+  local_map_params.gridmap_origin_z   = -0.5;
+  local_map_params.gridmap_resolution = 0.20;
+  local_map_params.gridmap_width      = 60;
+  local_map_params.gridmap_lenght     = 60;
+  local_map_params.gridmap_height     = 2.5;
+  previous_map = new OccupancyMap(local_map_params, pose(0, 0, 0, 0, 0, 0));
+
   // Services
   polar2pose = nh.serviceClient<agrob_map_transform::GetPose>("polar_to_pose");
   set_datum  = nh.serviceClient<agrob_map_transform::SetDatum>("datum");

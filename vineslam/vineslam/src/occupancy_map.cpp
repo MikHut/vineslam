@@ -12,7 +12,6 @@ MapLayer::MapLayer(const Parameters& params, const pose& origin_offset)
   resolution = params.gridmap_resolution;
   width      = params.gridmap_width;
   lenght     = params.gridmap_lenght;
-  metric     = params.gridmap_metric;
 
   // Set the grid map size
   int map_size =
@@ -30,6 +29,7 @@ MapLayer::MapLayer(const MapLayer& grid_map)
 {
   this->m_gmap            = grid_map.m_gmap;
   this->n_corner_features = grid_map.n_corner_features;
+  this->n_planar_features = grid_map.n_planar_features;
   this->n_surf_features   = grid_map.n_surf_features;
   this->n_landmarks       = grid_map.n_landmarks;
   this->n_points          = grid_map.n_points;
@@ -37,7 +37,6 @@ MapLayer::MapLayer(const MapLayer& grid_map)
   this->origin            = grid_map.origin;
   this->lenght            = grid_map.lenght;
   this->width             = grid_map.width;
-  this->metric            = grid_map.metric;
 }
 
 bool MapLayer::insert(const SemanticFeature& m_landmark,
@@ -146,7 +145,7 @@ bool MapLayer::insert(const Planar& m_feature, const int& i, const int& j)
   }
 
   (*this)(i, j).planar_features.push_back(m_feature);
-  n_corner_features++;
+  n_planar_features++;
 
   // Mark cell as occupied in pointer array
   int m_i = i - static_cast<int>(std::round(origin.x / resolution + .49));
@@ -435,14 +434,9 @@ bool MapLayer::getAdjacent(const float&       i,
 
 bool MapLayer::findNearest(const ImageFeature& input,
                            ImageFeature&       nearest,
-                           float&              sdist,
-                           float&              ddist)
+                           float&              sdist)
 {
   if (n_surf_features == 0) {
-    //    std::cout
-    //        << "WARNING (findNearest): Trying to find nearest feature on empty
-    //        map..."
-    //        << std::endl;
     return false;
   }
 
@@ -462,8 +456,8 @@ bool MapLayer::findNearest(const ImageFeature& input,
   // iterator to move into the desired next cell
   int it = 0;
   // distance checker
-  sdist = 1e6;
-  ddist = 1e6;
+  float ddist = std::numeric_limits<float>::max();
+  sdist       = std::numeric_limits<float>::max();
   // booleans for stop criteria
   bool found_solution;
   bool valid_iteration;
@@ -584,54 +578,372 @@ bool MapLayer::findNearest(const ImageFeature& input,
           continue;
       }
 
-      // ---------------------------------------------------------------------------
-      if (metric == "euclidean") {
-        // Found solution if there is any feature in the target cell
-        found_solution = found_solution | !(*this)(m_i, m_j).surf_features.empty();
+      // ------- Use feature descriptor to find correspondences
+      // ------- Grid map is used to limit the search space
+      for (const auto& feature : (*this)(m_i, m_j).surf_features) {
+        std::vector<float> desc   = input.signature;
+        std::vector<float> m_desc = feature.signature;
 
-        // ------- Use euclidean distance to find correspondences
-        // ------- Grid map is used to limit the search space
-        for (const auto& feature : (*this)(m_i, m_j).surf_features) {
-          float dist = input.pos.distance(feature.pos);
-          if (dist < sdist) {
-            sdist   = dist;
-            nearest = feature;
-          }
+        // Check validity of descriptors data
+        if (desc.size() != m_desc.size()) {
+          std::cout << "WARNING (findNearest): source and target descriptors have "
+                       "different size ... "
+                    << std::endl;
+          break;
         }
-      } else {
-        // ------- Use feature descriptor to find correspondences
-        // ------- Grid map is used to limit the search space
-        for (const auto& feature : (*this)(m_i, m_j).surf_features) {
-          std::vector<float> desc   = input.signature;
-          std::vector<float> m_desc = feature.signature;
 
-          // Check validity of descriptors data
-          if (desc.size() != m_desc.size()) {
-            std::cout << "WARNING (findNearest): source and target descriptors have "
-                         "different size ... "
-                      << std::endl;
-            break;
-          }
+        // Check if source and target features are of the same type
+        if (feature.laplacian != input.laplacian)
+          continue;
 
-          // Check if source and target features are of the same type
-          if (feature.laplacian != input.laplacian)
-            continue;
+        // Found solution if there is any correspondence between features of the
+        // same type
+        found_solution = true;
 
-          // Found solution if there is any correspondence between features of the
-          // same type
-          found_solution = true;
+        float ssd = 0.; // sum of square errors
+        for (size_t k = 0; k < desc.size(); k++)
+          ssd += (desc[k] - m_desc[k]) * (desc[k] - m_desc[k]);
 
-          float ssd = 0.; // sum of square errors
-          for (size_t k = 0; k < desc.size(); k++)
-            ssd += (desc[k] - m_desc[k]) * (desc[k] - m_desc[k]);
+        // Update correspondence if we found a local minimum
+        if (ssd < ddist) {
+          ddist   = ssd;
+          nearest = feature;
 
-          // Update correspondence if we found a local minimum
-          if (ssd < ddist) {
-            ddist   = ssd;
-            nearest = feature;
-          }
+          sdist = input.pos.distance(feature.pos);
         }
       }
+      // ---------------------------------------------------------------------------
+
+    } while (move != DONE);
+
+    level++;
+  } while (level < 2 && valid_iteration && !found_solution);
+
+  return found_solution;
+}
+
+bool MapLayer::findNearest(const Corner& input, Corner& nearest, float& sdist)
+{
+  if (n_corner_features == 0) {
+    return false;
+  }
+
+  // Compute grid coordinates for the floating point Feature location
+  // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+  int i = static_cast<int>(std::round(input.pos.x / resolution + .49));
+  int j = static_cast<int>(std::round(input.pos.y / resolution + .49));
+
+  // Enumerator used to go through the nearest neighbor search
+  enum moves { ORIGIN, RIGHT, DOWN, LEFT, UP, DONE };
+  moves move = ORIGIN;
+
+  // Target cell current index
+  int m_i, m_j;
+  // level of search (level = 1 means searching on adjacent cells)
+  int level = 0;
+  // iterator to move into the desired next cell
+  int it = 0;
+  // distance checker
+  sdist = std::numeric_limits<float>::max();
+  // booleans for stop criteria
+  bool found_solution;
+  bool valid_iteration;
+
+  do {
+    valid_iteration = false;
+    found_solution  = false;
+    do {
+      switch (move) {
+        case ORIGIN:
+          try {
+            check(i, j);
+          } catch (char const* msg) {
+            std::cout << msg;
+            return false;
+          }
+
+          // Set cell indexes where to find correspondences
+          m_i = i;
+          m_j = j;
+          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          valid_iteration = true;
+          // End search if we found a correspondence in the source cell
+          move = DONE;
+          break;
+        case RIGHT:
+          // Compute cell indexes
+          m_i = i - level + it;
+          m_j = j + level;
+          try {
+            check(m_i, m_j);
+          } catch (char const* msg) {
+            move = DOWN;
+            it   = 1;
+            continue;
+          }
+
+          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          valid_iteration = true;
+          // Found solution if there is any feature in the target cell
+          if (m_i == i + level) {
+            move = DOWN;
+            it   = 1;
+          } else {
+            it++;
+          }
+          break;
+        case DOWN:
+          // Compute cell indexes
+          m_i = i + level;
+          m_j = j + level - it;
+          try {
+            check(m_i, m_j);
+          } catch (char const* msg) {
+            move = LEFT;
+            it   = 1;
+            continue;
+          }
+
+          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          valid_iteration = true;
+          // Update the next movement and the iterator
+          if (m_j == j - level) {
+            move = LEFT;
+            it   = 1;
+          } else {
+            it++;
+          }
+          break;
+        case LEFT:
+          // Compute cell indexes
+          m_i = i + level - it;
+          m_j = j - level;
+          try {
+            check(m_i, m_j);
+          } catch (char const* msg) {
+            move = UP;
+            it   = 1;
+            continue;
+          }
+
+          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          valid_iteration = true;
+          // Update the next movement and the iterator
+          if (m_i == i - level) {
+            move = UP;
+            it   = 1;
+          } else {
+            it++;
+          }
+          break;
+        case UP:
+          // Compute cell indexes
+          m_i = i - level;
+          m_j = j - level + it;
+          try {
+            check(m_i, m_j);
+          } catch (char const* msg) {
+            it   = 0;
+            move = DONE;
+            continue;
+          }
+
+          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          valid_iteration = true;
+          // Update the next movement and the iterator
+          // The '-1' is to not repeat the first iterator (started on RIGHT)
+          if (m_j == j + level - 1) {
+            move = DONE;
+            it   = 0;
+          } else {
+            it++;
+          }
+          break;
+        case DONE:
+          move = RIGHT;
+          it   = 0;
+          continue;
+      }
+
+      // Found solution if there is any feature in the target cell
+      found_solution = found_solution | !(*this)(m_i, m_j).corner_features.empty();
+
+      // ------- Use euclidean distance to find correspondences
+      // ------- Grid map is used to limit the search space
+      for (const auto& feature : (*this)(m_i, m_j).corner_features) {
+        float dist = input.pos.distance(feature.pos);
+        if (dist < sdist) {
+          sdist   = dist;
+          nearest = feature;
+        }
+      }
+
+      // ---------------------------------------------------------------------------
+
+    } while (move != DONE);
+
+    level++;
+  } while (level < 2 && valid_iteration && !found_solution);
+
+  return found_solution;
+}
+
+bool MapLayer::findNearest(const Planar& input, Planar& nearest, float& sdist)
+{
+  if (n_planar_features == 0) {
+    return false;
+  }
+
+  // Compute grid coordinates for the floating point Feature location
+  // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+  int i = static_cast<int>(std::round(input.pos.x / resolution + .49));
+  int j = static_cast<int>(std::round(input.pos.y / resolution + .49));
+
+  // Enumerator used to go through the nearest neighbor search
+  enum moves { ORIGIN, RIGHT, DOWN, LEFT, UP, DONE };
+  moves move = ORIGIN;
+
+  // Target cell current index
+  int m_i, m_j;
+  // level of search (level = 1 means searching on adjacent cells)
+  int level = 0;
+  // iterator to move into the desired next cell
+  int it = 0;
+  // distance checker
+  sdist = std::numeric_limits<float>::max();
+  // booleans for stop criteria
+  bool found_solution;
+  bool valid_iteration;
+
+  do {
+    valid_iteration = false;
+    found_solution  = false;
+    do {
+      switch (move) {
+        case ORIGIN:
+          try {
+            check(i, j);
+          } catch (char const* msg) {
+            std::cout << msg;
+            return false;
+          }
+
+          // Set cell indexes where to find correspondences
+          m_i = i;
+          m_j = j;
+          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          valid_iteration = true;
+          // End search if we found a correspondence in the source cell
+          move = DONE;
+          break;
+        case RIGHT:
+          // Compute cell indexes
+          m_i = i - level + it;
+          m_j = j + level;
+          try {
+            check(m_i, m_j);
+          } catch (char const* msg) {
+            move = DOWN;
+            it   = 1;
+            continue;
+          }
+
+          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          valid_iteration = true;
+          // Found solution if there is any feature in the target cell
+          if (m_i == i + level) {
+            move = DOWN;
+            it   = 1;
+          } else {
+            it++;
+          }
+          break;
+        case DOWN:
+          // Compute cell indexes
+          m_i = i + level;
+          m_j = j + level - it;
+          try {
+            check(m_i, m_j);
+          } catch (char const* msg) {
+            move = LEFT;
+            it   = 1;
+            continue;
+          }
+
+          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          valid_iteration = true;
+          // Update the next movement and the iterator
+          if (m_j == j - level) {
+            move = LEFT;
+            it   = 1;
+          } else {
+            it++;
+          }
+          break;
+        case LEFT:
+          // Compute cell indexes
+          m_i = i + level - it;
+          m_j = j - level;
+          try {
+            check(m_i, m_j);
+          } catch (char const* msg) {
+            move = UP;
+            it   = 1;
+            continue;
+          }
+
+          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          valid_iteration = true;
+          // Update the next movement and the iterator
+          if (m_i == i - level) {
+            move = UP;
+            it   = 1;
+          } else {
+            it++;
+          }
+          break;
+        case UP:
+          // Compute cell indexes
+          m_i = i - level;
+          m_j = j - level + it;
+          try {
+            check(m_i, m_j);
+          } catch (char const* msg) {
+            it   = 0;
+            move = DONE;
+            continue;
+          }
+
+          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          valid_iteration = true;
+          // Update the next movement and the iterator
+          // The '-1' is to not repeat the first iterator (started on RIGHT)
+          if (m_j == j + level - 1) {
+            move = DONE;
+            it   = 0;
+          } else {
+            it++;
+          }
+          break;
+        case DONE:
+          move = RIGHT;
+          it   = 0;
+          continue;
+      }
+
+      // Found solution if there is any feature in the target cell
+      found_solution = found_solution | !(*this)(m_i, m_j).planar_features.empty();
+
+      // ------- Use euclidean distance to find correspondences
+      // ------- Grid map is used to limit the search space
+      for (const auto& feature : (*this)(m_i, m_j).planar_features) {
+        float dist = input.pos.distance(feature.pos);
+        if (dist < sdist) {
+          sdist   = dist;
+          nearest = feature;
+        }
+      }
+
       // ---------------------------------------------------------------------------
 
     } while (move != DONE);
@@ -657,7 +969,7 @@ bool MapLayer::findNearestOnCell(const ImageFeature& input, ImageFeature& neares
   int j = static_cast<int>(std::round(input.pos.y / resolution + .49));
 
   // distance checker and calculator
-  float min_dist = 1e6;
+  float min_dist = std::numeric_limits<float>::max();
   float dist;
 
   for (const auto& feature : (*this)(i, j).surf_features) {
@@ -684,7 +996,6 @@ OccupancyMap::OccupancyMap(const Parameters& params, const pose& origin_offset)
   height       = params.gridmap_height;
   zmin         = 0;
   zmax         = static_cast<int>(std::round(height / resolution_z)) - 1;
-  metric       = params.gridmap_metric;
 
   // Initialize multi-layer grid map
   float i = origin.z;
@@ -708,8 +1019,7 @@ OccupancyMap::OccupancyMap(const OccupancyMap& grid_map)
   this->resolution_z = grid_map.resolution_z;
   this->zmin         = grid_map.zmin;
   this->zmax         = grid_map.zmax;
-  this->metric       = grid_map.metric;
-  this->map_planes = grid_map.map_planes;
+  this->map_planes   = grid_map.map_planes;
 }
 
 int OccupancyMap::getLayerNumber(const float& z) const
@@ -883,52 +1193,82 @@ bool OccupancyMap::getAdjacent(const float&       x,
 
 bool OccupancyMap::findNearest(const ImageFeature& input,
                                ImageFeature&       nearest,
-                               float&              sdist,
-                               float&              ddist)
+                               float&              sdist)
 {
   // Set up data needed to compute the routine
   ImageFeature nearest_down, nearest_up, nearest_layer;
   float        sdist_down = 1e6, sdist_up = 1e6, sdist_layer = 1e6;
-  float        ddist_down = 1e6, ddist_up = 1e6, ddist_layer = 1e6;
 
   int layer_num = getLayerNumber(input.pos.z);
 
   // Find the nearest feature in each layer
-  bool c1 = m_layers[layer_num - 1].findNearest(
-      input, nearest_down, sdist_down, ddist_down);
-  bool c2 =
-      m_layers[layer_num + 1].findNearest(input, nearest_up, sdist_up, ddist_up);
-  bool c3 = m_layers[layer_num].findNearest(
-      input, nearest_layer, sdist_layer, ddist_layer);
+  bool c1 = m_layers[layer_num - 1].findNearest(input, nearest_down, sdist_down);
+  bool c2 = m_layers[layer_num + 1].findNearest(input, nearest_up, sdist_up);
+  bool c3 = m_layers[layer_num].findNearest(input, nearest_layer, sdist_layer);
 
-  if (metric == "euclidean") {
-    if (sdist_down < sdist_up && sdist_down < sdist_layer) {
-      nearest = nearest_down;
-      sdist   = sdist_down;
-      ddist   = ddist_down;
-    } else if (sdist_up < sdist_down && sdist_up < sdist_layer) {
-      nearest = nearest_up;
-      sdist   = sdist_up;
-      ddist   = ddist_up;
-    } else {
-      nearest = nearest_layer;
-      sdist   = sdist_layer;
-      ddist   = ddist_layer;
-    }
+  if (sdist_down < sdist_up && sdist_down < sdist_layer) {
+    nearest = nearest_down;
+    sdist   = sdist_down;
+  } else if (sdist_up < sdist_down && sdist_up < sdist_layer) {
+    nearest = nearest_up;
+    sdist   = sdist_up;
   } else {
-    if (sdist_down < ddist_up && ddist_down < ddist_layer) {
-      nearest = nearest_down;
-      sdist   = sdist_down;
-      ddist   = ddist_down;
-    } else if (ddist_up < ddist_down && ddist_up < ddist_layer) {
-      nearest = nearest_up;
-      sdist   = sdist_up;
-      ddist   = ddist_up;
-    } else {
-      nearest = nearest_layer;
-      sdist   = sdist_layer;
-      ddist   = ddist_layer;
-    }
+    nearest = nearest_layer;
+    sdist   = sdist_layer;
+  }
+
+  return c1 || c2 || c3;
+}
+
+bool OccupancyMap::findNearest(const Corner& input, Corner& nearest, float& sdist)
+{
+  // Set up data needed to compute the routine
+  Corner nearest_down, nearest_up, nearest_layer;
+  float  sdist_down = 1e6, sdist_up = 1e6, sdist_layer = 1e6;
+
+  int layer_num = getLayerNumber(input.pos.z);
+
+  // Find the nearest feature in each layer
+  bool c1 = m_layers[layer_num - 1].findNearest(input, nearest_down, sdist_down);
+  bool c2 = m_layers[layer_num + 1].findNearest(input, nearest_up, sdist_up);
+  bool c3 = m_layers[layer_num].findNearest(input, nearest_layer, sdist_layer);
+
+  if (sdist_down < sdist_up && sdist_down < sdist_layer) {
+    nearest = nearest_down;
+    sdist   = sdist_down;
+  } else if (sdist_up < sdist_down && sdist_up < sdist_layer) {
+    nearest = nearest_up;
+    sdist   = sdist_up;
+  } else {
+    nearest = nearest_layer;
+    sdist   = sdist_layer;
+  }
+
+  return c1 || c2 || c3;
+}
+
+bool OccupancyMap::findNearest(const Planar& input, Planar& nearest, float& sdist)
+{
+  // Set up data needed to compute the routine
+  Planar nearest_down, nearest_up, nearest_layer;
+  float  sdist_down = 1e6, sdist_up = 1e6, sdist_layer = 1e6;
+
+  int layer_num = getLayerNumber(input.pos.z);
+
+  // Find the nearest feature in each layer
+  bool c1 = m_layers[layer_num - 1].findNearest(input, nearest_down, sdist_down);
+  bool c2 = m_layers[layer_num + 1].findNearest(input, nearest_up, sdist_up);
+  bool c3 = m_layers[layer_num].findNearest(input, nearest_layer, sdist_layer);
+
+  if (sdist_down < sdist_up && sdist_down < sdist_layer) {
+    nearest = nearest_down;
+    sdist   = sdist_down;
+  } else if (sdist_up < sdist_down && sdist_up < sdist_layer) {
+    nearest = nearest_up;
+    sdist   = sdist_up;
+  } else {
+    nearest = nearest_layer;
+    sdist   = sdist_layer;
   }
 
   return c1 || c2 || c3;

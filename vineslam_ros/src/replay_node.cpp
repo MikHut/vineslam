@@ -34,6 +34,17 @@ ReplayNode::ReplayNode(int argc, char** argv)
   mapper3D  = new Mapper3D(params);
   pf        = new PF(params, pose(0, 0, 0, 0, 0, 0));
 
+  // Initialize local grid map that will be used for relative motion calculation
+  Parameters local_map_params;
+  local_map_params.gridmap_origin_x   = -30;
+  local_map_params.gridmap_origin_y   = -30;
+  local_map_params.gridmap_origin_z   = -0.5;
+  local_map_params.gridmap_resolution = 0.20;
+  local_map_params.gridmap_width      = 60;
+  local_map_params.gridmap_lenght     = 60;
+  local_map_params.gridmap_height     = 2.5;
+  previous_map = new OccupancyMap(local_map_params, pose(0, 0, 0, 0, 0, 0));
+
   // Set initialization flags default values
   init             = true;
   init_gps         = true;
@@ -355,7 +366,7 @@ bool ReplayNode::debugPF(vineslam_ros::debug_particle_filter::Request&  request,
   // -------------------------------------------------------------------------------
   // ---- Call particle filter update routine
   // -------------------------------------------------------------------------------
-  // - Wait until normal vineslam procedure end
+  // - Wait until normal vineslam procedure ends
   while (ros::ok())
     if (have_iterated)
       break;
@@ -368,7 +379,6 @@ bool ReplayNode::debugPF(vineslam_ros::debug_particle_filter::Request&  request,
              obsv.ground_plane,
              obsv.surf_features,
              obsv.gps_pose,
-             previous_map,
              m_grid_map);
 
   // - Get particle with higher weight
@@ -382,17 +392,6 @@ bool ReplayNode::debugPF(vineslam_ros::debug_particle_filter::Request&  request,
     }
   }
   std::cout << "\n--\n";
-
-  // - Filter ground plane to use in the next PF iteration
-  std::array<float, 9> R{};
-  f_pose.toRotMatrix(R);
-  TF    tf(R, std::array<float, 3>{f_pose.x, f_pose.y, f_pose.z});
-  Plane m_plane;
-  for (const auto& i : obsv.ground_plane.points) {
-    point pt = i * tf;
-    m_plane.points.push_back(pt);
-  }
-  pf->p_ground.ransac(m_plane);
 
   // -------------------------------------------------------------------------------
   // ---- Publish output data

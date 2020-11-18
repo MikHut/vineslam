@@ -17,7 +17,6 @@ Mapper3D::Mapper3D(const Parameters& params)
   depth_hfov = params.depth_hfov;
   depth_vfov = params.depth_vfov;
   // Load 3D map parameters
-  metric     = params.gridmap_metric;
   max_range  = params.max_range;
   max_height = params.max_height;
   // Feature detector
@@ -27,7 +26,7 @@ Mapper3D::Mapper3D(const Parameters& params)
   correspondence_threshold = 0.02;
 
   // Set velodyne configuration parameters
-  picked_num              = 20;
+  picked_num              = 2;
   planes_th               = static_cast<float>(45.) * DEGREE_TO_RAD;
   ground_th               = static_cast<float>(5.) * DEGREE_TO_RAD;
   edge_threshold          = 0.1;
@@ -41,19 +40,6 @@ Mapper3D::Mapper3D(const Parameters& params)
   ang_res_x               = static_cast<float>(0.2) * DEGREE_TO_RAD;
   ang_res_y               = static_cast<float>(2.) * DEGREE_TO_RAD;
   lidar_height            = 1.20;
-
-  // Initialize local map for clustering
-  Parameters local_map_params;
-  local_map_params.gridmap_origin_x   = -30;
-  local_map_params.gridmap_origin_y   = -30;
-  local_map_params.gridmap_origin_z   = -0.5;
-  local_map_params.gridmap_resolution = 0.20;
-  local_map_params.gridmap_width      = 60;
-  local_map_params.gridmap_lenght     = 60;
-  local_map_params.gridmap_height     = 2.5;
-  local_map_params.gridmap_metric     = "euclidean";
-
-  local_map = new OccupancyMap(local_map_params, pose(0, 0, 0, 0, 0, 0));
 }
 
 void Mapper3D::registerMaps(const pose&                robot_pose,
@@ -227,6 +213,41 @@ void Mapper3D::extractSurfFeatures(const cv::Mat&             in,
   }
 }
 
+void Mapper3D::pixel2base(const point& in_pt,
+                          const float& depth,
+                          point&       out_pt) const
+{
+  // Project 2D pixel into a 3D Point using the stereo depth information
+  float x_cam = (in_pt.x - cx) * (depth / fx);
+  float y_cam = (in_pt.y - cy) * (depth / fy);
+  float z_cam = depth;
+  point pt_cam(x_cam, y_cam, z_cam);
+
+  // Compute camera-world axis transformation matrix
+  pose                 cam2world(0., 0., 0, -M_PI / 2., 0., -M_PI / 2.);
+  std::array<float, 9> c2w_rot{};
+  cam2world.toRotMatrix(c2w_rot);
+  TF cam2world_tf(c2w_rot, std::array<float, 3>{0., 0., 0.});
+
+  // Align world and camera axis
+  point wpoint = pt_cam * cam2world_tf;
+
+  // Compute camera-to-base transformation matrix
+  pose cam2base(cam2base_x,
+                cam2base_y,
+                cam2base_z,
+                cam2base_roll,
+                cam2base_pitch,
+                cam2base_yaw);
+
+  std::array<float, 9> c2b_rot{};
+  cam2base.toRotMatrix(c2b_rot);
+  TF cam2base_tf(c2b_rot, std::array<float, 3>{cam2base_x, cam2base_y, cam2base_z});
+
+  // Transform camera point to base_link
+  out_pt = wpoint * cam2base_tf.inverse();
+}
+
 // -------------------------------------------------------------------------------
 // ---- 3D pointcloud feature map functions
 // -------------------------------------------------------------------------------
@@ -382,7 +403,7 @@ void Mapper3D::globalCornerMap(const pose&          robot_pose,
     found &= (best_correspondence < 0.02);
 
     // - Then, insert the corner into the grid map
-    if (0) {
+    if (found) {
       point new_pt =
           ((correspondence.pos * static_cast<float>(correspondence.n_observations)) +
            m_pt) /
@@ -430,7 +451,7 @@ void Mapper3D::globalPlanarMap(const pose&          robot_pose,
     found &= (best_correspondence < 0.02);
 
     // - Then, insert the planar into the grid map
-    if (0) {
+    if (found) {
       point new_pt =
           ((correspondence.pos * static_cast<float>(correspondence.n_observations)) +
            m_pt) /
@@ -508,8 +529,9 @@ void Mapper3D::cloudSegmentation(const std::vector<point>& in_pts,
 
         // The majority of ground points are skipped
         if (ground_mat(i, j) == 1) {
-          //          if (j % 1 != 0 && j > 1 && j < horizontal_scans - 1)
-          continue;
+//          if (j % 5 != 0 && j > 5 && j < horizontal_scans - 5) {
+            continue;
+//          }
         }
 
         // Mark ground points so they will not be considered as edge features later
@@ -529,17 +551,6 @@ void Mapper3D::cloudSegmentation(const std::vector<point>& in_pts,
     }
     seg_pcl.end_col_idx[i] = seg_cloud_size - 1 - 5;
   }
-
-  // Save pure segmented cloud (without unfiltered ground)
-  //  for (int i = 0; i < vertical_scans; i++) {
-  //    for (int j = 0; j < horizontal_scans; j++) {
-  //      if (label_mat(i, j) > 0 && label_mat(i, j) != 999999) {
-  //        point      pt = in_pts[j + i * horizontal_scans];
-  //        PlanePoint m_ppoint(pt, label_mat(i, j));
-  //        cloud_seg_pure.push_back(m_ppoint);
-  //      }
-  //    }
-  //  }
 }
 
 void Mapper3D::labelComponents(const int&                row,
@@ -690,7 +701,7 @@ void Mapper3D::extractHighLevelPlanes(const std::vector<PlanePoint>& in_plane_pt
       B = true;
 
     // (C) - Save plane if in case of success
-//    if (A && B)
+    if (A && B)
       out_planes.push_back(plane);
   }
 }
@@ -840,7 +851,7 @@ void Mapper3D::extract3DFeatures(const std::vector<PlanePoint>& in_plane_pts,
 
         // Check if the current point is a planar feature
         if (neighbor_picked[idx] == 0 &&
-            cloud_smoothness[l].value < planar_threshold) {
+            cloud_smoothness[l].value < planar_threshold && seg_pcl.is_ground[idx]) {
 
           cloudPlanarLabel[idx] = -1;
 
@@ -884,471 +895,6 @@ void Mapper3D::extract3DFeatures(const std::vector<PlanePoint>& in_plane_pts,
                        planar_points_less_flat.begin(),
                        planar_points_less_flat.end());
   }
-
-  local_map->clear();
-  for (const auto& planar : out_planars) local_map->insert(planar);
-  for (const auto& corner : out_corners) local_map->insert(corner);
-  local_map->downsamplePlanars();
-
-  out_planars.clear();
-  out_planars = local_map->getPlanars();
-}
-
-void Mapper3D::extractPCLDescriptors(const cv::Mat& by_image_var,
-                                     const cv::Mat& pside_image_var,
-                                     const cv::Mat& nside_image_var,
-                                     const cv::Mat& back_image_var)
-{
-  // Set histograms static settings
-  int horizontal_res = 255;
-  int vertical_res   = 255;
-
-  // Compute histogram arrayw
-  std::vector<int> by_hist_vec, pside_hist_vec, nside_hist_vec, back_hist_vec;
-  computeHistogram(by_image_var, by_hist_vec);
-  computeHistogram(pside_image_var, pside_hist_vec);
-  computeHistogram(nside_image_var, nside_hist_vec);
-  computeHistogram(back_image_var, back_hist_vec);
-
-  // Convert histogram array to an image
-  int     by_max_val = *std::max_element(by_hist_vec.begin(), by_hist_vec.end());
-  cv::Mat by_hist    = cv::Mat::zeros(vertical_res + 1, 255 + 1, CV_8UC1);
-  for (size_t idx = 0; idx < by_hist_vec.size(); idx++) {
-    int i = by_hist_vec[idx] * vertical_res / by_max_val;
-    cv::rectangle(by_hist,
-                  cv::Point(idx, vertical_res),
-                  cv::Point(idx, vertical_res - i),
-                  idx);
-  }
-  int pside_max_val =
-      *std::max_element(pside_hist_vec.begin(), pside_hist_vec.end());
-  cv::Mat pside_hist = cv::Mat::zeros(vertical_res + 1, 255 + 1, CV_8UC1);
-  for (size_t idx = 0; idx < pside_hist_vec.size(); idx++) {
-    int i = pside_hist_vec[idx] * vertical_res / pside_max_val;
-    cv::rectangle(pside_hist,
-                  cv::Point(idx, vertical_res),
-                  cv::Point(idx, vertical_res - i),
-                  idx);
-  }
-  int nside_max_val =
-      *std::max_element(nside_hist_vec.begin(), nside_hist_vec.end());
-  cv::Mat nside_hist = cv::Mat::zeros(vertical_res + 1, 255 + 1, CV_8UC1);
-  for (size_t idx = 0; idx < nside_hist_vec.size(); idx++) {
-    int i = nside_hist_vec[idx] * vertical_res / nside_max_val;
-    cv::rectangle(nside_hist,
-                  cv::Point(idx, vertical_res),
-                  cv::Point(idx, vertical_res - i),
-                  idx);
-  }
-  int back_max_val  = *std::max_element(back_hist_vec.begin(), back_hist_vec.end());
-  cv::Mat back_hist = cv::Mat::zeros(vertical_res + 1, 255 + 1, CV_8UC1);
-  for (size_t idx = 0; idx < back_hist_vec.size(); idx++) {
-    int i = back_hist_vec[idx] * vertical_res / back_max_val;
-    cv::rectangle(back_hist,
-                  cv::Point(idx, vertical_res),
-                  cv::Point(idx, vertical_res - i),
-                  idx);
-  }
-
-  cv::putText(by_hist,
-              "2.0",
-              cv::Point(by_hist.cols - 25, by_hist.rows - 25),
-              cv::FONT_HERSHEY_DUPLEX,
-              0.4,
-              CV_RGB(255, 255, 255),
-              1);
-  cv::putText(pside_hist,
-              "1.0",
-              cv::Point(pside_hist.cols - 25, pside_hist.rows - 25),
-              cv::FONT_HERSHEY_DUPLEX,
-              0.4,
-              CV_RGB(255, 255, 255),
-              1);
-  cv::putText(nside_hist,
-              "1.0",
-              cv::Point(nside_hist.cols - 25, nside_hist.rows - 25),
-              cv::FONT_HERSHEY_DUPLEX,
-              0.4,
-              CV_RGB(255, 255, 255),
-              1);
-  cv::putText(back_hist,
-              "10.0",
-              cv::Point(back_hist.cols - 25, back_hist.rows - 25),
-              cv::FONT_HERSHEY_DUPLEX,
-              0.4,
-              CV_RGB(255, 255, 255),
-              1);
-
-  //  cv::Mat cm_by_hist, cm_pside_hist, cm_nside_hist, cm_back_hist;
-  //  cv::applyColorMap(by_hist, cm_by_hist, cv::COLORMAP_JET);
-  //  cv::applyColorMap(pside_hist, cm_pside_hist, cv::COLORMAP_JET);
-  //  cv::applyColorMap(nside_hist, cm_nside_hist, cv::COLORMAP_JET);
-  //  cv::applyColorMap(back_hist, cm_back_hist, cv::COLORMAP_JET);
-  //
-  //  cv::imshow("Birds eye depth variance histogram", cm_by_hist);
-  //  cv::imshow("Positive side depth variance histogram", cm_pside_hist);
-  //  cv::imshow("Negative side depth variance histogram", cm_nside_hist);
-  //  cv::imshow("Back view depth variance histogram", cm_back_hist);
-}
-
-void Mapper3D::computeHistogram(const cv::Mat& in_image, std::vector<int>& hist)
-{
-  hist.resize(255);
-
-  for (int i = 0; i < in_image.cols; i++)
-    for (int j = 0; j < in_image.rows; j++) {
-      int idx = static_cast<int>(in_image.at<uchar>(j, i));
-
-      if (idx >= 255 || idx <= 0)
-        continue;
-
-      hist[idx]++;
-    }
-}
-
-void Mapper3D::rangeImage(const std::vector<point>& pcl,
-                          const std::vector<float>& intensities,
-                          cv::Mat&                  out_image)
-{
-  float max_distance = 20;
-  float ang_res      = 0.4;
-  float fov_up       = static_cast<float>(15.) * DEGREE_TO_RAD;
-  float fov_down     = static_cast<float>(-15.) * DEGREE_TO_RAD;
-  float fov          = std::fabs(fov_up) + std::fabs(fov_down);
-  float proj_W       = 360 / ang_res;
-  float proj_H       = 16;
-
-  // Set the output range map to the desired dimensions and format
-  out_image                   = cv::Mat::ones(cv::Size(proj_W, proj_H), CV_8UC3);
-  cv::Mat out_range_image     = cv::Mat::ones(cv::Size(proj_W, proj_H), CV_8UC1);
-  cv::Mat out_intensity_image = cv::Mat::ones(cv::Size(proj_W, proj_H), CV_8UC1);
-
-  for (size_t i = 0; i < pcl.size(); i++) {
-    point pt = pcl[i];
-
-    float depth = pt.norm3D();
-    float yaw   = std::atan2(pt.y, pt.x);
-    float pitch = std::asin(pt.z / depth);
-
-    if (depth > max_distance)
-      continue;
-
-    // Get projections in image coordinates
-    float proj_x = static_cast<float>(.5) *
-                   (yaw / static_cast<float>(M_PI) + static_cast<float>(1.));
-    float proj_y = static_cast<float>(1.) - (pitch + std::fabs(fov_down)) / fov;
-
-    // Scale to image size using angular resolution
-    proj_x *= proj_W;
-    proj_y *= proj_H;
-
-    // Round and clamp for use as index
-    proj_x             = std::floor(proj_x);
-    proj_x             = std::min(proj_W - static_cast<float>(1.), proj_x);
-    int proj_x_rounded = static_cast<int>(std::max(static_cast<float>(0.), proj_x));
-    proj_y             = std::floor(proj_y);
-    proj_y             = std::min(proj_H - static_cast<float>(1.), proj_y);
-    int proj_y_rounded = static_cast<int>(std::max(static_cast<float>(0.), proj_y));
-
-    // Compute depth image and intensity image
-    auto depth_normalized = static_cast<unsigned char>(255 / max_distance * depth);
-    out_range_image.at<uchar>(proj_y_rounded, proj_x_rounded)     = depth_normalized;
-    out_intensity_image.at<uchar>(proj_y_rounded, proj_x_rounded) = intensities[i];
-
-    // Compute a mixed image (first 16 bits with depth and last 8 bits with
-    // intensity)
-    uint16_t  depth_normalized_ = 65536 / max_distance * depth;
-    auto      msb = static_cast<float>((depth_normalized_ >> 8u) & 0xFF);
-    auto      lsb = static_cast<float>(depth_normalized_ & 0xFF);
-    cv::Vec3b mixed_val;
-    mixed_val[0] = lsb;
-    mixed_val[1] = msb;
-    mixed_val[2] = intensities[i];
-
-    out_image.at<cv::Vec3b>(proj_y_rounded, proj_x_rounded) = mixed_val;
-  }
-}
-
-void Mapper3D::birdEyeImage(const std::vector<point>& pcl,
-                            cv::Mat&                  out_image,
-                            cv::Mat&                  out_image_var)
-{
-  // Grid parameters
-  float grid_resolution = 0.05;
-  float side_range_min  = -5;
-  float side_range_max  = 5;
-  float fwd_range_min   = -5;
-  float fwd_range_max   = 5;
-  float normalizer      = 0.05;
-
-  // Set output image size
-  int img_size_x =
-      1 + static_cast<int>((fwd_range_max - fwd_range_min) / grid_resolution);
-  int img_size_y =
-      1 + static_cast<int>((side_range_max - side_range_min) / grid_resolution);
-  out_image     = cv::Mat::zeros(cv::Size(img_size_x, img_size_y), CV_8UC1);
-  out_image_var = cv::Mat::zeros(cv::Size(img_size_x + 1, img_size_y + 1), CV_8UC1);
-
-  // Map from pixel to elements
-  std::map<int, std::vector<float>> depth_map;
-  std::vector<float>                sum_vec(img_size_x * img_size_y + 1, 0);
-
-  for (const auto& pt : pcl) {
-    // Check if point is inside the desired bounds
-    if (pt.x > fwd_range_max || pt.x < fwd_range_min || pt.y > side_range_max ||
-        pt.y < side_range_min)
-      continue;
-
-    // Convert point to pixel position values
-    int x_img = static_cast<int>(-pt.x / grid_resolution);
-    int y_img = static_cast<int>(-pt.y / grid_resolution);
-
-    // Shift pixels to the image origin
-    x_img += std::floor(fwd_range_max / grid_resolution);
-    y_img += std::ceil(side_range_max / grid_resolution);
-
-    // Increment pixel intensity at each observation
-    out_image.at<uchar>(y_img, x_img) += 10;
-
-    // Store info to compute depth variance
-    sum_vec[y_img * img_size_x + x_img] += pt.x - fwd_range_min;
-    depth_map[y_img * img_size_x + x_img].push_back(pt.x - fwd_range_min);
-  }
-
-  // Compute depth variance image
-  for (int i = 0; i < img_size_x; i++) {
-    for (int j = 0; j < img_size_y; j++) {
-      // Compute index
-      int idx = j * img_size_x + i;
-
-      if (!depth_map[idx].empty()) {
-        // Compute mean of each grid cell
-        float sum  = sum_vec[idx];
-        float mean = sum / depth_map[idx].size();
-        // Compute depth variances for each grid cell
-        float var = 0.;
-        for (const auto& depth : depth_map[idx]) {
-          var += std::pow(depth - mean, 2);
-        }
-        var = std::sqrt(var / static_cast<float>(depth_map[idx].size()));
-
-        // Save variance on cell
-        int val       = static_cast<int>(var / normalizer * static_cast<float>(255));
-        int final_val = val > 255 ? 255 : val;
-        out_image_var.at<uchar>(j, i) = final_val;
-      }
-    }
-  }
-}
-
-void Mapper3D::sideViewImageXZ(const std::vector<point>& pcl,
-                               cv::Mat&                  image_pside,
-                               cv::Mat&                  image_nside,
-                               cv::Mat&                  image_pside_var,
-                               cv::Mat&                  image_nside_var)
-{
-  // Set initial parameters
-  float grid_res       = 0.06;
-  float horizontal_min = -10.;
-  float horizontal_max = 10.;
-  float vertical_min   = -3.;
-  float vertical_max   = 3.;
-  float normalizer     = 1.0;
-  int   img_size_x = static_cast<int>((horizontal_max - horizontal_min) / grid_res);
-  int   img_size_y = static_cast<int>((vertical_max - vertical_min) / grid_res);
-
-  // Initialize image dimensions
-  image_pside = cv::Mat::zeros(cv::Size(img_size_x + 1, img_size_y + 1), CV_8UC1);
-  image_nside = cv::Mat::zeros(cv::Size(img_size_x + 1, img_size_y + 1), CV_8UC1);
-  image_pside_var =
-      cv::Mat::zeros(cv::Size(img_size_x + 1, img_size_y + 1), CV_8UC1);
-  image_nside_var =
-      cv::Mat::zeros(cv::Size(img_size_x + 1, img_size_y + 1), CV_8UC1);
-
-  // Map from pixel to elements
-  std::map<int, std::vector<float>> pmap;
-  std::map<int, std::vector<float>> nmap;
-  std::vector<float>                psum_vec(img_size_x * img_size_y + 1, 0);
-  std::vector<float>                nsum_vec(img_size_x * img_size_y + 1, 0);
-
-  for (const auto& pt : pcl) {
-    // Check if point is inside the grid bounds
-    if (pt.x < horizontal_min || pt.x > horizontal_max || pt.z < vertical_min ||
-        pt.z > vertical_max)
-      continue;
-
-    // Map point to image
-    int x_img = static_cast<int>(pt.x / grid_res - horizontal_min / grid_res);
-    int y_img =
-        img_size_y - static_cast<int>(pt.z / grid_res - vertical_min / grid_res);
-
-    // Increment pixel intensity at each observation
-    if (pt.y > 0.) {
-      // Add element to grid cell
-      image_pside.at<uchar>(y_img, x_img) += 20;
-
-      // Store info to compute depth variance
-      psum_vec[y_img * img_size_x + x_img] += pt.y;
-      pmap[y_img * img_size_x + x_img].push_back(pt.y);
-    } else {
-      // Add element to grid cell
-      image_nside.at<uchar>(y_img, x_img) += 20;
-
-      // Store info to compute depth variance
-      nsum_vec[y_img * img_size_x + x_img] += pt.y;
-      nmap[y_img * img_size_x + x_img].push_back(pt.y);
-    }
-  }
-
-  // Compute depth variance images
-  for (int i = 0; i < img_size_x; i++) {
-    for (int j = 0; j < img_size_y; j++) {
-      // Compute index
-      int idx = j * img_size_x + i;
-
-      if (!pmap[idx].empty()) {
-        // Compute mean of each grid cell
-        float sum   = psum_vec[idx];
-        float pmean = sum / pmap[idx].size();
-        // Compute depth variances for each grid cell
-        float pvar = 0.;
-        for (const auto& depth : pmap[idx]) {
-          pvar += std::pow(depth - pmean, 2);
-        }
-        pvar = std::sqrt(pvar / static_cast<float>(pmap[idx].size()));
-
-        // Save variance on cell
-        int val = static_cast<int>(pvar / normalizer * static_cast<float>(255));
-        int final_val                   = val > 255 ? 255 : val;
-        image_pside_var.at<uchar>(j, i) = final_val;
-      }
-
-      if (!nmap[idx].empty()) {
-        // Compute mean of each grid cell
-        float sum   = nsum_vec[idx];
-        float nmean = sum / nmap[idx].size();
-        // Compute depth variances for each grid cell
-        float nvar = 0.;
-        for (const auto& depth : nmap[idx]) {
-          nvar += std::pow(depth - nmean, 2);
-        }
-        nvar = std::sqrt(nvar / static_cast<float>(nmap[idx].size()));
-
-        // Normalize variance to write on image
-        float nmax = *std::max_element(nmap[idx].begin(), nmap[idx].end());
-        int   nvar_normalized = static_cast<int>(nvar / nmax * 255);
-
-        // Save variance on cell
-        int val = static_cast<int>(nvar / normalizer * static_cast<float>(255));
-        int final_val                   = val > 255 ? 255 : val;
-        image_nside_var.at<uchar>(j, i) = final_val;
-      }
-    }
-  }
-}
-
-void Mapper3D::sideViewImageYZ(const std::vector<point>& pcl,
-                               cv::Mat&                  out_image,
-                               cv::Mat&                  out_image_var)
-{
-  // Set initial parameters
-  float grid_res       = 0.04;
-  float horizontal_min = -4.;
-  float horizontal_max = 4.;
-  float vertical_min   = -3.;
-  float vertical_max   = 3.;
-  float normalizer     = 10.;
-  int   img_size_x = static_cast<int>((horizontal_max - horizontal_min) / grid_res);
-  int   img_size_y = static_cast<int>((vertical_max - vertical_min) / grid_res);
-
-  // Initialize image dimensions
-  out_image     = cv::Mat::zeros(cv::Size(img_size_x + 1, img_size_y + 1), CV_8UC1);
-  out_image_var = cv::Mat::zeros(cv::Size(img_size_x + 1, img_size_y + 1), CV_8UC1);
-
-  // Map from pixel to elements
-  std::map<int, std::vector<float>> depth_map;
-  std::vector<float>                sum_vec(img_size_x * img_size_y + 1, 0);
-
-  for (const auto& pt : pcl) {
-    // Check if point is inside the grid bounds
-    if (pt.y < horizontal_min || pt.y > horizontal_max || pt.z < vertical_min ||
-        pt.z > vertical_max)
-      continue;
-
-    // Map point to image
-    int x_img = static_cast<int>(pt.y / grid_res - horizontal_min / grid_res);
-    int y_img =
-        img_size_y - static_cast<int>(pt.z / grid_res - vertical_min / grid_res);
-
-    // Increment pixel intensity at each observation
-    out_image.at<uchar>(y_img, x_img) += 20;
-
-    // Store info to compute depth variance
-    sum_vec[y_img * img_size_x + x_img] += pt.x;
-    depth_map[y_img * img_size_x + x_img].push_back(pt.x);
-  }
-
-  // Compute depth variance image
-  for (int i = 0; i < img_size_x; i++) {
-    for (int j = 0; j < img_size_y; j++) {
-      // Compute index
-      int idx = j * img_size_x + i;
-
-      if (!depth_map[idx].empty()) {
-        // Compute mean of each grid cell
-        float sum  = sum_vec[idx];
-        float mean = sum / depth_map[idx].size();
-        // Compute depth variances for each grid cell
-        float var = 0.;
-        for (const auto& depth : depth_map[idx]) {
-          var += std::pow(depth - mean, 2);
-        }
-        var = std::sqrt(var / static_cast<float>(depth_map[idx].size()));
-
-        // Save variance on cell
-        int val       = static_cast<int>(var / normalizer * static_cast<float>(255));
-        int final_val = val > 255 ? 255 : val;
-        out_image_var.at<uchar>(j, i) = final_val;
-      }
-    }
-  }
-}
-
-// -------------------------------------------------------------------------------
-
-void Mapper3D::pixel2base(const point& in_pt,
-                          const float& depth,
-                          point&       out_pt) const
-{
-  // Project 2D pixel into a 3D Point using the stereo depth information
-  float x_cam = (in_pt.x - cx) * (depth / fx);
-  float y_cam = (in_pt.y - cy) * (depth / fy);
-  float z_cam = depth;
-  point pt_cam(x_cam, y_cam, z_cam);
-
-  // Compute camera-world axis transformation matrix
-  pose                 cam2world(0., 0., 0, -M_PI / 2., 0., -M_PI / 2.);
-  std::array<float, 9> c2w_rot{};
-  cam2world.toRotMatrix(c2w_rot);
-  TF cam2world_tf(c2w_rot, std::array<float, 3>{0., 0., 0.});
-
-  // Align world and camera axis
-  point wpoint = pt_cam * cam2world_tf;
-
-  // Compute camera-to-base transformation matrix
-  pose cam2base(cam2base_x,
-                cam2base_y,
-                cam2base_z,
-                cam2base_roll,
-                cam2base_pitch,
-                cam2base_yaw);
-
-  std::array<float, 9> c2b_rot{};
-  cam2base.toRotMatrix(c2b_rot);
-  TF cam2base_tf(c2b_rot, std::array<float, 3>{cam2base_x, cam2base_y, cam2base_z});
-
-  // Transform camera point to base_link
-  out_pt = wpoint * cam2base_tf.inverse();
 }
 
 } // namespace vineslam

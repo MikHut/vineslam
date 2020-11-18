@@ -66,7 +66,6 @@ struct Parameters {
   float       gridmap_lenght{};
   float       gridmap_height{};
   float       gridmap_resolution{};
-  std::string gridmap_metric;
   bool        save_map{};
   std::string map_output_folder;
   std::string map_input_file;
@@ -82,10 +81,10 @@ struct Parameters {
   // ------ Particle filter parameters
   // -----------------------------------
   int   number_particles{};
-  float srr{};
-  float srt{};
-  float str{};
-  float stt{};
+  float alpha1;
+  float alpha2;
+  float alpha3;
+  float alpha4;
   float sigma_xy{};
   float sigma_z{};
   float sigma_roll{};

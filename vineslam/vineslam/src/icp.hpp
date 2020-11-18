@@ -63,7 +63,7 @@ public:
     bool found_solution = false;
 
     rms_error = 0.;
-    while (n_iters < max_iters /*&& delta_dist > tolerance*/) {
+    while (n_iters < max_iters && delta_dist > tolerance) {
       if (step(Rot, trans, rms_error)) {
         delta_dist  = std::fabs(rms_error - p_rms_error);
         p_rms_error = rms_error;
@@ -73,8 +73,6 @@ public:
 
       n_iters++;
     }
-
-    std::cout << n_iters << " ****** \n";
 
     if (!found_solution) // invalid iteration
     {

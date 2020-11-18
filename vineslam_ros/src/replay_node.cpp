@@ -366,7 +366,7 @@ bool ReplayNode::debugPF(vineslam_ros::debug_particle_filter::Request&  request,
   // -------------------------------------------------------------------------------
   // ---- Call particle filter update routine
   // -------------------------------------------------------------------------------
-  // - Wait until normal vineslam procedure end
+  // - Wait until normal vineslam procedure ends
   while (ros::ok())
     if (have_iterated)
       break;
@@ -379,7 +379,6 @@ bool ReplayNode::debugPF(vineslam_ros::debug_particle_filter::Request&  request,
              obsv.ground_plane,
              obsv.surf_features,
              obsv.gps_pose,
-             previous_map,
              m_grid_map);
 
   // - Get particle with higher weight

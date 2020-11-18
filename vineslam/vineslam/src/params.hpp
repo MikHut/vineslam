@@ -85,12 +85,6 @@ struct Parameters {
   float alpha2;
   float alpha3;
   float alpha4;
-  float alpha5;
-  float alpha6;
-  float alpha7;
-  float alpha8;
-  float alpha9;
-  float alpha10;
   float sigma_xy{};
   float sigma_z{};
   float sigma_roll{};

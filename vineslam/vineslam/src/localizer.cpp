@@ -22,6 +22,7 @@ void Localizer::init(const pose& initial_pose)
   average_pose     = pose(poses);
   last_update_pose = initial_pose;
 
+  p_odom    = initial_pose;
   init_flag = true;
 }
 
@@ -36,14 +37,23 @@ void Localizer::process(const pose&        odom,
   update    = false;
 
   // ------------------------------------------------------------------------------
+  // ---------------- Compute LiDAR odometry to predict the robot motion
+  // ------------------------------------------------------------------------------
+  TF tf;
+  predictMotion(obsv.planars, previous_map, tf);
+  pose odom_inc(tf.R, tf.t);
+  odom_inc.normalize();
+
+  // ------------------------------------------------------------------------------
   // ---------------- Draw particles using odometry motion model
   // ------------------------------------------------------------------------------
-  pf->motionModel(odom);
+  pf->motionModel(odom_inc, p_odom);
   // - Save not resampled particles
   m_particles.clear();
   for (const auto& particle : pf->particles) m_particles.push_back(particle);
 
-  pose delta_pose = odom - last_update_pose;
+  pose icp_odom   = p_odom + odom_inc;
+  pose delta_pose = icp_odom - last_update_pose;
   delta_pose.normalize();
 
   if (std::fabs(delta_pose.x) > 0.1 || std::fabs(delta_pose.y) > 0.1 ||
@@ -59,7 +69,6 @@ void Localizer::process(const pose&        odom,
                obsv.ground_plane,
                obsv.surf_features,
                obsv.gps_pose,
-               previous_map,
                grid_map);
 
     // ------------------------------------------------------------------------------
@@ -72,7 +81,7 @@ void Localizer::process(const pose&        odom,
     // ------------------------------------------------------------------------------
     pf->resample();
 
-    last_update_pose = odom;
+    last_update_pose = icp_odom;
     init_flag        = false;
     update           = true;
   }
@@ -83,7 +92,7 @@ void Localizer::process(const pose&        odom,
   average_pose = pose(poses);
 
   // - Save current control to use in the next iteration
-  pf->p_odom = odom;
+  p_odom = icp_odom;
 
   // - Save pf logs
   auto after = std::chrono::high_resolution_clock::now();
@@ -124,9 +133,7 @@ void Localizer::changeObservationsToUse(const bool& use_high_level,
   pf->use_gps          = use_gps;
 }
 
-void Localizer::predictMotion(const pose&                odom,
-                              const std::vector<Corner>& corners,
-                              const std::vector<Planar>& planars,
+void Localizer::predictMotion(const std::vector<Planar>& planars,
                               OccupancyMap*              previous_map,
                               TF&                        result)
 {
@@ -138,32 +145,18 @@ void Localizer::predictMotion(const pose&                odom,
   ICP<Planar> planar_icp(params);
   planar_icp.setInputSource(planars);
   planar_icp.setInputTarget(previous_map);
+  planar_icp.setTolerance(1e-5);
   planar_icp.setMaxIterations(50);
   planar_icp.setRejectOutliersFlag(false);
-
-  // - Convert odom increment pose to TF
-  pose odom_inc = odom - pf->p_odom;
-  odom_inc.normalize();
-  std::array<float, 9> odom_R{};
-  odom_inc.toRotMatrix(odom_R);
-  TF odom_tf(odom_R, std::array<float, 3>{odom_inc.x, odom_inc.y, odom_inc.z});
 
   // - Compute ICP
   float               rms_error;
   std::vector<Planar> aligned;
   planar_icp.align(rms_error, aligned);
-  //  planar_icp.align(odom_tf, rms_error, aligned);
   planar_icp.getTransform(result);
-  pose m_res(result.R, result.t);
 
   std::vector<float> errors;
   planar_icp.getErrors(errors);
-
-  std::cout << "---- ICP ---- \n\n";
-  std::cout << "-> (initial guess): " << odom_inc;
-  std::cout << "-> (rms): " << rms_error << "\n";
-  std::cout << "-> (result): " << m_res << "---\n";
-  pf->p_odom = odom;
 }
 
 } // namespace vineslam

@@ -284,30 +284,6 @@ static void loadParameters(const ros::NodeHandle& nh,
     ROS_ERROR("%s/pf/alpha4 not found. Shutting down...", prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/pf/alpha5", params.alpha5)) {
-    ROS_ERROR("%s/pf/alpha5 not found. Shutting down...", prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/pf/alpha6", params.alpha6)) {
-    ROS_ERROR("%s/pf/alpha6 not found. Shutting down...", prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/pf/alpha7", params.alpha7)) {
-    ROS_ERROR("%s/pf/alpha7 not found. Shutting down...", prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/pf/alpha8", params.alpha8)) {
-    ROS_ERROR("%s/pf/alpha8 not found. Shutting down...", prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/pf/alpha9", params.alpha9)) {
-    ROS_ERROR("%s/pf/alpha9 not found. Shutting down...", prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/pf/alpha10", params.alpha10)) {
-    ROS_ERROR("%s/pf/alpha10 not found. Shutting down...", prefix.c_str());
-    exit(-1);
-  }
   if (!nh.getParam(prefix + "/pf/sigma_xy", params.sigma_xy)) {
     ROS_ERROR("%s/pf/sigma_xy not found. "
               "Shutting down...",

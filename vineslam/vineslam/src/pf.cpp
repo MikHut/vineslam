@@ -18,16 +18,10 @@ PF::PF(const Parameters& params, const pose& initial_pose)
   use_gps          = params.use_gps;
   n_particles      = static_cast<float>(params.number_particles);
   // - Motion model parameters
-  alpha1  = params.alpha1;
-  alpha2  = params.alpha2;
-  alpha3  = params.alpha3;
-  alpha4  = params.alpha4;
-  alpha5  = params.alpha5;
-  alpha6  = params.alpha6;
-  alpha7  = params.alpha7;
-  alpha8  = params.alpha8;
-  alpha9  = params.alpha9;
-  alpha10 = params.alpha10;
+  alpha1 = params.alpha1;
+  alpha2 = params.alpha2;
+  alpha3 = params.alpha3;
+  alpha4 = params.alpha4;
   // - Innovation parameters
   sigma_xy    = params.sigma_xy;
   sigma_z     = params.sigma_z;
@@ -56,156 +50,71 @@ PF::PF(const Parameters& params, const pose& initial_pose)
     // Calculate the initial pose for each particle considering
     // - the input initial pose
     // - a sample distribution to spread the particles
-    pose m_pose = initial_pose + pose(sampleGaussian(sigma_xy, i),
-                                      sampleGaussian(sigma_xy, i),
-                                      sampleGaussian(sigma_z * 2, i),
-                                      sampleGaussian(sigma_roll * 2, i),
-                                      sampleGaussian(sigma_pitch * 2, i),
-                                      sampleGaussian(sigma_yaw, i));
+    pose m_pose = initial_pose + pose(sampleGaussian(sigma_xy),
+                                      sampleGaussian(sigma_xy),
+                                      sampleGaussian(sigma_z * 2),
+                                      sampleGaussian(sigma_roll * 2),
+                                      sampleGaussian(sigma_pitch * 2),
+                                      sampleGaussian(sigma_yaw));
     // Compute initial weight of each particle
     float weight = 1.;
     // Insert the particle into the particles array
     particles[i] = Particle(i, m_pose, weight);
   }
 
-  // Set last iteration vars
-  p_odom = initial_pose;
-
   // Iteration number
   n_it = 0;
 }
 
-void PF::motionModel(const pose& odom)
+void PF::motionModel(const pose& odom_inc, const pose& p_odom)
 {
-  // Compute odometry increment
-  pose odom_inc = odom - p_odom;
-  odom_inc.normalize();
+  // Input parameters
+  float m_xx_noise = 0.2;
+  float m_yy_noise = 0.2;
+  float m_zz_noise = 0.1;
+  float m_RR_noise = 0.5;
+  float m_PP_noise = 0.5;
+  float m_YY_noise = 0.8;
 
-  // Compute the relative pose given by the odometry motion model
-  float dt_trans = odom_inc.norm2D();
-  float dt_rot_a =
-      ((odom_inc.x != 0) || (odom_inc.y != 0))
-          ? normalizeAngle(std::atan2(odom_inc.y, odom_inc.x) - p_odom.yaw)
-          : static_cast<float>(0.);
+  float d_trans = odom_inc.norm3D();
 
-  // Prevent huge particles innovation due to wheel slippage
-  if (dt_rot_a > 160 * DEGREE_TO_RAD)
-    dt_rot_a -= M_PI;
-  if (dt_rot_a < -160 * DEGREE_TO_RAD)
-    dt_rot_a += M_PI;
-
-  float dt_rot_b = normalizeAngle(odom_inc.yaw - dt_rot_a);
-
-  // Motion sample standard deviations
-  float s_rot_a_draw = alpha1 * std::fabs(dt_rot_a) + alpha2 * dt_trans;
-  float s_rot_b_draw = alpha1 * std::fabs(dt_rot_b) + alpha2 * dt_trans;
-  float s_trans_draw =
-      alpha3 * dt_trans + alpha4 * (std::fabs(dt_rot_a) + std::fabs(dt_rot_b));
-
-  // Apply the motion model to all particles
+  // Innovate particles
   for (auto& particle : particles) {
-    // Sample the normal distribution functions
-    float s_rot_a = dt_rot_a + sampleGaussian(s_rot_a_draw);
-    float s_rot_b = dt_rot_b + sampleGaussian(s_rot_b_draw);
-    float s_trans = dt_trans + sampleGaussian(s_trans_draw);
+    // Build pose noise transformation matrix
+    pose pose_noise(
+        m_xx_noise, m_yy_noise, m_zz_noise, m_RR_noise, m_PP_noise, m_YY_noise);
 
-    // Compute the relative pose considering the samples
-    pose dt_pose;
-    dt_pose.x     = s_trans * std::cos(normalizeAngle(particle.p.yaw + s_rot_a));
-    dt_pose.y     = s_trans * std::sin(normalizeAngle(particle.p.yaw + s_rot_a));
-    dt_pose.z     = sampleGaussian(sigma_z);
-    dt_pose.roll  = sampleGaussian(sigma_roll);
-    dt_pose.pitch = sampleGaussian(sigma_pitch);
-    dt_pose.yaw   = s_rot_a + s_rot_b;
+    std::array<float, 6> gaussian_noise{};
+    for (float& i : gaussian_noise) i = d_trans * sampleGaussian(1.0);
 
-    // Save particle previous pose
+    pose_noise.x *= gaussian_noise[0];     // xx
+    pose_noise.y *= gaussian_noise[1];     // yy
+    pose_noise.z *= gaussian_noise[2];     // zz
+    pose_noise.roll *= gaussian_noise[3];  // RR
+    pose_noise.pitch *= gaussian_noise[4]; // PP
+    pose_noise.yaw *= gaussian_noise[5];   // YY
+
+    std::array<float, 9> R_noise{};
+    pose_noise.toRotMatrix(R_noise);
+    TF odom_noise_tf(R_noise,
+                     std::array<float, 3>{pose_noise.x, pose_noise.y, pose_noise.z});
+
+    // Built odom increment transformation matrix
+    std::array<float, 9> R_inc{};
+    odom_inc.toRotMatrix(R_inc);
+    TF odom_inc_tf(R_inc, std::array<float, 3>{odom_inc.x, odom_inc.y, odom_inc.z});
+
+    // Final pose increment
+    TF innovation_tf = odom_inc_tf * odom_noise_tf;
+
+    // Save info for the next iteration
     particle.pp  = particle.p;
     particle.ptf = particle.tf;
 
-    // Innovate particles using the odometry motion model
-    particle.p.x += dt_pose.x;
-    particle.p.y += dt_pose.y;
-    particle.p.z += dt_pose.z;
-    particle.p.roll += dt_pose.roll;
-    particle.p.pitch += dt_pose.pitch;
-    particle.p.yaw += dt_pose.yaw;
-
-    // Save particle homogeneous transformation
-    std::array<float, 9> Rot{};
-    particle.p.toRotMatrix(Rot);
-    std::array<float, 3> trans = {particle.p.x, particle.p.y, particle.p.z};
-    particle.tf                = TF(Rot, trans);
+    // Apply transformation
+    particle.tf = particle.ptf * innovation_tf;
+    particle.p  = pose(particle.tf.R, particle.tf.t);
   }
-
-  p_odom = odom;
-}
-
-void PF::motionModel3D(const pose& odom)
-{
-  // From:
-  // The motion model: A. L. Ballardini, A. Furlan, A. Galbiati, M. Matteucci,
-  // F. Sacchi, D. G. Sorrenti An effective 6DoF motion model for 3D-6DoF
-  // Monte Carlo Localization 4th Workshop on Planning, Perception and
-  // Navigation for Intelligent Vehicles, IROS, 2012
-
-  // Compute odometry increment
-  pose odom_inc = odom - p_odom;
-  odom_inc.normalize();
-
-  // The increments in odometry:
-  float s_yaw1 =
-      (odom_inc.y != 0 || odom_inc.x != 0) ? std::atan2(odom_inc.y, odom_inc.x) : 0;
-
-  float s_trans = odom_inc.norm3D();
-
-  float s_pitch1 = (odom_inc.y != 0 || odom_inc.x != 0 || odom_inc.z != 0)
-                       ? std::atan2(odom_inc.z, odom_inc.norm3D())
-                       : 0;
-
-  float s_roll   = odom_inc.roll;
-  float s_pitch2 = odom_inc.pitch;
-  float s_yaw2   = odom_inc.yaw;
-
-  // Draw samples:
-  for (auto& particle : particles) {
-    float s_yaw1_draw = s_yaw1 + sampleGaussian(alpha1 * s_yaw1 + alpha2 * s_trans);
-    float s_pitch1_draw = s_pitch1 + sampleGaussian(alpha3 * odom_inc.z);
-    float s_trans_draw =
-        s_trans + sampleGaussian(alpha4 * s_trans + alpha5 * s_yaw2 +
-                                 alpha6 * (s_roll + s_pitch2));
-    float s_roll_draw   = s_roll + sampleGaussian(alpha7 * s_roll);
-    float s_pitch2_draw = s_pitch2 + sampleGaussian(alpha8 * s_pitch2);
-    float s_yaw2_draw = s_yaw2 + sampleGaussian(alpha9 * s_yaw2 + alpha10 * s_trans);
-
-    // Output:
-    pose dt_pose;
-    dt_pose.x     = s_trans_draw * std::cos(s_pitch1_draw) * std::cos(s_yaw1_draw);
-    dt_pose.y     = s_trans_draw * std::cos(s_pitch1_draw) * std::sin(s_yaw1_draw);
-    dt_pose.z     = -s_trans_draw * std::sin(s_pitch1_draw);
-    dt_pose.yaw   = s_yaw1_draw + s_yaw2_draw;
-    dt_pose.pitch = s_pitch1_draw + s_pitch2_draw;
-    dt_pose.roll  = s_roll_draw;
-
-    // Save particle previous pose
-    particle.pp  = particle.p;
-    particle.ptf = particle.tf;
-
-    // Innovate particles
-    particle.p.x += dt_pose.x;
-    particle.p.y += dt_pose.y;
-    particle.p.z += dt_pose.z;
-    particle.p.roll += dt_pose.roll;
-    particle.p.pitch += dt_pose.pitch;
-    particle.p.yaw += dt_pose.yaw;
-
-    // Save particle homogeneous transformation
-    std::array<float, 9> Rot{};
-    particle.p.toRotMatrix(Rot);
-    std::array<float, 3> trans = {particle.p.x, particle.p.y, particle.p.z};
-    particle.tf                = TF(Rot, trans);
-  }
-
-  p_odom = odom;
 }
 
 void PF::update(const std::vector<SemanticFeature>& landmarks,
@@ -215,7 +124,6 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
                 const Plane&                        ground_plane,
                 const std::vector<ImageFeature>&    surf_features,
                 const pose&                         gps_pose,
-                OccupancyMap*                       previous_map,
                 OccupancyMap*                       grid_map)
 {
   std::vector<float> semantic_weights(n_particles, 0.);
@@ -241,14 +149,16 @@ void PF::update(const std::vector<SemanticFeature>& landmarks,
   after    = std::chrono::high_resolution_clock::now();
   duration = after - before;
   logs += "Time elapsed on PF - corner features (msecs): " +
-          std::to_string(duration.count()) + "\n";
+          std::to_string(duration.count()) + " (" + std::to_string(corners.size()) +
+          ")\n";
   before = std::chrono::high_resolution_clock::now();
   if (use_planars)
     mediumLevelPlanars(planars, grid_map, planar_weights);
   after    = std::chrono::high_resolution_clock::now();
   duration = after - before;
   logs += "Time elapsed on PF - planar features (msecs): " +
-          std::to_string(duration.count()) + "\n";
+          std::to_string(duration.count()) + +" (" + std::to_string(planars.size()) +
+          ")\n";
   before = std::chrono::high_resolution_clock::now();
   if (use_icp)
     lowLevel(surf_features, grid_map, surf_weights);
@@ -861,8 +771,12 @@ void PF::resample()
 
   // - Update particle set
   for (size_t j = 0; j < indexes.size(); j++) {
-    particles[j].p = particles[indexes[j]].p;
-    particles[j].w = particles[indexes[j]].w;
+    particles[j].pp            = particles[indexes[j]].pp;
+    particles[j].ptf           = particles[indexes[j]].ptf;
+    particles[j].p             = particles[indexes[j]].p;
+    particles[j].tf            = particles[indexes[j]].tf;
+    particles[j].w             = particles[indexes[j]].w;
+    particles[j].which_cluster = particles[indexes[j]].which_cluster;
   }
 }
 

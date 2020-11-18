@@ -62,8 +62,7 @@ public:
   PF(const Parameters& params, const pose& initial_pose);
 
   // Apply odometry motion model to all particles
-  void motionModel(const pose& odom);
-  void motionModel3D(const pose& odom);
+  void motionModel(const pose& odom_inc, const pose& p_odom);
   // Update particles weights using the multi-layer map
   void update(const std::vector<SemanticFeature>& landmarks,
               const std::vector<Corner>&          corners,
@@ -72,15 +71,11 @@ public:
               const Plane&                        ground_plane,
               const std::vector<ImageFeature>&    surf_features,
               const pose&                         gps_pose,
-              OccupancyMap*                       previous_map,
               OccupancyMap*                       grid_map);
   // Normalize particles weights
   void normalizeWeights();
   // Resample particles
   void resample();
-
-  // Last iteration vars
-  pose p_odom;
 
   // Particle weight sum
   float w_sum{};
@@ -144,12 +139,6 @@ private:
   float alpha2;
   float alpha3;
   float alpha4;
-  float alpha5;
-  float alpha6;
-  float alpha7;
-  float alpha8;
-  float alpha9;
-  float alpha10;
   float sigma_xy;
   float sigma_z;
   float sigma_roll;

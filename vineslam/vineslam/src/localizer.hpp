@@ -65,14 +65,11 @@ public:
                                const bool& use_gps);
 
   // LiDAR odometry implementation
-  void predictMotion(const pose&                odom,
-                     const std::vector<Corner>& corners,
-                     const std::vector<Planar>& planars,
+  void predictMotion(const std::vector<Planar>& planars,
                      OccupancyMap*              previous_map,
                      TF&                        result);
   // Camera stereo odometry implementation
-  void predictMotion(const pose&                      odom,
-                     const std::vector<ImageFeature>& corners,
+  void predictMotion(const std::vector<ImageFeature>& corners,
                      OccupancyMap*                    previous_map,
                      TF&                              result);
 
@@ -82,10 +79,10 @@ public:
   bool update;
 
 private:
-
   // Average particles pose
   pose average_pose;
   pose last_update_pose;
+  pose p_odom;
   // Particle filter object
   PF* pf{};
 

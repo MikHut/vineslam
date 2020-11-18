@@ -193,11 +193,8 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // ---------------------------------------------------------
     // ----- Localization procedure
     // ---------------------------------------------------------
-    //    localizer->process(odom, obsv, previous_map, grid_map);
-    //    robot_pose = localizer->getPose();
-    TF tf;
-    localizer->predictMotion(odom, m_corners, m_planars, previous_map, tf);
-    robot_pose = robot_pose + pose(tf.R, tf.t);
+    localizer->process(odom, obsv, previous_map, grid_map);
+    robot_pose = localizer->getPose();
 
     // ---------------------------------------------------------
     // ----- Register multi-layer map (if performing SLAM)
@@ -246,8 +243,8 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     o2m_q.setRPY(init_odom_pose.roll, init_odom_pose.pitch, init_odom_pose.yaw);
     tf::Transform odom2map(
         o2m_q, tf::Vector3(init_odom_pose.x, init_odom_pose.y, init_odom_pose.z));
-//    br.sendTransform(
-//        tf::StampedTransform(odom2map, ros::Time::now(), "odom", "map"));
+    br.sendTransform(
+        tf::StampedTransform(odom2map, ros::Time::now(), "odom", "map"));
 
     // Convert vineslam pose to ROS pose and publish it
     geometry_msgs::PoseStamped pose_stamped;
@@ -375,40 +372,48 @@ void VineSLAM_ros::scanListener(const sensor_msgs::PointCloud2ConstPtr& msg)
 
 void VineSLAM_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)
 {
-  // Convert odometry msg to pose msg
-  tf::Pose            pose;
-  geometry_msgs::Pose odom_pose = (*msg).pose.pose;
-  tf::poseMsgToTF(odom_pose, pose);
 
-  // Check if yaw is NaN
-  float yaw = static_cast<float>(tf::getYaw(pose.getRotation()));
-  if (!std::isfinite(yaw))
-    yaw = 0;
-
-  // If it is the first iteration - initialize the Pose
-  // relative to the previous frame
+  // If it is the first iteration - initialize odometry origin
   if (init_odom) {
-    p_odom.x       = (*msg).pose.pose.position.x;
-    p_odom.y       = (*msg).pose.pose.position.y;
-    p_odom.yaw     = yaw;
-    odom           = vineslam::pose(p_odom.x, p_odom.y, 0., 0., 0., yaw);
-    init_odom_pose = odom;
-    init_odom      = false;
+    // Convert odometry msg to pose msg
+    tf::Pose            pose_;
+    geometry_msgs::Pose odom_pose = (*msg).pose.pose;
+    tf::poseMsgToTF(odom_pose, pose_);
+
+    // Check if yaw is NaN
+    float yaw = static_cast<float>(tf::getYaw(pose_.getRotation()));
+    if (!std::isfinite(yaw))
+      yaw = 0;
+
+    init_odom_pose =
+        pose(msg->pose.pose.position.x, msg->pose.pose.position.y, 0, 0, 0, yaw);
+    init_odom = false;
+
     return;
   }
 
-  // Integrate odometry pose to convert to the map frame
-  odom.x += static_cast<float>(msg->pose.pose.position.x) - p_odom.x;
-  odom.y += static_cast<float>(msg->pose.pose.position.y) - p_odom.y;
-  odom.z     = 0;
-  odom.roll  = 0;
-  odom.pitch = 0;
-  odom.yaw += (yaw - p_odom.yaw);
+  // Transform odometry msg to maps' referential frame
+  tf::Quaternion o2m_q;
+  o2m_q.setRPY(init_odom_pose.roll, init_odom_pose.pitch, init_odom_pose.yaw);
+  tf::Transform odom2map(
+      o2m_q, tf::Vector3(init_odom_pose.x, init_odom_pose.y, init_odom_pose.z));
 
-  // Save current odometry pose to use in the next iteration
-  p_odom.x   = msg->pose.pose.position.x;
-  p_odom.y   = msg->pose.pose.position.y;
-  p_odom.yaw = yaw;
+  tf::Quaternion odom_q;
+  odom_q.setX(msg->pose.pose.orientation.x);
+  odom_q.setY(msg->pose.pose.orientation.y);
+  odom_q.setZ(msg->pose.pose.orientation.z);
+  odom_q.setW(msg->pose.pose.orientation.w);
+  tf::Transform odom_tf(odom_q,
+                        tf::Vector3(msg->pose.pose.position.x,
+                                    msg->pose.pose.position.y,
+                                    msg->pose.pose.position.z));
+
+  odom_tf = odom2map.inverseTimes(odom_tf);
+
+  tf::Vector3    trans = odom_tf.getOrigin();
+  tf::Quaternion rot   = odom_tf.getRotation();
+
+  odom = pose(trans.x(), trans.y(), 0, 0, 0, static_cast<float>(tf::getYaw(rot)));
 }
 
 void VineSLAM_ros::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)

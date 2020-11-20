@@ -1,33 +1,13 @@
-#include "mapper3D.hpp"
-#include <chrono>
-#include <set>
+#include "../../include/vineslam/mapping/lidar_mapping.hpp"
 
 namespace vineslam
 {
 
-Mapper3D::Mapper3D(const Parameters& params)
+LidarMapper::LidarMapper(const Parameters& params)
 {
-  // Load camera info parameters
-  img_width  = params.img_width;
-  img_height = params.img_height;
-  fx         = params.fx;
-  fy         = params.fy;
-  cx         = params.cx;
-  cy         = params.cy;
-  depth_hfov = params.depth_hfov;
-  depth_vfov = params.depth_vfov;
-  // Load 3D map parameters
-  max_range  = params.max_range;
-  max_height = params.max_height;
-  // Feature detector
-  hessian_threshold = params.hessian_threshold;
-
-  // Threshold to consider correspondences
-  correspondence_threshold = 0.02;
-
   // Set velodyne configuration parameters
   picked_num              = 2;
-  planes_th               = static_cast<float>(45.) * DEGREE_TO_RAD;
+  planes_th               = static_cast<float>(60.) * DEGREE_TO_RAD;
   ground_th               = static_cast<float>(5.) * DEGREE_TO_RAD;
   edge_threshold          = 0.1;
   planar_threshold        = 0.1;
@@ -40,17 +20,26 @@ Mapper3D::Mapper3D(const Parameters& params)
   ang_res_x               = static_cast<float>(0.2) * DEGREE_TO_RAD;
   ang_res_y               = static_cast<float>(2.) * DEGREE_TO_RAD;
   lidar_height            = 1.20;
+
+  // Initialize local map for downsampling
+  Parameters local_map_params;
+  local_map_params.gridmap_origin_x   = -30;
+  local_map_params.gridmap_origin_y   = -30;
+  local_map_params.gridmap_origin_z   = -0.5;
+  local_map_params.gridmap_resolution = 0.20;
+  local_map_params.gridmap_width      = 60;
+  local_map_params.gridmap_lenght     = 60;
+  local_map_params.gridmap_height     = 2.5;
+
+  local_map = new OccupancyMap(local_map_params, pose(0, 0, 0, 0, 0, 0));
 }
 
-void Mapper3D::registerMaps(const pose&                robot_pose,
-                            std::vector<ImageFeature>& img_features,
-                            std::vector<Corner>&       corners,
-                            std::vector<Planar>&       planars,
-                            std::vector<Plane>&        planes,
-                            OccupancyMap&              grid_map)
+void LidarMapper::registerMaps(const pose&          robot_pose,
+                               std::vector<Corner>& corners,
+                               std::vector<Planar>& planars,
+                               std::vector<Plane>&  planes,
+                               OccupancyMap&        grid_map)
 {
-  // - 3D image feature map estimation
-  globalSurfMap(img_features, robot_pose, grid_map);
   // - 3D PCL corner map estimation
   globalCornerMap(robot_pose, corners, grid_map);
   // - 3D PCL corner map estimation
@@ -58,201 +47,10 @@ void Mapper3D::registerMaps(const pose&                robot_pose,
 }
 
 // -------------------------------------------------------------------------------
-// ---- 3D image feature map functions
-// -------------------------------------------------------------------------------
-
-void Mapper3D::localSurfMap(const cv::Mat&             img,
-                            const float*               depths,
-                            std::vector<ImageFeature>& out_features)
-{
-  // --------- Image feature extraction
-  std::vector<ImageFeature> features;
-  extractSurfFeatures(img, features);
-  // ----------------------------------
-
-  // --------- Build local map of 3D points ----------------------------------------
-  for (const auto& feature : features) {
-    int   idx     = feature.u + img.cols * feature.v;
-    float m_depth = depths[idx];
-
-    // Check validity of depth information
-    if (!std::isfinite(depths[idx])) {
-      continue;
-    }
-
-    point out_pt;
-    point in_pt(static_cast<float>(feature.u), static_cast<float>(feature.v), 0.);
-    pixel2base(in_pt, m_depth, out_pt);
-    // Get the RGB pixel values
-    auto* p = img.ptr<cv::Point3_<uchar>>(feature.v, feature.u);
-    //------------------------------------------------------------------------------
-    std::array<uint8_t, 3> c_int = {(*p).z, (*p).y, (*p).x};
-    //------------------------------------------------------------------------------
-    // Compute feature and insert on grid map
-    float dist = std::sqrt((out_pt.x * out_pt.x) + (out_pt.y * out_pt.y) +
-                           (out_pt.z * out_pt.z));
-    if (out_pt.z < max_height && dist < max_range) {
-      ImageFeature m_feature = feature;
-      m_feature.r            = c_int[0];
-      m_feature.g            = c_int[1];
-      m_feature.b            = c_int[2];
-      m_feature.pos          = out_pt;
-      out_features.push_back(m_feature);
-    }
-  }
-  // -------------------------------------------------------------------------------
-}
-
-void Mapper3D::globalSurfMap(const std::vector<ImageFeature>& features,
-                             const pose&                      robot_pose,
-                             OccupancyMap&                    grid_map) const
-{
-  // ------ Convert robot pose into homogeneous transformation
-  std::array<float, 9> Rot{};
-  robot_pose.toRotMatrix(Rot);
-  std::array<float, 3> trans = {robot_pose.x, robot_pose.y, robot_pose.z};
-  TF                   tf(Rot, trans);
-
-  // ------ Insert features into the grid map
-  for (const auto& image_feature : features) {
-    // - First convert them to map's referential using the robot pose
-    point m_pt = image_feature.pos * tf;
-
-    ImageFeature m_feature = image_feature;
-    m_feature.pos          = m_pt;
-
-    // - Then, look for correspondences in the local map
-    ImageFeature correspondence{};
-    float        best_correspondence = correspondence_threshold;
-    bool         found               = false;
-    for (const auto& m_image_feature :
-         grid_map(m_pt.x, m_pt.y, m_pt.z).surf_features) {
-      float dist_min = m_pt.distance(m_image_feature.pos);
-
-      if (dist_min < best_correspondence) {
-        correspondence      = m_image_feature;
-        best_correspondence = dist_min;
-        found               = true;
-      }
-    }
-
-    // Only search in the adjacent cells if we do not find in the source cell
-    if (!found) {
-      std::vector<Cell> adjacents;
-      grid_map.getAdjacent(m_pt.x, m_pt.y, m_pt.z, 2, adjacents);
-      for (const auto& m_cell : adjacents) {
-        for (const auto& m_image_feature : m_cell.surf_features) {
-          float dist_min = m_pt.distance(m_image_feature.pos);
-          if (dist_min < best_correspondence) {
-            correspondence      = m_image_feature;
-            best_correspondence = dist_min;
-            found               = true;
-          }
-        }
-      }
-    }
-
-    // - Then, insert the image feature into the grid map
-    if (found) {
-      point new_pt =
-          ((correspondence.pos * static_cast<float>(correspondence.n_observations)) +
-           m_pt) /
-          static_cast<float>(correspondence.n_observations + 1);
-      ImageFeature new_image_feature(image_feature.u,
-                                     image_feature.v,
-                                     image_feature.r,
-                                     image_feature.g,
-                                     image_feature.b,
-                                     new_pt);
-      new_image_feature.laplacian      = image_feature.laplacian;
-      new_image_feature.signature      = image_feature.signature;
-      new_image_feature.n_observations = correspondence.n_observations++;
-      grid_map.update(correspondence, new_image_feature);
-    } else {
-      ImageFeature new_image_feature(image_feature.u,
-                                     image_feature.v,
-                                     image_feature.r,
-                                     image_feature.g,
-                                     image_feature.b,
-                                     m_pt);
-      new_image_feature.laplacian = image_feature.laplacian;
-      new_image_feature.signature = image_feature.signature;
-      grid_map.insert(new_image_feature);
-    }
-  }
-}
-
-void Mapper3D::extractSurfFeatures(const cv::Mat&             in,
-                                   std::vector<ImageFeature>& out) const
-{
-  using namespace cv::xfeatures2d;
-
-  // Array to store the features
-  std::vector<cv::KeyPoint> kpts;
-  // String to store the type of feature
-  std::string type;
-  // Matrix to store the descriptor
-  cv::Mat desc;
-
-  // Perform feature extraction
-  auto surf = SURF::create(hessian_threshold);
-  surf->detectAndCompute(in, cv::Mat(), kpts, desc);
-
-  // Save features in the output array
-  for (auto& kpt : kpts) {
-    ImageFeature m_ft(kpt.pt.x, kpt.pt.y);
-    m_ft.laplacian = kpt.class_id;
-    out.push_back(m_ft);
-  }
-
-  // Save features descriptors
-  for (int32_t i = 0; i < desc.rows; i++) {
-    for (int32_t j = 0; j < desc.cols; j++) {
-      out[i].signature.push_back(desc.at<float>(i, j));
-    }
-  }
-}
-
-void Mapper3D::pixel2base(const point& in_pt,
-                          const float& depth,
-                          point&       out_pt) const
-{
-  // Project 2D pixel into a 3D Point using the stereo depth information
-  float x_cam = (in_pt.x - cx) * (depth / fx);
-  float y_cam = (in_pt.y - cy) * (depth / fy);
-  float z_cam = depth;
-  point pt_cam(x_cam, y_cam, z_cam);
-
-  // Compute camera-world axis transformation matrix
-  pose                 cam2world(0., 0., 0, -M_PI / 2., 0., -M_PI / 2.);
-  std::array<float, 9> c2w_rot{};
-  cam2world.toRotMatrix(c2w_rot);
-  TF cam2world_tf(c2w_rot, std::array<float, 3>{0., 0., 0.});
-
-  // Align world and camera axis
-  point wpoint = pt_cam * cam2world_tf;
-
-  // Compute camera-to-base transformation matrix
-  pose cam2base(cam2base_x,
-                cam2base_y,
-                cam2base_z,
-                cam2base_roll,
-                cam2base_pitch,
-                cam2base_yaw);
-
-  std::array<float, 9> c2b_rot{};
-  cam2base.toRotMatrix(c2b_rot);
-  TF cam2base_tf(c2b_rot, std::array<float, 3>{cam2base_x, cam2base_y, cam2base_z});
-
-  // Transform camera point to base_link
-  out_pt = wpoint * cam2base_tf.inverse();
-}
-
-// -------------------------------------------------------------------------------
 // ---- 3D pointcloud feature map functions
 // -------------------------------------------------------------------------------
 
-void Mapper3D::reset()
+void LidarMapper::reset()
 {
   range_mat.resize(vertical_scans, horizontal_scans);
   ground_mat.resize(vertical_scans, horizontal_scans);
@@ -270,20 +68,30 @@ void Mapper3D::reset()
   seg_pcl.range.assign(cloud_size, 0);
 }
 
-void Mapper3D::localPCLMap(const std::vector<point>& pcl,
+void LidarMapper::localMap(const std::vector<point>& pcl,
                            std::vector<Corner>&      out_corners,
                            std::vector<Planar>&      out_planars,
                            std::vector<Plane>&       out_planes,
                            Plane&                    out_groundplane)
 {
-  std::vector<point> transformed_pcl;
+  // Build velodyne to base_link transformation matrix
+  pose                 tf_pose(vel2base_x,
+               vel2base_y,
+               vel2base_z,
+               vel2base_roll,
+               vel2base_pitch,
+               vel2base_yaw);
+  TF                   tf;
+  std::array<float, 9> tf_rot{};
+  tf_pose.toRotMatrix(tf_rot);
+  tf = TF(tf_rot, std::array<float, 3>{tf_pose.x, tf_pose.y, tf_pose.z});
 
   // Reset global variables and members
   reset();
 
   // Range image projection
-  const size_t cloud_size = pcl.size();
-  transformed_pcl.resize(vertical_scans * horizontal_scans);
+  const size_t       cloud_size = pcl.size();
+  std::vector<point> transformed_pcl(vertical_scans * horizontal_scans);
   for (size_t i = 0; i < cloud_size; ++i) {
     point m_pt = pcl[i];
 
@@ -323,12 +131,17 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
   }
 
   // - GROUND PLANE
-  groundRemoval(transformed_pcl, out_groundplane);
+  Plane unfiltered_gplane;
+  groundRemoval(transformed_pcl, unfiltered_gplane);
+  for (auto& pt : unfiltered_gplane.points) {
+    pt = pt * tf.inverse();
+  }
+  out_groundplane.ransac(unfiltered_gplane);
 
   // -------------------------------------------------------------------------------
-  // ----- Mark ground points
+  // ----- Mark raw ground points
   // -------------------------------------------------------------------------------
-  for (const auto& index : out_groundplane.indexes) {
+  for (const auto& index : unfiltered_gplane.indexes) {
     int i = static_cast<int>(index.x);
     int j = static_cast<int>(index.y);
 
@@ -344,19 +157,9 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
   extractHighLevelPlanes(cloud_seg, out_planes);
 
   //- Corners feature extraction
-  extract3DFeatures(cloud_seg, out_corners, out_planars);
+  extractFeatures(cloud_seg, out_corners, out_planars);
 
   // - Convert local maps to base link
-  pose tf_pose;
-  TF   tf;
-
-  std::array<float, 9> tf_rot{};
-  tf_pose.toRotMatrix(tf_rot);
-  tf = TF(tf_rot, std::array<float, 3>{vel2base_x, vel2base_y, vel2base_z});
-
-  for (auto& pt : out_groundplane.points) {
-    pt = pt * tf.inverse();
-  }
   for (auto& corner : out_corners) {
     corner.pos = corner.pos * tf.inverse();
   }
@@ -368,11 +171,19 @@ void Mapper3D::localPCLMap(const std::vector<point>& pcl,
       pt = pt * tf.inverse();
     }
   }
+
+  // Downsample planar features
+  local_map->clear();
+  for (const auto& planar : out_planars) local_map->insert(planar);
+  local_map->downsamplePlanars();
+
+  out_planars.clear();
+  out_planars = local_map->getPlanars();
 }
 
-void Mapper3D::globalCornerMap(const pose&          robot_pose,
-                               std::vector<Corner>& corners,
-                               OccupancyMap&        grid_map) const
+void LidarMapper::globalCornerMap(const pose&          robot_pose,
+                                  std::vector<Corner>& corners,
+                                  OccupancyMap&        grid_map) const
 {
   // ------ Convert robot pose into homogeneous transformation
   std::array<float, 9> Rot{};
@@ -387,7 +198,7 @@ void Mapper3D::globalCornerMap(const pose&          robot_pose,
 
     // - Then, look for correspondences in the local map
     Corner              correspondence{};
-    float               best_correspondence = correspondence_threshold;
+    float               best_correspondence = 0.02;
     bool                found               = false;
     std::vector<Corner> m_corners = grid_map(m_pt.x, m_pt.y, m_pt.z).corner_features;
     for (const auto& m_corner : m_corners) {
@@ -418,9 +229,9 @@ void Mapper3D::globalCornerMap(const pose&          robot_pose,
   }
 }
 
-void Mapper3D::globalPlanarMap(const pose&          robot_pose,
-                               std::vector<Planar>& planars,
-                               OccupancyMap&        grid_map) const
+void LidarMapper::globalPlanarMap(const pose&          robot_pose,
+                                  std::vector<Planar>& planars,
+                                  OccupancyMap&        grid_map) const
 {
   // ------ Convert robot pose into homogeneous transformation
   std::array<float, 9> Rot{};
@@ -435,7 +246,7 @@ void Mapper3D::globalPlanarMap(const pose&          robot_pose,
 
     // - Then, look for correspondences in the local map
     Planar              correspondence{};
-    float               best_correspondence = correspondence_threshold;
+    float               best_correspondence = 0.02;
     bool                found               = false;
     std::vector<Planar> m_planars = grid_map(m_pt.x, m_pt.y, m_pt.z).planar_features;
     for (const auto& m_planar : m_planars) {
@@ -466,7 +277,7 @@ void Mapper3D::globalPlanarMap(const pose&          robot_pose,
   }
 }
 
-void Mapper3D::groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl)
+void LidarMapper::groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl)
 {
   // _ground_mat
   // -1, no valid info to check if ground of not
@@ -503,9 +314,9 @@ void Mapper3D::groundRemoval(const std::vector<point>& in_pts, Plane& out_pcl)
   }
 }
 
-void Mapper3D::cloudSegmentation(const std::vector<point>& in_pts,
-                                 std::vector<PlanePoint>&  cloud_seg,
-                                 std::vector<PlanePoint>&  cloud_seg_pure)
+void LidarMapper::cloudSegmentation(const std::vector<point>& in_pts,
+                                    std::vector<PlanePoint>&  cloud_seg,
+                                    std::vector<PlanePoint>&  cloud_seg_pure)
 {
   // Segmentation process
   int label = 1;
@@ -529,9 +340,9 @@ void Mapper3D::cloudSegmentation(const std::vector<point>& in_pts,
 
         // The majority of ground points are skipped
         if (ground_mat(i, j) == 1) {
-//          if (j % 5 != 0 && j > 5 && j < horizontal_scans - 5) {
-            continue;
-//          }
+          //          if (j % 5 != 0 && j > 5 && j < horizontal_scans - 5) {
+          continue;
+          //          }
         }
 
         // Mark ground points so they will not be considered as edge features later
@@ -553,10 +364,10 @@ void Mapper3D::cloudSegmentation(const std::vector<point>& in_pts,
   }
 }
 
-void Mapper3D::labelComponents(const int&                row,
-                               const int&                col,
-                               const std::vector<point>& in_pts,
-                               int&                      label)
+void LidarMapper::labelComponents(const int&                row,
+                                  const int&                col,
+                                  const std::vector<point>& in_pts,
+                                  int&                      label)
 {
   using Coord2D = Eigen::Vector2i;
   std::deque<Coord2D> queue;
@@ -643,8 +454,8 @@ void Mapper3D::labelComponents(const int&                row,
   }
 }
 
-void Mapper3D::extractHighLevelPlanes(const std::vector<PlanePoint>& in_plane_pts,
-                                      std::vector<Plane>&            out_planes)
+void LidarMapper::extractHighLevelPlanes(const std::vector<PlanePoint>& in_plane_pts,
+                                         std::vector<Plane>&            out_planes)
 {
   // -------------------------------------------------------------------------------
   // ----- Segment plane points in two different sets
@@ -689,16 +500,16 @@ void Mapper3D::extractHighLevelPlanes(const std::vector<PlanePoint>& in_plane_pt
 
     // (B) - Compute point to line distance and check if the average distance is
     //       bellow a threshold
-    float dist = 0;
-    if (!plane.points.empty()) {
-      for (const auto& pt : plane.points) {
-        dist += plane.regression.dist(pt);
-      }
-      dist /= static_cast<float>(plane.points.size());
-    }
-
-    if (dist > 0 && dist < 0.05)
-      B = true;
+    //    float dist = 0;
+    //    if (!plane.points.empty()) {
+    //      for (const auto& pt : plane.points) {
+    //        dist += plane.regression.dist(pt);
+    //      }
+    //      dist /= static_cast<float>(plane.points.size());
+    //    }
+    //
+    //    if (dist > 0 && dist < 0.05)
+    //      B = true;
 
     // (C) - Save plane if in case of success
     if (A && B)
@@ -706,9 +517,9 @@ void Mapper3D::extractHighLevelPlanes(const std::vector<PlanePoint>& in_plane_pt
   }
 }
 
-void Mapper3D::extract3DFeatures(const std::vector<PlanePoint>& in_plane_pts,
-                                 std::vector<Corner>&           out_corners,
-                                 std::vector<Planar>&           out_planars)
+void LidarMapper::extractFeatures(const std::vector<PlanePoint>& in_plane_pts,
+                                  std::vector<Corner>&           out_corners,
+                                  std::vector<Planar>&           out_planars)
 
 {
   // -------------------------------------------------------------------------------
@@ -851,7 +662,7 @@ void Mapper3D::extract3DFeatures(const std::vector<PlanePoint>& in_plane_pts,
 
         // Check if the current point is a planar feature
         if (neighbor_picked[idx] == 0 &&
-            cloud_smoothness[l].value < planar_threshold && seg_pcl.is_ground[idx]) {
+            cloud_smoothness[l].value < planar_threshold) {
 
           cloudPlanarLabel[idx] = -1;
 

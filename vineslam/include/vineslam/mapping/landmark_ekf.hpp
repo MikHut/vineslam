@@ -1,10 +1,10 @@
 #pragma once
 
 // Object members
-#include <params.hpp>
-#include <math/point.hpp>
-#include <math/stat.hpp>
-#include <math/const.hpp>
+#include "../params.hpp"
+#include "../math/point.hpp"
+#include "../math/stat.hpp"
+#include "../math/const.hpp"
 
 // ROS, std, Eigen
 #include <eigen3/Eigen/Dense>

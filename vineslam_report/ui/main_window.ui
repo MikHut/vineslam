@@ -185,7 +185,7 @@
          <property name="geometry">
           <rect>
            <x>10</x>
-           <y>90</y>
+           <y>120</y>
            <width>271</width>
            <height>21</height>
           </rect>
@@ -201,7 +201,7 @@
          <property name="geometry">
           <rect>
            <x>10</x>
-           <y>140</y>
+           <y>190</y>
            <width>271</width>
            <height>21</height>
           </rect>
@@ -213,43 +213,11 @@
           <bool>true</bool>
          </property>
         </widget>
-        <widget class="QCheckBox" name="check_box_planes">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>190</y>
-           <width>271</width>
-           <height>21</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Side planes</string>
-         </property>
-         <property name="checked">
-          <bool>true</bool>
-         </property>
-        </widget>
-        <widget class="QCheckBox" name="check_box_ground">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>240</y>
-           <width>271</width>
-           <height>21</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Ground plane</string>
-         </property>
-         <property name="checked">
-          <bool>true</bool>
-         </property>
-        </widget>
         <widget class="QCheckBox" name="check_box_image_features">
          <property name="geometry">
           <rect>
            <x>10</x>
-           <y>290</y>
+           <y>260</y>
            <width>271</width>
            <height>21</height>
           </rect>
@@ -651,8 +619,8 @@
           <rect>
            <x>0</x>
            <y>0</y>
-           <width>98</width>
-           <height>28</height>
+           <width>967</width>
+           <height>635</height>
           </rect>
          </property>
          <attribute name="label">
@@ -820,8 +788,8 @@
           <rect>
            <x>0</x>
            <y>0</y>
-           <width>98</width>
-           <height>28</height>
+           <width>100</width>
+           <height>30</height>
           </rect>
          </property>
          <attribute name="label">

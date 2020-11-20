@@ -1,5 +1,4 @@
-#include "occupancy_map.hpp"
-#include <chrono>
+#include "../../include/vineslam/mapping/occupancy_map.hpp"
 
 namespace vineslam
 {

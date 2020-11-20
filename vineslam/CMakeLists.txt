@@ -12,29 +12,26 @@ find_package(Eigen3 REQUIRED)
 find_package(PythonLibs 2.7)
 
 catkin_package(
-        INCLUDE_DIRS
-        ${PROJECT_NAME}/src
-        ${PROJECT_NAME}/src/math
-        ${PROJECT_NAME}/src/mapXML
-        ${PROJECT_NAME}/src/utils
+        INCLUDE_DIRS include
         LIBRARIES vineslam
 )
 
 include_directories(
-        ${PROJECT_NAME}/src
+        include
         ${catkin_INCLUDE_DIRS}
         ${PYTHON_INCLUDE_DIRS}
 )
 
 add_library(vineslam
-        ${PROJECT_NAME}/src/mapper2D.cpp
-        ${PROJECT_NAME}/src/mapper3D.cpp
-        ${PROJECT_NAME}/src/kf.cpp
-        ${PROJECT_NAME}/src/localizer.cpp
-        ${PROJECT_NAME}/src/pf.cpp
-        ${PROJECT_NAME}/src/occupancy_map.cpp
-        ${PROJECT_NAME}/src/mapXML/map_writer.cpp
-        ${PROJECT_NAME}/src/mapXML/map_parser.cpp)
+        src/mapping/landmark_mapping.cpp
+        src/mapping/landmark_ekf.cpp
+        src/mapping/visual_mapping.cpp
+        src/mapping/lidar_mapping.cpp
+        src/mapping/occupancy_map.cpp
+        src/localization/localizer.cpp
+        src/localization/pf.cpp
+        src/mapxml/map_writer.cpp
+        src/mapxml/map_parser.cpp)
 
 target_link_libraries(vineslam
         ${catkin_LIBRARIES}
@@ -47,6 +44,6 @@ install(TARGETS vineslam
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION})
 
-install(DIRECTORY ${PROJECT_NAME}/src
+install(DIRECTORY include/vineslam
         DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
         PATTERN ".cpp" EXCLUDE)

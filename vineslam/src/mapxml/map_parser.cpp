@@ -1,4 +1,4 @@
-#include "map_parser.hpp"
+#include "../../include/vineslam/mapxml/map_parser.hpp"
 
 namespace vineslam
 {

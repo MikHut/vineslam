@@ -3,13 +3,13 @@
 #include <iostream>
 #include <eigen3/Eigen/Dense>
 
-#include <params.hpp>
-#include <math/point.hpp>
-#include <math/pose.hpp>
-#include <math/stat.hpp>
-#include <math/tf.hpp>
-#include <occupancy_map.hpp>
-#include <feature.hpp>
+#include "../params.hpp"
+#include "../feature/feature.hpp"
+#include "../mapping/occupancy_map.hpp"
+#include "../math/point.hpp"
+#include "../math/pose.hpp"
+#include "../math/tf.hpp"
+#include "../math/stat.hpp"
 
 namespace vineslam
 {

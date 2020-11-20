@@ -1,7 +1,7 @@
 #pragma once
 
 #include "vineslam_ros.hpp"
-#include <math/stat.hpp>
+#include <vineslam/math/stat.hpp>
 #include <vineslam_ros/change_replay_node_state.h>
 #include <vineslam_ros/change_replay_node_features.h>
 #include <vineslam_ros/debug_particle_filter.h>

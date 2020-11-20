@@ -197,7 +197,7 @@ void VineSLAM_ros::publish3DMap() const
       }
 
       for (const auto& corner : cell.corner_features) {
-        pcl::PointXYZI m_pt(static_cast<float>(corner.which_cluster));
+        pcl::PointXYZI m_pt(static_cast<float>(corner.which_plane));
         m_pt.x = corner.pos.x;
         m_pt.y = corner.pos.y;
         m_pt.z = corner.pos.z;
@@ -206,7 +206,7 @@ void VineSLAM_ros::publish3DMap() const
       }
 
       for (const auto& planar : cell.planar_features) {
-        pcl::PointXYZI m_pt(static_cast<float>(planar.which_cluster));
+        pcl::PointXYZI m_pt(static_cast<float>(planar.which_plane));
         m_pt.x = planar.pos.x;
         m_pt.y = planar.pos.y;
         m_pt.z = planar.pos.z;
@@ -303,7 +303,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<Corner>& corners,
     pcl_pt.y = m_pt.y;
     pcl_pt.z = m_pt.z;
 
-    pcl_pt.intensity = static_cast<float>(corner.which_cluster) * 10.0f;
+    pcl_pt.intensity = static_cast<float>(corner.which_plane) * 10.0f;
     cloud_out->points.push_back(pcl_pt);
   }
 
@@ -330,7 +330,7 @@ void VineSLAM_ros::publish3DMap(const pose&                r_pose,
     pcl_pt.y = m_pt.y;
     pcl_pt.z = m_pt.z;
 
-    pcl_pt.intensity = static_cast<float>(corner.which_cluster) * 10.0f;
+    pcl_pt.intensity = static_cast<float>(corner.which_plane) * 10.0f;
     cloud_out->points.push_back(pcl_pt);
   }
 
@@ -357,7 +357,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<Planar>& planars,
     pcl_pt.y = m_pt.y;
     pcl_pt.z = m_pt.z;
 
-    pcl_pt.intensity = static_cast<float>(planar_feature.which_cluster) * 10.0f;
+    pcl_pt.intensity = static_cast<float>(planar_feature.which_plane) * 10.0f;
     cloud_out->points.push_back(pcl_pt);
   }
 
@@ -384,7 +384,7 @@ void VineSLAM_ros::publish3DMap(const pose&                r_pose,
     pcl_pt.y = m_pt.y;
     pcl_pt.z = m_pt.z;
 
-    pcl_pt.intensity = static_cast<float>(planar_feature.which_cluster) * 10.0f;
+    pcl_pt.intensity = static_cast<float>(planar_feature.which_plane) * 10.0f;
     cloud_out->points.push_back(pcl_pt);
   }
 

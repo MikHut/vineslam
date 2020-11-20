@@ -1,14 +1,17 @@
 #pragma once
 
 // Include class objects
-#include <params.hpp>
-#include <feature.hpp>
-#include <occupancy_map.hpp>
-#include <icp.hpp>
-#include <math/pose.hpp>
-#include <math/stat.hpp>
-#include <math/tf.hpp>
-#include <math/const.hpp>
+#include "../params.hpp"
+#include "../feature/visual.hpp"
+#include "../feature/semantic.hpp"
+#include "../feature/three_dimensional.hpp"
+#include "../mapping/occupancy_map.hpp"
+#include "../matcher/icp.hpp"
+#include "../math/point.hpp"
+#include "../math/pose.hpp"
+#include "../math/const.hpp"
+#include "../math/stat.hpp"
+
 
 // Include std members
 #include <cstdlib>
@@ -16,6 +19,7 @@
 #include <chrono>
 #include <iostream>
 #include <map>
+#include <cmath>
 
 namespace vineslam
 {
@@ -90,8 +94,6 @@ public:
   bool use_landmarks;
   bool use_corners;
   bool use_planars;
-  bool use_planes;
-  bool use_ground_plane;
   bool use_icp;
   bool use_gps;
 
@@ -126,34 +128,8 @@ private:
   // Iterative closest point member
   ICP<ImageFeature>* icp;
 
-  // Iteration number
-  int n_it;
-
-  // Input parameters file name
-  std::string config_path;
-  // Input numeric parameters
-  // - General parameters
-  float n_particles;
-  // - Innovation parameters
-  float alpha1;
-  float alpha2;
-  float alpha3;
-  float alpha4;
-  float sigma_xy;
-  float sigma_z;
-  float sigma_roll;
-  float sigma_pitch;
-  float sigma_yaw;
-  // - Update standard deviation of each layers
-  float sigma_landmark_matching;
-  float sigma_feature_matching;
-  float sigma_corner_matching;
-  float sigma_planar_matching;
-  float sigma_planes;
-  float sigma_gps;
-  // - Clustering parameters
-  int k_clusters;
-  int k_iterations;
+  // Parameters structure
+  Parameters params;
 };
 
 } // namespace vineslam

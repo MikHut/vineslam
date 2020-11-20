@@ -1,7 +1,8 @@
 #pragma once
 
 #include <ros/ros.h>
-#include <params.hpp>
+
+#include <vineslam/params.hpp>
 
 namespace vineslam
 {
@@ -52,16 +53,6 @@ static void loadParameters(const ros::NodeHandle& nh,
   }
   if (!nh.getParam(prefix + "/system/use_landmarks", params.use_landmarks)) {
     ROS_ERROR("%s/system/debug parameter not found. Shutting down...",
-              prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/system/use_planes", params.use_planes)) {
-    ROS_ERROR("%s/system/use_planes parameter not found. Shutting down...",
-              prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/system/use_ground_plane", params.use_ground_plane)) {
-    ROS_ERROR("%s/system/use_ground_plane parameter not found. Shutting down...",
               prefix.c_str());
     exit(-1);
   }
@@ -268,48 +259,38 @@ static void loadParameters(const ros::NodeHandle& nh,
               prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/pf/alpha1", params.alpha1)) {
-    ROS_ERROR("%s/pf/alpha1 not found. Shutting down...", prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/pf/alpha2", params.alpha2)) {
-    ROS_ERROR("%s/pf/alpha2 not found. Shutting down...", prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/pf/alpha3", params.alpha3)) {
-    ROS_ERROR("%s/pf/alpha3 not found. Shutting down...", prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/pf/alpha4", params.alpha4)) {
-    ROS_ERROR("%s/pf/alpha4 not found. Shutting down...", prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/pf/sigma_xy", params.sigma_xy)) {
-    ROS_ERROR("%s/pf/sigma_xy not found. "
+  if (!nh.getParam(prefix + "/pf/sigma_xx", params.sigma_xx)) {
+    ROS_ERROR("%s/pf/sigma_xx not found. "
               "Shutting down...",
               prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/pf/sigma_z", params.sigma_z)) {
-    ROS_ERROR("%s/pf/sigma_z not found. "
+  if (!nh.getParam(prefix + "/pf/sigma_yy", params.sigma_yy)) {
+    ROS_ERROR("%s/pf/sigma_yy not found. "
               "Shutting down...",
               prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/pf/sigma_roll", params.sigma_roll)) {
-    ROS_ERROR("%s/pf/sigma_roll not found. "
+  if (!nh.getParam(prefix + "/pf/sigma_zz", params.sigma_zz)) {
+    ROS_ERROR("%s/pf/sigma_zz not found. "
               "Shutting down...",
               prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/pf/sigma_pitch", params.sigma_pitch)) {
+  if (!nh.getParam(prefix + "/pf/sigma_RR", params.sigma_RR)) {
+    ROS_ERROR("%s/pf/sigma_RR not found. "
+              "Shutting down...",
+              prefix.c_str());
+    exit(-1);
+  }
+  if (!nh.getParam(prefix + "/pf/sigma_PP", params.sigma_PP)) {
     ROS_ERROR("%s/pf/sigma_pitch not found. "
               "Shutting down...",
               prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/pf/sigma_yaw", params.sigma_yaw)) {
-    ROS_ERROR("%s/pf/sigma_pitch not found. "
+  if (!nh.getParam(prefix + "/pf/sigma_YY", params.sigma_YY)) {
+    ROS_ERROR("%s/pf/sigma_YY not found. "
               "Shutting down...",
               prefix.c_str());
     exit(-1);
@@ -338,12 +319,6 @@ static void loadParameters(const ros::NodeHandle& nh,
   if (!nh.getParam(prefix + "/pf/sigma_planar_matching",
                    params.sigma_planar_matching)) {
     ROS_ERROR("%s/pf/sigma_planar_matching not found. "
-              "Shutting down...",
-              prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/pf/sigma_planes", params.sigma_planes)) {
-    ROS_ERROR("%s/pf/sigma_planes_yaw not found. "
               "Shutting down...",
               prefix.c_str());
     exit(-1);

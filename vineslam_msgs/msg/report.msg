@@ -15,7 +15,5 @@ std_msgs/String log
 std_msgs/Bool use_high_level
 std_msgs/Bool use_corners
 std_msgs/Bool use_planars
-std_msgs/Bool use_planes
-std_msgs/Bool use_ground
 std_msgs/Bool use_icp
 std_msgs/Bool use_gps

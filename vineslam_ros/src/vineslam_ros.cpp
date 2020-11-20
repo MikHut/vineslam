@@ -114,24 +114,25 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
       // ---------------------------------------------------------
 
       // - 2D semantic feature map
-      mapper2D->init(robot_pose, bearings, depths, labels, *grid_map);
+      land_mapper->init(robot_pose, bearings, depths, labels, *grid_map);
 
       // - 3D PCL corner map estimation
       std::vector<Corner> m_corners;
       std::vector<Planar> m_planars;
       std::vector<Plane>  m_planes;
       Plane               m_ground_plane;
-      mapper3D->localPCLMap(
-          scan_pts, m_corners, m_planars, m_planes, m_ground_plane);
+      lid_mapper->localMap(scan_pts, m_corners, m_planars, m_planes, m_ground_plane);
 
       // - 3D image feature map estimation
       auto*                     raw_depths = (float*)(&(*depth_image).data[0]);
       std::vector<ImageFeature> m_surf_features;
-      mapper3D->localSurfMap(left_image, raw_depths, m_surf_features);
+      vis_mapper->localMap(left_image, raw_depths, m_surf_features);
 
       // - Register 3D maps
-      mapper3D->registerMaps(
-          robot_pose, m_surf_features, m_corners, m_planars, m_planes, *grid_map);
+      vis_mapper->registerMaps(robot_pose, m_surf_features, *grid_map);
+      lid_mapper->registerMaps(
+          robot_pose, m_corners, m_planars, m_planes, *grid_map);
+      grid_map->downsamplePlanars();
 
       // - Save local map for next iteration
       previous_map->clear();
@@ -150,19 +151,19 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // ---------------------------------------------------------
     // - Compute 2D local map of semantic features on robot's referential frame
     std::vector<SemanticFeature> m_landmarks;
-    mapper2D->localMap(bearings, depths, m_landmarks);
+    land_mapper->localMap(bearings, depths, m_landmarks);
 
     // - Compute 3D PCL corners and ground plane on robot's referential frame
     std::vector<Corner> m_corners;
     std::vector<Planar> m_planars;
     std::vector<Plane>  m_planes;
     Plane               m_ground_plane;
-    mapper3D->localPCLMap(scan_pts, m_corners, m_planars, m_planes, m_ground_plane);
+    lid_mapper->localMap(scan_pts, m_corners, m_planars, m_planes, m_ground_plane);
 
     // - Compute 3D image features on robot's referential frame
     std::vector<ImageFeature> m_surf_features;
     auto*                     raw_depths = (float*)(&(*depth_image).data[0]);
-    mapper3D->localSurfMap(left_image, raw_depths, m_surf_features);
+    vis_mapper->localMap(left_image, raw_depths, m_surf_features);
 
     // ---------------------------------------------------------
     // ----- Build observation structure to use in the localization
@@ -179,10 +180,6 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
       obsv.corners = m_corners;
     if (params.use_planars)
       obsv.planars = m_planars;
-    if (params.use_planes)
-      obsv.planes = m_planes;
-    if (params.use_ground_plane)
-      obsv.ground_plane = m_ground_plane;
     if (params.use_icp)
       obsv.surf_features = m_surf_features;
     if (has_converged && params.use_gps)
@@ -200,10 +197,10 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     // ----- Register multi-layer map (if performing SLAM)
     // ---------------------------------------------------------
     if (register_map) {
-      mapper2D->process(robot_pose, m_landmarks, labels, *grid_map);
-
-      mapper3D->registerMaps(
-          robot_pose, m_surf_features, m_corners, m_planars, m_planes, *grid_map);
+      land_mapper->process(robot_pose, m_landmarks, labels, *grid_map);
+      vis_mapper->registerMaps(robot_pose, m_surf_features, *grid_map);
+      lid_mapper->registerMaps(
+          robot_pose, m_corners, m_planars, m_planes, *grid_map);
       grid_map->downsamplePlanars();
     }
 
@@ -329,7 +326,6 @@ void VineSLAM_ros::mainFct(const cv::Mat&                               left_ima
     report.use_high_level.data = params.use_landmarks;
     report.use_corners.data    = params.use_corners;
     report.use_planars.data    = params.use_planars;
-    report.use_planes.data     = params.use_planes;
     report.use_icp.data        = params.use_icp;
     report.use_gps.data        = params.use_gps;
     vineslam_report_publisher.publish(report);

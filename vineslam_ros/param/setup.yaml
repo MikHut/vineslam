@@ -77,33 +77,19 @@ multilayer_mapping:
 pf:
   n_particles: 500
 
-  # motion model weights
-  alpha1: 0.050 # rotation - rotation (rad / rad)
-  alpha2: 0.200 # rotation - translation (rad / meter)
-  alpha3: 0.200 # translation - translation (meter / meter)
-  alpha4: 0.080 # translation - rotation (meter / rad)
-  # additional motion model weights - considering 6-DoF innovation
-  alpha5: 0.100
-  alpha6: 0.100
-  alpha7: 0.100
-  alpha8: 0.100
-  alpha9: 0.100
-  alpha10: 0.100
+  # Particles innovation
+  sigma_xx: 0.2 # meters
+  sigma_yy: 0.2 # meters
+  sigma_zz: 0.2 # meters
+  sigma_RR: 0.5 # radians
+  sigma_PP: 0.5 # radians
+  sigma_YY: 0.8 # radians
 
-  ## --- PARTICLES INNOVATION -- #
-  sigma_xy: 0.15 # meters (just for initialization)
-  sigma_z: 0.01 # meters
-  sigma_roll: 0.01 # degrees
-  sigma_pitch: 0.01 # degrees
-  sigma_yaw: 1.0 # degrees (just for initialization)
-
-  ## --- PARTICLES UPDATE -- #
+  ## Particles update
   sigma_landmark_matching: 0.01 # meters
   sigma_feature_matching: 0.05 # meters
-  sigma_corner_matching: 0.05 # meters
-  sigma_planar_matching: 0.05 # meters
-  sigma_planes_yaw: 1.0 # degrees
-  sigma_ground_rp: 1.0 # degrees
+  sigma_corner_matching: 0.1 # meters
+  sigma_planar_matching: 0.1 # meters
   sigma_gps: 0.08 # meters
 
   k_clusters: 3

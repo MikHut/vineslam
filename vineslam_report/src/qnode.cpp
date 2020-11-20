@@ -97,8 +97,6 @@ void QNode::changeReplayNodeState(const std_msgs::Bool& pause,
 void QNode::changeReplayNodeFeatures(const std_msgs::Bool& use_high_level,
                                      const std_msgs::Bool& use_corners,
                                      const std_msgs::Bool& use_planars,
-                                     const std_msgs::Bool& use_planes,
-                                     const std_msgs::Bool& use_ground,
                                      const std_msgs::Bool& use_image_features,
                                      const std_msgs::Bool& use_gps)
 {
@@ -106,8 +104,6 @@ void QNode::changeReplayNodeFeatures(const std_msgs::Bool& use_high_level,
   srv.request.use_high_level = use_high_level;
   srv.request.use_corners    = use_corners;
   srv.request.use_planars    = use_planars;
-  srv.request.use_planes     = use_planes;
-  srv.request.use_ground     = use_ground;
   srv.request.use_icp        = use_image_features;
   srv.request.use_gps        = use_gps;
 

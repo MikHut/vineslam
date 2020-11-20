@@ -22,9 +22,7 @@ struct Parameters {
   // -----------------------------------
   // ------ System flags
   // -----------------------------------
-  bool use_planes{};
   bool use_landmarks{};
-  bool use_ground_plane{};
   bool use_corners{};
   bool use_planars{};
   bool use_icp{};
@@ -81,20 +79,16 @@ struct Parameters {
   // ------ Particle filter parameters
   // -----------------------------------
   int   number_particles{};
-  float alpha1;
-  float alpha2;
-  float alpha3;
-  float alpha4;
-  float sigma_xy{};
-  float sigma_z{};
-  float sigma_roll{};
-  float sigma_pitch{};
-  float sigma_yaw{};
+  float sigma_xx{};
+  float sigma_yy{};
+  float sigma_zz{};
+  float sigma_RR{};
+  float sigma_PP{};
+  float sigma_YY{};
   float sigma_landmark_matching{};
   float sigma_feature_matching{};
   float sigma_corner_matching{};
   float sigma_planar_matching{};
-  float sigma_planes{};
   float sigma_gps{};
   int   number_clusters{};
 

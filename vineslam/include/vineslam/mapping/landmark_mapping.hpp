@@ -1,14 +1,14 @@
 #pragma once
 
 // Classes
-#include <params.hpp>
-#include <kf.hpp>
-#include <feature.hpp>
-#include <occupancy_map.hpp>
-#include <math/stat.hpp>
-#include <math/point.hpp>
-#include <math/pose.hpp>
-#include <math/const.hpp>
+#include "../params.hpp"
+#include "../feature/semantic.hpp"
+#include "../mapping/occupancy_map.hpp"
+#include "../math/point.hpp"
+#include "../math/pose.hpp"
+#include "../math/stat.hpp"
+#include "../math/const.hpp"
+#include "landmark_ekf.hpp"
 
 // std, eigen
 #include <cmath>
@@ -20,12 +20,12 @@
 namespace vineslam
 {
 
-class Mapper2D
+class LandmarkMapper
 {
 public:
   // Class constructor
   // - Loads the parameters
-  explicit Mapper2D(Parameters params);
+  explicit LandmarkMapper(Parameters params);
 
   // Global function that handles all the mapping process
   void process(const pose&                         pose,

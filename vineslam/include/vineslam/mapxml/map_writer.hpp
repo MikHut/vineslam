@@ -5,7 +5,7 @@
 #include <fstream>
 #include <yaml-cpp/yaml.h>
 
-#include "../occupancy_map.hpp"
+#include "../mapping/occupancy_map.hpp"
 
 // ----- TAGS ----- //
 // -- General

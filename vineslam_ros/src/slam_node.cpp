@@ -30,9 +30,10 @@ SLAMNode::SLAMNode(int argc, char** argv)
   estimate_heading = true;
 
   // Declare the Mappers and Localizer objects
-  localizer = new Localizer(params);
-  mapper2D  = new Mapper2D(params);
-  mapper3D  = new Mapper3D(params);
+  localizer   = new Localizer(params);
+  land_mapper = new LandmarkMapper(params);
+  vis_mapper  = new VisualMapper(params);
+  lid_mapper  = new LidarMapper(params);
 
   // Initialize local grid map that will be used for relative motion calculation
   Parameters local_map_params;
@@ -139,8 +140,8 @@ SLAMNode::SLAMNode(int argc, char** argv)
     tfScalar    roll, pitch, yaw;
     cam2base.getBasis().getRPY(roll, pitch, yaw);
 
-    mapper3D->setCam2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
-    mapper2D->setCamPitch(pitch);
+    vis_mapper->setCam2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
+    land_mapper->setCamPitch(pitch);
 
     tf::Transform vel2base;
     vel2base.setRotation(tf::Quaternion(params.vel2base[3],
@@ -153,7 +154,7 @@ SLAMNode::SLAMNode(int argc, char** argv)
     t        = vel2base.getOrigin();
     vel2base.getBasis().getRPY(roll, pitch, yaw);
 
-    mapper3D->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
+    lid_mapper->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
   }
 
   ROS_INFO("Done! Execution started.");

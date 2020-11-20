@@ -35,8 +35,6 @@ public:
   void changeReplayNodeFeatures(const std_msgs::Bool& use_high_level,
                                 const std_msgs::Bool& use_corners,
                                 const std_msgs::Bool& use_planars,
-                                const std_msgs::Bool& use_planes,
-                                const std_msgs::Bool& use_ground,
                                 const std_msgs::Bool& use_image_features,
                                 const std_msgs::Bool& use_gps);
   void callParticleFilterDebugger(const float& x_std,

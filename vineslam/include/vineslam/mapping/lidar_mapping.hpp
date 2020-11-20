@@ -5,22 +5,13 @@
 #include <deque>
 #include <eigen3/Eigen/Dense>
 
-// Objects
-#include <params.hpp>
-#include <feature.hpp>
-#include <occupancy_map.hpp>
-#include <math/point.hpp>
-#include <math/pose.hpp>
-#include <math/const.hpp>
-#include <math/tf.hpp>
-
-// OpenCV
-#include <opencv2/core.hpp>
-#include <opencv2/imgproc.hpp>
-#include <opencv2/features2d.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/xfeatures2d.hpp>
-#include <opencv2/xfeatures2d/nonfree.hpp>
+#include "../params.hpp"
+#include "../feature/three_dimensional.hpp"
+#include "../mapping/occupancy_map.hpp"
+#include "../math/point.hpp"
+#include "../math/pose.hpp"
+#include "../math/tf.hpp"
+#include "../math/const.hpp"
 
 namespace vineslam
 {
@@ -47,59 +38,28 @@ struct by_value {
   }
 };
 
-// ---------------------------------------------------------------------------------
-// The 3D map is composed of two layers:
-// -> A map extracted directly from the 3D point cloud containing corners, the
-// ground plane, and the vegetation planes
-// -> A map extracted from 2D image features and projected in 3D
-// ---------------------------------------------------------------------------------
-class Mapper3D
+class LidarMapper
 {
 public:
   // Class constructor - receives and saves the system
   // parameters
-  explicit Mapper3D(const Parameters& params);
+  explicit LidarMapper(const Parameters& params);
 
-  void registerMaps(const pose&                robot_pose,
-                    std::vector<ImageFeature>& img_features,
-                    std::vector<Corner>&       corners,
-                    std::vector<Planar>&       planars,
-                    std::vector<Plane>&        planes,
-                    OccupancyMap&              grid_map);
-
-  // -------------------------------------------------------------------------------
-  // ---- 3D image feature map
-  // -------------------------------------------------------------------------------
-  // Builds local map given the current image feature observations
-  void localSurfMap(const cv::Mat&             img,
-                    const float*               depths,
-                    std::vector<ImageFeature>& out_features);
+  void registerMaps(const pose&          robot_pose,
+                    std::vector<Corner>& corners,
+                    std::vector<Planar>& planars,
+                    std::vector<Plane>&  planes,
+                    OccupancyMap&        grid_map);
 
   // -------------------------------------------------------------------------------
   // ---- 3D pointcloud feature map
   // -------------------------------------------------------------------------------
   // Builds local map given the current 3D point cloud - for velodyne
-  void localPCLMap(const std::vector<point>& pcl,
-                   std::vector<Corner>&      out_corners,
-                   std::vector<Planar>&      out_planars,
-                   std::vector<Plane>&       out_planes,
-                   Plane&                    out_groundplane);
-
-  // Setter functions
-  void setCam2Base(const float& x,
-                   const float& y,
-                   const float& z,
-                   const float& roll,
-                   const float& pitch,
-                   const float& yaw)
-  {
-    cam2base_x     = x;
-    cam2base_y     = y;
-    cam2base_z     = z;
-    cam2base_roll  = roll;
-    cam2base_pitch = pitch;
-    cam2base_yaw   = yaw;
-  }
+  void localMap(const std::vector<point>& pcl,
+                std::vector<Corner>&      out_corners,
+                std::vector<Planar>&      out_planars,
+                std::vector<Plane>&       out_planes,
+                Plane&                    out_groundplane);
   void setVel2Base(const float& x,
                    const float& y,
                    const float& z,
@@ -119,19 +79,6 @@ public:
   float lidar_height;
 
 private:
-  // -------------------------------------------------------------------------------
-  // ---- 3D image feature map
-  // -------------------------------------------------------------------------------
-  // Adds the image features to the global map
-  void globalSurfMap(const std::vector<ImageFeature>& features,
-                     const pose&                      robot_pose,
-                     OccupancyMap&                    grid_map) const;
-
-  // Perform feature extraction
-  void extractSurfFeatures(const cv::Mat& in, std::vector<ImageFeature>& out) const;
-  // Converts a pixel into world's coordinate reference
-  void pixel2base(const point& in_pt, const float& depth, point& out_pt) const;
-
   // -------------------------------------------------------------------------------
   // ---- 3D pointcloud feature map
   // -------------------------------------------------------------------------------
@@ -166,27 +113,14 @@ private:
                                      std::vector<Plane>&            out_planes);
 
   // 3D feature extraction from a point cloud
-  void extract3DFeatures(const std::vector<PlanePoint>& in_plane_pts,
-                         std::vector<Corner>&           out_corners,
-                         std::vector<Planar>&           out_planars);
+  void extractFeatures(const std::vector<PlanePoint>& in_plane_pts,
+                       std::vector<Corner>&           out_corners,
+                       std::vector<Planar>&           out_planars);
 
-  // Camera info parameters
-  int   img_width;
-  int   img_height;
-  float fx;
-  float fy;
-  float cx;
-  float cy;
-  float depth_hfov;
-  float depth_vfov;
-
-  // 3D map parameters
-  float max_range;
-  float max_height;
-  int   hessian_threshold;
+  // Local occupancy grid map
+  OccupancyMap* local_map;
 
   // 3D cloud feature parameters
-  float correspondence_threshold;
   int   max_iters;
   float dist_threshold;
   float planes_th{};
@@ -205,8 +139,6 @@ private:
   float ang_res_y{};
 
   // Transformation parameters
-  float cam2base_x{}, cam2base_y{}, cam2base_z{}, cam2base_roll{}, cam2base_pitch{},
-      cam2base_yaw{};
   float vel2base_x{}, vel2base_y{}, vel2base_z{}, vel2base_roll{}, vel2base_pitch{},
       vel2base_yaw{};
 

@@ -29,10 +29,11 @@ ReplayNode::ReplayNode(int argc, char** argv)
   bag_state = PLAYING;
 
   // Declare the Mappers and Localizer objects
-  localizer = new Localizer(params);
-  mapper2D  = new Mapper2D(params);
-  mapper3D  = new Mapper3D(params);
-  pf        = new PF(params, pose(0, 0, 0, 0, 0, 0));
+  localizer   = new Localizer(params);
+  land_mapper = new LandmarkMapper(params);
+  vis_mapper  = new VisualMapper(params);
+  lid_mapper  = new LidarMapper(params);
+  pf          = new PF(params, pose(0, 0, 0, 0, 0, 0));
 
   // Initialize local grid map that will be used for relative motion calculation
   Parameters local_map_params;
@@ -136,8 +137,8 @@ ReplayNode::ReplayNode(int argc, char** argv)
     tfScalar    roll, pitch, yaw;
     cam2base.getBasis().getRPY(roll, pitch, yaw);
 
-    mapper3D->setCam2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
-    mapper2D->setCamPitch(pitch);
+    vis_mapper->setCam2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
+    land_mapper->setCamPitch(pitch);
 
     tf::Transform vel2base;
     vel2base.setRotation(tf::Quaternion(params.vel2base[3],
@@ -150,7 +151,7 @@ ReplayNode::ReplayNode(int argc, char** argv)
     t        = vel2base.getOrigin();
     vel2base.getBasis().getRPY(roll, pitch, yaw);
 
-    mapper3D->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
+    lid_mapper->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
   }
 
   ROS_INFO("Done! Execution started.");
@@ -310,19 +311,15 @@ bool ReplayNode::changeNodeFeatures(
     vineslam_ros::change_replay_node_features::Request&  request,
     vineslam_ros::change_replay_node_features::Response& response)
 {
-  params.use_landmarks    = request.use_high_level.data;
-  params.use_corners      = request.use_corners.data;
-  params.use_planars      = request.use_planars.data;
-  params.use_planes       = request.use_planes.data;
-  params.use_ground_plane = request.use_ground.data;
-  params.use_icp          = request.use_icp.data;
-  params.use_gps          = request.use_gps.data;
+  params.use_landmarks = request.use_high_level.data;
+  params.use_corners   = request.use_corners.data;
+  params.use_planars   = request.use_planars.data;
+  params.use_icp       = request.use_icp.data;
+  params.use_gps       = request.use_gps.data;
 
   localizer->changeObservationsToUse(params.use_landmarks,
                                      params.use_corners,
                                      params.use_planars,
-                                     params.use_planes,
-                                     params.use_ground_plane,
                                      params.use_icp,
                                      params.use_gps);
 
@@ -355,13 +352,11 @@ bool ReplayNode::debugPF(vineslam_ros::debug_particle_filter::Request&  request,
   // -------------------------------------------------------------------------------
   // ---- Update debug PF settings
   // -------------------------------------------------------------------------------
-  pf->use_landmarks    = params.use_landmarks;
-  pf->use_corners      = params.use_corners;
-  pf->use_planars      = params.use_planars;
-  pf->use_planes       = params.use_planes;
-  pf->use_ground_plane = params.use_ground_plane;
-  pf->use_icp          = params.use_icp;
-  pf->use_gps          = params.use_gps;
+  pf->use_landmarks = params.use_landmarks;
+  pf->use_corners   = params.use_corners;
+  pf->use_planars   = params.use_planars;
+  pf->use_icp       = params.use_icp;
+  pf->use_gps       = params.use_gps;
 
   // -------------------------------------------------------------------------------
   // ---- Call particle filter update routine

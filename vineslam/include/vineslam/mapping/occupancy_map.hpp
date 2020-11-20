@@ -1,8 +1,10 @@
 #pragma once
 
-#include <params.hpp>
-#include <math/point.hpp>
-#include <feature.hpp>
+#include "../feature/semantic.hpp"
+#include "../feature/visual.hpp"
+#include "../feature/three_dimensional.hpp"
+#include "../params.hpp"
+#include "../math/point.hpp"
 
 #include <iostream>
 #include <vector>

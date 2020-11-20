@@ -1,9 +1,9 @@
-#include "mapper2D.hpp"
+#include "../../include/vineslam/mapping/landmark_mapping.hpp"
 
 namespace vineslam
 {
 
-Mapper2D::Mapper2D(Parameters params)
+LandmarkMapper::LandmarkMapper(Parameters params)
     : params(std::move(params))
 {
   fx       = params.fx;
@@ -16,7 +16,7 @@ Mapper2D::Mapper2D(Parameters params)
   it = 0;
 }
 
-void Mapper2D::init(const pose&               pose,
+void LandmarkMapper::init(const pose&               pose,
                     const std::vector<float>& bearings,
                     const std::vector<float>& depths,
                     const std::vector<int>&   labels,
@@ -65,7 +65,7 @@ void Mapper2D::init(const pose&               pose,
   it++;
 }
 
-void Mapper2D::process(const pose&                         pose,
+void LandmarkMapper::process(const pose&                         pose,
                        const std::vector<SemanticFeature>& landmarks,
                        const std::vector<int>&             labels,
                        OccupancyMap&                       grid_map)
@@ -90,7 +90,7 @@ void Mapper2D::process(const pose&                         pose,
     filter(grid_map);
 }
 
-std::vector<point> Mapper2D::base2map(const pose&                         pose,
+std::vector<point> LandmarkMapper::base2map(const pose&                         pose,
                                       const std::vector<SemanticFeature>& landmarks)
 {
   // Convert 6-DOF pose to homogenous transformation
@@ -117,7 +117,7 @@ std::vector<point> Mapper2D::base2map(const pose&                         pose,
   return landmarks_;
 }
 
-void Mapper2D::predict(const pose&               pose,
+void LandmarkMapper::predict(const pose&               pose,
                        const std::vector<float>& bearings,
                        const std::vector<float>& depths,
                        const std::vector<int>&   labels,
@@ -181,7 +181,7 @@ void Mapper2D::predict(const pose&               pose,
   }
 }
 
-std::pair<int, point> Mapper2D::findCorr(const point& pos, OccupancyMap& grid_map)
+std::pair<int, point> LandmarkMapper::findCorr(const point& pos, OccupancyMap& grid_map)
 {
   int   best_correspondence = -1;
   float best_aprox          = 0.5;
@@ -217,7 +217,7 @@ std::pair<int, point> Mapper2D::findCorr(const point& pos, OccupancyMap& grid_ma
   return std::pair<int, point>(best_correspondence, correspondence);
 }
 
-void Mapper2D::localMap(const std::vector<float>&     bearings,
+void LandmarkMapper::localMap(const std::vector<float>&     bearings,
                         const std::vector<float>&     depths,
                         std::vector<SemanticFeature>& landmarks) const
 {
@@ -243,7 +243,7 @@ void Mapper2D::localMap(const std::vector<float>&     bearings,
   }
 }
 
-void Mapper2D::filter(OccupancyMap& grid_map) const
+void LandmarkMapper::filter(OccupancyMap& grid_map) const
 {
   int old_limit = grid_map(0).n_landmarks - (grid_map(0).n_landmarks / 10);
 

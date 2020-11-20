@@ -5,8 +5,8 @@
 #include <fstream>
 
 #include "map_writer.hpp"
-#include "../occupancy_map.hpp"
-#include "../feature.hpp"
+#include "../mapping/occupancy_map.hpp"
+#include "../feature/feature.hpp"
 
 namespace vineslam
 {

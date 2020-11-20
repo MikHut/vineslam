@@ -2,17 +2,20 @@
 
 // vineslam members
 #include <params_loader.hpp>
-#include <feature.hpp>
-#include <localizer.hpp>
-#include <occupancy_map.hpp>
-#include <mapper2D.hpp>
-#include <mapper3D.hpp>
-#include <math/point.hpp>
-#include <math/pose.hpp>
-#include <math/const.hpp>
-#include <mapXML/map_writer.hpp>
-#include <mapXML/map_parser.hpp>
-#include <utils/save_data.hpp>
+#include <vineslam/feature/semantic.hpp>
+#include <vineslam/feature/visual.hpp>
+#include <vineslam/feature/three_dimensional.hpp>
+#include <vineslam/localization/localizer.hpp>
+#include <vineslam/mapping/occupancy_map.hpp>
+#include <vineslam/mapping/landmark_mapping.hpp>
+#include <vineslam/mapping/visual_mapping.hpp>
+#include <vineslam/mapping/lidar_mapping.hpp>
+#include <vineslam/math/point.hpp>
+#include <vineslam/math/pose.hpp>
+#include <vineslam/math/const.hpp>
+#include <vineslam/mapxml/map_writer.hpp>
+#include <vineslam/mapxml/map_parser.hpp>
+#include <vineslam/utils/save_data.hpp>
 // ----------------------------
 #include <vineslam_msgs/particle.h>
 #include <vineslam_msgs/report.h>
@@ -138,13 +141,14 @@ public:
   ros::ServiceClient set_datum;
 
   // Classes object members
-  Parameters    params;
-  Localizer*    localizer;
-  OccupancyMap* grid_map;
-  OccupancyMap* previous_map;
-  Mapper2D*     mapper2D;
-  Mapper3D*     mapper3D;
-  Observation   obsv;
+  Parameters      params;
+  Localizer*      localizer;
+  OccupancyMap*   grid_map;
+  OccupancyMap*   previous_map;
+  LandmarkMapper* land_mapper;
+  VisualMapper*   vis_mapper;
+  LidarMapper*    lid_mapper;
+  Observation     obsv;
 
   // Array of poses to store and publish the robot path
   std::vector<geometry_msgs::PoseStamped> path;

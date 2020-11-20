@@ -1,4 +1,4 @@
-#include "map_writer.hpp"
+#include "../../include/vineslam/mapxml/map_writer.hpp"
 
 namespace vineslam
 {

@@ -1,14 +1,16 @@
 #pragma once
 
 // Class objects
-#include <params.hpp>
-#include <feature.hpp>
-#include <occupancy_map.hpp>
-#include <icp.hpp>
-#include <pf.hpp>
-#include <math/point.hpp>
-#include <math/pose.hpp>
-#include <math/const.hpp>
+#include "../params.hpp"
+#include "../feature/visual.hpp"
+#include "../feature/semantic.hpp"
+#include "../feature/three_dimensional.hpp"
+#include "../mapping/occupancy_map.hpp"
+#include "../matcher/icp.hpp"
+#include "../localization/pf.hpp"
+#include "../math/point.hpp"
+#include "../math/pose.hpp"
+#include "../math/const.hpp"
 
 // std, eigen
 #include <iostream>
@@ -59,8 +61,6 @@ public:
   void changeObservationsToUse(const bool& use_high_level,
                                const bool& use_corners,
                                const bool& use_planars,
-                               const bool& use_planes,
-                               const bool& use_ground,
                                const bool& use_icp,
                                const bool& use_gps);
 

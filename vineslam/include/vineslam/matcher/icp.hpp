@@ -90,14 +90,15 @@ public:
     TF   tf_res(R, t);
     TF   tf_delta = tf.inverse() * tf_res;
     pose delta_p(tf_delta.R, tf_delta.t);
-    if (std::fabs(delta_p.x) > 0.3 || std::fabs(delta_p.y) > 0.3 ||
-        std::fabs(delta_p.z) > 0.3 || std::fabs(delta_p.roll) > 0.35 ||
-        std::fabs(delta_p.pitch) > 0.35 || std::fabs(delta_p.yaw) > 0.35) {
-      std::cout << "WARNING ICP::align: Huge jump detected on ICP - considering "
-                   "iteration as invalid..."
-                << std::endl;
-      return false;
-    }
+    //    if (std::fabs(delta_p.x) > 0.3 || std::fabs(delta_p.y) > 0.3 ||
+    //        std::fabs(delta_p.z) > 0.3 || std::fabs(delta_p.roll) > 0.35 ||
+    //        std::fabs(delta_p.pitch) > 0.35 || std::fabs(delta_p.yaw) > 0.35) {
+    //      std::cout << "WARNING ICP::align: Huge jump detected on ICP - considering
+    //      "
+    //                   "iteration as invalid..."
+    //                << std::endl;
+    //      return false;
+    //    }
 
     // Compute aligned point cloud
     aligned.resize(source.size());

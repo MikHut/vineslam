@@ -47,7 +47,7 @@ ReplayNode::ReplayNode(int argc, char** argv)
   previous_map = new OccupancyMap(local_map_params, pose(0, 0, 0, 0, 0, 0));
 
   // Set initialization flags default values
-  init             = true;
+  init_flag        = true;
   init_gps         = true;
   init_odom        = true;
   register_map     = true;
@@ -121,39 +121,35 @@ ReplayNode::ReplayNode(int argc, char** argv)
   }
 
   // Get static sensor tfs
-  bool got_tfs = false;
-  while (!got_tfs) {
-    got_tfs = true;
+  tf::Transform cam2base;
+  cam2base.setRotation(tf::Quaternion(params.cam2base[3],
+                                      params.cam2base[4],
+                                      params.cam2base[5],
+                                      params.cam2base[6]));
+  cam2base.setOrigin(
+      tf::Vector3(params.cam2base[0], params.cam2base[1], params.cam2base[2]));
+  cam2base      = cam2base.inverse();
+  tf::Vector3 t = cam2base.getOrigin();
+  tfScalar    roll, pitch, yaw;
+  cam2base.getBasis().getRPY(roll, pitch, yaw);
 
-    tf::Transform cam2base;
-    cam2base.setRotation(tf::Quaternion(params.cam2base[3],
-                                        params.cam2base[4],
-                                        params.cam2base[5],
-                                        params.cam2base[6]));
-    cam2base.setOrigin(
-        tf::Vector3(params.cam2base[0], params.cam2base[1], params.cam2base[2]));
-    cam2base      = cam2base.inverse();
-    tf::Vector3 t = cam2base.getOrigin();
-    tfScalar    roll, pitch, yaw;
-    cam2base.getBasis().getRPY(roll, pitch, yaw);
+  vis_mapper->setCam2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
+  land_mapper->setCamPitch(pitch);
 
-    vis_mapper->setCam2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
-    land_mapper->setCamPitch(pitch);
+  tf::Transform vel2base;
+  vel2base.setRotation(tf::Quaternion(params.vel2base[3],
+                                      params.vel2base[4],
+                                      params.vel2base[5],
+                                      params.vel2base[6]));
+  vel2base.setOrigin(
+      tf::Vector3(params.vel2base[0], params.vel2base[1], params.vel2base[2]));
+  vel2base = vel2base.inverse();
+  t        = vel2base.getOrigin();
+  vel2base.getBasis().getRPY(roll, pitch, yaw);
 
-    tf::Transform vel2base;
-    vel2base.setRotation(tf::Quaternion(params.vel2base[3],
-                                        params.vel2base[4],
-                                        params.vel2base[5],
-                                        params.vel2base[6]));
-    vel2base.setOrigin(
-        tf::Vector3(params.vel2base[0], params.vel2base[1], params.vel2base[2]));
-    vel2base = vel2base.inverse();
-    t        = vel2base.getOrigin();
-    vel2base.getBasis().getRPY(roll, pitch, yaw);
+  lid_mapper->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
 
-    lid_mapper->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
-  }
-
+  // Call execution threads
   ROS_INFO("Done! Execution started.");
 
   std::thread th1(&ReplayNode::replayFct, this, nh);
@@ -265,17 +261,21 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
 
     if (nmessages == 6) {
       // Save data to use on debug procedure
-      if (!init) {
+      if (!init_flag) {
         m_particles.clear();
         localizer->getParticles(m_particles);
         m_grid_map = grid_map;
       }
 
+      _imageListener(left_img, depth_img_ptr);
       scanListener(pcl_ptr);
       odomListener(odom_ptr);
-      // TODO (Andre Aguiar): GPS should be supported in the future
+      // TODO (Andre Aguiar): GPS and landmarks should be supported in the future
+      // landmarkListener(dets);
       // gpsListener(fix_ptr);
-      mainFct(left_img, depth_img_ptr, nullptr);
+
+      // Call VineSLAM loop
+      loopOnce();
 
       tf_bool       = false;
       odom_bool     = false;

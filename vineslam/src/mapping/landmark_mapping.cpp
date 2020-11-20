@@ -17,10 +17,10 @@ LandmarkMapper::LandmarkMapper(Parameters params)
 }
 
 void LandmarkMapper::init(const pose&               pose,
-                    const std::vector<float>& bearings,
-                    const std::vector<float>& depths,
-                    const std::vector<int>&   labels,
-                    OccupancyMap&             grid_map)
+                          const std::vector<float>& bearings,
+                          const std::vector<float>& depths,
+                          const std::vector<int>&   labels,
+                          OccupancyMap&             grid_map)
 {
   int                    n_obsv      = bearings.size();
   Gaussian<point, point> robot_gauss = pose.getDist();
@@ -66,9 +66,9 @@ void LandmarkMapper::init(const pose&               pose,
 }
 
 void LandmarkMapper::process(const pose&                         pose,
-                       const std::vector<SemanticFeature>& landmarks,
-                       const std::vector<int>&             labels,
-                       OccupancyMap&                       grid_map)
+                             const std::vector<SemanticFeature>& landmarks,
+                             const std::vector<int>&             labels,
+                             OccupancyMap&                       grid_map)
 {
   // Compute local map on robot's referential frame
   std::vector<point> l_map = base2map(pose, landmarks);
@@ -90,8 +90,9 @@ void LandmarkMapper::process(const pose&                         pose,
     filter(grid_map);
 }
 
-std::vector<point> LandmarkMapper::base2map(const pose&                         pose,
-                                      const std::vector<SemanticFeature>& landmarks)
+std::vector<point>
+LandmarkMapper::base2map(const pose&                         pose,
+                         const std::vector<SemanticFeature>& landmarks)
 {
   // Convert 6-DOF pose to homogenous transformation
   std::array<float, 9> Rot{};
@@ -118,10 +119,10 @@ std::vector<point> LandmarkMapper::base2map(const pose&                         
 }
 
 void LandmarkMapper::predict(const pose&               pose,
-                       const std::vector<float>& bearings,
-                       const std::vector<float>& depths,
-                       const std::vector<int>&   labels,
-                       OccupancyMap&             grid_map)
+                             const std::vector<float>& bearings,
+                             const std::vector<float>& depths,
+                             const std::vector<int>&   labels,
+                             OccupancyMap&             grid_map)
 {
   int                    n_obsv      = bearings.size();
   Gaussian<point, point> robot_gauss = pose.getDist();
@@ -181,7 +182,8 @@ void LandmarkMapper::predict(const pose&               pose,
   }
 }
 
-std::pair<int, point> LandmarkMapper::findCorr(const point& pos, OccupancyMap& grid_map)
+std::pair<int, point> LandmarkMapper::findCorr(const point&  pos,
+                                               OccupancyMap& grid_map)
 {
   int   best_correspondence = -1;
   float best_aprox          = 0.5;
@@ -218,8 +220,8 @@ std::pair<int, point> LandmarkMapper::findCorr(const point& pos, OccupancyMap& g
 }
 
 void LandmarkMapper::localMap(const std::vector<float>&     bearings,
-                        const std::vector<float>&     depths,
-                        std::vector<SemanticFeature>& landmarks) const
+                              const std::vector<float>&     depths,
+                              std::vector<SemanticFeature>& landmarks) const
 {
   pose                 pitch_comp(0., 0., 0., 0., -cam_pitch, 0.);
   std::array<float, 9> Rot{};

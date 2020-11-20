@@ -71,8 +71,7 @@ void VineSLAM_ros::publishGridMap(const std_msgs::Header& header) const
   grid_map_publisher.publish(occ_map);
 }
 
-void VineSLAM_ros::publish2DMap(const std_msgs::Header&   header,
-                                const pose&               pose,
+void VineSLAM_ros::publish2DMap(const pose&               pose,
                                 const std::vector<float>& bearings,
                                 const std::vector<float>& depths) const
 {

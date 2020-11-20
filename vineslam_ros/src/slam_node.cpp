@@ -23,7 +23,7 @@ SLAMNode::SLAMNode(int argc, char** argv)
   loadParameters(nh, "/slam_node", params);
 
   // Set initialization flags default values
-  init             = true;
+  init_flag        = true;
   init_gps         = true;
   init_odom        = true;
   register_map     = true;
@@ -50,19 +50,20 @@ SLAMNode::SLAMNode(int argc, char** argv)
   polar2pose = nh.serviceClient<agrob_map_transform::GetPose>("polar_to_pose");
   set_datum  = nh.serviceClient<agrob_map_transform::SetDatum>("datum");
 
-  // Synchronize subscribers of both topics
+  // Synchronize subscribers of both image topics
   message_filters::Subscriber<sensor_msgs::Image> left_image_sub(
       nh, params.left_img_topic, 1);
   message_filters::Subscriber<sensor_msgs::Image> depth_image_sub(
       nh, params.depth_img_topic, 1);
-  message_filters::Subscriber<vision_msgs::Detection2DArray> detections_sub(
-      nh, params.detections_topic, 1);
-  message_filters::TimeSynchronizer<sensor_msgs::Image,
-                                    sensor_msgs::Image,
-                                    vision_msgs::Detection2DArray>
-      sync(left_image_sub, depth_image_sub, detections_sub, 10);
-  sync.registerCallback(boost::bind(&SLAMNode::mainCallbackFct, this, _1, _2, _3));
+  message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image> sync(
+      left_image_sub, depth_image_sub, 10);
+  sync.registerCallback(boost::bind(&SLAMNode::imageListener, this, _1, _2));
 
+  // Landmark subscription
+  ros::Subscriber land_subscriber = nh.subscribe(params.detections_topic,
+                                                 1,
+                                                 &VineSLAM_ros::landmarkListener,
+                                                 dynamic_cast<VineSLAM_ros*>(this));
   // Scan subscription
   ros::Subscriber scan_subscriber = nh.subscribe(params.pcl_topic,
                                                  1,
@@ -124,39 +125,39 @@ SLAMNode::SLAMNode(int argc, char** argv)
   }
 
   // Get static sensor tfs
-  bool got_tfs = false;
-  while (!got_tfs) {
-    got_tfs = true;
+  tf::Transform cam2base;
+  cam2base.setRotation(tf::Quaternion(params.cam2base[3],
+                                      params.cam2base[4],
+                                      params.cam2base[5],
+                                      params.cam2base[6]));
+  cam2base.setOrigin(
+      tf::Vector3(params.cam2base[0], params.cam2base[1], params.cam2base[2]));
+  cam2base      = cam2base.inverse();
+  tf::Vector3 t = cam2base.getOrigin();
+  tfScalar    roll, pitch, yaw;
+  cam2base.getBasis().getRPY(roll, pitch, yaw);
 
-    tf::Transform cam2base;
-    cam2base.setRotation(tf::Quaternion(params.cam2base[3],
-                                        params.cam2base[4],
-                                        params.cam2base[5],
-                                        params.cam2base[6]));
-    cam2base.setOrigin(
-        tf::Vector3(params.cam2base[0], params.cam2base[1], params.cam2base[2]));
-    cam2base      = cam2base.inverse();
-    tf::Vector3 t = cam2base.getOrigin();
-    tfScalar    roll, pitch, yaw;
-    cam2base.getBasis().getRPY(roll, pitch, yaw);
+  vis_mapper->setCam2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
+  land_mapper->setCamPitch(pitch);
 
-    vis_mapper->setCam2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
-    land_mapper->setCamPitch(pitch);
+  tf::Transform vel2base;
+  vel2base.setRotation(tf::Quaternion(params.vel2base[3],
+                                      params.vel2base[4],
+                                      params.vel2base[5],
+                                      params.vel2base[6]));
+  vel2base.setOrigin(
+      tf::Vector3(params.vel2base[0], params.vel2base[1], params.vel2base[2]));
+  vel2base = vel2base.inverse();
+  t        = vel2base.getOrigin();
+  vel2base.getBasis().getRPY(roll, pitch, yaw);
 
-    tf::Transform vel2base;
-    vel2base.setRotation(tf::Quaternion(params.vel2base[3],
-                                        params.vel2base[4],
-                                        params.vel2base[5],
-                                        params.vel2base[6]));
-    vel2base.setOrigin(
-        tf::Vector3(params.vel2base[0], params.vel2base[1], params.vel2base[2]));
-    vel2base = vel2base.inverse();
-    t        = vel2base.getOrigin();
-    vel2base.getBasis().getRPY(roll, pitch, yaw);
+  lid_mapper->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
 
-    lid_mapper->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
-  }
+  // Call execution thread
+  std::thread th(&VineSLAM_ros::loop, dynamic_cast<VineSLAM_ros*>(this));
+  th.detach();
 
+  // ROS spin ...
   ROS_INFO("Done! Execution started.");
 
   ros::spin();
@@ -173,9 +174,6 @@ SLAMNode::~SLAMNode()
     MapWriter mw(params);
     mw.writeToFile(*grid_map);
   }
-
-  // Save path data
-  saveRobotPathKitti(gps_path, odom_path, robot_path);
 }
 
 } // namespace vineslam

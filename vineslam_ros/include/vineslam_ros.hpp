@@ -62,14 +62,19 @@ class VineSLAM_ros
 public:
   VineSLAM_ros() = default;
 
-  // Callback function that subscribes a rgb image, a  disparity image,
-  // and the bounding boxes that locate the objects on the image
-  void mainCallbackFct(const sensor_msgs::ImageConstPtr&            left_image,
-                       const sensor_msgs::ImageConstPtr&            depth_image,
-                       const vision_msgs::Detection2DArrayConstPtr& dets);
-  void mainFct(const cv::Mat&                               left_image,
-               const sensor_msgs::ImageConstPtr&            depth_image,
-               const vision_msgs::Detection2DArrayConstPtr& dets);
+  // Runtime execution routines
+  void init();
+  void loop();
+  void loopOnce();
+  void process();
+
+  // Stereo camera images callback function
+  void imageListener(const sensor_msgs::ImageConstPtr& rgb_image,
+                     const sensor_msgs::ImageConstPtr& depth_image);
+  void _imageListener(const cv::Mat&                    rgb_image,
+                      const sensor_msgs::ImageConstPtr& depth_image);
+  // Landmark detection callback function
+  void landmarkListener(const vision_msgs::Detection2DArrayConstPtr& dets);
   // Scan callback function
   void scanListener(const sensor_msgs::PointCloud2ConstPtr& msg);
   // Odometry callback function
@@ -85,8 +90,7 @@ public:
                              vineslam_ros::stop_gps_heading_estimation::Response&);
 
   // Publish 2D semantic features map
-  void publish2DMap(const std_msgs::Header&   header,
-                    const pose&               pose,
+  void publish2DMap(const pose&               pose,
                     const std::vector<float>& bearings,
                     const std::vector<float>& depths) const;
   // Publish the 3D maps
@@ -109,18 +113,35 @@ public:
   // Publish the grid map that contains all the maps
   void publishGridMap(const std_msgs::Header& header) const;
 
-  // Computes the bearing depth of an object using the ZED disparity image
-  // - Uses the point with minimum depth inside the bounding box
-  void computeObsv(const sensor_msgs::Image& depth_img,
-                   const int&                xmin,
-                   const int&                ymin,
-                   const int&                xmax,
-                   const int&                ymax,
-                   float&                    depth,
-                   float&                    bearing) const;
-
   // GNSS heading estimator
   bool getGNSSHeading(const pose& gps_odom, const std_msgs::Header& header);
+
+  // VineSLAM input data
+  struct InputData {
+    // Landmark labels array
+    std::vector<int> land_labels;
+    // Landmark bearings array
+    std::vector<float> land_bearings;
+    // Landmark depths array
+    std::vector<float> land_depths;
+    // Depth image transformed into a linear vector
+    float* depth_array;
+    // Input RGB image
+    cv::Mat rgb_image;
+    // Wheel odometry pose
+    pose wheel_odom_pose;
+    // GNSS pose
+    pose gnss_pose;
+    // LiDAR scan points
+    std::vector<point> scan_pts;
+
+    // Observation flags
+    bool received_landmarks;
+    bool received_images;
+    bool received_odometry;
+    bool received_gnss;
+    bool received_scans;
+  } input_data;
 
   // ROS publishers/services
   ros::Publisher     vineslam_report_publisher;
@@ -155,19 +176,8 @@ public:
   std::vector<geometry_msgs::PoseStamped> gps_poses;
 
   // Motion variables
-  pose odom;
   pose init_odom_pose;
-  pose p_odom;
   pose robot_pose;
-  pose gps_pose;
-
-  // Path variables
-  std::vector<TF> robot_path;
-  std::vector<TF> gps_path;
-  std::vector<TF> odom_path;
-
-  // 3D scan points handler
-  std::vector<point> scan_pts;
 
   // GNSS variables
   int     datum_autocorrection_stage;
@@ -178,7 +188,7 @@ public:
   float   heading;
 
   // Initialization flags
-  bool init;
+  bool init_flag;
   bool init_gps;
   bool init_odom;
   bool register_map;

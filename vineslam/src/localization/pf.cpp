@@ -329,36 +329,36 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars,
     float w_planars = 0.;
     for (const auto& planar : planars) {
       // Convert feature to the map's referential frame
-      point  X = planar.pos * particle.tf;
-      Planar m_planar(X, planar.which_plane);
+      point X = planar.pos * particle.tf;
+      //      Planar m_planar(X, planar.which_plane);
 
-      //      std::vector<Planar> m_planars = (*grid_map)(X.x, X.y,
-      //      X.z).planar_features;
+      std::vector<Planar> m_planars = (*grid_map)(X.x, X.y, X.z).planar_features;
 
-      // Search for a correspondence in the current cell first
-      //      float best_correspondence = 0.5;
-      //      bool  found               = false;
-      //      for (const auto& m_planar : m_planars) {
-      //        float dist_sq = ((X.x - m_planar.pos.x) * (X.x - m_planar.pos.x) +
-      //                         (X.y - m_planar.pos.y) * (X.y - m_planar.pos.y) +
-      //                         (X.z - m_planar.pos.z) * (X.z - m_planar.pos.z));
-      //
-      //        if (dist_sq < best_correspondence) {
-      //          best_correspondence = dist_sq;
-      //          found               = true;
-      //        }
-      //      }
+      //       Search for a correspondence in the current cell first
+      float best_correspondence = 0.5;
+      bool  found               = false;
+      for (const auto& m_planar : m_planars) {
+        float dist_sq = ((X.x - m_planar.pos.x) * (X.x - m_planar.pos.x) +
+                         (X.y - m_planar.pos.y) * (X.y - m_planar.pos.y) +
+                         (X.z - m_planar.pos.z) * (X.z - m_planar.pos.z));
 
-      Planar nearest_planar;
-      float  dist = std::numeric_limits<float>::max();
-      grid_map->findNearest(m_planar, nearest_planar, dist);
-      bool found = dist < 0.5;
+        if (dist_sq < best_correspondence) {
+          best_correspondence = dist_sq;
+          found               = true;
+        }
+      }
+
+      //      Planar nearest_planar;
+      //      float  dist = std::numeric_limits<float>::max();
+      //      grid_map->findNearest(m_planar, nearest_planar, dist);
+      //      bool found = dist < 0.5;
 
       // Save distance if a correspondence was found
       if (found)
         w_planars +=
-            (normalizer_planar * static_cast<float>(std::exp(
-                                     (-1. / params.sigma_planar_matching) * dist)));
+            (normalizer_planar *
+             static_cast<float>(std::exp((-1. / params.sigma_planar_matching) *
+                                         best_correspondence)));
     }
 
     ws[particle.id] = w_planars;

@@ -165,11 +165,8 @@ void VineSLAM_ros::process()
   // ---------------------------------------------------------
   // ----- Localization procedure
   // ---------------------------------------------------------
-//  localizer->process(input_data.wheel_odom_pose, obsv, previous_map, grid_map);
-//  robot_pose = localizer->getPose();
-  TF res;
-  localizer->predictMotion(m_planars, previous_map, res);
-  robot_pose = robot_pose + pose(res.R, res.t);
+  localizer->process(input_data.wheel_odom_pose, obsv, previous_map, grid_map);
+  robot_pose = localizer->getPose();
 
   // ---------------------------------------------------------
   // ----- Register multi-layer map (if performing SLAM)

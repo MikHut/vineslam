@@ -623,7 +623,7 @@ void PF::scanMatch(const std::vector<ImageFeature>&     features,
   icp->setInputTarget(grid_map);
   icp->setInputSource(features);
   // - Perform scan matching for each cluster
-  bool                 valid_it = true;
+  bool                 valid_it = false;
   std::map<int, float> cluster_ws;
   for (auto& it : gauss_map) {
     // Convert cluster pose to [R|t]
@@ -691,15 +691,8 @@ void PF::scanMatch(const std::vector<ImageFeature>&     features,
       // - ICP result application
       TF m_tf = tfs[particle.which_cluster];
 
-      // Convert cluster pose to [R|t]
-      std::array<float, 3> trans = {particle.p.x, particle.p.y, particle.p.z};
-      std::array<float, 9> Rot{};
-      particle.p.toRotMatrix(Rot);
-
-      TF particle_tf(Rot, trans);
-
-      particle_tf = particle_tf * m_tf;
-      particle.p  = pose(particle_tf.R, particle_tf.t);
+      particle.tf = particle.tf * m_tf;
+      particle.p  = pose(particle.tf.R, particle.tf.t);
       particle.p.normalize();
 
       // Update particle weight

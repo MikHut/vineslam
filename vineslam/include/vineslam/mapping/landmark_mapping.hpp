@@ -4,8 +4,8 @@
 #include "../params.hpp"
 #include "../feature/semantic.hpp"
 #include "../mapping/occupancy_map.hpp"
-#include "../math/point.hpp"
-#include "../math/pose.hpp"
+#include "../math/Point.hpp"
+#include "../math/Pose.hpp"
 #include "../math/stat.hpp"
 #include "../math/const.hpp"
 #include "landmark_ekf.hpp"
@@ -19,7 +19,6 @@
 
 namespace vineslam
 {
-
 class LandmarkMapper
 {
 public:
@@ -28,64 +27,55 @@ public:
   explicit LandmarkMapper(Parameters params);
 
   // Global function that handles all the mapping process
-  void process(const pose&                         pose,
-               const std::vector<SemanticFeature>& landmarks,
-               const std::vector<int>&             labels,
-               OccupancyMap&                       grid_map);
+  void process(const Pose& pose, const std::vector<SemanticFeature>& landmarks, const std::vector<int>& labels,
+               OccupancyMap& grid_map);
 
   // Initializes the map
   // - Invocated only once to insert the first observations on the map
-  void init(const pose&               pose,
-            const std::vector<float>& bearings,
-            const std::vector<float>& depths,
-            const std::vector<int>&   labels,
-            OccupancyMap&             grid_map);
+  void init(const Pose& pose, const std::vector<float>& bearings, const std::vector<float>& depths,
+            const std::vector<int>& labels, OccupancyMap& grid_map);
 
   // Computes a local map on camera's referential given a set of range-bearing
   // observations
-  void localMap(const std::vector<float>&     bearings,
-                const std::vector<float>&     depths,
+  void localMap(const std::vector<float>& bearings, const std::vector<float>& depths,
                 std::vector<SemanticFeature>& landmarks) const;
 
   // Setters
-  void setCamPitch(const float& pitch) { cam_pitch = pitch; }
+  void setCamPitch(const float& pitch)
+  {
+    cam_pitch_ = pitch;
+  }
 
 private:
   // Input parameters
-  int        filter_frequency;
-  float      stdev_threshold;
-  float      baseline;
-  float      cam_pitch{};
-  float      fx;
-  Parameters params;
+  float cam_pitch_;
+  int filter_frequency_;
+  float stdev_threshold_;
+  Parameters params_;
 
   // Semantic Feature identifier
-  int id{};
+  int id_{};
 
   // Iteration number
-  int it;
+  int it_;
 
   // Array of Kalman Filters, one for each landmark
   std::vector<KF> filters;
 
   // Estimates landmark positions based on the current observations
-  void predict(const pose&               pose,
-               const std::vector<float>& bearings,
-               const std::vector<float>& depths,
-               const std::vector<int>&   labels,
-               OccupancyMap&             grid_map);
+  void predict(const Pose& pose, const std::vector<float>& bearings, const std::vector<float>& depths,
+               const std::vector<int>& labels, OccupancyMap& grid_map);
 
   // Filters semantic map based on the mapping uncertainty
   // - old landmarks that have high uncertainty are removed
   void filter(OccupancyMap& grid_map) const;
 
   // Computes a local map, on robot's frame
-  static std::vector<point> base2map(const pose&                         pose,
-                                     const std::vector<SemanticFeature>& landmarks);
+  static std::vector<Point> base2map(const Pose& pose, const std::vector<SemanticFeature>& landmarks);
 
   // Searches from correspondences between observations and landmarks
   // already mapped
-  static std::pair<int, point> findCorr(const point& l_pos, OccupancyMap& grid_map);
+  static std::pair<int, Point> findCorr(const Point& l_pos, OccupancyMap& grid_map);
 };
 
-} // namespace vineslam
+}  // namespace vineslam

@@ -4,7 +4,6 @@
 
 namespace vineslam
 {
-
 // ---------------------------------------------------------------------------------
 // ----- Semantic high-level feature
 // ---------------------------------------------------------------------------------
@@ -14,15 +13,14 @@ namespace vineslam
 // - type of feature
 // - description of the feature
 // - dynamic or static
-struct SemanticInfo {
+struct SemanticInfo
+{
   SemanticInfo() = default;
-  SemanticInfo(const std::string& type,
-               const std::string& description,
-               const int&         character)
+  SemanticInfo(const std::string& type, const std::string& description, const int& character)
   {
-    (*this).type        = type;
-    (*this).description = description;
-    (*this).character   = character;
+    type_ = type;
+    description_ = description;
+    character_ = character;
   }
 
   // Initialize semantic information of feature to give
@@ -31,70 +29,69 @@ struct SemanticInfo {
   {
     std::string m_type;
     std::string m_desc;
-    int         m_ch;
+    int m_ch;
 
-    switch (label) {
+    switch (label)
+    {
       case 0:
         m_type = "Trunk";
         m_desc = "Vine trunk. A static landmark";
-        m_ch   = 0;
+        m_ch = 0;
 
         *this = SemanticInfo(m_type, m_desc, m_ch);
         break;
       case 1:
-        type   = "Leaf";
+        type_ = "Leaf";
         m_desc = "Leaf from a vine trunk. A dynamic landmark";
-        m_ch   = 1;
+        m_ch = 1;
 
-        *this = SemanticInfo(type, m_desc, m_ch);
+        *this = SemanticInfo(type_, m_desc, m_ch);
         break;
       default:
         *this = SemanticInfo("Trunk", "Vine trunk", 0);
     }
   }
 
-  std::string type;
-  std::string description;
-  int         character{};
+  std::string type_;
+  std::string description_;
+  int character_{};
 };
 
-struct SemanticFeature : public Feature {
+struct SemanticFeature : public Feature
+{
   SemanticFeature() = default;
   // Class constructor
   // - initializes its pose, standard deviation and
   // - its sematic information
-  SemanticFeature(const point&                  pos,
-                  const Gaussian<point, point>& gauss,
-                  const int&                    label)
+  SemanticFeature(const Point& pos, const Gaussian<Point, Point>& gauss, const int& label)
   {
-    (*this).pos   = pos;
-    (*this).gauss = gauss;
-    (*this).info  = SemanticInfo(label);
+    pos_ = pos;
+    gauss_ = gauss;
+    info_ = SemanticInfo(label);
   }
   // Class constructor
   // - initializes its pose, standard deviation
-  SemanticFeature(const point& pos, const Gaussian<point, point>& gauss)
+  SemanticFeature(const Point& pos, const Gaussian<Point, Point>& gauss)
   {
-    (*this).pos   = pos;
-    (*this).gauss = gauss;
+    pos_ = pos;
+    gauss_ = gauss;
   }
 
   // Print semantic landmark information
   void print()
   {
-    std::string c = (info.character == 0) ? "static" : "dynamic";
+    std::string c = (info_.character_ == 0) ? "static" : "dynamic";
 
     std::cout << "Landmark " << std::endl;
-    std::cout << "   type:        " << info.type << std::endl;
-    std::cout << "   description: " << info.description << std::endl;
+    std::cout << "   type:        " << info_.type_ << std::endl;
+    std::cout << "   description: " << info_.description_ << std::endl;
     std::cout << "   character:   " << c << std::endl;
-    std::cout << "   position:    " << pos;
-    std::cout << "   stdev:      [" << gauss.stdev.x << "," << gauss.stdev.y << "]"
-              << std::endl;
+    std::cout << "   position:    " << pos_;
+    std::cout << "   stdev:      [" << gauss_.stdev_.x_ << "," << gauss_.stdev_.y_ << "]" << std::endl;
   }
 
-  Gaussian<point, point> gauss;
-  SemanticInfo           info;
+  Gaussian<Point, Point> gauss_;
+  SemanticInfo info_;
 };
 
-} // namespace vineslam
+}  // namespace vineslam

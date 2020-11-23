@@ -23,9 +23,9 @@
 #define VALUE "value"
 #define CELL "cell"
 #define DATA_ "data"
-#define X_ "x"
-#define Y_ "y"
-#define Z_ "z"
+#define X_COORDINATE "x"
+#define Y_COORDINATE "y"
+#define Z_COORDINATE "z"
 // ----- Semantic
 #define SEMANTICF "semantic_features"
 #define ID_ "id"
@@ -43,9 +43,9 @@
 #define STAG "s"
 #define U_ "u"
 #define V_ "v"
-#define R_ "r"
-#define G_ "g"
-#define B_ "b"
+#define RED "r"
+#define GREEN "g"
+#define BLUE "b"
 #define LAPLACIAN "laplacian"
 #define SIGNATURE "signature"
 
@@ -67,6 +67,6 @@ private:
   static std::string close(const std::string& tag);
 
   // Input parameters
-  std::string file_path;
+  std::string file_path_;
 };
-} // namespace vineslam
+}  // namespace vineslam

@@ -4,55 +4,50 @@
 
 namespace vineslam
 {
-
 // ---------------------------------------------------------------------------------
 // ----- Image low-level feature
 // ---------------------------------------------------------------------------------
 
-struct ImageFeature : public Feature {
+struct ImageFeature : public Feature
+{
   ImageFeature() = default;
 
   // Class constructor
   // - initializes its image/world position, color
-  ImageFeature(const int&     u,
-               const int&     v,
-               const uint8_t& r,
-               const uint8_t& g,
-               const uint8_t& b,
-               const point&   pos)
+  ImageFeature(const int& u, const int& v, const uint8_t& r, const uint8_t& g, const uint8_t& b, const Point& pos)
   {
-    (*this).u              = u;
-    (*this).v              = v;
-    (*this).r              = r;
-    (*this).g              = g;
-    (*this).b              = b;
-    (*this).signature      = std::vector<float>();
-    (*this).pos            = pos;
-    (*this).n_observations = 0;
+    (*this).u_ = u;
+    (*this).v_ = v;
+    (*this).r_ = r;
+    (*this).g_ = g;
+    (*this).b_ = b;
+    (*this).signature_ = std::vector<float>();
+    (*this).pos_ = pos;
+    (*this).n_observations_ = 0;
   }
 
   // Class constructor
   // - initializes its image
   ImageFeature(const int& u, const int& v)
   {
-    (*this).u              = u;
-    (*this).v              = v;
-    (*this).signature      = std::vector<float>();
-    (*this).n_observations = 0;
+    (*this).u_ = u;
+    (*this).v_ = v;
+    (*this).signature_ = std::vector<float>();
+    (*this).n_observations_ = 0;
   }
 
-  int n_observations{};
+  int n_observations_{};
   // Image pixel position
-  int u{};
-  int v{};
+  int u_{};
+  int v_{};
   // RGB info
-  uint8_t r{};
-  uint8_t g{};
-  uint8_t b{};
+  uint8_t r_{};
+  uint8_t g_{};
+  uint8_t b_{};
   // Feature descriptor
-  std::vector<float> signature;
+  std::vector<float> signature_;
   // Feature laplacian - hessian matrix trace
-  int laplacian{};
+  int laplacian_{};
 };
 
-} // namespace vineslam
+}  // namespace vineslam

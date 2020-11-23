@@ -36,6 +36,6 @@ private:
   static void printMap(OccupancyMap grid_map);
 
   // Input parameters
-  std::string file_path;
+  std::string file_path_;
 };
-} // namespace vineslam
+}  // namespace vineslam

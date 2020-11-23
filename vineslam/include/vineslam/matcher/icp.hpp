@@ -6,15 +6,15 @@
 #include "../params.hpp"
 #include "../feature/feature.hpp"
 #include "../mapping/occupancy_map.hpp"
-#include "../math/point.hpp"
-#include "../math/pose.hpp"
-#include "../math/tf.hpp"
+#include "../math/Point.hpp"
+#include "../math/Pose.hpp"
+#include "../math/Tf.hpp"
 #include "../math/stat.hpp"
 
 namespace vineslam
 {
-
-template <class T> class ICP
+template <class T>
+class ICP
 {
 public:
   // -------------------------------------------------------------------------------
@@ -24,35 +24,35 @@ public:
   {
     // Set the default stop criteria parameters
     // - they can (and should) be overwritten from the outside call (!)
-    max_iters       = params.icp_max_iters;
-    tolerance       = 1e-3;
-    dist_threshold  = params.icp_distance_threshold;
-    reject_outliers = params.icp_reject_outliers;
+    max_iters_ = params.icp_max_iters_;
+    tolerance_ = 1e-3;
+    dist_threshold_ = params.icp_distance_threshold_;
+    reject_outliers_ = params.icp_reject_outliers_;
 
     // Initialize homogeneous transformation
-    R = {1., 0., 0., 0., 1., 0., 0., 0., 1.};
-    t = {0., 0., 0.};
+    R_array_ = { 1., 0., 0., 0., 1., 0., 0., 0., 1. };
+    t_array_ = { 0., 0., 0. };
   }
 
   // -------------------------------------------------------------------------------
   // ----- ICP main routine - aligns two point clouds
   // -------------------------------------------------------------------------------
-  bool align(TF tf, float& rms_error, std::vector<T>& aligned)
+  bool align(Tf tf, float& rms_error, std::vector<T>& aligned)
   {
-    if (source.empty()) {
-      std::cout << "WARNING (ICP::align): source cloud empty. Returning first guess."
-                << std::endl;
+    if (source_vec_.empty())
+    {
+      std::cout << "WARNING (ICP::align): source cloud empty. Returning first guess." << std::endl;
       return true;
     }
 
     // Initialize stop criteria parameters
-    int   n_iters    = 0;
+    int n_iters = 0;
     float delta_dist = 1e6;
     // Initialize homogeneous transformation
     Eigen::Matrix3f Rot;
     Eigen::Vector3f trans;
-    stdToEig(tf.R, Rot);
-    stdToEig(tf.t, trans);
+    stdToEig(tf.R_array_, Rot);
+    stdToEig(tf.t_array_, trans);
 
     // Perform first iteration and save the error
     float p_rms_error;
@@ -63,9 +63,11 @@ public:
     bool found_solution = false;
 
     rms_error = 0.;
-    while (n_iters < max_iters && delta_dist > tolerance) {
-      if (step(Rot, trans, rms_error)) {
-        delta_dist  = std::fabs(rms_error - p_rms_error);
+    while (n_iters < max_iters_ && delta_dist > tolerance_)
+    {
+      if (step(Rot, trans, rms_error))
+      {
+        delta_dist = std::fabs(rms_error - p_rms_error);
         p_rms_error = rms_error;
 
         found_solution = true;
@@ -74,25 +76,23 @@ public:
       n_iters++;
     }
 
-    if (!found_solution) // invalid iteration
+    if (!found_solution)  // invalid iteration
     {
-      std::cout
-          << "WARNING ICP::align: Scan matcher failed - none valid iteration..."
-          << std::endl;
+      std::cout << "WARNING ICP::align: Scan matcher failed - none valid iteration..." << std::endl;
       return false;
     }
 
     // Save homogeneous transformation solution
-    eigToStd(Rot, R);
-    eigToStd(trans, t);
+    eigToStd(Rot, R_array_);
+    eigToStd(trans, t_array_);
 
     // Check if ICP produced a big step. If so, invalid iteration
-    TF   tf_res(R, t);
-    TF   tf_delta = tf.inverse() * tf_res;
-    pose delta_p(tf_delta.R, tf_delta.t);
-    if (std::fabs(delta_p.x) > 0.3 || std::fabs(delta_p.y) > 0.3 ||
-        std::fabs(delta_p.z) > 0.3 || std::fabs(delta_p.roll) > 0.35 ||
-        std::fabs(delta_p.pitch) > 0.35 || std::fabs(delta_p.yaw) > 0.35) {
+    Tf tf_res(R_array_, t_array_);
+    Tf tf_delta = tf.inverse() * tf_res;
+    Pose delta_p(tf_delta.R_array_, tf_delta.t_array_);
+    if (std::fabs(delta_p.x_) > 0.3 || std::fabs(delta_p.y_) > 0.3 || std::fabs(delta_p.z_) > 0.3 ||
+        std::fabs(delta_p.R_) > 0.35 || std::fabs(delta_p.P_) > 0.35 || std::fabs(delta_p.Y_) > 0.35)
+    {
       std::cout << "WARNING ICP::align: Huge jump detected on ICP - considering "
                    "iteration as invalid..."
                 << std::endl;
@@ -100,17 +100,18 @@ public:
     }
 
     // Compute aligned point cloud
-    aligned.resize(source.size());
-    for (size_t i = 0; i < aligned.size(); i++) {
-      aligned[i] = source[i];
+    aligned.resize(source_vec_.size());
+    for (size_t i = 0; i < aligned.size(); i++)
+    {
+      aligned[i] = source_vec_[i];
 
-      point spt = source[i].pos;
-      point apt;
-      apt.x = spt.x * R[0] + spt.y * R[1] + spt.z * R[2] + t[0];
-      apt.y = spt.x * R[3] + spt.y * R[4] + spt.z * R[5] + t[1];
-      apt.z = spt.x * R[6] + spt.y * R[7] + spt.z * R[8] + t[2];
+      Point spt = source_vec_[i].pos_;
+      Point apt;
+      apt.x_ = spt.x_ * R_array_[0] + spt.y_ * R_array_[1] + spt.z_ * R_array_[2] + t_array_[0];
+      apt.y_ = spt.x_ * R_array_[3] + spt.y_ * R_array_[4] + spt.z_ * R_array_[5] + t_array_[1];
+      apt.z_ = spt.x_ * R_array_[6] + spt.y_ * R_array_[7] + spt.z_ * R_array_[8] + t_array_[2];
 
-      aligned[i].pos = apt;
+      aligned[i].pos_ = apt;
     }
 
     return true;
@@ -118,10 +119,10 @@ public:
   bool align(float& rms_error, std::vector<T>& aligned)
   {
     // Set rotation to identity and translation to 0
-    std::array<float, 9> m_R = {1., 0., 0., 0., 1., 0., 0., 0., 1.};
+    std::array<float, 9> m_R = { 1., 0., 0., 0., 1., 0., 0., 0., 1. };
     std::array<float, 3> m_t{};
 
-    TF tf(m_R, m_t);
+    Tf tf(m_R, m_t);
 
     return align(tf, rms_error, aligned);
   }
@@ -129,26 +130,50 @@ public:
   // -------------------------------------------------------------------------------
   // ----- Methods to set the stop criteria parameters and inliers consideration
   // -------------------------------------------------------------------------------
-  void setMaxIterations(const int& m_max_iters) { max_iters = m_max_iters; }
-  void setTolerance(const float& m_tolerance) { tolerance = m_tolerance; }
-  void setThreshold(const float& m_threshold) { dist_threshold = m_threshold; }
-  void setRejectOutliersFlag(const bool& m_ro) { reject_outliers = m_ro; }
+  void setMaxIterations(const int& m_max_iters)
+  {
+    max_iters_ = m_max_iters;
+  }
+  void setTolerance(const float& m_tolerance)
+  {
+    tolerance_ = m_tolerance;
+  }
+  void setThreshold(const float& m_threshold)
+  {
+    dist_threshold_ = m_threshold;
+  }
+  void setRejectOutliersFlag(const bool& m_ro)
+  {
+    reject_outliers_ = m_ro;
+  }
 
   // -------------------------------------------------------------------------------
   // ----- Methods to receive the source and target point clouds
   // -------------------------------------------------------------------------------
-  void setInputTarget(OccupancyMap* m_target) { target = m_target; }
-  void setInputSource(const std::vector<T>& m_source) { source = m_source; }
+  void setInputTarget(OccupancyMap* m_target)
+  {
+    target_ = m_target;
+  }
+  void setInputSource(const std::vector<T>& m_source)
+  {
+    source_vec_ = m_source;
+  }
 
   // -------------------------------------------------------------------------------
   // ----- Method to get the computed transformation between the source and target
   // -------------------------------------------------------------------------------
-  void getTransform(TF& result) const { result = TF(R, t); }
+  void getTransform(Tf& result) const
+  {
+    result = Tf(R_array_, t_array_);
+  }
 
   // -------------------------------------------------------------------------------
   // ----- Methods to export the errors arrays
   // -------------------------------------------------------------------------------
-  void getErrors(std::vector<float>& serror) const { serror = errorvec; }
+  void getErrors(std::vector<float>& serror) const
+  {
+    serror = error_vec_;
+  }
 
 private:
   // -------------------------------------------------------------------------------
@@ -163,8 +188,8 @@ private:
     // Declare target and source matrices to save the correspondences
     Eigen::Matrix3Xf target_pts;
     Eigen::Matrix3Xf source_pts;
-    target_pts.resize(3, source.size());
-    source_pts.resize(3, source.size());
+    target_pts.resize(3, source_vec_.size());
+    source_pts.resize(3, source_vec_.size());
 
     // Inlier correspondences
     Eigen::Matrix3Xf inliers_tpoints;
@@ -180,32 +205,34 @@ private:
     int32_t nsamples = 0;
 
     // Arrays to all the correspondences errors
-    errorvec.clear(); // clear error array
+    error_vec_.clear();  // clear error array
 
-    for (const auto& m_feature : source) {
+    for (const auto& m_feature : source_vec_)
+    {
       // Convert feature into the target reference frame using current [R|t] solution
-      Eigen::Vector3f fsource(m_feature.pos.x, m_feature.pos.y, m_feature.pos.z);
+      Eigen::Vector3f fsource(m_feature.pos_.x_, m_feature.pos_.y_, m_feature.pos_.z_);
       Eigen::Vector3f ftransformed = m_R * fsource + m_t;
 
       // Find nearest neighbor of the current point
       T _ftarget;
       T _ftransformed = m_feature;
-      _ftransformed.pos =
-          point(ftransformed(0, 0), ftransformed(1, 0), ftransformed(2, 0));
+      _ftransformed.pos_ = Point(ftransformed(0, 0), ftransformed(1, 0), ftransformed(2, 0));
       // Save minimum distance found (usually for the descriptor)
       float dist = 1e6;
-      if (!target->findNearest(_ftransformed, _ftarget, dist)) {
+      if (!target_->findNearest(_ftransformed, _ftarget, dist))
+      {
         continue;
       }
 
       // Save source and target points
-      Eigen::Vector3f ftarget(_ftarget.pos.x, _ftarget.pos.y, _ftarget.pos.z);
+      Eigen::Vector3f ftarget(_ftarget.pos_.x_, _ftarget.pos_.y_, _ftarget.pos_.z_);
       target_pts.block<3, 1>(0, j) = ftarget;
       source_pts.block<3, 1>(0, j) = ftransformed;
 
       // Remove (or not) outliers using a displacement threshold
       // ----------------------------------------------------------------------------
-      if (dist < dist_threshold || !reject_outliers) {
+      if (dist < dist_threshold_ || !reject_outliers_)
+      {
         nsamples = inliers_spoints.cols() + 1;
 
         inliers_tpoints.conservativeResize(3, nsamples);
@@ -219,7 +246,7 @@ private:
         source_mean += inliers_spoints.block<3, 1>(0, nsamples - 1);
 
         // Store correspondences errors just for inliers
-        errorvec.push_back(dist);
+        error_vec_.push_back(dist);
       }
       // ----------------------------------------------------------------------------
 
@@ -227,17 +254,14 @@ private:
       j++;
     }
 
-    if (j == 0) // Invalid iteration
+    if (j == 0)  // Invalid iteration
     {
-      std::cout
-          << "WARNING (ICP::step): Invalid iteration - none correspondence found..."
-          << std::endl;
+      std::cout << "WARNING (ICP::step): Invalid iteration - none correspondence found..." << std::endl;
       return false;
     }
-    if (nsamples == 0) // Invalid iteration
+    if (nsamples == 0)  // Invalid iteration
     {
-      std::cout << "WARNING (ICP::step): Invalid iteration - none inlier found..."
-                << std::endl;
+      std::cout << "WARNING (ICP::step): Invalid iteration - none inlier found..." << std::endl;
       return false;
     }
 
@@ -265,14 +289,14 @@ private:
     Eigen::Matrix3f A = tdiff * sdiff.transpose();
 
     // Perform SVD to extract the rotation matrix and the translation vector
-    Eigen::JacobiSVD<Eigen::Matrix3f> svd(A,
-                                          Eigen::ComputeThinU | Eigen::ComputeThinV);
+    Eigen::JacobiSVD<Eigen::Matrix3f> svd(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
     delta_R = svd.matrixU() * svd.matrixV().transpose();
     delta_t = target_mean - delta_R * source_mean;
 
     // Compute RMS error between the target and the aligned cloud
     rms_error = 0.;
-    for (int i = 0; i < nsamples; i++) {
+    for (int i = 0; i < nsamples; i++)
+    {
       Eigen::Vector3f m_target_pt = inliers_tpoints.block<3, 1>(0, i);
       Eigen::Vector3f m_source_pt = inliers_spoints.block<3, 1>(0, i);
 
@@ -303,8 +327,7 @@ private:
     Rot(2, 1) = m_R[7];
     Rot(2, 2) = m_R[8];
   }
-  static inline void stdToEig(const std::array<float, 3>& m_t,
-                              Eigen::Vector3f&            trans)
+  static inline void stdToEig(const std::array<float, 3>& m_t, Eigen::Vector3f& trans)
   {
     trans(0, 0) = m_t[0];
     trans(1, 0) = m_t[1];
@@ -322,8 +345,7 @@ private:
     m_R[7] = Rot(2, 1);
     m_R[8] = Rot(2, 2);
   }
-  static inline void eigToStd(const Eigen::Vector3f& trans,
-                              std::array<float, 3>&  m_t)
+  static inline void eigToStd(const Eigen::Vector3f& trans, std::array<float, 3>& m_t)
   {
     m_t[0] = trans(0, 0);
     m_t[1] = trans(1, 0);
@@ -332,24 +354,24 @@ private:
 
   // Parameters:
   // - maximum number of iterations
-  int max_iters;
+  int max_iters_;
   // - minimum distance between iterations
-  float tolerance;
+  float tolerance_;
   // - Maximum distance value between features to consider as correspondence inlier
-  float dist_threshold;
+  float dist_threshold_;
   // - Boolean to choose if we reject or not outliers
-  bool reject_outliers;
+  bool reject_outliers_;
 
   // Source and target point clouds
-  OccupancyMap*  target{};
-  std::vector<T> source;
+  OccupancyMap* target_{};
+  std::vector<T> source_vec_;
 
   // Last homogeneous transformation computed
-  std::array<float, 9> R{};
-  std::array<float, 3> t{};
+  std::array<float, 9> R_array_{};
+  std::array<float, 3> t_array_{};
 
   // Structure to store the correspondence errors resulting from the scan match
-  std::vector<float> errorvec;
+  std::vector<float> error_vec_;
 };
 
-} // namespace vineslam
+}  // namespace vineslam

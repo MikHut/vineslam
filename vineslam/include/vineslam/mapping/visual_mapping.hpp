@@ -7,9 +7,9 @@
 #include "../params.hpp"
 #include "../feature/visual.hpp"
 #include "../mapping/occupancy_map.hpp"
-#include "../math/point.hpp"
-#include "../math/pose.hpp"
-#include "../math/tf.hpp"
+#include "../math/Point.hpp"
+#include "../math/Pose.hpp"
+#include "../math/Tf.hpp"
 #include "../math/const.hpp"
 
 // OpenCV
@@ -22,7 +22,6 @@
 
 namespace vineslam
 {
-
 class VisualMapper
 {
 public:
@@ -30,32 +29,24 @@ public:
   // parameters
   explicit VisualMapper(const Parameters& params);
 
-  void registerMaps(const pose&                robot_pose,
-                    std::vector<ImageFeature>& img_features,
-                    OccupancyMap&              grid_map);
+  void registerMaps(const Pose& robot_pose, std::vector<ImageFeature>& img_features, OccupancyMap& grid_map);
 
   // -------------------------------------------------------------------------------
   // ---- 3D image feature map
   // -------------------------------------------------------------------------------
   // Builds local map given the current image feature observations
-  void localMap(const cv::Mat&             img,
-                const float*               depths,
-                std::vector<ImageFeature>& out_features);
+  void localMap(const cv::Mat& img, const float* depths, std::vector<ImageFeature>& out_features);
 
   // Setter functions
-  void setCam2Base(const float& x,
-                   const float& y,
-                   const float& z,
-                   const float& roll,
-                   const float& pitch,
+  void setCam2Base(const float& x, const float& y, const float& z, const float& roll, const float& pitch,
                    const float& yaw)
   {
-    cam2base_x     = x;
-    cam2base_y     = y;
-    cam2base_z     = z;
-    cam2base_roll  = roll;
-    cam2base_pitch = pitch;
-    cam2base_yaw   = yaw;
+    cam2base_x_ = x;
+    cam2base_y_ = y;
+    cam2base_z_ = z;
+    cam2base_roll_ = roll;
+    cam2base_pitch_ = pitch;
+    cam2base_yaw_ = yaw;
   }
 
 private:
@@ -63,33 +54,26 @@ private:
   // ---- 3D image feature map
   // -------------------------------------------------------------------------------
   // Adds the image features to the global map
-  void globalMap(const std::vector<ImageFeature>& features,
-                 const pose&                      robot_pose,
-                 OccupancyMap&                    grid_map) const;
+  void globalMap(const std::vector<ImageFeature>& features, const Pose& robot_pose, OccupancyMap& grid_map) const;
 
   // Perform feature extraction
   void extractSurfFeatures(const cv::Mat& in, std::vector<ImageFeature>& out) const;
   // Converts a pixel into world's coordinate reference
-  void pixel2base(const point& in_pt, const float& depth, point& out_pt) const;
+  void pixel2base(const Point& in_pt, const float& depth, Point& out_pt) const;
 
   // Camera info parameters
-  int   img_width;
-  int   img_height;
-  float fx;
-  float fy;
-  float cx;
-  float cy;
-  float depth_hfov;
-  float depth_vfov;
+  float fx_;
+  float fy_;
+  float cx_;
+  float cy_;
 
   // 3D map parameters
-  float max_range;
-  float max_height;
-  int   hessian_threshold;
+  float max_range_;
+  float max_height_;
+  int hessian_threshold_;
 
   // Transformation parameters
-  float cam2base_x{}, cam2base_y{}, cam2base_z{}, cam2base_roll{}, cam2base_pitch{},
-      cam2base_yaw{};
+  float cam2base_x_{}, cam2base_y_{}, cam2base_z_{}, cam2base_roll_{}, cam2base_pitch_{}, cam2base_yaw_{};
 };
 
-} // namespace vineslam
+}  // namespace vineslam

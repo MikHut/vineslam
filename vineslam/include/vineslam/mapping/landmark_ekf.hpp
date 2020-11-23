@@ -2,7 +2,7 @@
 
 // Object members
 #include "../params.hpp"
-#include "../math/point.hpp"
+#include "../math/Point.hpp"
 #include "../math/stat.hpp"
 #include "../math/const.hpp"
 
@@ -22,32 +22,28 @@ public:
   // Class constructor
   // - Receives the initial state and the parameters
   // - initializes the covariance matrix
-  KF(const Parameters&  params,
-     const VectorXf&    X0,
-     const VectorXf&    s,
-     const VectorXf&    g,
-     const VectorXf&    z);
+  KF(const Parameters& params, const VectorXf& X0, const VectorXf& s, const VectorXf& g, const VectorXf& z);
   // Function that processes all the Kalman Filter routines
   void process(const VectorXf& s, const VectorXf& g, const VectorXf& z);
   // Function that outputs the current state of the Kalman Filter
-  point getState() const;
+  Point getState() const;
   // Function that outputs the current standard deviation of the
   // Kalman Filter
-  Gaussian<point, point> getStdev() const;
+  Gaussian<Point, Point> getStdev() const;
 
-  MatrixXf P;
+  MatrixXf P_;
 
 private:
   // State vector and KF matrices
-  VectorXf X0;
-  VectorXf X;
-  MatrixXf K;
-  MatrixXf R;
+  VectorXf X0_;
+  VectorXf X_;
+  MatrixXf K_;
+  MatrixXf R_;
 
   // Input parameters
-  float baseline;
-  float delta_d;
-  float fx;
+  float baseline_;
+  float delta_d_;
+  float fx_;
 
   // Function that implements the prediction step of the Kalman Filter
   void predict();
@@ -59,8 +55,8 @@ private:
   // Calculates the disparity error using the disparity noise model
   float dispError(const float& depth) const
   {
-    return std::pow(depth, 2) / (baseline * fx) * delta_d;
+    return std::pow(depth, 2) / (baseline_ * fx_) * delta_d_;
   }
 };
 
-}; // namespace vineslam
+};  // namespace vineslam

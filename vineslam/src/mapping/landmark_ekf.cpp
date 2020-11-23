@@ -2,21 +2,16 @@
 
 namespace vineslam
 {
-KF::KF(const Parameters&  params,
-       const VectorXf&    X0,
-       const VectorXf&    s,
-       const VectorXf&    g,
-       const VectorXf&    z)
-    : X0(X0)
-    , X(X0)
+KF::KF(const Parameters& params, const VectorXf& X0, const VectorXf& s, const VectorXf& g, const VectorXf& z)
+  : X0_(X0), X_(X0)
 {
-  fx       = params.fx;
-  baseline = params.baseline;
-  delta_d  = 0.1;
+  fx_ = params.fx_;
+  baseline_ = params.baseline_;
+  delta_d_ = 0.1;
 
   // Initialize the process covariance P
   computeR(s, g, z);
-  P = R;
+  P_ = R_;
 }
 
 void KF::process(const VectorXf& s, const VectorXf& g, const VectorXf& z)
@@ -33,18 +28,18 @@ void KF::computeR(const VectorXf& s, const VectorXf& g, const VectorXf& z)
   // - less noise in detection for near observed landmarks
   // - the standard deviation of the particle filter pose
   //   estimation in both x and y components
-  R       = MatrixXf(2, 2);
-  R(0, 0) = dispError(z[0]) + g[0];
-  R(1, 1) = 1. / (z[0] * z[0]) + g[1];
-  R(0, 1) = 0.;
-  R(1, 0) = 0.;
+  R_ = MatrixXf(2, 2);
+  R_(0, 0) = dispError(z[0]) + g[0];
+  R_(1, 1) = 1. / (z[0] * z[0]) + g[1];
+  R_(0, 1) = 0.;
+  R_(1, 0) = 0.;
 
   // Rotate covariance matrix using the bearing angle
   // codified in a rotation matrix
   Eigen::MatrixXf Rot(2, 2);
   Rot << std::cos(z[1]), -std::sin(z[1]), std::sin(z[1]), std::cos(z[1]);
 
-  R = Rot * R * Rot.transpose();
+  R_ = Rot * R_ * Rot.transpose();
 }
 
 void KF::predict()
@@ -57,42 +52,44 @@ void KF::predict()
 void KF::correct(const VectorXf& s, const VectorXf& z)
 {
   // Apply the observation model using the current state vector
-  float d   = std::sqrt(std::pow(X[0] - s[0], 2) + std::pow(X[1] - s[1], 2));
-  float phi = std::atan2(X[1] - s[1], X[0] - s[0]) - s[2];
+  float d = std::sqrt(std::pow(X_[0] - s[0], 2) + std::pow(X_[1] - s[1], 2));
+  float phi = std::atan2(X_[1] - s[1], X_[0] - s[0]) - s[2];
 
   VectorXf z_(2, 1);
   z_ << d, normalizeAngle(phi);
 
   // Compute the Jacobian of the non linear observation vector
   MatrixXf G(2, 2);
-  G << (X[0] - s[0]) / d, +(X[1] - s[1]) / d, -(X[1] - s[1]) / pow(d, 2),
-      (X[0] - s[0]) / pow(d, 2);
+  G << (X_[0] - s[0]) / d, +(X_[1] - s[1]) / d, -(X_[1] - s[1]) / pow(d, 2), (X_[0] - s[0]) / pow(d, 2);
 
   // Compute the Kalman gain
-  K = P * G.transpose() * (G * P * G.transpose() + R).inverse();
+  K_ = P_ * G.transpose() * (G * P_ * G.transpose() + R_).inverse();
 
   // Compute the difference between the observation vector and the
   // output of the observation model
   VectorXf z_diff = z - z_;
-  z_diff[1]       = normalizeAngle(z_diff[1]);
+  z_diff[1] = normalizeAngle(z_diff[1]);
 
   // Update the state vector and the process covariance matrix
-  X = X + K * z_diff;
-  P = (MatrixXf::Identity(2, 2) - K * G) * P;
+  X_ = X_ + K_ * z_diff;
+  P_ = (MatrixXf::Identity(2, 2) - K_ * G) * P_;
 }
 
-point KF::getState() const { return point(X[0], X[1], 0.); }
-
-Gaussian<point, point> KF::getStdev() const
+Point KF::getState() const
 {
-  Eigen::EigenSolver<Eigen::Matrix2f> s(P);
-  Eigen::Vector2cf                    eigvec = s.eigenvectors().col(1);
-  Eigen::Vector2cf                    eigval = s.eigenvalues();
+  return Point(X_[0], X_[1], 0.);
+}
+
+Gaussian<Point, Point> KF::getStdev() const
+{
+  Eigen::EigenSolver<Eigen::Matrix2f> s(P_);
+  Eigen::Vector2cf eigvec = s.eigenvectors().col(1);
+  Eigen::Vector2cf eigval = s.eigenvalues();
   float angle = std::atan2(eigvec.real()[1], eigvec.real()[0]);
 
-  point m_mean(X[0], X[1], X[2]);
-  point m_stdev(eigval.real()[0], eigval.real()[1], 0.);
-  return Gaussian<point, point>(m_mean, m_stdev, angle);
+  Point m_mean(X_[0], X_[1], X_[2]);
+  Point m_stdev(eigval.real()[0], eigval.real()[1], 0.);
+  return Gaussian<Point, Point>(m_mean, m_stdev, angle);
 }
 
-} // namespace vineslam
+}  // namespace vineslam

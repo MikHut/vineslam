@@ -2,29 +2,35 @@
 
 #include <iostream>
 
-#include "../math/pose.hpp"
+#include "../math/Pose.hpp"
 #include "../math/stat.hpp"
-#include "../math/point.hpp"
-#include "../math/vector3D.hpp"
+#include "../math/Point.hpp"
+#include "../math/Vec.hpp"
 
 namespace vineslam
 {
-
-struct Feature {
+struct Feature
+{
   Feature() = default;
 
-  explicit Feature(const point& m_pos) { pos = m_pos; }
-
-  Feature(const int& m_id, const point& m_pos)
+  explicit Feature(const Point& m_pos)
   {
-    id  = m_id;
-    pos = m_pos;
+    pos_ = m_pos;
   }
 
-  bool operator==(Feature m_feature) { return m_feature.pos == pos; }
+  Feature(const int& m_id, const Point& m_pos)
+  {
+    id_ = m_id;
+    pos_ = m_pos;
+  }
 
-  int   id{};
-  point pos;
+  bool operator==(const Feature& m_feature) const
+  {
+    return m_feature.pos_ == pos_;
+  }
+
+  int id_{};
+  Point pos_;
 };
 
-} // namespace vineslam
+}  // namespace vineslam

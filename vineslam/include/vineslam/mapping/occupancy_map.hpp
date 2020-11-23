@@ -4,7 +4,7 @@
 #include "../feature/visual.hpp"
 #include "../feature/three_dimensional.hpp"
 #include "../params.hpp"
-#include "../math/point.hpp"
+#include "../math/Point.hpp"
 
 #include <iostream>
 #include <vector>
@@ -13,7 +13,6 @@
 
 namespace vineslam
 {
-
 class Cell
 {
 public:
@@ -23,27 +22,39 @@ public:
   // Inserts a landmark with a given id
   void insert(const int& id, const SemanticFeature& m_landmark)
   {
-    landmarks[id] = m_landmark;
+    landmarks_[id] = m_landmark;
   }
 
   // Inserts a image feature in the features array
-  void insert(const ImageFeature& m_feature) { surf_features.push_back(m_feature); }
+  void insert(const ImageFeature& m_feature)
+  {
+    surf_features_.push_back(m_feature);
+  }
 
   // Inserts a corner feature in the features array
-  void insert(const Corner& m_feature) { corner_features.push_back(m_feature); }
+  void insert(const Corner& m_feature)
+  {
+    corner_features_.push_back(m_feature);
+  }
 
   // Inserts a planar feature in the features array
-  void insert(const Planar& m_feature) { planar_features.push_back(m_feature); }
+  void insert(const Planar& m_feature)
+  {
+    planar_features_.push_back(m_feature);
+  }
 
   // Inserts a point in the points array
-  void insert(const point& m_point) { points.push_back(m_point); }
+  void insert(const Point& m_point)
+  {
+    points_.push_back(m_point);
+  }
 
   // List of landmarks, features, and points at each cell
-  std::map<int, SemanticFeature> landmarks;
-  std::vector<ImageFeature>      surf_features;
-  std::vector<Corner>            corner_features;
-  std::vector<Planar>            planar_features;
-  std::vector<point>             points;
+  std::map<int, SemanticFeature> landmarks_;
+  std::vector<ImageFeature> surf_features_;
+  std::vector<Corner> corner_features_;
+  std::vector<Planar> planar_features_;
+  std::vector<Point> points_;
 
 private:
 };
@@ -55,7 +66,7 @@ public:
 
   // Class constructor
   // - initializes the grid map given the input parameters
-  MapLayer(const Parameters& params, const pose& origin_offset);
+  MapLayer(const Parameters& params, const Pose& origin_offset);
 
   // Copy contructor
   MapLayer(const MapLayer& grid_map);
@@ -64,30 +75,33 @@ public:
   Cell& operator()(int i, int j)
   {
     // Verify validity of indexing
-    try {
+    try
+    {
       check(i, j);
-    } catch (char const* msg) {
+    }
+    catch (char const* msg)
+    {
       std::cout << msg;
       std::cout << "Returning last grid element ..." << std::endl;
 
-      return m_gmap[m_gmap.size() - 1];
+      return cell_vec_[cell_vec_.size() - 1];
     }
 
     // Compute indexes having into account that grid map considers negative values
     // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
-    int m_i = i - static_cast<int>(std::round(origin.x / resolution + .49));
-    int m_j = j - static_cast<int>(std::round(origin.y / resolution + .49));
-    int idx = m_i + m_j * static_cast<int>(std::round(width / resolution + .49));
+    int m_i = i - static_cast<int>(std::round(origin_.x_ / resolution_ + .49));
+    int m_j = j - static_cast<int>(std::round(origin_.y_ / resolution_ + .49));
+    int idx = m_i + m_j * static_cast<int>(std::round(width_ / resolution_ + .49));
 
-    return m_gmap[idx];
+    return cell_vec_[idx];
   }
 
   // 2D grid map access given a Feature/Landmark location
   Cell& operator()(float i, float j)
   {
     // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
-    int m_i = static_cast<int>(std::round(i / resolution + .49));
-    int m_j = static_cast<int>(std::round(j / resolution + .49));
+    int m_i = static_cast<int>(std::round(i / resolution_ + .49));
+    int m_j = static_cast<int>(std::round(j / resolution_ + .49));
 
     return (*this)(m_i, m_j);
   }
@@ -97,26 +111,29 @@ public:
   {
     // Compute indexes having into account that grid map considers negative values
     // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
-    int m_i   = i - static_cast<int>(std::round(origin.x / resolution + .49));
-    int m_j   = j - static_cast<int>(std::round(origin.y / resolution + .49));
-    int index = m_i + (m_j * static_cast<int>(std::round(width / resolution + .49)));
+    int m_i = i - static_cast<int>(std::round(origin_.x_ / resolution_ + .49));
+    int m_j = j - static_cast<int>(std::round(origin_.y_ / resolution_ + .49));
+    int index = m_i + (m_j * static_cast<int>(std::round(width_ / resolution_ + .49)));
 
     // Trough exception if out of bounds indexing
-    if (index >= m_gmap.size() - 1 || index < 0)
+    if (index >= cell_vec_.size() - 1 || index < 0)
       throw "Exception: Access to grid map out of bounds\n";
   }
 
   // Define iterator to provide access to the cells array
   typedef std::vector<Cell>::iterator iterator;
   // Return members to provide access to the cells array
-  iterator begin() { return m_gmap.begin(); }
-  iterator end() { return m_gmap.end(); }
+  iterator begin()
+  {
+    return cell_vec_.begin();
+  }
+  iterator end()
+  {
+    return cell_vec_.end();
+  }
 
   // Insert a Landmark using the direct grid coordinates
-  bool insert(const SemanticFeature& m_landmark,
-              const int&             id,
-              const int&             i,
-              const int&             j);
+  bool insert(const SemanticFeature& m_landmark, const int& id, const int& i, const int& j);
 
   // Insert a Landmark given a Feature/Landmark location
   bool insert(const SemanticFeature& m_landmark, const int& id);
@@ -137,16 +154,13 @@ public:
   bool insert(const Planar& m_feature);
 
   // Insert a point using the direct grid coordinates
-  bool insert(const point& m_point, const int& i, const int& j);
+  bool insert(const Point& m_point, const int& i, const int& j);
   // Insert a point given a its location
-  bool insert(const point& m_point);
+  bool insert(const Point& m_point);
 
   // Since Landmark map is built with a KF, Landmarks position change in each
   // iteration. This routine updates the position of a given Landmark
-  bool update(const SemanticFeature& new_landmark,
-              const int&             id,
-              const float&           i,
-              const float&           j);
+  bool update(const SemanticFeature& new_landmark, const int& id, const float& i, const float& j);
 
   // Updates a corner 3D feature location
   bool update(const Corner& old_corner, const Corner& new_corner);
@@ -155,8 +169,7 @@ public:
   bool update(const Planar& old_planar, const Planar& new_planar);
 
   // Updates a image 3D feature location
-  bool update(const ImageFeature& old_image_feature,
-              const ImageFeature& new_image_feature);
+  bool update(const ImageFeature& old_image_feature, const ImageFeature& new_image_feature);
 
   // Downsamples the corner map
   void downsampleCorners();
@@ -165,16 +178,10 @@ public:
   void downsamplePlanars();
 
   // Method to get all the adjacent cells to a given cell
-  bool getAdjacent(const int&         i,
-                   const int&         j,
-                   const int&         layers,
-                   std::vector<Cell>& adjacent);
+  bool getAdjacent(const int& i, const int& j, const int& layers, std::vector<Cell>& adjacent);
   // Method to get all the adjacent cells to a given cell given a Feature/Landmark
   // location
-  bool getAdjacent(const float&       i,
-                   const float&       j,
-                   const int&         layers,
-                   std::vector<Cell>& adjacent);
+  bool getAdjacent(const float& i, const float& j, const int& layers, std::vector<Cell>& adjacent);
 
   // Find nearest neighbor of an image feature considering adjacent cells
   bool findNearest(const ImageFeature& input, ImageFeature& nearest, float& ddist);
@@ -192,8 +199,8 @@ public:
   std::vector<Corner> getCorners() const
   {
     std::vector<Corner> out_corners;
-    for (const auto& i : corner_indexes)
-      for (const auto& corner : m_gmap[i].corner_features)
+    for (const auto& i : corner_set_)
+      for (const auto& corner : cell_vec_[i].corner_features_)
         out_corners.push_back(corner);
 
     return out_corners;
@@ -201,8 +208,8 @@ public:
   std::vector<Planar> getPlanars() const
   {
     std::vector<Planar> out_planars;
-    for (const auto& i : planar_indexes)
-      for (const auto& planar : m_gmap[i].planar_features)
+    for (const auto& i : planar_set_)
+      for (const auto& planar : cell_vec_[i].planar_features_)
         out_planars.push_back(planar);
 
     return out_planars;
@@ -211,53 +218,52 @@ public:
   // Returns true if the map has no features or landmarks
   bool empty() const
   {
-    return (n_surf_features == 0 && n_landmarks == 0 && n_corner_features == 0 &&
-            n_planar_features == 0 && n_points == 0);
+    return (n_surf_features_ == 0 && n_landmarks_ == 0 && n_corner_features_ == 0 && n_planar_features_ == 0 &&
+            n_points_ == 0);
   }
 
   // Delete all features in the map
   void clear()
   {
-    for (auto& cell : m_gmap) {
-      cell.corner_features.clear();
-      cell.planar_features.clear();
-      cell.surf_features.clear();
-      cell.landmarks.clear();
-      cell.points.clear();
+    for (auto& cell : cell_vec_)
+    {
+      cell.corner_features_.clear();
+      cell.planar_features_.clear();
+      cell.surf_features_.clear();
+      cell.landmarks_.clear();
+      cell.points_.clear();
     }
 
-    n_corner_features = 0;
-    n_planar_features = 0;
-    n_surf_features   = 0;
-    n_landmarks       = 0;
-    n_points          = 0;
+    n_corner_features_ = 0;
+    n_planar_features_ = 0;
+    n_surf_features_ = 0;
+    n_landmarks_ = 0;
+    n_points_ = 0;
   }
 
   // Number of features, landmarks, and points in the map
-  int n_surf_features{};
-  int n_corner_features{};
-  int n_planar_features{};
-  int n_landmarks{};
-  int n_points{};
+  int n_surf_features_{};
+  int n_corner_features_{};
+  int n_planar_features_{};
+  int n_landmarks_{};
+  int n_points_{};
 
   // Grid map dimensions
-  // NOTE: map corners are in reference to the given origin
-  point origin;
-  float width{};
-  float lenght{};
-  float resolution{};
+  Point origin_;
+  float resolution_;
+  float width_;
+  float lenght_;
 
 private:
   // Private grid map to store all the cells
-  std::vector<Cell>  m_gmap;
-  std::map<int, int> m_imap;
+  std::vector<Cell> cell_vec_;
 
   // Pointer arrays to occupied cells with each feature class
-  std::set<int> surf_indexes;
-  std::set<int> corner_indexes;
-  std::set<int> planar_indexes;
-  std::set<int> landmark_indexes;
-  std::set<int> point_indexes;
+  std::set<int> surf_set_;
+  std::set<int> corner_set_;
+  std::set<int> planar_set_;
+  std::set<int> landmark_set_;
+  std::set<int> point_set_;
 };
 
 class OccupancyMap
@@ -265,7 +271,7 @@ class OccupancyMap
 public:
   // Class constructor
   // - initializes the multi-layer grid map given the input parameters
-  OccupancyMap(const Parameters& params, const pose& origin_offset);
+  OccupancyMap(const Parameters& params, const Pose& origin_offset);
 
   // Copy constructor
   OccupancyMap(const OccupancyMap& grid_map);
@@ -274,27 +280,33 @@ public:
   MapLayer& operator()(float z)
   {
     int layer_num = getLayerNumber(z);
-    layer_num     = (layer_num < zmin) ? zmin : layer_num;
-    layer_num     = (layer_num > zmax) ? zmax : layer_num;
+    layer_num = (layer_num < zmin_) ? zmin_ : layer_num;
+    layer_num = (layer_num > zmax_) ? zmax_ : layer_num;
 
-    return m_layers[layer_num];
+    return layers_map_[layer_num];
   }
 
   // 3D grid map access to cell coordinates
   Cell& operator()(float x, float y, float z)
   {
     int layer_num = getLayerNumber(z);
-    layer_num     = (layer_num < zmin) ? zmin : layer_num;
-    layer_num     = (layer_num > zmax) ? zmax : layer_num;
+    layer_num = (layer_num < zmin_) ? zmin_ : layer_num;
+    layer_num = (layer_num > zmax_) ? zmax_ : layer_num;
 
-    return m_layers[layer_num](x, y);
+    return layers_map_[layer_num](x, y);
   }
 
   // Define iterator to provide access to the layers array
   typedef std::map<int, MapLayer>::iterator iterator;
   // Return members to provide access to the cells array
-  iterator begin() { return m_layers.begin(); }
-  iterator end() { return m_layers.end(); }
+  iterator begin()
+  {
+    return layers_map_.begin();
+  }
+  iterator end()
+  {
+    return layers_map_.end();
+  }
 
   // Insert a Landmark given a Feature/Landmark location
   bool insert(const SemanticFeature& m_landmark, const int& id);
@@ -309,7 +321,7 @@ public:
   bool insert(const Planar& m_feature);
 
   // Insert a point given a its location
-  bool insert(const point& m_point);
+  bool insert(const Point& m_point);
 
   // Downsamples the corner map
   void downsampleCorners();
@@ -319,10 +331,7 @@ public:
 
   // Since Landmark map is built with a KF, Landmarks position change in each
   // iteration. This routine updates the position of a given Landmark
-  bool update(const SemanticFeature& new_landmark,
-              const int&             id,
-              const float&           i,
-              const float&           j);
+  bool update(const SemanticFeature& new_landmark, const int& id, const float& i, const float& j);
 
   // Updates a corner 3D feature location
   bool update(const Corner& old_corner, const Corner& new_corner);
@@ -331,16 +340,11 @@ public:
   bool update(const Planar& old_planar, const Planar& new_planar);
 
   // Updates a image 3D feature location
-  bool update(const ImageFeature& old_image_feature,
-              const ImageFeature& new_image_feature);
+  bool update(const ImageFeature& old_image_feature, const ImageFeature& new_image_feature);
 
   // Method to get all the adjacent cells to a given cell given a Feature/Landmark
   // location
-  bool getAdjacent(const float&       x,
-                   const float&       y,
-                   const float&       z,
-                   const int&         layers,
-                   std::vector<Cell>& adjacent);
+  bool getAdjacent(const float& x, const float& y, const float& z, const int& layers, std::vector<Cell>& adjacent);
 
   // Find nearest neighbor of a feature considering adjacent cells
   bool findNearest(const ImageFeature& input, ImageFeature& nearest, float& ddist);
@@ -360,7 +364,8 @@ public:
   std::vector<Corner> getCorners()
   {
     std::vector<Corner> out_corners;
-    for (const auto& layer : m_layers) {
+    for (const auto& layer : layers_map_)
+    {
       std::vector<Corner> m_corners = layer.second.getCorners();
       out_corners.insert(out_corners.end(), m_corners.begin(), m_corners.end());
     }
@@ -370,7 +375,8 @@ public:
   std::vector<Planar> getPlanars()
   {
     std::vector<Planar> out_planars;
-    for (const auto& layer : m_layers) {
+    for (const auto& layer : layers_map_)
+    {
       std::vector<Planar> m_planars = layer.second.getPlanars();
       out_planars.insert(out_planars.end(), m_planars.begin(), m_planars.end());
     }
@@ -382,7 +388,8 @@ public:
   bool empty() const
   {
     bool is_empty = false;
-    for (const auto& layer : m_layers) is_empty |= layer.second.empty();
+    for (const auto& layer : layers_map_)
+      is_empty |= layer.second.empty();
 
     return is_empty;
   }
@@ -390,26 +397,24 @@ public:
   // Delete all layers in the map
   void clear()
   {
-    for (auto& layer : m_layers) layer.second.clear();
+    for (auto& layer : layers_map_)
+      layer.second.clear();
   }
 
   // Grid map dimensions
-  point origin;
-  float width;
-  float lenght;
-  float height;
-  float resolution;
-  float resolution_z;
-  int   zmin;
-  int   zmax;
-
-  // Grid map high level features (not stored in cells)
-  std::vector<Plane> map_planes;
+  Point origin_;
+  float width_;
+  float lenght_;
+  float height_;
+  float resolution_;
+  float resolution_z_;
+  int zmin_;
+  int zmax_;
 
 private:
   // Private grid map to store all the individual layers
   // (int, MapLayer): (layer number, layer class)
-  std::map<int, MapLayer> m_layers;
+  std::map<int, MapLayer> layers_map_;
 };
 
-} // namespace vineslam
+}  // namespace vineslam

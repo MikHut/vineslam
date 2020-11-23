@@ -5,92 +5,92 @@
 
 namespace vineslam
 {
-
-struct Parameters {
+struct Parameters
+{
   // -----------------------------------
   // ------ ROS topic names
   // -----------------------------------
-  std::string bagfile_name;
-  std::string odom_topic;
-  std::string tf_topic;
-  std::string fix_topic;
-  std::string depth_img_topic;
-  std::string left_img_topic;
-  std::string detections_topic;
-  std::string pcl_topic;
+  std::string bagfile_name_;
+  std::string odom_topic_;
+  std::string tf_topic_;
+  std::string fix_topic_;
+  std::string depth_img_topic_;
+  std::string left_img_topic_;
+  std::string detections_topic_;
+  std::string pcl_topic_;
 
   // -----------------------------------
   // ------ System flags
   // -----------------------------------
-  bool use_landmarks{};
-  bool use_corners{};
-  bool use_planars{};
-  bool use_icp{};
-  bool use_gps{};
+  bool use_landmarks_{};
+  bool use_corners_{};
+  bool use_planars_{};
+  bool use_icp_{};
+  bool use_gps_{};
 
   // -----------------------------------
   // ------ GPS datum
   // -----------------------------------
-  float latitude{};
-  float longitude{};
+  float latitude_{};
+  float longitude_{};
 
   // -----------------------------------
   // ------ On-board sensors transformations to base link
   // -----------------------------------
-  std::vector<float> cam2base;
-  std::vector<float> vel2base;
+  std::vector<float> cam2base_;
+  std::vector<float> vel2base_;
 
   // -----------------------------------
   // ------ Camera info parameters
   // -----------------------------------
-  float baseline{};
-  float depth_hfov{};
-  float depth_vfov{};
-  int   img_width{};
-  int   img_height{};
-  float fx{};
-  float fy{};
-  float cx{};
-  float cy{};
+  float baseline_{};
+  float depth_hfov_{};
+  float depth_vfov_{};
+  int img_width_{};
+  int img_height_{};
+  float fx_{};
+  float fy_{};
+  float cx_{};
+  float cy_{};
 
   // -----------------------------------
   // ------ Multi-layer mapping parameters
   // -----------------------------------
   // - Grid map
-  float       gridmap_origin_x{};
-  float       gridmap_origin_y{};
-  float       gridmap_origin_z{};
-  float       gridmap_width{};
-  float       gridmap_lenght{};
-  float       gridmap_height{};
-  float       gridmap_resolution{};
-  bool        save_map{};
-  std::string map_output_folder;
-  std::string map_input_file;
+  float gridmap_origin_x_{};
+  float gridmap_origin_y_{};
+  float gridmap_origin_z_{};
+  float gridmap_width_{};
+  float gridmap_lenght_{};
+  float gridmap_height_{};
+  float gridmap_resolution_{};
+  bool save_map_{};
+  std::string map_output_folder_;
+  std::string map_input_file_;
   // - 3D map
-  int   hessian_threshold{};
-  float max_range{};
-  float max_height{};
-  int   icp_max_iters{};
-  float icp_distance_threshold{};
-  bool  icp_reject_outliers{};
+  int hessian_threshold_{};
+  float max_range_{};
+  float max_height_{};
+  int icp_max_iters_{};
+  float icp_distance_threshold_{};
+  bool icp_reject_outliers_{};
 
   // -----------------------------------
   // ------ Particle filter parameters
   // -----------------------------------
-  int   number_particles{};
-  float sigma_xx{};
-  float sigma_yy{};
-  float sigma_zz{};
-  float sigma_RR{};
-  float sigma_PP{};
-  float sigma_YY{};
-  float sigma_landmark_matching{};
-  float sigma_feature_matching{};
-  float sigma_corner_matching{};
-  float sigma_planar_matching{};
-  float sigma_gps{};
-  int   number_clusters{};
+  int number_particles_{};
+  float sigma_xx_{};
+  float sigma_yy_{};
+  float sigma_zz_{};
+  float sigma_RR_{};
+  float sigma_PP_{};
+  float sigma_YY_{};
+  float sigma_landmark_matching_{};
+  float sigma_feature_matching_{};
+  float sigma_corner_matching_{};
+  float sigma_planar_matching_{};
+  float sigma_gps_{};
+  int number_clusters_{};
 
   // -----------------------------------
   // ------ METHODS
@@ -98,4 +98,4 @@ struct Parameters {
   Parameters() = default;
 };
 
-} // namespace vineslam
+}  // namespace vineslam

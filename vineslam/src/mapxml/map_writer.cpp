@@ -60,7 +60,7 @@ void MapWriter::writeToFile(OccupancyMap* grid_map)
         xmlfile << TAB << open(CELL) << ENDL;
         xmlfile << TAB << TAB << open(X_COORDINATE) << i << close(X_COORDINATE) << ENDL;
         xmlfile << TAB << TAB << open(Y_COORDINATE) << j << close(Y_COORDINATE) << ENDL;
-        xmlfile << TAB << TAB << open(Z_COORDINATE) << layer.first << close(Z_COORDINATE) << ENDL;
+        xmlfile << TAB << TAB << open(Z_COORDINATE) << z << close(Z_COORDINATE) << ENDL;
 
         // High level semantic features
         xmlfile << TAB << TAB << open(SEMANTICF) << ENDL;

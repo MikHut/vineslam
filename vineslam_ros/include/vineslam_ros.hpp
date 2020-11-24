@@ -64,10 +64,10 @@ public:
   VineSLAM_ros() = default;
 
   // Runtime execution routines
-  void init();
-  void loop();
-  void loopOnce();
-  void process();
+  virtual void init();
+  virtual void loop();
+  virtual void loopOnce();
+  virtual void process();
 
   // Stereo camera images callback function
   void imageListener(const sensor_msgs::ImageConstPtr& rgb_image, const sensor_msgs::ImageConstPtr& depth_image);

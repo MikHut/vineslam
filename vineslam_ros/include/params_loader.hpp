@@ -165,63 +165,83 @@ static void loadParameters(const ros::NodeHandle& nh, const std::string& prefix,
               prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/origin/x", params.gridmap_origin_x_))
+  if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/origin/x", params.gridmap_origin_x_) && !(node_name == "/loca"
+                                                                                                                 "lizat"
+                                                                                                                 "ion_"
+                                                                                                                 "nod"
+                                                                                                                 "e"))
   {
     ROS_ERROR("%s/multilayer_mapping/grid_map/origin/x parameter "
               "not found. Shutting down...",
               prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/origin/y", params.gridmap_origin_y_))
+  if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/origin/y", params.gridmap_origin_y_) && !(node_name == "/loca"
+                                                                                                                 "lizat"
+                                                                                                                 "ion_"
+                                                                                                                 "nod"
+                                                                                                                 "e"))
   {
     ROS_ERROR("%s/multilayer_mapping/grid_map/origin/y parameter "
               "not found. Shutting down...",
               prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/origin/z", params.gridmap_origin_z_))
+  if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/origin/z", params.gridmap_origin_z_) && !(node_name == "/loca"
+                                                                                                                 "lizat"
+                                                                                                                 "ion_"
+                                                                                                                 "nod"
+                                                                                                                 "e"))
   {
     ROS_ERROR("%s/multilayer_mapping/grid_map/origin/z parameter "
               "not found. Shutting down...",
               prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/width", params.gridmap_width_))
+  if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/width", params.gridmap_width_) && !(node_name == "/localizati"
+                                                                                                           "on_node"))
   {
     ROS_ERROR("%s/multilayer_mapping/grid_map/width "
               "not found. Shutting down...",
               prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/lenght", params.gridmap_lenght_))
+  if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/lenght", params.gridmap_lenght_) && !(node_name == "/localiza"
+                                                                                                             "tion_"
+                                                                                                             "node"))
   {
     ROS_ERROR("%s/multilayer_mapping/grid_map/lenght "
               "not found. Shutting down...",
               prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/height", params.gridmap_height_))
+  if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/height", params.gridmap_height_) && !(node_name == "/localiza"
+                                                                                                             "tion_"
+                                                                                                             "node"))
   {
     ROS_ERROR("%s/multilayer_mapping/grid_map/height "
               "not found. Shutting down...",
               prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/resolution", params.gridmap_resolution_))
+  if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/resolution", params.gridmap_resolution_) &&
+      !(node_name == "/localization_node"))
   {
     ROS_ERROR("%s/multilayer_mapping/grid_map/resolution "
               "not found. Shutting down...",
               prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/save_map", params.save_map_))
+  if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/save_map", params.save_map_) && !(node_name == "/localization"
+                                                                                                         "_node"))
   {
     ROS_ERROR("%s/multilayer_mapping/grid_map/save_map "
               "not found. Shutting down...",
               prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/output_folder", params.map_output_folder_))
+  if (!nh.getParam(prefix + "/multilayer_mapping/grid_map/output_folder", params.map_output_folder_) &&
+      !(node_name == "/localization_node"))
   {
     ROS_ERROR("%s/multilayer_mapping/grid_map/output_folder "
               "not found. Shutting down...",

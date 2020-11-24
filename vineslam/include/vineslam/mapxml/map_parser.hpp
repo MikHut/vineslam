@@ -3,10 +3,13 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include <utility>
 
 #include "map_writer.hpp"
 #include "../mapping/occupancy_map.hpp"
-#include "../feature/feature.hpp"
+#include "../feature/semantic.hpp"
+#include "../feature/three_dimensional.hpp"
+#include "../feature/visual.hpp"
 
 namespace vineslam
 {
@@ -14,10 +17,10 @@ class MapParser
 {
 public:
   // Class constructor - loads the file name
-  explicit MapParser(const Parameters& params);
+  explicit MapParser(Parameters  params);
 
   // Receives the occupancy grid map and writes it to a xml file
-  void parseFile(OccupancyMap& grid_map);
+  void parseFile(OccupancyMap* grid_map);
 
 private:
   // Build a xml tag (open) from a string
@@ -32,10 +35,8 @@ private:
   static int getInt(const std::string& line);
   // Reads a string inside a tag
   static std::string getString(const std::string& line);
-  // Print the map read
-  static void printMap(OccupancyMap grid_map);
 
   // Input parameters
-  std::string file_path_;
+  Parameters params_;
 };
 }  // namespace vineslam

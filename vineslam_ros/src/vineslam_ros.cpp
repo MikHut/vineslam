@@ -32,6 +32,13 @@ bool VineSLAM_ros::stopHeadingEstimation(vineslam_ros::stop_gps_heading_estimati
 
 void VineSLAM_ros::loop()
 {
+  // Reset information flags
+  input_data.received_images_ = false;
+  input_data.received_scans_ = false;
+  input_data.received_landmarks_ = false;
+  input_data.received_odometry_ = false;
+  input_data.received_gnss_ = false;
+
   while (ros::ok())
   {
     loopOnce();
@@ -446,6 +453,7 @@ void VineSLAM_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)
 
     init_odom_pose_ = Pose(msg->pose.pose.position.x, msg->pose.pose.position.y, 0, 0, 0, yaw);
 
+    init_odom_ = false;
     return;
   }
 

@@ -127,7 +127,6 @@ SLAMNode::SLAMNode(int argc, char** argv)
 
   // ROS spin ...
   ROS_INFO("Done! Execution started.");
-
   ros::spin();
   ROS_INFO("ROS shutting down...");
 }

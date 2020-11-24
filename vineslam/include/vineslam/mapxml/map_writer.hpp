@@ -38,6 +38,9 @@
 #define CORNERF "corner_features"
 #define CTAG "c"
 #define PLANE "plane"
+// ----- Planars
+#define PLANARF "planar_features"
+#define PTAG "p"
 // ----- SURF
 #define SURFF "surf_features"
 #define STAG "s"
@@ -58,7 +61,7 @@ public:
   explicit MapWriter(const Parameters& params);
 
   // Receives the occupancy grid map and writes it to a xml file
-  void writeToFile(OccupancyMap grid_map);
+  void writeToFile(OccupancyMap* grid_map);
 
 private:
   // Opens a tag with a specified value

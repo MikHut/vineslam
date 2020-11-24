@@ -20,6 +20,11 @@
 #include <vineslam_msgs/particle.h>
 #include <vineslam_msgs/report.h>
 // ----------------------------
+#include <vineslam_ros/start_map_registration.h>
+#include <vineslam_ros/stop_map_registration.h>
+#include <vineslam_ros/stop_gps_heading_estimation.h>
+#include <vineslam_ros/save_map.h>
+// ----------------------------
 
 // std
 #include <iostream>
@@ -46,9 +51,6 @@
 #include <nav_msgs/OccupancyGrid.h>
 #include <pcl_ros/point_cloud.h>
 #include <pcl/filters/filter.h>
-#include <vineslam_ros/start_map_registration.h>
-#include <vineslam_ros/stop_map_registration.h>
-#include <vineslam_ros/stop_gps_heading_estimation.h>
 
 // Services
 #include <agrob_map_transform/GetPose.h>
@@ -84,6 +86,7 @@ public:
   bool stopRegistration(vineslam_ros::stop_map_registration::Request&, vineslam_ros::stop_map_registration::Response&);
   bool stopHeadingEstimation(vineslam_ros::stop_gps_heading_estimation::Request&,
                              vineslam_ros::stop_gps_heading_estimation::Response&);
+  bool saveMap(vineslam_ros::save_map::Request&, vineslam_ros::save_map::Response&);
 
   // Publish 2D semantic features map
   void publish2DMap(const Pose& pose, const std::vector<float>& bearings, const std::vector<float>& depths) const;

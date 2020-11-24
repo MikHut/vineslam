@@ -26,7 +26,7 @@ private:
   void process();
 
   // Robot pose callback function
-  void poseListener(const geometry_msgs::PoseStampedConstPtr& msg);
+  void odomListener();
 };
 
 }  // namespace vineslam

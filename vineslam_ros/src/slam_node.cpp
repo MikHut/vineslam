@@ -133,15 +133,6 @@ SLAMNode::SLAMNode(int argc, char** argv)
 
 SLAMNode::~SLAMNode()
 {
-  // Save map data
-  bool save_map = params_.save_map_;
-
-  if (save_map)
-  {
-    std::cout << "Writing map to file ..." << std::endl;
-    MapWriter mw(params_);
-    mw.writeToFile(*grid_map_);
-  }
 }
 
 }  // namespace vineslam

@@ -38,6 +38,10 @@ MappingNode::MappingNode(int argc, char** argv)
   corners_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners_local", 1);
   planars_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planars_local", 1);
 
+  // ROS services
+  ros::ServiceServer save_map_srv =
+      nh.advertiseService("save_map", &VineSLAM_ros::saveMap, dynamic_cast<VineSLAM_ros*>(this));
+
   // Get static sensor tfs
   tfScalar roll, pitch, yaw;
   tf::Transform vel2base;

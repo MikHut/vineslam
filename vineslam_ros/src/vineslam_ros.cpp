@@ -30,6 +30,24 @@ bool VineSLAM_ros::stopHeadingEstimation(vineslam_ros::stop_gps_heading_estimati
   return true;
 }
 
+bool VineSLAM_ros::saveMap(vineslam_ros::save_map::Request&, vineslam_ros::save_map::Response&)
+{
+  ROS_INFO("Saving map to xml file.");
+
+  // Save map data
+  bool save_map = params_.save_map_;
+
+  if (save_map)
+  {
+    MapWriter mw(params_);
+    mw.writeToFile(grid_map_);
+  }
+
+  ROS_INFO("Map saved.");
+
+  return true;
+}
+
 void VineSLAM_ros::loop()
 {
   // Reset information flags

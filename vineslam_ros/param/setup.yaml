@@ -5,7 +5,8 @@ rs_odom_topic: /camerat265/odom/sample
 fix_topic: /fix
 tf_topic: /tf
 depth_img_topic: /zed/zed_node/depth/depth_registered
-left_img_topic: /zed/zed_node/left_raw/image_raw_color/compressed
+#left_img_topic: /zed/zed_node/left_raw/image_raw_color/compressed
+left_img_topic: /zed/zed_node/left/image
 detections_topic: /tpu/detections
 pcl_topic: /velodyne_points
 
@@ -16,7 +17,7 @@ system:
   # ---------------------
   debug: True
   # ---- Define system inputs
-  use_planes: True
+  use_planes: F
   use_ground_plane: True
   use_landmarks: False
   use_corners: True
@@ -57,7 +58,6 @@ multilayer_mapping:
     lenght: 150
     height: 2.5
     resolution: 0.25 # meters
-    metric: "euclidean"
     save_map: True
     output_folder: "/home/andre-criis/Source/vineslam_data/raw_data/maps/"
     input_file: "/home/andre-criis/map.xml"
@@ -71,32 +71,26 @@ multilayer_mapping:
   # ICP definitions
   ICP:
     max_iters: 20
-    distance_threshold: 0.02
+    distance_threshold: 0.20
     reject_outliers: True
 
 
 pf:
   n_particles: 500
 
-  srr: 0.050 # rotation - rotation (rad / rad)
-  srt: 0.200 # rotation - translation (rad / meter)
-  str: 0.080 # translation - rotation (meter / rad)
-  stt: 0.200 # translation - translation (meter / meter)
+  # Particles innovation
+  sigma_xx: 0.2 # meters
+  sigma_yy: 0.2 # meters
+  sigma_zz: 0.2 # meters
+  sigma_RR: 0.5 # radians
+  sigma_PP: 0.5 # radians
+  sigma_YY: 0.8 # radians
 
-  ## --- PARTICLES INNOVATION -- #
-  sigma_xy: 0.15 # meters (just for initialization)
-  sigma_z: 0.01 # meters
-  sigma_roll: 0.01 # degrees
-  sigma_pitch: 0.01 # degrees
-  sigma_yaw: 1.0 # degrees (just for initialization)
-
-  ## --- PARTICLES UPDATE -- #
+  ## Particles update
   sigma_landmark_matching: 0.01 # meters
   sigma_feature_matching: 0.05 # meters
-  sigma_corner_matching: 0.05 # meters
-  sigma_planar_matching: 0.05 # meters
-  sigma_planes_yaw: 1.0 # degrees
-  sigma_ground_rp: 1.0 # degrees
+  sigma_corner_matching: 0.1 # meters
+  sigma_planar_matching: 0.1 # meters
   sigma_gps: 0.08 # meters
 
   k_clusters: 3

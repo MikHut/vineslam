@@ -190,7 +190,6 @@ All the parameters are set to their **default values**, so you can run the syste
     * **width** - map width (meters)
     * **height** - map height (meters)
     * **resolution** - map resolution (meters)
-    * **metric** - ["euclidean"/"descriptor"] whether to use the euclidean or descriptor distance to find correspondences
     * **save_map** - [True/False] whether to save or not the map when the system ends
     * **output_file** - name of the map output file (.xml)
     * **input_file** - name of the map input file (.xml) if using localization-only

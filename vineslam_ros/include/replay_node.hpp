@@ -1,7 +1,7 @@
 #pragma once
 
 #include "vineslam_ros.hpp"
-#include <math/stat.hpp>
+#include <vineslam/math/stat.hpp>
 #include <vineslam_ros/change_replay_node_state.h>
 #include <vineslam_ros/change_replay_node_features.h>
 #include <vineslam_ros/debug_particle_filter.h>
@@ -14,8 +14,12 @@
 
 namespace vineslam
 {
-
-enum BAG_STATE { PAUSED, PLAYING, ITERATING };
+enum BAG_STATE
+{
+  PAUSED,
+  PLAYING,
+  ITERATING
+};
 
 class ReplayNode : public VineSLAM_ros
 {
@@ -33,7 +37,7 @@ private:
   void replayFct(ros::NodeHandle nh);
 
   // Debug particle filter
-  bool debugPF(vineslam_ros::debug_particle_filter::Request&  request,
+  bool debugPF(vineslam_ros::debug_particle_filter::Request& request,
                vineslam_ros::debug_particle_filter::Response& response);
 
   // Node services
@@ -46,31 +50,22 @@ private:
   void listenStdin();
 
   // Private replay node objects
-  PF*                   pf;
-  OccupancyMap*         m_grid_map{};
-  std::vector<Particle> m_particles;
+  PF* debug_pf_;
+  OccupancyMap* debug_grid_map_{};
+  std::vector<Particle> debug_particles_vec_;
 
   // Replay node ROS publishers
-  ros::Publisher debug_pf_particles_pub;
-  ros::Publisher debug_pf_weights_pub;
-  ros::Publisher debug_pf_corners_local_pub;
-  ros::Publisher debug_pf_planars_local_pub;
-  ros::Publisher debug_pf_planes_local_pub;
-
-  // Topic and rosbag names
-  std::string bagfile_str;
-  std::string odom_str;
-  std::string rs_odom_str;
-  std::string tf_str;
-  std::string fix_str;
-  std::string depth_img_str;
-  std::string left_img_str;
-  std::string pcl_str;
+  ros::Publisher debug_pf_particles_pub_;
+  ros::Publisher debug_pf_weights_pub_;
+  ros::Publisher debug_pf_corners_local_pub_;
+  ros::Publisher debug_pf_planars_local_pub_;
+  ros::Publisher debug_pf_planes_local_pub_;
+  ros::Publisher debug_pf_ground_local_pub_;
 
   // System flags
-  int       nmessages;
-  BAG_STATE bag_state;
-  bool      have_iterated{};
+  int nmessages_;
+  BAG_STATE bag_state_;
+  bool have_iterated_{};
 };
 
-} // namespace vineslam
+}  // namespace vineslam

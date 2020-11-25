@@ -14,27 +14,37 @@ namespace vineslam
 
 LocalizationNode::LocalizationNode(int argc, char** argv)
 {
+  // ---------------------------------------------------------
   // Initialize ROS node
+  // ---------------------------------------------------------
   ros::init(argc, argv, "LocalizationNode");
   ros::NodeHandle nh;
 
-  // Load params
+  // ---------------------------------------------------------
+  // ----- Load params
+  // ---------------------------------------------------------
   loadParameters(nh, "/localization_node", params_);
 
-  // Set initialization flags default values
+  // ---------------------------------------------------------
+  // ----- Set initialization flags default values
+  // ---------------------------------------------------------
   init_flag_ = true;
   init_gps_ = true;
   init_odom_ = true;
   register_map_ = false;
   estimate_heading_ = true;
 
-  // Declare the Mappers and Localizer objects
+  // ---------------------------------------------------------
+  // ----- Declare the Mappers and Localizer objects
+  // ---------------------------------------------------------
   localizer_ = new Localizer(params_);
   land_mapper_ = new LandmarkMapper(params_);
   vis_mapper_ = new VisualMapper(params_);
   lid_mapper_ = new LidarMapper(params_);
 
-  // Initialize local grid map that will be used for relative motion calculation
+  // ---------------------------------------------------------
+  // ----- Initialize local grid map that will be used for relative motion calculation
+  // ---------------------------------------------------------
   Parameters local_map_params;
   local_map_params.gridmap_origin_x_ = -30;
   local_map_params.gridmap_origin_y_ = -30;
@@ -45,11 +55,15 @@ LocalizationNode::LocalizationNode(int argc, char** argv)
   local_map_params.gridmap_height_ = 2.5;
   previous_map_ = new OccupancyMap(local_map_params, Pose(0, 0, 0, 0, 0, 0));
 
-  // Services
+  // ---------------------------------------------------------
+  // ----- Services
+  // ---------------------------------------------------------
   polar2pose_ = nh.serviceClient<agrob_map_transform::GetPose>("polar_to_pose");
   set_datum_ = nh.serviceClient<agrob_map_transform::SetDatum>("datum");
 
-  // Synchronize subscribers of both image topics
+  // ---------------------------------------------------------
+  // ----- Synchronize subscribers of both image topics
+  // ---------------------------------------------------------
   message_filters::Subscriber<sensor_msgs::Image> left_image_sub(nh, params_.left_img_topic_, 1);
   message_filters::Subscriber<sensor_msgs::Image> depth_image_sub(nh, params_.depth_img_topic_, 1);
   message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image> sync(left_image_sub, depth_image_sub, 10);
@@ -68,7 +82,9 @@ LocalizationNode::LocalizationNode(int argc, char** argv)
   ros::Subscriber gps_subscriber =
       nh.subscribe(params_.fix_topic_, 1, &VineSLAM_ros::gpsListener, dynamic_cast<VineSLAM_ros*>(this));
 
-  // Publish maps and particle filter
+  // ---------------------------------------------------------
+  // ----- Publish maps and particle filter
+  // ---------------------------------------------------------
   vineslam_report_publisher_ = nh.advertise<vineslam_msgs::report>("/vineslam/report", 1);
   grid_map_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/occupancyMap", 1);
   map2D_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/map2D", 1);
@@ -83,18 +99,24 @@ LocalizationNode::LocalizationNode(int argc, char** argv)
   path_publisher_ = nh.advertise<nav_msgs::Path>("/vineslam/path", 1);
   poses_publisher_ = nh.advertise<geometry_msgs::PoseArray>("/vineslam/poses", 1);
 
-  // ROS services
+  // ---------------------------------------------------------
+  // ----- ROS services
+  // ---------------------------------------------------------
   ros::ServiceServer stop_hed_srv = nh.advertiseService(
       "stop_gps_heading_estimation", &VineSLAM_ros::stopHeadingEstimation, dynamic_cast<VineSLAM_ros*>(this));
 
-  // GNSS varibales
+  // ---------------------------------------------------------
+  // ----- GNSS varibales
+  // ---------------------------------------------------------
   if (params_.use_gps_)
   {
     datum_autocorrection_stage_ = 0;
     global_counter_ = 0;
   }
 
-  // Get static sensor tfs
+  // ---------------------------------------------------------
+  // ----- Get static sensor tfs
+  // ---------------------------------------------------------
   tf::Transform cam2base;
   cam2base.setRotation(
       tf::Quaternion(params_.cam2base_[3], params_.cam2base_[4], params_.cam2base_[5], params_.cam2base_[6]));
@@ -117,11 +139,29 @@ LocalizationNode::LocalizationNode(int argc, char** argv)
 
   lid_mapper_->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
 
-  // Call execution thread
-  std::thread th(&LocalizationNode::loop, this);
+  ROS_INFO("Loading map from xml file...");
+  // ---------------------------------------------------------
+  // ----- Load map dimensions and initialize it
+  // ---------------------------------------------------------
+  MapParser parser(params_);
+  parser.parseHeader(&params_);
+  grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0));
+
+  // ---------------------------------------------------------
+  // ----- Load the map from the xml input file
+  // ---------------------------------------------------------
+  parser.parseFile(&(*grid_map_));
+  ROS_INFO("The map has been loaded...");
+
+  // ---------------------------------------------------------
+  // ----- Call execution thread
+  // ---------------------------------------------------------
+  std::thread th(&VineSLAM_ros::loop, dynamic_cast<VineSLAM_ros*>(this));
   th.detach();
 
-  // ROS spin ...
+  // ---------------------------------------------------------
+  // ----- ROS spin ...
+  // ---------------------------------------------------------
   ROS_INFO("Done! Execution started.");
   ros::spin();
   ROS_INFO("ROS shutting down...");
@@ -136,84 +176,50 @@ void LocalizationNode::init()
   robot_pose_ = localizer_->getPose();
 
   // ---------------------------------------------------------
-  // ----- Load the map from the xml input file
-  // ---------------------------------------------------------
-  MapParser parser(params_);
-  parser.parseFile(grid_map_);
-
-  // ---------------------------------------------------------
   // ----- Initialize the multi-layer maps
   // ---------------------------------------------------------
 
-  //  // - 2D semantic feature map
-  //  land_mapper_->init(robot_pose_, input_data.land_bearings_, input_data.land_depths_, input_data.land_labels_,
-  //                     *grid_map_);
-  //
-  //  // - 3D PCL corner map estimation
-  //  std::vector<Corner> m_corners;
-  //  std::vector<Planar> m_planars;
-  //  std::vector<Plane> m_planes;
-  //  Plane m_ground_plane;
-  //  lid_mapper_->localMap(input_data.scan_pts_, m_corners, m_planars, m_planes, m_ground_plane);
-  //
-  //  // - 3D image feature map estimation
-  //  std::vector<ImageFeature> m_surf_features;
-  //  vis_mapper_->localMap(input_data.rgb_image_, input_data.depth_array_, m_surf_features);
-  //
-  //  // - Register 3D maps
-  //  vis_mapper_->registerMaps(robot_pose_, m_surf_features, *grid_map_);
-  //  lid_mapper_->registerMaps(robot_pose_, m_corners, m_planars, m_planes, *grid_map_);
-  //  grid_map_->downsamplePlanars();
-  //
-  //  // - Save local map for next iteration
-  //  previous_map_->clear();
-  //  for (const auto& planar : m_planars)
-  //    previous_map_->insert(planar);
-  //  for (const auto& corner : m_corners)
-  //    previous_map_->insert(corner);
-  //  previous_map_->downsamplePlanars();
-  //
-  //  ROS_INFO("Localization has started.");
-}
-
-void LocalizationNode::loop()
-{
-  // Reset information flags
-  input_data.received_scans_ = false;
-  input_data.received_odometry_ = false;
-
-  while (ros::ok())
+  // - 2D semantic feature map
+  if (params_.use_landmarks_)
   {
-    loopOnce();
+    land_mapper_->init(robot_pose_, input_data.land_bearings_, input_data.land_depths_, input_data.land_labels_,
+                       *grid_map_);
   }
-}
 
-void LocalizationNode::loopOnce()
-{
-  //  // Check if we have all the necessary data
-  //  bool can_continue = input_data.received_scans_ && input_data.received_odometry_;
-  //
-  //  if (!can_continue)
-  //    return;
-  //
-  // VineSLAM main loop
-  if (init_flag_)
+  // - 3D PCL corner map estimation
+  std::vector<Corner> m_corners;
+  std::vector<Planar> m_planars;
+  std::vector<Plane> m_planes;
+  Plane m_ground_plane;
+  if (params_.use_corners_ || params_.use_planars_)
   {
-    init();
-    init_flag_ = false;
+    lid_mapper_->localMap(input_data.scan_pts_, m_corners, m_planars, m_planes, m_ground_plane);
+
+    // - Save local map for next iteration
+    previous_map_->clear();
+    for (const auto& planar : m_planars)
+      previous_map_->insert(planar);
+    for (const auto& corner : m_corners)
+      previous_map_->insert(corner);
+    previous_map_->downsamplePlanars();
   }
-  else
-    process();
 
-  // Reset information flags
-  input_data.received_scans_ = false;
-  input_data.received_odometry_ = false;
-}
+  // - 3D image feature map estimation
+  std::vector<ImageFeature> m_surf_features;
+  if (params_.use_icp_)
+  {
+    vis_mapper_->localMap(input_data.rgb_image_, input_data.depth_array_, m_surf_features);
+  }
 
-void LocalizationNode::process()
-{
-  // Publish 3D maps
-  publish3DMap();
+  if (register_map_)
+  {
+    // - Register 3D maps
+    vis_mapper_->registerMaps(robot_pose_, m_surf_features, *grid_map_);
+    lid_mapper_->registerMaps(robot_pose_, m_corners, m_planars, m_planes, *grid_map_);
+    grid_map_->downsamplePlanars();
+  }
+
+  ROS_INFO("Localization and Mapping has started.");
 }
 
 LocalizationNode::~LocalizationNode() = default;

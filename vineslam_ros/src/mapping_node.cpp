@@ -67,9 +67,7 @@ MappingNode::MappingNode(int argc, char** argv)
   ROS_INFO("ROS shutting down...");
 }
 
-MappingNode::~MappingNode()
-{
-}
+MappingNode::~MappingNode() = default;
 
 void MappingNode::loop()
 {

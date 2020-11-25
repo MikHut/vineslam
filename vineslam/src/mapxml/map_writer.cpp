@@ -52,7 +52,8 @@ void MapWriter::writeToFile(OccupancyMap* grid_map)
       {
         // Check if there is any feature in the current cell
         if (layer.second(i, j).landmarks_.empty() && layer.second(i, j).corner_features_.empty() &&
-            layer.second(i, j).surf_features_.empty()) {
+            layer.second(i, j).planar_features_.empty() && layer.second(i, j).surf_features_.empty())
+        {
           j += grid_map->resolution_;
           continue;
         }

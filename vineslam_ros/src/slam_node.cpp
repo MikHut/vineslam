@@ -131,8 +131,6 @@ SLAMNode::SLAMNode(int argc, char** argv)
   ROS_INFO("ROS shutting down...");
 }
 
-SLAMNode::~SLAMNode()
-{
-}
+SLAMNode::~SLAMNode() = default;
 
 }  // namespace vineslam

@@ -2,13 +2,14 @@
 
 namespace vineslam
 {
-MapParser::MapParser(Parameters params) : params_(std::move(params))
+MapParser::MapParser(const Parameters& params)
 {
+  file_path_ = params.map_input_file_;
 }
 
-void MapParser::parseFile(OccupancyMap* grid_map)
+void MapParser::parseHeader(Parameters* params)
 {
-  std::ifstream xmlfile(params_.map_input_file_);
+  std::ifstream xmlfile(file_path_);
   bool readinginfo = true;
 
   // Read xml header
@@ -32,37 +33,39 @@ void MapParser::parseFile(OccupancyMap* grid_map)
     }
     else if (tag == openTag(X_COORDINATE))
     {
-      params_.gridmap_origin_x_ = getFloat(line);
+      params->gridmap_origin_x_ = getFloat(line);
     }
     else if (tag == openTag(Y_COORDINATE))
     {
-      params_.gridmap_origin_y_ = getFloat(line);
+      params->gridmap_origin_y_ = getFloat(line);
     }
     else if (tag == openTag(Z_COORDINATE))
     {
-      params_.gridmap_origin_z_ = getFloat(line);
+      params->gridmap_origin_z_ = getFloat(line);
     }
     else if (tag == openTag((WIDTH)))
     {
-      params_.gridmap_width_ = getFloat(line);
+      params->gridmap_width_ = getFloat(line);
     }
     else if (tag == openTag(HEIGHT))
     {
-      params_.gridmap_height_ = getFloat(line);
+      params->gridmap_height_ = getFloat(line);
     }
     else if (tag == openTag(LENGHT))
     {
-      params_.gridmap_lenght_ = getFloat(line);
+      params->gridmap_lenght_ = getFloat(line);
     }
     else if (tag == openTag(RESOLUTION))
     {
-      params_.gridmap_resolution_ = getFloat(line);
+      params->gridmap_resolution_ = getFloat(line);
       readinginfo = false;
     }
   }
+}
 
-  // Initialize grid map
-  grid_map = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0));
+void MapParser::parseFile(OccupancyMap* grid_map)
+{
+  std::ifstream xmlfile(file_path_);
 
   // Read map data, and fill the occupancy grid
   bool readingdata = true;
@@ -73,7 +76,8 @@ void MapParser::parseFile(OccupancyMap* grid_map)
   Corner corner;
   Planar planar;
   ImageFeature surf_feature;
-  //   Read map data
+
+  // Read map data
   while (readingdata)
   {
     // Read entire line
@@ -189,7 +193,7 @@ void MapParser::parseFile(OccupancyMap* grid_map)
           state = 4;
         }
         break;
-      case 6:  // check if we're going to read or not a new corner
+      case 6:  // check if we're going to read or not a new planar
         if (tag == openTag(PTAG))
         {
           planar = Planar();
@@ -215,7 +219,7 @@ void MapParser::parseFile(OccupancyMap* grid_map)
         {
           planar.which_plane_ = getInt(line);
         }
-        else if (tag == closeTag(CTAG))
+        else if (tag == closeTag(PTAG))
         {
           (*grid_map)(x, y, z).insert(planar);
           state = 6;
@@ -273,6 +277,7 @@ void MapParser::parseFile(OccupancyMap* grid_map)
         }
         else if (tag == closeTag(STAG))
         {
+          (*grid_map)(x, y, z).insert(surf_feature);
           state = 8;
         }
         break;

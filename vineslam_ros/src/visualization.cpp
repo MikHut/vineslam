@@ -181,7 +181,9 @@ void VineSLAM_ros::publish3DMap() const
   pcl::PointCloud<pcl::PointXYZI>::Ptr planar_cloud(new pcl::PointCloud<pcl::PointXYZI>);
   pcl::PointCloud<pcl::PointXYZI>::Ptr plane_cloud(new pcl::PointCloud<pcl::PointXYZI>);
 
-  for (auto& it : *grid_map_)
+  int n_corners = 0, n_planars = 0;
+
+  for (auto it : *grid_map_)
   {
     for (const auto& cell : it.second)
     {

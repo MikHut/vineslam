@@ -17,9 +17,10 @@ class MapParser
 {
 public:
   // Class constructor - loads the file name
-  explicit MapParser(Parameters  params);
+  explicit MapParser(const Parameters&  params);
 
   // Receives the occupancy grid map and writes it to a xml file
+  void parseHeader(Parameters *params);
   void parseFile(OccupancyMap* grid_map);
 
 private:
@@ -37,6 +38,6 @@ private:
   static std::string getString(const std::string& line);
 
   // Input parameters
-  Parameters params_;
+  std::string file_path_;
 };
 }  // namespace vineslam

@@ -55,8 +55,8 @@ public:
   void getParticlesBeforeResampling(std::vector<Particle>& in) const;
 
   // Routine to change the observations to use in the localization procedure
-  void changeObservationsToUse(const bool& use_high_level, const bool& use_corners, const bool& use_planars,
-                               const bool& use_icp, const bool& use_gps);
+  void changeObservationsToUse(const bool& use_semantic_features, const bool& use_lidar_features,
+                               const bool& use_image_features, const bool& use_gps);
 
   // LiDAR odometry implementation
   void predictMotion(const std::vector<Planar>& planars, OccupancyMap* previous_map, Tf& result);

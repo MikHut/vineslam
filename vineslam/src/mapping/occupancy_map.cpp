@@ -36,7 +36,7 @@ MapLayer::MapLayer(const MapLayer& grid_map)
   this->width_ = grid_map.width_;
 }
 
-bool MapLayer::insert(const SemanticFeature& m_landmark, const int& id, const int& i, const int& j)
+bool MapLayer::insert(const SemanticFeature& l_landmark, const int& id, const int& i, const int& j)
 {
   try
   {
@@ -48,29 +48,29 @@ bool MapLayer::insert(const SemanticFeature& m_landmark, const int& id, const in
     return false;
   }
 
-  (*this)(i, j).insert(id, m_landmark);
+  (*this)(i, j).insert(id, l_landmark);
   n_landmarks_++;
 
   // Mark cell as occupied in pointer array
-  int m_i = i - static_cast<int>(std::round(origin_.x_ / resolution_ + .49));
-  int m_j = j - static_cast<int>(std::round(origin_.y_ / resolution_ + .49));
-  int idx = m_i + m_j * static_cast<int>(std::round(width_ / resolution_ + .49));
+  int l_i = i - static_cast<int>(std::round(origin_.x_ / resolution_ + .49));
+  int l_j = j - static_cast<int>(std::round(origin_.y_ / resolution_ + .49));
+  int idx = l_i + l_j * static_cast<int>(std::round(width_ / resolution_ + .49));
   landmark_set_.insert(idx);
 
   return true;
 }
 
-bool MapLayer::insert(const SemanticFeature& m_landmark, const int& id)
+bool MapLayer::insert(const SemanticFeature& l_landmark, const int& id)
 {
   // Compute grid coordinates for the floating point Landmark location
   // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
-  int m_i = static_cast<int>(std::round(m_landmark.pos_.x_ / resolution_ + .49));
-  int m_j = static_cast<int>(std::round(m_landmark.pos_.y_ / resolution_ + .49));
+  int l_i = static_cast<int>(std::round(l_landmark.pos_.x_ / resolution_ + .49));
+  int l_j = static_cast<int>(std::round(l_landmark.pos_.y_ / resolution_ + .49));
 
-  return insert(m_landmark, id, m_i, m_j);
+  return insert(l_landmark, id, l_i, l_j);
 }
 
-bool MapLayer::insert(const ImageFeature& m_feature, const int& i, const int& j)
+bool MapLayer::insert(const ImageFeature& l_feature, const int& i, const int& j)
 {
   try
   {
@@ -82,29 +82,29 @@ bool MapLayer::insert(const ImageFeature& m_feature, const int& i, const int& j)
     return false;
   }
 
-  (*this)(i, j).surf_features_.push_back(m_feature);
+  (*this)(i, j).surf_features_.push_back(l_feature);
   n_surf_features_++;
 
   // Mark cell as occupied in pointer array
-  int m_i = i - static_cast<int>(std::round(origin_.x_ / resolution_ + .49));
-  int m_j = j - static_cast<int>(std::round(origin_.y_ / resolution_ + .49));
-  int idx = m_i + m_j * static_cast<int>(std::round(width_ / resolution_ + .49));
+  int l_i = i - static_cast<int>(std::round(origin_.x_ / resolution_ + .49));
+  int l_j = j - static_cast<int>(std::round(origin_.y_ / resolution_ + .49));
+  int idx = l_i + l_j * static_cast<int>(std::round(width_ / resolution_ + .49));
   surf_set_.insert(idx);
 
   return true;
 }
 
-bool MapLayer::insert(const ImageFeature& m_feature)
+bool MapLayer::insert(const ImageFeature& l_feature)
 {
   // Compute grid coordinates for the floating point Feature location
   // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
-  int m_i = static_cast<int>(std::round(m_feature.pos_.x_ / resolution_ + .49));
-  int m_j = static_cast<int>(std::round(m_feature.pos_.y_ / resolution_ + .49));
+  int l_i = static_cast<int>(std::round(l_feature.pos_.x_ / resolution_ + .49));
+  int l_j = static_cast<int>(std::round(l_feature.pos_.y_ / resolution_ + .49));
 
-  return insert(m_feature, m_i, m_j);
+  return insert(l_feature, l_i, l_j);
 }
 
-bool MapLayer::insert(const Corner& m_feature, const int& i, const int& j)
+bool MapLayer::insert(const Corner& l_feature, const int& i, const int& j)
 {
   try
   {
@@ -116,29 +116,29 @@ bool MapLayer::insert(const Corner& m_feature, const int& i, const int& j)
     return false;
   }
 
-  (*this)(i, j).corner_features_.push_back(m_feature);
+  (*this)(i, j).corner_features_.push_back(l_feature);
   n_corner_features_++;
 
   // Mark cell as occupied in pointer array
-  int m_i = i - static_cast<int>(std::round(origin_.x_ / resolution_ + .49));
-  int m_j = j - static_cast<int>(std::round(origin_.y_ / resolution_ + .49));
-  int idx = m_i + m_j * static_cast<int>(std::round(width_ / resolution_ + .49));
+  int l_i = i - static_cast<int>(std::round(origin_.x_ / resolution_ + .49));
+  int l_j = j - static_cast<int>(std::round(origin_.y_ / resolution_ + .49));
+  int idx = l_i + l_j * static_cast<int>(std::round(width_ / resolution_ + .49));
   corner_set_.insert(idx);
 
   return true;
 }
 
-bool MapLayer::insert(const Corner& m_feature)
+bool MapLayer::insert(const Corner& l_feature)
 {
   // Compute grid coordinates for the floating point Feature location
   // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
-  int m_i = static_cast<int>(std::round(m_feature.pos_.x_ / resolution_ + .49));
-  int m_j = static_cast<int>(std::round(m_feature.pos_.y_ / resolution_ + .49));
+  int l_i = static_cast<int>(std::round(l_feature.pos_.x_ / resolution_ + .49));
+  int l_j = static_cast<int>(std::round(l_feature.pos_.y_ / resolution_ + .49));
 
-  return insert(m_feature, m_i, m_j);
+  return insert(l_feature, l_i, l_j);
 }
 
-bool MapLayer::insert(const Planar& m_feature, const int& i, const int& j)
+bool MapLayer::insert(const Planar& l_feature, const int& i, const int& j)
 {
   try
   {
@@ -150,29 +150,29 @@ bool MapLayer::insert(const Planar& m_feature, const int& i, const int& j)
     return false;
   }
 
-  (*this)(i, j).planar_features_.push_back(m_feature);
+  (*this)(i, j).planar_features_.push_back(l_feature);
   n_planar_features_++;
 
   // Mark cell as occupied in pointer array
-  int m_i = i - static_cast<int>(std::round(origin_.x_ / resolution_ + .49));
-  int m_j = j - static_cast<int>(std::round(origin_.y_ / resolution_ + .49));
-  int idx = m_i + m_j * static_cast<int>(std::round(width_ / resolution_ + .49));
+  int l_i = i - static_cast<int>(std::round(origin_.x_ / resolution_ + .49));
+  int l_j = j - static_cast<int>(std::round(origin_.y_ / resolution_ + .49));
+  int idx = l_i + l_j * static_cast<int>(std::round(width_ / resolution_ + .49));
   planar_set_.insert(idx);
 
   return true;
 }
 
-bool MapLayer::insert(const Planar& m_feature)
+bool MapLayer::insert(const Planar& l_feature)
 {
   // Compute grid coordinates for the floating point Feature location
   // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
-  int m_i = static_cast<int>(std::round(m_feature.pos_.x_ / resolution_ + .49));
-  int m_j = static_cast<int>(std::round(m_feature.pos_.y_ / resolution_ + .49));
+  int l_i = static_cast<int>(std::round(l_feature.pos_.x_ / resolution_ + .49));
+  int l_j = static_cast<int>(std::round(l_feature.pos_.y_ / resolution_ + .49));
 
-  return insert(m_feature, m_i, m_j);
+  return insert(l_feature, l_i, l_j);
 }
 
-bool MapLayer::insert(const Point& m_point, const int& i, const int& j)
+bool MapLayer::insert(const Point& l_point, const int& i, const int& j)
 {
   try
   {
@@ -184,43 +184,43 @@ bool MapLayer::insert(const Point& m_point, const int& i, const int& j)
     return false;
   }
 
-  (*this)(i, j).points_.push_back(m_point);
+  (*this)(i, j).points_.push_back(l_point);
   n_points_++;
 
   // Mark cell as occupied in pointer array
-  int m_i = i - static_cast<int>(std::round(origin_.x_ / resolution_ + .49));
-  int m_j = j - static_cast<int>(std::round(origin_.y_ / resolution_ + .49));
-  int idx = m_i + m_j * static_cast<int>(std::round(width_ / resolution_ + .49));
+  int l_i = i - static_cast<int>(std::round(origin_.x_ / resolution_ + .49));
+  int l_j = j - static_cast<int>(std::round(origin_.y_ / resolution_ + .49));
+  int idx = l_i + l_j * static_cast<int>(std::round(width_ / resolution_ + .49));
   point_set_.insert(idx);
 
   return true;
 }
 
-bool MapLayer::insert(const Point& m_point)
+bool MapLayer::insert(const Point& l_point)
 {
   // Compute grid coordinates for the floating point Feature location
   // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
-  int m_i = static_cast<int>(std::round(m_point.x_ / resolution_ + .49));
-  int m_j = static_cast<int>(std::round(m_point.y_ / resolution_ + .49));
+  int l_i = static_cast<int>(std::round(l_point.x_ / resolution_ + .49));
+  int l_j = static_cast<int>(std::round(l_point.y_ / resolution_ + .49));
 
-  return insert(m_point, m_i, m_j);
+  return insert(l_point, l_i, l_j);
 }
 
 bool MapLayer::update(const SemanticFeature& new_landmark, const int& id, const float& i, const float& j)
 {
   // Compute grid coordinates for the floating point old Landmark location
   // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
-  int m_i = static_cast<int>(std::round(i / resolution_ + .49));
-  int m_j = static_cast<int>(std::round(j / resolution_ + .49));
+  int l_i = static_cast<int>(std::round(i / resolution_ + .49));
+  int l_j = static_cast<int>(std::round(j / resolution_ + .49));
 
   // Get array of landmarks present in the cell of the input landmark
-  Cell m_cell = (*this)(m_i, m_j);
-  std::map<int, SemanticFeature> m_landmarks = m_cell.landmarks_;
+  Cell l_cell = (*this)(l_i, l_j);
+  std::map<int, SemanticFeature> l_landmarks = l_cell.landmarks_;
 
   // Search for a correspondence
-  for (const auto& m_landmark : m_landmarks)
+  for (const auto& l_landmark : l_landmarks)
   {
-    if (m_landmark.first == id)
+    if (l_landmark.first == id)
     {
       // Update the correspondence to the new landmark and leave the routine
       // - check if the new landmark position matches a different cell in relation
@@ -228,16 +228,16 @@ bool MapLayer::update(const SemanticFeature& new_landmark, const int& id, const 
       // - if so, remove the landmark from the previous cell and insert it in the
       // new correct one
       // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
-      int new_m_i = static_cast<int>(std::round(new_landmark.pos_.x_ / resolution_ + .49));
-      int new_m_j = static_cast<int>(std::round(new_landmark.pos_.y_ / resolution_ + .49));
-      if (new_m_i != m_i || new_m_j != m_j)
+      int new_l_i = static_cast<int>(std::round(new_landmark.pos_.x_ / resolution_ + .49));
+      int new_l_j = static_cast<int>(std::round(new_landmark.pos_.y_ / resolution_ + .49));
+      if (new_l_i != l_i || new_l_j != l_j)
       {
-        (*this)(m_i, m_j).landmarks_.erase(id);
+        (*this)(l_i, l_j).landmarks_.erase(id);
         insert(new_landmark, id);
       }
       else
       {
-        (*this)(m_i, m_j).landmarks_[id] = new_landmark;
+        (*this)(l_i, l_j).landmarks_[id] = new_landmark;
       }
       return true;
     }
@@ -252,34 +252,34 @@ bool MapLayer::update(const Corner& old_corner, const Corner& new_corner)
 {
   // Compute grid coordinates for the floating point old Landmark location
   // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
-  int m_i = static_cast<int>(std::round(old_corner.pos_.x_ / resolution_ + .49));
-  int m_j = static_cast<int>(std::round(old_corner.pos_.y_ / resolution_ + .49));
+  int l_i = static_cast<int>(std::round(old_corner.pos_.x_ / resolution_ + .49));
+  int l_j = static_cast<int>(std::round(old_corner.pos_.y_ / resolution_ + .49));
 
   // Access cell of old corner
-  Cell m_cell = (*this)(m_i, m_j);
+  Cell l_cell = (*this)(l_i, l_j);
   // Get all the corner in the given cell
-  std::vector<Corner> m_corners = m_cell.corner_features_;
+  std::vector<Corner> l_corners = l_cell.corner_features_;
 
   // Find the corner and update it
-  for (size_t i = 0; i < m_corners.size(); i++)
+  for (size_t i = 0; i < l_corners.size(); i++)
   {
-    Corner m_corner = m_corners[i];
+    Corner l_corner = l_corners[i];
 
-    if (m_corner.pos_.x_ == old_corner.pos_.x_ && m_corner.pos_.y_ == old_corner.pos_.y_ &&
-        m_corner.pos_.z_ == old_corner.pos_.z_)
+    if (l_corner.pos_.x_ == old_corner.pos_.x_ && l_corner.pos_.y_ == old_corner.pos_.y_ &&
+        l_corner.pos_.z_ == old_corner.pos_.z_)
     {
       // Check if new corner lies on the same cell of the source one
-      int new_m_i = static_cast<int>(std::round(new_corner.pos_.x_ / resolution_ + .49));
-      int new_m_j = static_cast<int>(std::round(new_corner.pos_.y_ / resolution_ + .49));
+      int new_l_i = static_cast<int>(std::round(new_corner.pos_.x_ / resolution_ + .49));
+      int new_l_j = static_cast<int>(std::round(new_corner.pos_.y_ / resolution_ + .49));
 
-      if (new_m_i != m_i || new_m_j != m_j)
+      if (new_l_i != l_i || new_l_j != l_j)
       {
-        (*this)(m_i, m_j).corner_features_.erase((*this)(m_i, m_j).corner_features_.begin() + i);
+        (*this)(l_i, l_j).corner_features_.erase((*this)(l_i, l_j).corner_features_.begin() + i);
         insert(new_corner);
       }
       else
       {
-        (*this)(m_i, m_j).corner_features_[i] = new_corner;
+        (*this)(l_i, l_j).corner_features_[i] = new_corner;
       }
 
       return true;
@@ -296,34 +296,34 @@ bool MapLayer::update(const Planar& old_planar, const Planar& new_planar)
 {
   // Compute grid coordinates for the floating point old Landmark location
   // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
-  int m_i = static_cast<int>(std::round(old_planar.pos_.x_ / resolution_ + .49));
-  int m_j = static_cast<int>(std::round(old_planar.pos_.y_ / resolution_ + .49));
+  int l_i = static_cast<int>(std::round(old_planar.pos_.x_ / resolution_ + .49));
+  int l_j = static_cast<int>(std::round(old_planar.pos_.y_ / resolution_ + .49));
 
   // Access cell of old planar
-  Cell m_cell = (*this)(m_i, m_j);
+  Cell l_cell = (*this)(l_i, l_j);
   // Get all the planar in the given cell
-  std::vector<Planar> m_planars = m_cell.planar_features_;
+  std::vector<Planar> l_planars = l_cell.planar_features_;
 
   // Find the planar and update it
-  for (size_t i = 0; i < m_planars.size(); i++)
+  for (size_t i = 0; i < l_planars.size(); i++)
   {
-    Planar m_planar = m_planars[i];
+    Planar l_planar = l_planars[i];
 
-    if (m_planar.pos_.x_ == old_planar.pos_.x_ && m_planar.pos_.y_ == old_planar.pos_.y_ &&
-        m_planar.pos_.z_ == old_planar.pos_.z_)
+    if (l_planar.pos_.x_ == old_planar.pos_.x_ && l_planar.pos_.y_ == old_planar.pos_.y_ &&
+        l_planar.pos_.z_ == old_planar.pos_.z_)
     {
       // Check if new planar lies on the same cell of the source one
-      int new_m_i = static_cast<int>(std::round(new_planar.pos_.x_ / resolution_ + .49));
-      int new_m_j = static_cast<int>(std::round(new_planar.pos_.y_ / resolution_ + .49));
+      int new_l_i = static_cast<int>(std::round(new_planar.pos_.x_ / resolution_ + .49));
+      int new_l_j = static_cast<int>(std::round(new_planar.pos_.y_ / resolution_ + .49));
 
-      if (new_m_i != m_i || new_m_j != m_j)
+      if (new_l_i != l_i || new_l_j != l_j)
       {
-        (*this)(m_i, m_j).planar_features_.erase((*this)(m_i, m_j).planar_features_.begin() + i);
+        (*this)(l_i, l_j).planar_features_.erase((*this)(l_i, l_j).planar_features_.begin() + i);
         insert(new_planar);
       }
       else
       {
-        (*this)(m_i, m_j).planar_features_[i] = new_planar;
+        (*this)(l_i, l_j).planar_features_[i] = new_planar;
       }
 
       return true;
@@ -344,20 +344,20 @@ void MapLayer::downsampleCorners()
 {
   for (const auto& i : corner_set_)
   {
-    Point m_pt(0, 0, 0);
+    Point l_pt(0, 0, 0);
     int wp;
     for (const auto& corner : cell_vec_[i].corner_features_)
     {
-      m_pt.x_ += corner.pos_.x_;
-      m_pt.y_ += corner.pos_.y_;
-      m_pt.z_ += corner.pos_.z_;
+      l_pt.x_ += corner.pos_.x_;
+      l_pt.y_ += corner.pos_.y_;
+      l_pt.z_ += corner.pos_.z_;
     }
-    m_pt.x_ /= static_cast<float>(cell_vec_[i].corner_features_.size());
-    m_pt.y_ /= static_cast<float>(cell_vec_[i].corner_features_.size());
-    m_pt.z_ /= static_cast<float>(cell_vec_[i].corner_features_.size());
+    l_pt.x_ /= static_cast<float>(cell_vec_[i].corner_features_.size());
+    l_pt.y_ /= static_cast<float>(cell_vec_[i].corner_features_.size());
+    l_pt.z_ /= static_cast<float>(cell_vec_[i].corner_features_.size());
 
     cell_vec_[i].corner_features_.clear();
-    Corner c(m_pt, 0);
+    Corner c(l_pt, 0);
     cell_vec_[i].corner_features_ = { c };
   }
 }
@@ -369,20 +369,20 @@ void MapLayer::downsamplePlanars()
     auto size = static_cast<float>(cell_vec_[i].planar_features_.size());
     if (size == 0)
       continue;
-    Point m_pt(0, 0, 0);
+    Point l_pt(0, 0, 0);
     int wp;
     for (const auto& planar : cell_vec_[i].planar_features_)
     {
-      m_pt.x_ += planar.pos_.x_;
-      m_pt.y_ += planar.pos_.y_;
-      m_pt.z_ += planar.pos_.z_;
+      l_pt.x_ += planar.pos_.x_;
+      l_pt.y_ += planar.pos_.y_;
+      l_pt.z_ += planar.pos_.z_;
     }
-    m_pt.x_ /= size;
-    m_pt.y_ /= size;
-    m_pt.z_ /= size;
+    l_pt.x_ /= size;
+    l_pt.y_ /= size;
+    l_pt.z_ /= size;
 
     cell_vec_[i].planar_features_.clear();
-    Planar p(m_pt, 0);
+    Planar p(l_pt, 0);
     cell_vec_[i].planar_features_ = { p };
   }
 }
@@ -444,10 +444,10 @@ bool MapLayer::getAdjacent(const float& i, const float& j, const int& layers, st
 {
   // Compute grid coordinates for the floating point Feature/Landmark location
   // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
-  int m_i = static_cast<int>(std::round(i / resolution_ + .49));
-  int m_j = static_cast<int>(std::round(j / resolution_ + .49));
+  int l_i = static_cast<int>(std::round(i / resolution_ + .49));
+  int l_j = static_cast<int>(std::round(j / resolution_ + .49));
 
-  return getAdjacent(m_i, m_j, layers, adjacent);
+  return getAdjacent(l_i, l_j, layers, adjacent);
 }
 
 bool MapLayer::findNearest(const ImageFeature& input, ImageFeature& nearest, float& sdist)
@@ -475,7 +475,7 @@ bool MapLayer::findNearest(const ImageFeature& input, ImageFeature& nearest, flo
   moves move = ORIGIN;
 
   // Target cell current index
-  int m_i, m_j;
+  int l_i, l_j;
   // level of search (level = 1 means searching on adjacent cells)
   int level = 0;
   // iterator to move into the desired next cell
@@ -507,20 +507,20 @@ bool MapLayer::findNearest(const ImageFeature& input, ImageFeature& nearest, flo
           }
 
           // Set cell indexes where to find correspondences
-          m_i = i;
-          m_j = j;
-          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          l_i = i;
+          l_j = j;
+          // The iteration is valid since (l_i, l_j) passed in the try - catch
           valid_iteration = true;
           // End search if we found a correspondence in the source cell
           move = DONE;
           break;
         case RIGHT:
           // Compute cell indexes
-          m_i = i - level + it;
-          m_j = j + level;
+          l_i = i - level + it;
+          l_j = j + level;
           try
           {
-            check(m_i, m_j);
+            check(l_i, l_j);
           }
           catch (char const* msg)
           {
@@ -529,10 +529,10 @@ bool MapLayer::findNearest(const ImageFeature& input, ImageFeature& nearest, flo
             continue;
           }
 
-          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          // The iteration is valid since (l_i, l_j) passed in the try - catch
           valid_iteration = true;
           // Found solution if there is any feature in the target cell
-          if (m_i == i + level)
+          if (l_i == i + level)
           {
             move = DOWN;
             it = 1;
@@ -544,11 +544,11 @@ bool MapLayer::findNearest(const ImageFeature& input, ImageFeature& nearest, flo
           break;
         case DOWN:
           // Compute cell indexes
-          m_i = i + level;
-          m_j = j + level - it;
+          l_i = i + level;
+          l_j = j + level - it;
           try
           {
-            check(m_i, m_j);
+            check(l_i, l_j);
           }
           catch (char const* msg)
           {
@@ -557,10 +557,10 @@ bool MapLayer::findNearest(const ImageFeature& input, ImageFeature& nearest, flo
             continue;
           }
 
-          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          // The iteration is valid since (l_i, l_j) passed in the try - catch
           valid_iteration = true;
           // Update the next movement and the iterator
-          if (m_j == j - level)
+          if (l_j == j - level)
           {
             move = LEFT;
             it = 1;
@@ -572,11 +572,11 @@ bool MapLayer::findNearest(const ImageFeature& input, ImageFeature& nearest, flo
           break;
         case LEFT:
           // Compute cell indexes
-          m_i = i + level - it;
-          m_j = j - level;
+          l_i = i + level - it;
+          l_j = j - level;
           try
           {
-            check(m_i, m_j);
+            check(l_i, l_j);
           }
           catch (char const* msg)
           {
@@ -585,10 +585,10 @@ bool MapLayer::findNearest(const ImageFeature& input, ImageFeature& nearest, flo
             continue;
           }
 
-          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          // The iteration is valid since (l_i, l_j) passed in the try - catch
           valid_iteration = true;
           // Update the next movement and the iterator
-          if (m_i == i - level)
+          if (l_i == i - level)
           {
             move = UP;
             it = 1;
@@ -600,11 +600,11 @@ bool MapLayer::findNearest(const ImageFeature& input, ImageFeature& nearest, flo
           break;
         case UP:
           // Compute cell indexes
-          m_i = i - level;
-          m_j = j - level + it;
+          l_i = i - level;
+          l_j = j - level + it;
           try
           {
-            check(m_i, m_j);
+            check(l_i, l_j);
           }
           catch (char const* msg)
           {
@@ -613,11 +613,11 @@ bool MapLayer::findNearest(const ImageFeature& input, ImageFeature& nearest, flo
             continue;
           }
 
-          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          // The iteration is valid since (l_i, l_j) passed in the try - catch
           valid_iteration = true;
           // Update the next movement and the iterator
           // The '-1' is to not repeat the first iterator (started on RIGHT)
-          if (m_j == j + level - 1)
+          if (l_j == j + level - 1)
           {
             move = DONE;
             it = 0;
@@ -635,13 +635,13 @@ bool MapLayer::findNearest(const ImageFeature& input, ImageFeature& nearest, flo
 
       // ------- Use feature descriptor to find correspondences
       // ------- Grid map is used to limit the search space
-      for (const auto& feature : (*this)(m_i, m_j).surf_features_)
+      for (const auto& feature : (*this)(l_i, l_j).surf_features_)
       {
         std::vector<float> desc = input.signature_;
-        std::vector<float> m_desc = feature.signature_;
+        std::vector<float> l_desc = feature.signature_;
 
         // Check validity of descriptors data
-        if (desc.size() != m_desc.size())
+        if (desc.size() != l_desc.size())
         {
           std::cout << "WARNING (findNearest): source and target descriptors have "
                        "different size ... "
@@ -659,7 +659,7 @@ bool MapLayer::findNearest(const ImageFeature& input, ImageFeature& nearest, flo
 
         float ssd = 0.;  // sum of square errors
         for (size_t k = 0; k < desc.size(); k++)
-          ssd += (desc[k] - m_desc[k]) * (desc[k] - m_desc[k]);
+          ssd += (desc[k] - l_desc[k]) * (desc[k] - l_desc[k]);
 
         // Update correspondence if we found a local minimum
         if (ssd < ddist)
@@ -705,7 +705,7 @@ bool MapLayer::findNearest(const Corner& input, Corner& nearest, float& sdist)
   moves move = ORIGIN;
 
   // Target cell current index
-  int m_i, m_j;
+  int l_i, l_j;
   // level of search (level = 1 means searching on adjacent cells)
   int level = 0;
   // iterator to move into the desired next cell
@@ -736,20 +736,20 @@ bool MapLayer::findNearest(const Corner& input, Corner& nearest, float& sdist)
           }
 
           // Set cell indexes where to find correspondences
-          m_i = i;
-          m_j = j;
-          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          l_i = i;
+          l_j = j;
+          // The iteration is valid since (l_i, l_j) passed in the try - catch
           valid_iteration = true;
           // End search if we found a correspondence in the source cell
           move = DONE;
           break;
         case RIGHT:
           // Compute cell indexes
-          m_i = i - level + it;
-          m_j = j + level;
+          l_i = i - level + it;
+          l_j = j + level;
           try
           {
-            check(m_i, m_j);
+            check(l_i, l_j);
           }
           catch (char const* msg)
           {
@@ -758,10 +758,10 @@ bool MapLayer::findNearest(const Corner& input, Corner& nearest, float& sdist)
             continue;
           }
 
-          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          // The iteration is valid since (l_i, l_j) passed in the try - catch
           valid_iteration = true;
           // Found solution if there is any feature in the target cell
-          if (m_i == i + level)
+          if (l_i == i + level)
           {
             move = DOWN;
             it = 1;
@@ -773,11 +773,11 @@ bool MapLayer::findNearest(const Corner& input, Corner& nearest, float& sdist)
           break;
         case DOWN:
           // Compute cell indexes
-          m_i = i + level;
-          m_j = j + level - it;
+          l_i = i + level;
+          l_j = j + level - it;
           try
           {
-            check(m_i, m_j);
+            check(l_i, l_j);
           }
           catch (char const* msg)
           {
@@ -786,10 +786,10 @@ bool MapLayer::findNearest(const Corner& input, Corner& nearest, float& sdist)
             continue;
           }
 
-          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          // The iteration is valid since (l_i, l_j) passed in the try - catch
           valid_iteration = true;
           // Update the next movement and the iterator
-          if (m_j == j - level)
+          if (l_j == j - level)
           {
             move = LEFT;
             it = 1;
@@ -801,11 +801,11 @@ bool MapLayer::findNearest(const Corner& input, Corner& nearest, float& sdist)
           break;
         case LEFT:
           // Compute cell indexes
-          m_i = i + level - it;
-          m_j = j - level;
+          l_i = i + level - it;
+          l_j = j - level;
           try
           {
-            check(m_i, m_j);
+            check(l_i, l_j);
           }
           catch (char const* msg)
           {
@@ -814,10 +814,10 @@ bool MapLayer::findNearest(const Corner& input, Corner& nearest, float& sdist)
             continue;
           }
 
-          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          // The iteration is valid since (l_i, l_j) passed in the try - catch
           valid_iteration = true;
           // Update the next movement and the iterator
-          if (m_i == i - level)
+          if (l_i == i - level)
           {
             move = UP;
             it = 1;
@@ -829,11 +829,11 @@ bool MapLayer::findNearest(const Corner& input, Corner& nearest, float& sdist)
           break;
         case UP:
           // Compute cell indexes
-          m_i = i - level;
-          m_j = j - level + it;
+          l_i = i - level;
+          l_j = j - level + it;
           try
           {
-            check(m_i, m_j);
+            check(l_i, l_j);
           }
           catch (char const* msg)
           {
@@ -842,11 +842,11 @@ bool MapLayer::findNearest(const Corner& input, Corner& nearest, float& sdist)
             continue;
           }
 
-          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          // The iteration is valid since (l_i, l_j) passed in the try - catch
           valid_iteration = true;
           // Update the next movement and the iterator
           // The '-1' is to not repeat the first iterator (started on RIGHT)
-          if (m_j == j + level - 1)
+          if (l_j == j + level - 1)
           {
             move = DONE;
             it = 0;
@@ -863,11 +863,11 @@ bool MapLayer::findNearest(const Corner& input, Corner& nearest, float& sdist)
       }
 
       // Found solution if there is any feature in the target cell
-      found_solution = found_solution | !(*this)(m_i, m_j).corner_features_.empty();
+      found_solution = found_solution | !(*this)(l_i, l_j).corner_features_.empty();
 
       // ------- Use euclidean distance to find correspondences
       // ------- Grid map is used to limit the search space
-      for (const auto& feature : (*this)(m_i, m_j).corner_features_)
+      for (const auto& feature : (*this)(l_i, l_j).corner_features_)
       {
         float dist = input.pos_.distance(feature.pos_);
         if (dist < sdist)
@@ -912,7 +912,7 @@ bool MapLayer::findNearest(const Planar& input, Planar& nearest, float& sdist)
   moves move = ORIGIN;
 
   // Target cell current index
-  int m_i, m_j;
+  int l_i, l_j;
   // level of search (level = 1 means searching on adjacent cells)
   int level = 0;
   // iterator to move into the desired next cell
@@ -943,20 +943,20 @@ bool MapLayer::findNearest(const Planar& input, Planar& nearest, float& sdist)
           }
 
           // Set cell indexes where to find correspondences
-          m_i = i;
-          m_j = j;
-          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          l_i = i;
+          l_j = j;
+          // The iteration is valid since (l_i, l_j) passed in the try - catch
           valid_iteration = true;
           // End search if we found a correspondence in the source cell
           move = DONE;
           break;
         case RIGHT:
           // Compute cell indexes
-          m_i = i - level + it;
-          m_j = j + level;
+          l_i = i - level + it;
+          l_j = j + level;
           try
           {
-            check(m_i, m_j);
+            check(l_i, l_j);
           }
           catch (char const* msg)
           {
@@ -965,10 +965,10 @@ bool MapLayer::findNearest(const Planar& input, Planar& nearest, float& sdist)
             continue;
           }
 
-          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          // The iteration is valid since (l_i, l_j) passed in the try - catch
           valid_iteration = true;
           // Found solution if there is any feature in the target cell
-          if (m_i == i + level)
+          if (l_i == i + level)
           {
             move = DOWN;
             it = 1;
@@ -980,11 +980,11 @@ bool MapLayer::findNearest(const Planar& input, Planar& nearest, float& sdist)
           break;
         case DOWN:
           // Compute cell indexes
-          m_i = i + level;
-          m_j = j + level - it;
+          l_i = i + level;
+          l_j = j + level - it;
           try
           {
-            check(m_i, m_j);
+            check(l_i, l_j);
           }
           catch (char const* msg)
           {
@@ -993,10 +993,10 @@ bool MapLayer::findNearest(const Planar& input, Planar& nearest, float& sdist)
             continue;
           }
 
-          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          // The iteration is valid since (l_i, l_j) passed in the try - catch
           valid_iteration = true;
           // Update the next movement and the iterator
-          if (m_j == j - level)
+          if (l_j == j - level)
           {
             move = LEFT;
             it = 1;
@@ -1008,11 +1008,11 @@ bool MapLayer::findNearest(const Planar& input, Planar& nearest, float& sdist)
           break;
         case LEFT:
           // Compute cell indexes
-          m_i = i + level - it;
-          m_j = j - level;
+          l_i = i + level - it;
+          l_j = j - level;
           try
           {
-            check(m_i, m_j);
+            check(l_i, l_j);
           }
           catch (char const* msg)
           {
@@ -1021,10 +1021,10 @@ bool MapLayer::findNearest(const Planar& input, Planar& nearest, float& sdist)
             continue;
           }
 
-          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          // The iteration is valid since (l_i, l_j) passed in the try - catch
           valid_iteration = true;
           // Update the next movement and the iterator
-          if (m_i == i - level)
+          if (l_i == i - level)
           {
             move = UP;
             it = 1;
@@ -1036,11 +1036,11 @@ bool MapLayer::findNearest(const Planar& input, Planar& nearest, float& sdist)
           break;
         case UP:
           // Compute cell indexes
-          m_i = i - level;
-          m_j = j - level + it;
+          l_i = i - level;
+          l_j = j - level + it;
           try
           {
-            check(m_i, m_j);
+            check(l_i, l_j);
           }
           catch (char const* msg)
           {
@@ -1049,11 +1049,11 @@ bool MapLayer::findNearest(const Planar& input, Planar& nearest, float& sdist)
             continue;
           }
 
-          // The iteration is valid since (m_i, m_j) passed in the try - catch
+          // The iteration is valid since (l_i, l_j) passed in the try - catch
           valid_iteration = true;
           // Update the next movement and the iterator
           // The '-1' is to not repeat the first iterator (started on RIGHT)
-          if (m_j == j + level - 1)
+          if (l_j == j + level - 1)
           {
             move = DONE;
             it = 0;
@@ -1070,11 +1070,11 @@ bool MapLayer::findNearest(const Planar& input, Planar& nearest, float& sdist)
       }
 
       // Found solution if there is any feature in the target cell
-      found_solution = found_solution | !(*this)(m_i, m_j).planar_features_.empty();
+      found_solution = found_solution | !(*this)(l_i, l_j).planar_features_.empty();
 
       // ------- Use euclidean distance to find correspondences
       // ------- Grid map is used to limit the search space
-      for (const auto& feature : (*this)(m_i, m_j).planar_features_)
+      for (const auto& feature : (*this)(l_i, l_j).planar_features_)
       {
         float dist = input.pos_.distance(feature.pos_);
         if (dist < sdist)
@@ -1171,29 +1171,29 @@ int OccupancyMap::getLayerNumber(const float& z) const
   return layer_num;
 }
 
-bool OccupancyMap::insert(const SemanticFeature& m_landmark, const int& id)
+bool OccupancyMap::insert(const SemanticFeature& l_landmark, const int& id)
 {
-  return layers_map_[getLayerNumber(0)].insert(m_landmark, id);
+  return layers_map_[getLayerNumber(0)].insert(l_landmark, id);
 }
 
-bool OccupancyMap::insert(const ImageFeature& m_feature)
+bool OccupancyMap::insert(const ImageFeature& l_feature)
 {
-  return layers_map_[getLayerNumber(m_feature.pos_.z_)].insert(m_feature);
+  return layers_map_[getLayerNumber(l_feature.pos_.z_)].insert(l_feature);
 }
 
-bool OccupancyMap::insert(const Corner& m_feature)
+bool OccupancyMap::insert(const Corner& l_feature)
 {
-  return layers_map_[getLayerNumber(m_feature.pos_.z_)].insert(m_feature);
+  return layers_map_[getLayerNumber(l_feature.pos_.z_)].insert(l_feature);
 }
 
-bool OccupancyMap::insert(const Planar& m_feature)
+bool OccupancyMap::insert(const Planar& l_feature)
 {
-  return layers_map_[getLayerNumber(m_feature.pos_.z_)].insert(m_feature);
+  return layers_map_[getLayerNumber(l_feature.pos_.z_)].insert(l_feature);
 }
 
-bool OccupancyMap::insert(const Point& m_point)
+bool OccupancyMap::insert(const Point& l_point)
 {
-  return layers_map_[getLayerNumber(m_point.z_)].insert(m_point);
+  return layers_map_[getLayerNumber(l_point.z_)].insert(l_point);
 }
 
 bool OccupancyMap::update(const SemanticFeature& new_landmark, const int& id, const float& i, const float& j)
@@ -1214,24 +1214,24 @@ bool OccupancyMap::update(const Corner& old_corner, const Corner& new_corner)
   {
     // Compute grid coordinates for the floating point old corner location
     // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
-    int m_i = static_cast<int>(std::round(old_corner.pos_.x_ / resolution_ + .49));
-    int m_j = static_cast<int>(std::round(old_corner.pos_.y_ / resolution_ + .49));
+    int l_i = static_cast<int>(std::round(old_corner.pos_.x_ / resolution_ + .49));
+    int l_j = static_cast<int>(std::round(old_corner.pos_.y_ / resolution_ + .49));
 
     // Access cell of old corner
-    Cell m_cell = layers_map_[old_layer_num](m_i, m_j);
+    Cell l_cell = layers_map_[old_layer_num](l_i, l_j);
     // Get all the corner in the given cell
-    std::vector<Corner> m_corners = m_cell.corner_features_;
+    std::vector<Corner> l_corners = l_cell.corner_features_;
 
     // Find the corner and update it
-    for (size_t i = 0; i < m_corners.size(); i++)
+    for (size_t i = 0; i < l_corners.size(); i++)
     {
-      Corner m_corner = m_corners[i];
+      Corner l_corner = l_corners[i];
 
-      if (m_corner.pos_.x_ == old_corner.pos_.x_ && m_corner.pos_.y_ == old_corner.pos_.y_ &&
-          m_corner.pos_.z_ == old_corner.pos_.z_)
+      if (l_corner.pos_.x_ == old_corner.pos_.x_ && l_corner.pos_.y_ == old_corner.pos_.y_ &&
+          l_corner.pos_.z_ == old_corner.pos_.z_)
       {
-        layers_map_[old_layer_num](m_i, m_j).corner_features_.erase(
-            layers_map_[old_layer_num](m_i, m_j).corner_features_.begin() + i);
+        layers_map_[old_layer_num](l_i, l_j).corner_features_.erase(
+            layers_map_[old_layer_num](l_i, l_j).corner_features_.begin() + i);
 
         insert(new_corner);
 
@@ -1259,24 +1259,24 @@ bool OccupancyMap::update(const Planar& old_planar, const Planar& new_planar)
   {
     // Compute grid coordinates for the floating point old planar location
     // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
-    int m_i = static_cast<int>(std::round(old_planar.pos_.x_ / resolution_ + .49));
-    int m_j = static_cast<int>(std::round(old_planar.pos_.y_ / resolution_ + .49));
+    int l_i = static_cast<int>(std::round(old_planar.pos_.x_ / resolution_ + .49));
+    int l_j = static_cast<int>(std::round(old_planar.pos_.y_ / resolution_ + .49));
 
     // Access cell of old planar
-    Cell m_cell = layers_map_[old_layer_num](m_i, m_j);
+    Cell l_cell = layers_map_[old_layer_num](l_i, l_j);
     // Get all the planar in the given cell
-    std::vector<Planar> m_planars = m_cell.planar_features_;
+    std::vector<Planar> l_planars = l_cell.planar_features_;
 
     // Find the planar and update it
-    for (size_t i = 0; i < m_planars.size(); i++)
+    for (size_t i = 0; i < l_planars.size(); i++)
     {
-      Planar m_planar = m_planars[i];
+      Planar l_planar = l_planars[i];
 
-      if (m_planar.pos_.x_ == old_planar.pos_.x_ && m_planar.pos_.y_ == old_planar.pos_.y_ &&
-          m_planar.pos_.z_ == old_planar.pos_.z_)
+      if (l_planar.pos_.x_ == old_planar.pos_.x_ && l_planar.pos_.y_ == old_planar.pos_.y_ &&
+          l_planar.pos_.z_ == old_planar.pos_.z_)
       {
-        layers_map_[old_layer_num](m_i, m_j).planar_features_.erase(
-            layers_map_[old_layer_num](m_i, m_j).planar_features_.begin() + i);
+        layers_map_[old_layer_num](l_i, l_j).planar_features_.erase(
+            layers_map_[old_layer_num](l_i, l_j).planar_features_.begin() + i);
 
         insert(new_planar);
 

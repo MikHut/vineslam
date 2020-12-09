@@ -95,6 +95,9 @@ public:
   // Publish the 3D PCL planes
   void publish3DMap(const std::vector<Plane>& planes, const ros::Publisher& pub);
   static void publish3DMap(const Pose& r_pose, const std::vector<Plane>& planes, const ros::Publisher& pub);
+  // Publish the 3D PCL semi planes
+  void publish3DMap(const std::vector<SemiPlane>& planes, const ros::Publisher& pub);
+  static void publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>& planes, const ros::Publisher& pub);
   // Publish a 3D PCL corners map
   void publish3DMap(const std::vector<Corner>& corners, const ros::Publisher& pub);
   static void publish3DMap(const Pose& r_pose, const std::vector<Corner>& corners, const ros::Publisher& pub);
@@ -133,7 +136,7 @@ public:
     bool received_odometry_;
     bool received_gnss_;
     bool received_scans_;
-  } input_data;
+  } input_data_;
 
   // ROS publishers/services
   ros::Publisher vineslam_report_publisher_;

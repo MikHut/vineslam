@@ -50,7 +50,7 @@ SLAMNode::SLAMNode(int argc, char** argv)
   set_datum_ = nh.serviceClient<agrob_map_transform::SetDatum>("datum");
 
   // Synchronize subscribers of both image topics
-  message_filters::Subscriber<sensor_msgs::Image> left_image_sub(nh, params_.left_img_topic_, 1);
+  message_filters::Subscriber<sensor_msgs::Image> left_image_sub(nh, params_.rgb_img_topic_, 1);
   message_filters::Subscriber<sensor_msgs::Image> depth_image_sub(nh, params_.depth_img_topic_, 1);
   message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image> sync(left_image_sub, depth_image_sub, 10);
   sync.registerCallback(boost::bind(&SLAMNode::imageListener, this, _1, _2));

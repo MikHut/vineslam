@@ -36,7 +36,7 @@ static void loadParameters(const ros::NodeHandle& nh, const std::string& prefix,
     ROS_ERROR("%s/depth_img_topic parameter not found. Shutting down...", prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/left_img_topic", params.left_img_topic_) && !(node_name == "/mapping_node"))
+  if (!nh.getParam(prefix + "/left_img_topic", params.rgb_img_topic_) && !(node_name == "/mapping_node"))
   {
     ROS_ERROR("%s/left_img_topic parameter not found. Shutting down...", prefix.c_str());
     exit(-1);
@@ -51,24 +51,19 @@ static void loadParameters(const ros::NodeHandle& nh, const std::string& prefix,
     ROS_ERROR("%s/pcl_topic parameter not found. Shutting down...", prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/system/use_landmarks", params.use_landmarks_) && !(node_name == "/mapping_node"))
+  if (!nh.getParam(prefix + "/system/use_semantic_features", params.use_semantic_features_) && !(node_name == "/mapping_node"))
   {
-    ROS_ERROR("%s/system/debug parameter not found. Shutting down...", prefix.c_str());
+    ROS_ERROR("%s/system/semantic_features parameter not found. Shutting down...", prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/system/use_corners", params.use_corners_) && !(node_name == "/mapping_node"))
+  if (!nh.getParam(prefix + "/system/use_lidar_features", params.use_lidar_features_) && !(node_name == "/mapping_node"))
   {
-    ROS_ERROR("%s/system/use_corners parameter not found. Shutting down...", prefix.c_str());
+    ROS_ERROR("%s/system/use_lidar_features parameter not found. Shutting down...", prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/system/use_planars", params.use_planars_) && !(node_name == "/mapping_node"))
+  if (!nh.getParam(prefix + "/system/use_image_features", params.use_image_features_) && !(node_name == "/mapping_node"))
   {
-    ROS_ERROR("%s/system/use_planars parameter not found. Shutting down...", prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/system/use_icp", params.use_icp_) && !(node_name == "/mapping_node"))
-  {
-    ROS_ERROR("%s/system/use_icp parameter not found. Shutting down...", prefix.c_str());
+    ROS_ERROR("%s/system/use_image_features parameter not found. Shutting down...", prefix.c_str());
     exit(-1);
   }
   if (!nh.getParam(prefix + "/system/use_gps", params.use_gps_) && !(node_name == "/mapping_node"))

@@ -17,12 +17,9 @@ system:
   # ---------------------
   debug: True
   # ---- Define system inputs
-  use_planes: F
-  use_ground_plane: True
-  use_landmarks: False
-  use_corners: True
-  use_planars: True
-  use_icp: False
+  use_semantic_features: False
+  use_lidar_features: True
+  use_image_features: False
   use_gps: False
   # ---------------------
   # GPS datum

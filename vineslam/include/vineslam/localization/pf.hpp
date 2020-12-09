@@ -85,10 +85,9 @@ public:
   std::string logs_;
 
   // Observations to use
-  bool use_landmarks_;
-  bool use_corners_;
-  bool use_planars_;
-  bool use_icp_;
+  bool use_semantic_features_;
+  bool use_lidar_features_;
+  bool use_image_features_;
   bool use_gps_;
 
 private:
@@ -99,6 +98,8 @@ private:
   void mediumLevelCorners(const std::vector<Corner>& corners, OccupancyMap* grid_map, std::vector<float>& ws);
   // - Medium level planar features layer
   void mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* grid_map, std::vector<float>& ws);
+  // - Medium ground plane layer
+  void mediumLevelGround(const Plane& ground, std::vector<float>& ws);
   // - Low level image features layer
   void lowLevel(const std::vector<ImageFeature>& surf_features, OccupancyMap* grid_map, std::vector<float>& ws);
   // -------- (Low level) K-means based particle clustering
@@ -111,6 +112,9 @@ private:
 
   // Iterative closest point member
   ICP<ImageFeature>* icp_;
+
+  // Ground plane observed on the previous frame
+  Plane prev_ground_plane_;
 
   // Parameters structure
   Parameters params_;

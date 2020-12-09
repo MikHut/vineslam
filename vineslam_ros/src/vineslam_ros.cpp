@@ -51,11 +51,11 @@ bool VineSLAM_ros::saveMap(vineslam_ros::save_map::Request&, vineslam_ros::save_
 void VineSLAM_ros::loop()
 {
   // Reset information flags
-  input_data.received_images_ = false;
-  input_data.received_scans_ = false;
-  input_data.received_landmarks_ = false;
-  input_data.received_odometry_ = false;
-  input_data.received_gnss_ = false;
+  input_data_.received_images_ = false;
+  input_data_.received_scans_ = false;
+  input_data_.received_landmarks_ = false;
+  input_data_.received_odometry_ = false;
+  input_data_.received_gnss_ = false;
 
   while (ros::ok())
   {
@@ -66,9 +66,10 @@ void VineSLAM_ros::loop()
 void VineSLAM_ros::loopOnce()
 {
   // Check if we have all the necessary data
-  bool can_continue = (input_data.received_images_ || (!params_.use_icp_ && !params_.use_landmarks_)) &&
-                      input_data.received_scans_ && (input_data.received_landmarks_ || !params_.use_landmarks_) &&
-                      (input_data.received_gnss_ || !params_.use_gps_);
+  bool can_continue =
+      (input_data_.received_images_ || (!params_.use_image_features_ && !params_.use_semantic_features_)) &&
+      input_data_.received_scans_ && (input_data_.received_landmarks_ || !params_.use_semantic_features_) &&
+      (input_data_.received_gnss_ || !params_.use_gps_);
 
   if (!can_continue)
     return;
@@ -85,11 +86,11 @@ void VineSLAM_ros::loopOnce()
     process();
 
   // Reset information flags
-  input_data.received_images_ = false;
-  input_data.received_scans_ = false;
-  input_data.received_landmarks_ = false;
-  input_data.received_odometry_ = false;
-  input_data.received_gnss_ = false;
+  input_data_.received_images_ = false;
+  input_data_.received_scans_ = false;
+  input_data_.received_landmarks_ = false;
+  input_data_.received_odometry_ = false;
+  input_data_.received_gnss_ = false;
 }
 
 void VineSLAM_ros::init()
@@ -106,42 +107,42 @@ void VineSLAM_ros::init()
   // ---------------------------------------------------------
 
   // - 2D semantic feature map
-  if (params_.use_landmarks_)
+  if (params_.use_semantic_features_)
   {
-    land_mapper_->init(robot_pose_, input_data.land_bearings_, input_data.land_depths_, input_data.land_labels_,
+    land_mapper_->init(robot_pose_, input_data_.land_bearings_, input_data_.land_depths_, input_data_.land_labels_,
                        *grid_map_);
   }
 
   // - 3D PCL corner map estimation
-  std::vector<Corner> m_corners;
-  std::vector<Planar> m_planars;
-  std::vector<Plane> m_planes;
-  Plane m_ground_plane;
-  if (params_.use_corners_ || params_.use_planars_)
+  std::vector<Corner> l_corners;
+  std::vector<Planar> l_planars;
+  std::vector<Plane> l_planes;
+  Plane l_ground_plane;
+  if (params_.use_lidar_features_)
   {
-    lid_mapper_->localMap(input_data.scan_pts_, m_corners, m_planars, m_planes, m_ground_plane);
+    lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
 
     // - Save local map for next iteration
     previous_map_->clear();
-    for (const auto& planar : m_planars)
+    for (const auto& planar : l_planars)
       previous_map_->insert(planar);
-    for (const auto& corner : m_corners)
+    for (const auto& corner : l_corners)
       previous_map_->insert(corner);
     previous_map_->downsamplePlanars();
   }
 
   // - 3D image feature map estimation
-  std::vector<ImageFeature> m_surf_features;
-  if (params_.use_icp_)
+  std::vector<ImageFeature> l_surf_features;
+  if (params_.use_image_features_)
   {
-    vis_mapper_->localMap(input_data.rgb_image_, input_data.depth_array_, m_surf_features);
+    vis_mapper_->localMap(input_data_.rgb_image_, input_data_.depth_array_, l_surf_features);
   }
 
   if (register_map_)
   {
     // - Register 3D maps
-    vis_mapper_->registerMaps(robot_pose_, m_surf_features, *grid_map_);
-    lid_mapper_->registerMaps(robot_pose_, m_corners, m_planars, m_planes, *grid_map_);
+    vis_mapper_->registerMaps(robot_pose_, l_surf_features, *grid_map_);
+    lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, *grid_map_);
     grid_map_->downsamplePlanars();
   }
 
@@ -160,27 +161,36 @@ void VineSLAM_ros::process()
   // ----- Build local maps to use in the localization
   // ---------------------------------------------------------
   // - Compute 2D local map of semantic features on robot's referential frame
-  std::vector<SemanticFeature> m_landmarks;
-  if (params_.use_landmarks_)
+  std::vector<SemanticFeature> l_landmarks;
+  if (params_.use_semantic_features_)
   {
-    land_mapper_->localMap(input_data.land_bearings_, input_data.land_depths_, m_landmarks);
+    land_mapper_->localMap(input_data_.land_bearings_, input_data_.land_depths_, l_landmarks);
   }
 
   // - Compute 3D PCL corners and ground plane on robot's referential frame
-  std::vector<Corner> m_corners;
-  std::vector<Planar> m_planars;
-  std::vector<Plane> m_planes;
-  Plane m_ground_plane;
-  if (params_.use_corners_ || params_.use_planars_)
+  std::vector<Corner> l_corners;
+  std::vector<Planar> l_planars;
+  std::vector<Plane> l_planes;
+  Plane l_ground_plane;
+  std::vector<SemiPlane> l_semi_planes;
+  Tf plane_ref;
+  if (params_.use_lidar_features_)
   {
-    lid_mapper_->localMap(input_data.scan_pts_, m_corners, m_planars, m_planes, m_ground_plane);
+    lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+
+    for (const auto& plane : l_planes)
+    {
+      SemiPlane l_semi_plane;
+      LidarMapper::convexHull(plane, l_semi_plane, plane_ref);
+      l_semi_planes.push_back(l_semi_plane);
+    }
   }
 
   // - Compute 3D image features on robot's referential frame
-  std::vector<ImageFeature> m_surf_features;
-  if (params_.use_icp_)
+  std::vector<ImageFeature> l_surf_features;
+  if (params_.use_image_features_)
   {
-    vis_mapper_->localMap(input_data.rgb_image_, input_data.depth_array_, m_surf_features);
+    vis_mapper_->localMap(input_data_.rgb_image_, input_data_.depth_array_, l_surf_features);
   }
 
   // ---------------------------------------------------------
@@ -190,13 +200,14 @@ void VineSLAM_ros::process()
   // * Point cloud corners and planars
   // * SURF 3D image features
   // * GPS (if we're using it)
-  obsv_.landmarks = m_landmarks;
-  obsv_.corners = m_corners;
-  obsv_.planars = m_planars;
-  obsv_.surf_features = m_surf_features;
+  obsv_.landmarks = l_landmarks;
+  obsv_.corners = l_corners;
+  obsv_.planars = l_planars;
+  obsv_.ground_plane = l_ground_plane;
+  obsv_.surf_features = l_surf_features;
   if (has_converged_ && params_.use_gps_)
   {
-    obsv_.gps_pose = input_data.gnss_pose_;
+    obsv_.gps_pose = input_data_.gnss_pose_;
   }
   else
     obsv_.gps_pose = Pose(0., 0., 0., 0., 0., 0.);
@@ -204,7 +215,7 @@ void VineSLAM_ros::process()
   // ---------------------------------------------------------
   // ----- Localization procedure
   // ---------------------------------------------------------
-  localizer_->process(input_data.wheel_odom_pose_, obsv_, previous_map_, grid_map_);
+  localizer_->process(input_data_.wheel_odom_pose_, obsv_, previous_map_, grid_map_);
   robot_pose_ = localizer_->getPose();
 
   // ---------------------------------------------------------
@@ -212,9 +223,9 @@ void VineSLAM_ros::process()
   // ---------------------------------------------------------
   if (register_map_)
   {
-    land_mapper_->process(robot_pose_, m_landmarks, input_data.land_labels_, *grid_map_);
-    vis_mapper_->registerMaps(robot_pose_, m_surf_features, *grid_map_);
-    lid_mapper_->registerMaps(robot_pose_, m_corners, m_planars, m_planes, *grid_map_);
+    land_mapper_->process(robot_pose_, l_landmarks, input_data_.land_labels_, *grid_map_);
+    vis_mapper_->registerMaps(robot_pose_, l_surf_features, *grid_map_);
+    lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, *grid_map_);
     grid_map_->downsamplePlanars();
   }
 
@@ -246,6 +257,12 @@ void VineSLAM_ros::process()
   o2m_q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
   tf::Transform odom2map(o2m_q, tf::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_));
   br.sendTransform(tf::StampedTransform(odom2map, ros::Time::now(), "odom", "map"));
+
+  tf::Quaternion p2m_q;
+  Pose plane_pose(plane_ref.R_array_, plane_ref.t_array_);
+  p2m_q.setRPY(plane_pose.R_, plane_pose.P_, plane_pose.Y_);
+  tf::Transform plane2map(p2m_q, tf::Vector3(plane_pose.x_, plane_pose.y_, plane_pose.z_));
+  br.sendTransform(tf::StampedTransform(plane2map, ros::Time::now(), "/vineslam/base_link", "plane"));
 
   // Convert vineslam pose to ROS pose and publish it
   geometry_msgs::PoseStamped pose_stamped;
@@ -282,46 +299,46 @@ void VineSLAM_ros::process()
   report.header.frame_id = ros_poses.header.frame_id;
   for (const auto& particle : b_particles)
   {
-    tf::Quaternion m_q;
-    m_q.setRPY(particle.p_.R_, particle.p_.P_, particle.p_.Y_);
-    m_q.normalize();
+    tf::Quaternion l_q;
+    l_q.setRPY(particle.p_.R_, particle.p_.P_, particle.p_.Y_);
+    l_q.normalize();
 
-    geometry_msgs::Pose m_pose;
-    m_pose.position.x = particle.p_.x_;
-    m_pose.position.y = particle.p_.y_;
-    m_pose.position.z = particle.p_.z_;
-    m_pose.orientation.x = m_q.x();
-    m_pose.orientation.y = m_q.y();
-    m_pose.orientation.z = m_q.z();
-    m_pose.orientation.w = m_q.w();
+    geometry_msgs::Pose l_pose;
+    l_pose.position.x = particle.p_.x_;
+    l_pose.position.y = particle.p_.y_;
+    l_pose.position.z = particle.p_.z_;
+    l_pose.orientation.x = l_q.x();
+    l_pose.orientation.y = l_q.y();
+    l_pose.orientation.z = l_q.z();
+    l_pose.orientation.w = l_q.w();
 
     vineslam_msgs::particle particle_info;
     particle_info.id = particle.id_;
-    particle_info.pose = m_pose;
+    particle_info.pose = l_pose;
     particle_info.w = particle.w_;
 
     report.b_particles.push_back(particle_info);
   }
   for (const auto& particle : a_particles)
   {
-    tf::Quaternion m_q;
-    m_q.setRPY(particle.p_.R_, particle.p_.P_, particle.p_.Y_);
-    m_q.normalize();
+    tf::Quaternion l_q;
+    l_q.setRPY(particle.p_.R_, particle.p_.P_, particle.p_.Y_);
+    l_q.normalize();
 
-    geometry_msgs::Pose m_pose;
-    m_pose.position.x = particle.p_.x_;
-    m_pose.position.y = particle.p_.y_;
-    m_pose.position.z = particle.p_.z_;
-    m_pose.orientation.x = m_q.x();
-    m_pose.orientation.y = m_q.y();
-    m_pose.orientation.z = m_q.z();
-    m_pose.orientation.w = m_q.w();
+    geometry_msgs::Pose l_pose;
+    l_pose.position.x = particle.p_.x_;
+    l_pose.position.y = particle.p_.y_;
+    l_pose.position.z = particle.p_.z_;
+    l_pose.orientation.x = l_q.x();
+    l_pose.orientation.y = l_q.y();
+    l_pose.orientation.z = l_q.z();
+    l_pose.orientation.w = l_q.w();
 
-    ros_poses.poses.push_back(m_pose);
+    ros_poses.poses.push_back(l_pose);
 
     vineslam_msgs::particle particle_info;
     particle_info.id = particle.id_;
-    particle_info.pose = m_pose;
+    particle_info.pose = l_pose;
     particle_info.w = particle.w_;
 
     report.a_particles.push_back(particle_info);
@@ -329,29 +346,28 @@ void VineSLAM_ros::process()
   poses_publisher_.publish(ros_poses);
 
   report.log.data = localizer_->logs_;
-  report.use_high_level.data = params_.use_landmarks_;
-  report.use_corners.data = params_.use_corners_;
-  report.use_planars.data = params_.use_planars_;
-  report.use_icp.data = params_.use_icp_;
+  report.use_semantic_features.data = params_.use_semantic_features_;
+  report.use_lidar_features.data = params_.use_lidar_features_;
+  report.use_image_features.data = params_.use_image_features_;
   report.use_gps.data = params_.use_gps_;
   vineslam_report_publisher_.publish(report);
 
   // Publish the 2D map
-  publish2DMap(robot_pose_, input_data.land_bearings_, input_data.land_depths_);
+  publish2DMap(robot_pose_, input_data_.land_bearings_, input_data_.land_depths_);
   // Publish 3D maps
   //  publish3DMap();
-  publish3DMap(m_corners, corners_local_publisher_);
-  publish3DMap(m_planars, planars_local_publisher_);
-  std::vector<Plane> planes = { m_ground_plane };
-  for (const auto& plane : m_planes)
+  publish3DMap(l_corners, corners_local_publisher_);
+  publish3DMap(l_planars, planars_local_publisher_);
+  std::vector<Plane> planes = { l_ground_plane };
+  for (const auto& plane : l_planes)
     planes.push_back(plane);
-  publish3DMap(planes, planes_local_publisher_);
+  publish3DMap(l_semi_planes, planes_local_publisher_);
 
   // - Save local map for next iteration
   previous_map_->clear();
-  for (const auto& planar : m_planars)
+  for (const auto& planar : l_planars)
     previous_map_->insert(planar);
-  for (const auto& corner : m_corners)
+  for (const auto& corner : l_corners)
     previous_map_->insert(corner);
   previous_map_->downsamplePlanars();
 }
@@ -365,10 +381,10 @@ void VineSLAM_ros::imageListener(const sensor_msgs::ImageConstPtr& rgb_image,
 
 void VineSLAM_ros::_imageListener(const cv::Mat& rgb_image, const sensor_msgs::ImageConstPtr& depth_image)
 {
-  input_data.rgb_image_ = rgb_image;
-  input_data.depth_array_ = (float*)(&(depth_image)->data[0]);
+  input_data_.rgb_image_ = rgb_image;
+  input_data_.depth_array_ = (float*)(&(depth_image)->data[0]);
 
-  input_data.received_images_ = true;
+  input_data_.received_images_ = true;
 }
 
 void VineSLAM_ros::landmarkListener(const vision_msgs::Detection2DArrayConstPtr& dets)
@@ -382,22 +398,22 @@ void VineSLAM_ros::landmarkListener(const vision_msgs::Detection2DArrayConstPtr&
   // ---- Extract high-level semantic features
   // -------------------------------------------------------------------------------
   // Loop over all the bounding box detections
-  if (dets != nullptr && input_data.received_images_)
+  if (dets != nullptr && input_data_.received_images_)
   {
     for (const auto& detection : (*dets).detections)
     {
       // Load a single bounding box detection
-      vision_msgs::BoundingBox2D m_bbox = detection.bbox;
+      vision_msgs::BoundingBox2D l_bbox = detection.bbox;
 
       // Calculate the bearing and depth of the detected object
       float depth;
       float bearing;
 
       // Compute bounding box limits
-      auto xmin = static_cast<int>(m_bbox.center.x - m_bbox.size_x / 2);
-      auto ymin = static_cast<int>(m_bbox.center.y - m_bbox.size_y / 2);
-      auto xmax = static_cast<int>(m_bbox.center.x + m_bbox.size_x / 2);
-      auto ymax = static_cast<int>(m_bbox.center.y + m_bbox.size_y / 2);
+      auto xmin = static_cast<int>(l_bbox.center.x - l_bbox.size_x / 2);
+      auto ymin = static_cast<int>(l_bbox.center.y - l_bbox.size_y / 2);
+      auto xmax = static_cast<int>(l_bbox.center.x + l_bbox.size_x / 2);
+      auto ymax = static_cast<int>(l_bbox.center.y + l_bbox.size_y / 2);
 
       // Set minimum and maximum depth values to consider
       float range_min = 0.01;
@@ -408,16 +424,16 @@ void VineSLAM_ros::landmarkListener(const vision_msgs::Detection2DArrayConstPtr&
       {
         for (uint32_t j = ymin; j < ymax; j++)
         {
-          uint32_t idx = i + input_data.rgb_image_.cols * j;
+          uint32_t idx = i + input_data_.rgb_image_.cols * j;
 
           // Fill the depth array with the values of interest
-          if (std::isfinite(input_data.depth_array_[idx]) && input_data.depth_array_[idx] > range_min &&
-              input_data.depth_array_[idx] < range_max)
+          if (std::isfinite(input_data_.depth_array_[idx]) && input_data_.depth_array_[idx] > range_min &&
+              input_data_.depth_array_[idx] < range_max)
           {
-            float x = input_data.depth_array_[idx];
+            float x = input_data_.depth_array_[idx];
             float y = -(static_cast<float>(i) - params_.cx_) * (x / params_.fx_);
-            auto m_depth = static_cast<float>(sqrt(pow(x, 2) + pow(y, 2)));
-            dtheta[m_depth] = atan2(y, x);
+            auto l_depth = static_cast<float>(sqrt(pow(x, 2) + pow(y, 2)));
+            dtheta[l_depth] = atan2(y, x);
           }
         }
       }
@@ -446,11 +462,11 @@ void VineSLAM_ros::landmarkListener(const vision_msgs::Detection2DArrayConstPtr&
     }
   }
 
-  input_data.land_labels_ = labels;
-  input_data.land_bearings_ = bearings;
-  input_data.land_depths_ = depths;
+  input_data_.land_labels_ = labels;
+  input_data_.land_bearings_ = bearings;
+  input_data_.land_depths_ = depths;
 
-  input_data.received_landmarks_ = true;
+  input_data_.received_landmarks_ = true;
 }
 
 void VineSLAM_ros::scanListener(const sensor_msgs::PointCloud2ConstPtr& msg)
@@ -461,14 +477,14 @@ void VineSLAM_ros::scanListener(const sensor_msgs::PointCloud2ConstPtr& msg)
   std::vector<int> indices;
   pcl::removeNaNFromPointCloud(*velodyne_pcl, *velodyne_pcl, indices);
 
-  input_data.scan_pts_.clear();
+  input_data_.scan_pts_.clear();
   for (const auto& pt : *velodyne_pcl)
   {
-    Point m_pt(pt.x, pt.y, pt.z);
-    input_data.scan_pts_.push_back(m_pt);
+    Point l_pt(pt.x, pt.y, pt.z);
+    input_data_.scan_pts_.push_back(l_pt);
   }
 
-  input_data.received_scans_ = true;
+  input_data_.received_scans_ = true;
 }
 
 void VineSLAM_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)
@@ -510,9 +526,9 @@ void VineSLAM_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)
   tf::Vector3 trans = odom_tf.getOrigin();
   tf::Quaternion rot = odom_tf.getRotation();
 
-  input_data.wheel_odom_pose_ = Pose(trans.x(), trans.y(), 0, 0, 0, static_cast<float>(tf::getYaw(rot)));
+  input_data_.wheel_odom_pose_ = Pose(trans.x(), trans.y(), 0, 0, 0, static_cast<float>(tf::getYaw(rot)));
 
-  input_data.received_odometry_ = true;
+  input_data_.received_odometry_ = true;
 }
 
 void VineSLAM_ros::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
@@ -584,16 +600,16 @@ void VineSLAM_ros::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
     // Transform locally the gps pose from enu to map to use in localization
     tf::Matrix3x3 Rot = ned2map.getBasis().inverse();
 
-    input_data.gnss_pose_.x_ = static_cast<float>(Rot[0].getX()) * gps_odom.x_ +
-                               static_cast<float>(Rot[0].getY()) * gps_odom.y_ +
-                               static_cast<float>(Rot[0].getZ()) * gps_odom.z_;
-    input_data.gnss_pose_.y_ = static_cast<float>(Rot[1].getX()) * gps_odom.x_ +
-                               static_cast<float>(Rot[1].getY()) * gps_odom.y_ +
-                               static_cast<float>(Rot[1].getZ()) * gps_odom.z_;
-    input_data.gnss_pose_.z_ = 0.;
-    input_data.gnss_pose_.R_ = 0.;
-    input_data.gnss_pose_.P_ = 0.;
-    input_data.gnss_pose_.Y_ = 0.;
+    input_data_.gnss_pose_.x_ = static_cast<float>(Rot[0].getX()) * gps_odom.x_ +
+                                static_cast<float>(Rot[0].getY()) * gps_odom.y_ +
+                                static_cast<float>(Rot[0].getZ()) * gps_odom.z_;
+    input_data_.gnss_pose_.y_ = static_cast<float>(Rot[1].getX()) * gps_odom.x_ +
+                                static_cast<float>(Rot[1].getY()) * gps_odom.y_ +
+                                static_cast<float>(Rot[1].getZ()) * gps_odom.z_;
+    input_data_.gnss_pose_.z_ = 0.;
+    input_data_.gnss_pose_.R_ = 0.;
+    input_data_.gnss_pose_.P_ = 0.;
+    input_data_.gnss_pose_.Y_ = 0.;
   }
   else
   {
@@ -601,7 +617,7 @@ void VineSLAM_ros::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
     return;
   }
 
-  input_data.received_gnss_ = true;
+  input_data_.received_gnss_ = true;
 }
 
 bool VineSLAM_ros::getGNSSHeading(const Pose& gps_odom, const std_msgs::Header& header)

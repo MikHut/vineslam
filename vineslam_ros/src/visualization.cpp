@@ -113,30 +113,30 @@ void VineSLAM_ros::publish2DMap(const Pose& pose, const std::vector<float>& bear
   int id = 1;
   for (auto& it : (*grid_map_)(0))
   {
-    for (const auto& m_sfeature : it.landmarks_)
+    for (const auto& l_sfeature : it.landmarks_)
     {
       // Draw sfeature mean
       marker.id = id;
       marker.header.stamp = ros::Time::now();
       marker.header.frame_id = "map";
-      marker.pose.position.x = m_sfeature.second.pos_.x_;
-      marker.pose.position.y = m_sfeature.second.pos_.y_;
-      marker.pose.position.z = m_sfeature.second.pos_.z_;
+      marker.pose.position.x = l_sfeature.second.pos_.x_;
+      marker.pose.position.y = l_sfeature.second.pos_.y_;
+      marker.pose.position.z = l_sfeature.second.pos_.z_;
 
       marker_array.markers.push_back(marker);
 
       // Draw sfeature standard deviation
       tf2::Quaternion q;
-      q.setRPY(0, 0, m_sfeature.second.gauss_.theta_);
+      q.setRPY(0, 0, l_sfeature.second.gauss_.theta_);
 
       ellipse.id = id;
       ellipse.header.stamp = ros::Time::now();
       ellipse.header.frame_id = "map";
-      ellipse.pose.position.x = m_sfeature.second.pos_.x_;
-      ellipse.pose.position.y = m_sfeature.second.pos_.y_;
-      ellipse.pose.position.z = m_sfeature.second.pos_.z_;
-      ellipse.scale.x = 3 * m_sfeature.second.gauss_.stdev_.x_;
-      ellipse.scale.y = 3 * m_sfeature.second.gauss_.stdev_.y_;
+      ellipse.pose.position.x = l_sfeature.second.pos_.x_;
+      ellipse.pose.position.y = l_sfeature.second.pos_.y_;
+      ellipse.pose.position.z = l_sfeature.second.pos_.z_;
+      ellipse.scale.x = 3 * l_sfeature.second.gauss_.stdev_.x_;
+      ellipse.scale.y = 3 * l_sfeature.second.gauss_.stdev_.y_;
       ellipse.pose.orientation.x = q.x();
       ellipse.pose.orientation.y = q.y();
       ellipse.pose.orientation.z = q.z();
@@ -189,32 +189,32 @@ void VineSLAM_ros::publish3DMap() const
     {
       for (const auto& feature : cell.surf_features_)
       {
-        pcl::PointXYZRGB m_pt(feature.r_, feature.g_, feature.b_);
-        m_pt.x = feature.pos_.x_;
-        m_pt.y = feature.pos_.y_;
-        m_pt.z = feature.pos_.z_;
+        pcl::PointXYZRGB l_pt(feature.r_, feature.g_, feature.b_);
+        l_pt.x = feature.pos_.x_;
+        l_pt.y = feature.pos_.y_;
+        l_pt.z = feature.pos_.z_;
 
-        feature_cloud->points.push_back(m_pt);
+        feature_cloud->points.push_back(l_pt);
       }
 
       for (const auto& corner : cell.corner_features_)
       {
-        pcl::PointXYZI m_pt(static_cast<float>(corner.which_plane_));
-        m_pt.x = corner.pos_.x_;
-        m_pt.y = corner.pos_.y_;
-        m_pt.z = corner.pos_.z_;
+        pcl::PointXYZI l_pt(static_cast<float>(corner.which_plane_));
+        l_pt.x = corner.pos_.x_;
+        l_pt.y = corner.pos_.y_;
+        l_pt.z = corner.pos_.z_;
 
-        corner_cloud->points.push_back(m_pt);
+        corner_cloud->points.push_back(l_pt);
       }
 
       for (const auto& planar : cell.planar_features_)
       {
-        pcl::PointXYZI m_pt(static_cast<float>(planar.which_plane_));
-        m_pt.x = planar.pos_.x_;
-        m_pt.y = planar.pos_.y_;
-        m_pt.z = planar.pos_.z_;
+        pcl::PointXYZI l_pt(static_cast<float>(planar.which_plane_));
+        l_pt.x = planar.pos_.x_;
+        l_pt.y = planar.pos_.y_;
+        l_pt.z = planar.pos_.z_;
 
-        planar_cloud->points.push_back(m_pt);
+        planar_cloud->points.push_back(l_pt);
       }
     }
   }
@@ -235,21 +235,21 @@ void VineSLAM_ros::publish3DMap(const std::vector<Plane>& planes, const ros::Pub
   robot_pose_.toRotMatrix(robot_R);
   Tf robot_tf(robot_R, std::array<float, 3>{ robot_pose_.x_, robot_pose_.y_, robot_pose_.z_ });
 
-  int i = 0;
+  float i = 0;
   for (const auto& plane : planes)
   {
     for (const auto& pt : plane.points_)
     {
-      Point m_pt = pt * robot_tf;
+      Point l_pt = pt * robot_tf;
 
       pcl::PointXYZI pcl_pt(i);
-      pcl_pt.x = m_pt.x_;
-      pcl_pt.y = m_pt.y_;
-      pcl_pt.z = m_pt.z_;
+      pcl_pt.x = l_pt.x_;
+      pcl_pt.y = l_pt.y_;
+      pcl_pt.z = l_pt.z_;
 
       cloud_out->points.push_back(pcl_pt);
     }
-    i++;
+    i += 1;
   }
 
   cloud_out->header.frame_id = "map";
@@ -269,16 +269,83 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<Plane>& pl
   {
     for (const auto& pt : plane.points_)
     {
-      Point m_pt = pt * robot_tf;
+      Point l_pt = pt * robot_tf;
 
       pcl::PointXYZI pcl_pt(i);
-      pcl_pt.x = m_pt.x_;
-      pcl_pt.y = m_pt.y_;
-      pcl_pt.z = m_pt.z_;
+      pcl_pt.x = l_pt.x_;
+      pcl_pt.y = l_pt.y_;
+      pcl_pt.z = l_pt.z_;
 
       cloud_out->points.push_back(pcl_pt);
     }
     i++;
+  }
+
+  cloud_out->header.frame_id = "map";
+  pub.publish(cloud_out);
+}
+
+void VineSLAM_ros::publish3DMap(const std::vector<SemiPlane>& planes, const ros::Publisher& pub)
+{
+  pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(new pcl::PointCloud<pcl::PointXYZI>);
+
+  std::array<float, 9> robot_R{};
+  robot_pose_.toRotMatrix(robot_R);
+  Tf robot_tf(robot_R, std::array<float, 3>{ robot_pose_.x_, robot_pose_.y_, robot_pose_.z_ });
+
+  float i = 0;
+  for (const auto& plane : planes)
+  {
+    for (const auto& pt : plane.points_)
+    {
+      Point l_pt = pt * robot_tf;
+
+      pcl::PointXYZI pcl_pt(i);
+      pcl_pt.x = l_pt.x_;
+      pcl_pt.y = l_pt.y_;
+      pcl_pt.z = l_pt.z_;
+
+      cloud_out->points.push_back(pcl_pt);
+    }
+    i += 1;
+  }
+
+  cloud_out->header.frame_id = "map";
+  pub.publish(cloud_out);
+}
+
+void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>& planes, const ros::Publisher& pub)
+{
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out(new pcl::PointCloud<pcl::PointXYZRGB>);
+
+  std::array<float, 9> robot_R{};
+  r_pose.toRotMatrix(robot_R);
+  Tf robot_tf(robot_R, std::array<float, 3>{ r_pose.x_, r_pose.y_, r_pose.z_ });
+
+  for (const auto& plane : planes)
+  {
+    for (const auto& pt : plane.points_)
+    {
+      Point l_pt = pt * robot_tf;
+
+      pcl::PointXYZRGB pcl_pt(255, 255, 255);
+      pcl_pt.x = l_pt.x_;
+      pcl_pt.y = l_pt.y_;
+      pcl_pt.z = l_pt.z_;
+
+      cloud_out->points.push_back(pcl_pt);
+    }
+    for (const auto& pt : plane.extremas_)
+    {
+      Point l_pt = pt * robot_tf;
+
+      pcl::PointXYZRGB pcl_pt(0, 0, 0);
+      pcl_pt.x = l_pt.x_;
+      pcl_pt.y = l_pt.y_;
+      pcl_pt.z = l_pt.z_;
+
+      cloud_out->points.push_back(pcl_pt);
+    }
   }
 
   cloud_out->header.frame_id = "map";
@@ -295,12 +362,12 @@ void VineSLAM_ros::publish3DMap(const std::vector<Corner>& corners, const ros::P
 
   for (const auto& corner : corners)
   {
-    Point m_pt = corner.pos_ * robot_tf;
+    Point l_pt = corner.pos_ * robot_tf;
 
     pcl::PointXYZI pcl_pt;
-    pcl_pt.x = m_pt.x_;
-    pcl_pt.y = m_pt.y_;
-    pcl_pt.z = m_pt.z_;
+    pcl_pt.x = l_pt.x_;
+    pcl_pt.y = l_pt.y_;
+    pcl_pt.z = l_pt.z_;
 
     pcl_pt.intensity = static_cast<float>(corner.which_plane_) * 10.0f;
     cloud_out->points.push_back(pcl_pt);
@@ -320,12 +387,12 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<Corner>& c
 
   for (const auto& corner : corners)
   {
-    Point m_pt = corner.pos_ * robot_tf;
+    Point l_pt = corner.pos_ * robot_tf;
 
     pcl::PointXYZI pcl_pt;
-    pcl_pt.x = m_pt.x_;
-    pcl_pt.y = m_pt.y_;
-    pcl_pt.z = m_pt.z_;
+    pcl_pt.x = l_pt.x_;
+    pcl_pt.y = l_pt.y_;
+    pcl_pt.z = l_pt.z_;
 
     pcl_pt.intensity = static_cast<float>(corner.which_plane_) * 10.0f;
     cloud_out->points.push_back(pcl_pt);
@@ -345,12 +412,12 @@ void VineSLAM_ros::publish3DMap(const std::vector<Planar>& planars, const ros::P
 
   for (const auto& planar_feature : planars)
   {
-    Point m_pt = planar_feature.pos_ * robot_tf;
+    Point l_pt = planar_feature.pos_ * robot_tf;
 
     pcl::PointXYZI pcl_pt;
-    pcl_pt.x = m_pt.x_;
-    pcl_pt.y = m_pt.y_;
-    pcl_pt.z = m_pt.z_;
+    pcl_pt.x = l_pt.x_;
+    pcl_pt.y = l_pt.y_;
+    pcl_pt.z = l_pt.z_;
 
     pcl_pt.intensity = static_cast<float>(planar_feature.which_plane_) * 10.0f;
     cloud_out->points.push_back(pcl_pt);
@@ -370,12 +437,12 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<Planar>& p
 
   for (const auto& planar_feature : planars)
   {
-    Point m_pt = planar_feature.pos_ * robot_tf;
+    Point l_pt = planar_feature.pos_ * robot_tf;
 
     pcl::PointXYZI pcl_pt;
-    pcl_pt.x = m_pt.x_;
-    pcl_pt.y = m_pt.y_;
-    pcl_pt.z = m_pt.z_;
+    pcl_pt.x = l_pt.x_;
+    pcl_pt.y = l_pt.y_;
+    pcl_pt.z = l_pt.z_;
 
     pcl_pt.intensity = static_cast<float>(planar_feature.which_plane_) * 10.0f;
     cloud_out->points.push_back(pcl_pt);

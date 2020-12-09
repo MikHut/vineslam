@@ -57,6 +57,12 @@ public:
     z_ = tmp.z_ / tmp.norm();
   }
 
+  // Norm of a vector
+  float norm()
+  {
+    return std::sqrt(x_ * x_ + y_ * y_ + z_ * z_);
+  }
+
   // Rotation matrix from that aligns this vector with another
   // Source: https://math.stackexchange.com/a/897677
   std::array<float, 9> rotation(Vec v)
@@ -109,11 +115,6 @@ public:
     return S;
   }
 
-  // Norm of a vector
-  float norm()
-  {
-    return std::sqrt(x_ * x_ + y_ * y_ + z_ * z_);
-  }
 
 private:
 };

@@ -53,7 +53,7 @@ void Localizer::process(const Pose& odom, const Observation& obsv, OccupancyMap*
   delta_pose.normalize();
 
   if (std::fabs(delta_pose.x_) > 0.1 || std::fabs(delta_pose.y_) > 0.1 ||
-      std::fabs(delta_pose.Y_) > 5 * DEGREE_TO_RAD || init_flag_)
+      std::fabs(delta_pose.Y_) > 2 * DEGREE_TO_RAD || init_flag_)
   {
     // ------------------------------------------------------------------------------
     // ---------------- Update particles weights using multi-layer map
@@ -80,6 +80,13 @@ void Localizer::process(const Pose& odom, const Observation& obsv, OccupancyMap*
   for (const auto& particle : pf_->particles_)
     poses.push_back(particle.p_);
   average_pose_ = Pose(poses);
+  //  float w_max = 0;
+  //  for (const auto& particle : pf_->particles_) {
+  //    if (particle.w_ > w_max){
+  //      w_max = particle.w_;
+  //      average_pose_ = particle.p_;
+  //    }
+  //  }
 
   // - Save current control to use in the next iteration
   p_odom_ = icp_odom;
@@ -110,13 +117,12 @@ void Localizer::getParticlesBeforeResampling(std::vector<Particle>& in) const
     in[i] = m_particles_[i];
 }
 
-void Localizer::changeObservationsToUse(const bool& use_high_level, const bool& use_corners, const bool& use_planars,
-                                        const bool& use_icp, const bool& use_gps)
+void Localizer::changeObservationsToUse(const bool& use_semantic_features, const bool& use_lidar_features,
+                                        const bool& use_image_features, const bool& use_gps)
 {
-  pf_->use_landmarks_ = use_high_level;
-  pf_->use_corners_ = use_corners;
-  pf_->use_planars_ = use_planars;
-  pf_->use_icp_ = use_icp;
+  pf_->use_semantic_features_ = use_semantic_features;
+  pf_->use_lidar_features_ = use_lidar_features;
+  pf_->use_image_features_ = use_image_features;
   pf_->use_gps_ = use_gps;
 }
 
@@ -137,8 +143,14 @@ void Localizer::predictMotion(const std::vector<Planar>& planars, OccupancyMap* 
   // - Compute ICP
   float rms_error;
   std::vector<Planar> aligned;
-  planar_icp.align(rms_error, aligned);
-  planar_icp.getTransform(result);
+  if(planar_icp.align(rms_error, aligned))
+  {
+    planar_icp.getTransform(result);
+  }
+  else
+  {
+    result = Tf::unitary();
+  }
 
   std::vector<float> errors;
   planar_icp.getErrors(errors);

@@ -146,7 +146,7 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
   ros::Publisher tf_pub = nh.advertise<tf2_msgs::TFMessage>(params_.tf_topic_, 1);
   ros::Publisher fix_pub = nh.advertise<sensor_msgs::NavSatFix>(params_.fix_topic_, 1);
   ros::Publisher depth_img_pub = nh.advertise<sensor_msgs::Image>(params_.depth_img_topic_, 1);
-  ros::Publisher left_img_pub = nh.advertise<sensor_msgs::CompressedImage>(params_.left_img_topic_, 1);
+  ros::Publisher left_img_pub = nh.advertise<sensor_msgs::CompressedImage>(params_.rgb_img_topic_, 1);
   ros::Publisher pcl_pub = nh.advertise<sensor_msgs::PointCloud2>(params_.pcl_topic_, 1);
 
   rosgraph_msgs::Clock clock_ptr;
@@ -216,7 +216,7 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
         depth_img_pub.publish(*depth_img_ptr);
       }
     }
-    else if (topic == params_.left_img_topic_)
+    else if (topic == params_.rgb_img_topic_)
     {
       sensor_msgs::CompressedImageConstPtr left_img_comp_ptr = m.instantiate<sensor_msgs::CompressedImage>();
 
@@ -298,14 +298,13 @@ bool ReplayNode::changeNodeState(vineslam_ros::change_replay_node_state::Request
 bool ReplayNode::changeNodeFeatures(vineslam_ros::change_replay_node_features::Request& request,
                                     vineslam_ros::change_replay_node_features::Response& response)
 {
-  params_.use_landmarks_ = request.use_high_level.data;
-  params_.use_corners_ = request.use_corners.data;
-  params_.use_planars_ = request.use_planars.data;
-  params_.use_icp_ = request.use_icp.data;
+  params_.use_semantic_features_ = request.use_semantic_features.data;
+  params_.use_lidar_features_ = request.use_lidar_features.data;
+  params_.use_image_features_ = request.use_image_features.data;
   params_.use_gps_ = request.use_gps.data;
 
-  localizer_->changeObservationsToUse(params_.use_landmarks_, params_.use_corners_, params_.use_planars_,
-                                      params_.use_icp_, params_.use_gps_);
+  localizer_->changeObservationsToUse(params_.use_semantic_features_, params_.use_lidar_features_,
+                                      params_.use_image_features_, params_.use_gps_);
 
   return true;
 }
@@ -334,10 +333,9 @@ bool ReplayNode::debugPF(vineslam_ros::debug_particle_filter::Request& request,
   // -------------------------------------------------------------------------------
   // ---- Update debug PF settings
   // -------------------------------------------------------------------------------
-  debug_pf_->use_landmarks_ = params_.use_landmarks_;
-  debug_pf_->use_corners_ = params_.use_corners_;
-  debug_pf_->use_planars_ = params_.use_planars_;
-  debug_pf_->use_icp_ = params_.use_icp_;
+  debug_pf_->use_semantic_features_ = params_.use_semantic_features_;
+  debug_pf_->use_lidar_features_ = params_.use_lidar_features_;
+  debug_pf_->use_image_features_ = params_.use_image_features_;
   debug_pf_->use_gps_ = params_.use_gps_;
 
   // -------------------------------------------------------------------------------

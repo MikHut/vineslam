@@ -2,6 +2,7 @@
 
 // std & yaml & eigen
 #include <iostream>
+#include <stack>
 #include <deque>
 #include <eigen3/Eigen/Dense>
 
@@ -70,6 +71,9 @@ public:
   // Public vars
   float lidar_height;
 
+
+  // Convex Hull - semi plane extractor
+  static bool convexHull(const Plane& plane, SemiPlane& semi_plane, Tf& plane_ref);
 private:
   // -------------------------------------------------------------------------------
   // ---- 3D pointcloud feature map
@@ -98,6 +102,11 @@ private:
   // 3D feature extraction from a point cloud
   void extractFeatures(const std::vector<PlanePoint>& in_plane_pts, std::vector<Corner>& out_corners,
                        std::vector<Planar>& out_planars);
+
+  // RANSAC plane extractor
+  static bool ransac(const std::vector<Point>& in_pts, Plane& out_plane, int max_iters = 20,
+                     float dist_threshold = 0.08);
+
 
   // Local occupancy grid map
   OccupancyMap* local_map_;

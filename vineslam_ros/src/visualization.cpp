@@ -181,8 +181,6 @@ void VineSLAM_ros::publish3DMap() const
   pcl::PointCloud<pcl::PointXYZI>::Ptr planar_cloud(new pcl::PointCloud<pcl::PointXYZI>);
   pcl::PointCloud<pcl::PointXYZI>::Ptr plane_cloud(new pcl::PointCloud<pcl::PointXYZI>);
 
-  int n_corners = 0, n_planars = 0;
-
   for (auto it : *grid_map_)
   {
     for (const auto& cell : it.second)
@@ -229,7 +227,17 @@ void VineSLAM_ros::publish3DMap() const
 
 void VineSLAM_ros::publish3DMap(const std::vector<Plane>& planes, const ros::Publisher& pub)
 {
-  pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(new pcl::PointCloud<pcl::PointXYZI>);
+  visualization_msgs::MarkerArray marker_array;
+  visualization_msgs::Marker viz_pts;
+
+  // Define marker layout
+  viz_pts.ns = "/plane_pts";
+  viz_pts.type = visualization_msgs::Marker::POINTS;
+  viz_pts.action = visualization_msgs::Marker::ADD;
+  viz_pts.scale.x = 0.1;
+  viz_pts.scale.y = 0.1;
+  viz_pts.lifetime = ros::Duration(0.4);
+  viz_pts.header.frame_id = "map";
 
   std::array<float, 9> robot_R{};
   robot_pose_.toRotMatrix(robot_R);
@@ -242,56 +250,41 @@ void VineSLAM_ros::publish3DMap(const std::vector<Plane>& planes, const ros::Pub
     {
       Point l_pt = pt * robot_tf;
 
-      pcl::PointXYZI pcl_pt(i);
-      pcl_pt.x = l_pt.x_;
-      pcl_pt.y = l_pt.y_;
-      pcl_pt.z = l_pt.z_;
+      geometry_msgs::Point viz_pt;
+      viz_pts.color.r = 0.0f;
+      viz_pts.color.g = 0.0f;
+      viz_pts.color.b = i / 3;
+      viz_pts.color.a = 1.0;
+      viz_pt.x = l_pt.x_;
+      viz_pt.y = l_pt.y_;
+      viz_pt.z = l_pt.z_;
 
-      cloud_out->points.push_back(pcl_pt);
+      viz_pts.points.push_back(viz_pt);
     }
     i += 1;
   }
 
-  cloud_out->header.frame_id = "map";
-  pub.publish(cloud_out);
+  marker_array.markers.push_back(viz_pts);
+  pub.publish(marker_array);
 }
 
 void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<Plane>& planes, const ros::Publisher& pub)
 {
-  pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(new pcl::PointCloud<pcl::PointXYZI>);
+  visualization_msgs::MarkerArray marker_array;
+  visualization_msgs::Marker viz_pts;
+
+  // Define marker layout
+  viz_pts.ns = "/plane_pts";
+  viz_pts.type = visualization_msgs::Marker::POINTS;
+  viz_pts.action = visualization_msgs::Marker::ADD;
+  viz_pts.scale.x = 0.1;
+  viz_pts.scale.y = 0.1;
+  viz_pts.lifetime = ros::Duration(0.4);
+  viz_pts.header.frame_id = "map";
 
   std::array<float, 9> robot_R{};
   r_pose.toRotMatrix(robot_R);
   Tf robot_tf(robot_R, std::array<float, 3>{ r_pose.x_, r_pose.y_, r_pose.z_ });
-
-  int i = 0;
-  for (const auto& plane : planes)
-  {
-    for (const auto& pt : plane.points_)
-    {
-      Point l_pt = pt * robot_tf;
-
-      pcl::PointXYZI pcl_pt(i);
-      pcl_pt.x = l_pt.x_;
-      pcl_pt.y = l_pt.y_;
-      pcl_pt.z = l_pt.z_;
-
-      cloud_out->points.push_back(pcl_pt);
-    }
-    i++;
-  }
-
-  cloud_out->header.frame_id = "map";
-  pub.publish(cloud_out);
-}
-
-void VineSLAM_ros::publish3DMap(const std::vector<SemiPlane>& planes, const ros::Publisher& pub)
-{
-  pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out(new pcl::PointCloud<pcl::PointXYZI>);
-
-  std::array<float, 9> robot_R{};
-  robot_pose_.toRotMatrix(robot_R);
-  Tf robot_tf(robot_R, std::array<float, 3>{ robot_pose_.x_, robot_pose_.y_, robot_pose_.z_ });
 
   float i = 0;
   for (const auto& plane : planes)
@@ -300,56 +293,211 @@ void VineSLAM_ros::publish3DMap(const std::vector<SemiPlane>& planes, const ros:
     {
       Point l_pt = pt * robot_tf;
 
-      pcl::PointXYZI pcl_pt(i);
-      pcl_pt.x = l_pt.x_;
-      pcl_pt.y = l_pt.y_;
-      pcl_pt.z = l_pt.z_;
+      geometry_msgs::Point viz_pt;
+      viz_pts.color.r = 0.0f;
+      viz_pts.color.g = 0.0f;
+      viz_pts.color.b = i * 10;
+      viz_pts.color.a = 1.0;
+      viz_pt.x = l_pt.x_;
+      viz_pt.y = l_pt.y_;
+      viz_pt.z = l_pt.z_;
 
-      cloud_out->points.push_back(pcl_pt);
+      viz_pts.points.push_back(viz_pt);
     }
     i += 1;
   }
 
-  cloud_out->header.frame_id = "map";
-  pub.publish(cloud_out);
+  marker_array.markers.push_back(viz_pts);
+  pub.publish(marker_array);
 }
 
-void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>& planes, const ros::Publisher& pub)
+void VineSLAM_ros::publish3DMap(const std::vector<SemiPlane>& planes, const ros::Publisher& pub)
 {
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out(new pcl::PointCloud<pcl::PointXYZRGB>);
+  visualization_msgs::MarkerArray marker_array;
+  visualization_msgs::Marker viz_pts;
+  visualization_msgs::Marker viz_line;
+
+  // Define markers layout
+
+  viz_pts.ns = "/plane_pts";
+  viz_pts.type = visualization_msgs::Marker::POINTS;
+  viz_pts.action = visualization_msgs::Marker::ADD;
+  viz_pts.scale.x = 0.1;
+  viz_pts.scale.y = 0.1;
+  viz_pts.lifetime = ros::Duration(0.4);
+  viz_pts.header.frame_id = "map";
+
+  viz_line.header.frame_id = "map";
+  viz_line.ns = "/plane_extremas";
+  viz_line.type = visualization_msgs::Marker::LINE_STRIP;
+  viz_line.action = visualization_msgs::Marker::ADD;
+  viz_line.scale.x = 0.1;
+  viz_line.color.r = 0.0;
+  viz_line.color.g = 0.0;
+  viz_line.color.b = 1.0;
+  viz_line.color.a = 1.0;
+  viz_line.lifetime = ros::Duration(0.4);
+  viz_line.header.frame_id = "map";
 
   std::array<float, 9> robot_R{};
-  r_pose.toRotMatrix(robot_R);
-  Tf robot_tf(robot_R, std::array<float, 3>{ r_pose.x_, r_pose.y_, r_pose.z_ });
+  robot_pose_.toRotMatrix(robot_R);
+  Tf robot_tf(robot_R, std::array<float, 3>{ robot_pose_.x_, robot_pose_.y_, robot_pose_.z_ });
 
+  float i = 0;
+  float l = 0;
   for (const auto& plane : planes)
   {
     for (const auto& pt : plane.points_)
     {
       Point l_pt = pt * robot_tf;
 
-      pcl::PointXYZRGB pcl_pt(255, 255, 255);
-      pcl_pt.x = l_pt.x_;
-      pcl_pt.y = l_pt.y_;
-      pcl_pt.z = l_pt.z_;
+      geometry_msgs::Point viz_pt;
+      viz_pts.color.r = 0.0f;
+      viz_pts.color.g = 0.0f;
+      viz_pts.color.b = i * 10;
+      viz_pts.color.a = 1.0;
+      viz_pt.x = l_pt.x_;
+      viz_pt.y = l_pt.y_;
+      viz_pt.z = l_pt.z_;
 
-      cloud_out->points.push_back(pcl_pt);
+      viz_pts.points.push_back(viz_pt);
     }
-    for (const auto& pt : plane.extremas_)
+    Point p_pt = plane.extremas_[0] * robot_tf;
+    for (size_t k = 1; k < plane.extremas_.size(); k++)
+    {
+      Point l_pt = plane.extremas_[k] * robot_tf;
+
+      geometry_msgs::Point viz_pt;
+      viz_pt.x = p_pt.x_;
+      viz_pt.y = p_pt.y_;
+      viz_pt.z = p_pt.z_;
+      viz_line.points.push_back(viz_pt);
+      viz_pt.x = l_pt.x_;
+      viz_pt.y = l_pt.y_;
+      viz_pt.z = l_pt.z_;
+      viz_line.points.push_back(viz_pt);
+      viz_line.id = l++;
+
+      marker_array.markers.push_back(viz_line);
+      viz_line.points.clear();
+
+      p_pt = l_pt;
+    }
+
+    p_pt = plane.extremas_[0] * robot_tf;
+    Point l_pt = plane.extremas_[plane.extremas_.size() - 1] * robot_tf;
+
+    geometry_msgs::Point viz_pt;
+    viz_pt.x = p_pt.x_;
+    viz_pt.y = p_pt.y_;
+    viz_pt.z = p_pt.z_;
+    viz_line.points.push_back(viz_pt);
+    viz_pt.x = l_pt.x_;
+    viz_pt.y = l_pt.y_;
+    viz_pt.z = l_pt.z_;
+    viz_line.points.push_back(viz_pt);
+    viz_line.id = l++;
+    marker_array.markers.push_back(viz_line);
+    viz_line.points.clear();
+
+    i += 1;
+  }
+
+  marker_array.markers.push_back(viz_pts);
+  pub.publish(marker_array);
+}
+
+void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>& planes, const ros::Publisher& pub)
+{
+  visualization_msgs::MarkerArray marker_array;
+  visualization_msgs::Marker viz_pts;
+  visualization_msgs::Marker viz_line;
+
+  // Define markers layout
+
+  viz_pts.ns = "/plane_pts";
+  viz_pts.type = visualization_msgs::Marker::POINTS;
+  viz_pts.action = visualization_msgs::Marker::ADD;
+  viz_pts.scale.x = 0.1;
+  viz_pts.scale.y = 0.1;
+  viz_pts.lifetime = ros::Duration(0.4);
+
+  viz_line.header.frame_id = "map";
+  viz_line.ns = "/plane_extremas";
+  viz_line.type = visualization_msgs::Marker::LINE_STRIP;
+  viz_line.action = visualization_msgs::Marker::ADD;
+  viz_line.scale.x = 0.1;
+  viz_line.color.r = 0.0;
+  viz_line.color.g = 0.0;
+  viz_line.color.b = 1.0;
+  viz_line.color.a = 1.0;
+  viz_line.lifetime = ros::Duration(0.4);
+  viz_line.header.frame_id = "map";
+
+  std::array<float, 9> robot_R{};
+  r_pose.toRotMatrix(robot_R);
+  Tf robot_tf(robot_R, std::array<float, 3>{ r_pose.x_, r_pose.y_, r_pose.z_ });
+
+  float i = 0;
+  float l = 0;
+  for (const auto& plane : planes)
+  {
+    for (const auto& pt : plane.points_)
     {
       Point l_pt = pt * robot_tf;
 
-      pcl::PointXYZRGB pcl_pt(0, 0, 0);
-      pcl_pt.x = l_pt.x_;
-      pcl_pt.y = l_pt.y_;
-      pcl_pt.z = l_pt.z_;
+      geometry_msgs::Point viz_pt;
+      viz_pts.color.r = 0.0f;
+      viz_pts.color.g = 0.0f;
+      viz_pts.color.b = i / 3;
+      viz_pt.x = l_pt.x_;
+      viz_pt.y = l_pt.y_;
+      viz_pt.z = l_pt.z_;
 
-      cloud_out->points.push_back(pcl_pt);
+      viz_pts.points.push_back(viz_pt);
     }
+    Point p_pt = plane.extremas_[0] * robot_tf;
+    for (size_t k = 1; k < plane.extremas_.size(); k++)
+    {
+      Point l_pt = plane.extremas_[k] * robot_tf;
+
+      geometry_msgs::Point viz_pt;
+      viz_pt.x = p_pt.x_;
+      viz_pt.y = p_pt.y_;
+      viz_pt.z = p_pt.z_;
+      viz_line.points.push_back(viz_pt);
+      viz_pt.x = l_pt.x_;
+      viz_pt.y = l_pt.y_;
+      viz_pt.z = l_pt.z_;
+      viz_line.points.push_back(viz_pt);
+      viz_line.id = l++;
+
+      marker_array.markers.push_back(viz_line);
+
+      p_pt = l_pt;
+    }
+
+    p_pt = plane.extremas_[0] * robot_tf;
+    Point l_pt = plane.extremas_[plane.extremas_.size() - 1] * robot_tf;
+
+    geometry_msgs::Point viz_pt;
+    viz_pt.x = p_pt.x_;
+    viz_pt.y = p_pt.y_;
+    viz_pt.z = p_pt.z_;
+    viz_line.points.push_back(viz_pt);
+    viz_pt.x = l_pt.x_;
+    viz_pt.y = l_pt.y_;
+    viz_pt.z = l_pt.z_;
+    viz_line.points.push_back(viz_pt);
+    viz_line.id = l++;
+    marker_array.markers.push_back(viz_line);
+    viz_line.points.clear();
+
+    i += 1;
   }
 
-  cloud_out->header.frame_id = "map";
-  pub.publish(cloud_out);
+  marker_array.markers.push_back(viz_pts);
+  pub.publish(marker_array);
 }
 
 void VineSLAM_ros::publish3DMap(const std::vector<Corner>& corners, const ros::Publisher& pub)

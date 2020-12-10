@@ -116,7 +116,7 @@ void VineSLAM_ros::init()
   // - 3D PCL corner map estimation
   std::vector<Corner> l_corners;
   std::vector<Planar> l_planars;
-  std::vector<Plane> l_planes;
+  std::vector<SemiPlane> l_planes;
   Plane l_ground_plane;
   if (params_.use_lidar_features_)
   {
@@ -170,20 +170,12 @@ void VineSLAM_ros::process()
   // - Compute 3D PCL corners and ground plane on robot's referential frame
   std::vector<Corner> l_corners;
   std::vector<Planar> l_planars;
-  std::vector<Plane> l_planes;
+  std::vector<SemiPlane> l_planes;
   Plane l_ground_plane;
-  std::vector<SemiPlane> l_semi_planes;
   Tf plane_ref;
   if (params_.use_lidar_features_)
   {
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
-
-    for (const auto& plane : l_planes)
-    {
-      SemiPlane l_semi_plane;
-      LidarMapper::convexHull(plane, l_semi_plane, plane_ref);
-      l_semi_planes.push_back(l_semi_plane);
-    }
   }
 
   // - Compute 3D image features on robot's referential frame
@@ -361,7 +353,7 @@ void VineSLAM_ros::process()
   std::vector<Plane> planes = { l_ground_plane };
   for (const auto& plane : l_planes)
     planes.push_back(plane);
-  publish3DMap(l_semi_planes, planes_local_publisher_);
+  publish3DMap(l_planes, planes_local_publisher_);
 
   // - Save local map for next iteration
   previous_map_->clear();

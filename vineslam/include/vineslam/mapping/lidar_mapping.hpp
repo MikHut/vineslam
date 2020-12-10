@@ -2,17 +2,18 @@
 
 // std & yaml & eigen
 #include <iostream>
-#include <stack>
 #include <deque>
 #include <eigen3/Eigen/Dense>
 
-#include "../params.hpp"
-#include "../feature/three_dimensional.hpp"
-#include "../mapping/occupancy_map.hpp"
-#include "../math/Point.hpp"
-#include "../math/Pose.hpp"
-#include "../math/Tf.hpp"
-#include "../math/const.hpp"
+#include <vineslam/params.hpp>
+#include <vineslam/feature/three_dimensional.hpp>
+#include <vineslam/mapping/occupancy_map.hpp>
+#include <vineslam/math/Point.hpp>
+#include <vineslam/math/Pose.hpp>
+#include <vineslam/math/Tf.hpp>
+#include <vineslam/math/const.hpp>
+#include <vineslam/filters/ransac.hpp>
+#include <vineslam/filters/convex_hull.hpp>
 
 namespace vineslam
 {
@@ -49,14 +50,14 @@ public:
   explicit LidarMapper(const Parameters& params);
 
   void registerMaps(const Pose& robot_pose, std::vector<Corner>& corners, std::vector<Planar>& planars,
-                    std::vector<Plane>& planes, OccupancyMap& grid_map);
+                    std::vector<SemiPlane>& planes, OccupancyMap& grid_map);
 
   // -------------------------------------------------------------------------------
   // ---- 3D pointcloud feature map
   // -------------------------------------------------------------------------------
   // Builds local map given the current 3D point cloud - for velodyne
   void localMap(const std::vector<Point>& pcl, std::vector<Corner>& out_corners, std::vector<Planar>& out_planars,
-                std::vector<Plane>& out_planes, Plane& out_groundplane);
+                std::vector<SemiPlane>& out_planes, Plane& out_groundplane);
   void setVel2Base(const float& x, const float& y, const float& z, const float& roll, const float& pitch,
                    const float& yaw)
   {
@@ -71,9 +72,6 @@ public:
   // Public vars
   float lidar_height;
 
-
-  // Convex Hull - semi plane extractor
-  static bool convexHull(const Plane& plane, SemiPlane& semi_plane, Tf& plane_ref);
 private:
   // -------------------------------------------------------------------------------
   // ---- 3D pointcloud feature map
@@ -102,11 +100,6 @@ private:
   // 3D feature extraction from a point cloud
   void extractFeatures(const std::vector<PlanePoint>& in_plane_pts, std::vector<Corner>& out_corners,
                        std::vector<Planar>& out_planars);
-
-  // RANSAC plane extractor
-  static bool ransac(const std::vector<Point>& in_pts, Plane& out_plane, int max_iters = 20,
-                     float dist_threshold = 0.08);
-
 
   // Local occupancy grid map
   OccupancyMap* local_map_;

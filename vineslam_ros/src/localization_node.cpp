@@ -189,7 +189,7 @@ void LocalizationNode::init()
   // - 3D PCL corner map estimation
   std::vector<Corner> m_corners;
   std::vector<Planar> m_planars;
-  std::vector<Plane> m_planes;
+  std::vector<SemiPlane> m_planes;
   Plane m_ground_plane;
   if (params_.use_lidar_features_)
   {

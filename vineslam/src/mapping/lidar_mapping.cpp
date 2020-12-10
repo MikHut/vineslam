@@ -34,7 +34,7 @@ LidarMapper::LidarMapper(const Parameters& params)
 }
 
 void LidarMapper::registerMaps(const Pose& robot_pose, std::vector<Corner>& corners, std::vector<Planar>& planars,
-                               std::vector<Plane>& planes, OccupancyMap& grid_map)
+                               std::vector<SemiPlane>& planes, OccupancyMap& grid_map)
 {
   // - 3D PCL corner map estimation
   globalCornerMap(robot_pose, corners, grid_map);
@@ -65,7 +65,7 @@ void LidarMapper::reset()
 }
 
 void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& out_corners,
-                           std::vector<Planar>& out_planars, std::vector<Plane>& out_planes, Plane& out_groundplane)
+                           std::vector<Planar>& out_planars, std::vector<SemiPlane>& out_planes, Plane& out_groundplane)
 {
   // Build velodyne to base_link transformation matrix
   Pose tf_pose(vel2base_x_, vel2base_y_, vel2base_z_, vel2base_roll_, vel2base_pitch_, vel2base_yaw_);
@@ -145,8 +145,15 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
   std::vector<PlanePoint> cloud_seg, cloud_seg_pure;
   cloudSegmentation(transformed_pcl, cloud_seg, cloud_seg_pure);
 
-  // - Different way of segmenting the cloud
-  extractHighLevelPlanes(cloud_seg, out_planes);
+  // - Extract high level planes, and then convert them to semi-planes
+  std::vector<Plane> l_planes;
+  extractHighLevelPlanes(cloud_seg, l_planes);
+  for (const auto& plane : l_planes)
+  {
+    SemiPlane l_semi_plane;
+    convexHull(plane, l_semi_plane);
+    out_planes.push_back(l_semi_plane);
+  }
 
   //- Corners feature extraction
   extractFeatures(cloud_seg, out_corners, out_planars);
@@ -163,6 +170,10 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
   for (auto& plane : out_planes)
   {
     for (auto& pt : plane.points_)
+    {
+      pt = pt * tf.inverse();
+    }
+    for (auto& pt : plane.extremas_)
     {
       pt = pt * tf.inverse();
     }
@@ -727,342 +738,6 @@ void LidarMapper::extractFeatures(const std::vector<PlanePoint>& in_plane_pts, s
 
     out_planars.insert(out_planars.end(), planar_points_less_flat.begin(), planar_points_less_flat.end());
   }
-}
-
-bool LidarMapper::ransac(const std::vector<Point>& in_pts, Plane& out_plane, int max_iters, float dist_threshold)
-{
-  int max_idx = in_pts.size();
-  int min_idx = 0;
-  int max_tries = 1000;
-  int c_max_inliers = 0;
-
-  for (int i = 0; i < max_iters; i++)
-  {
-    // Declare private point cloud to store current solution
-    std::vector<Point> l_pcl;
-
-    // Reset number of inliers in each iteration
-    int num_inliers = 0;
-
-    // Randomly select three points that cannot be cohincident
-    // TODO (André Aguiar): Also check if points are collinear
-    bool found_valid_pts = false;
-    int n = 0;
-    int idx1, idx2, idx3;
-    while (!found_valid_pts)
-    {
-      idx1 = std::rand() % (max_idx - min_idx + 1) + min_idx;
-      idx2 = std::rand() % (max_idx - min_idx + 1) + min_idx;
-      idx3 = std::rand() % (max_idx - min_idx + 1) + min_idx;
-
-      if (idx1 != idx2 && idx1 != idx3 && idx2 != idx3)
-        found_valid_pts = true;
-
-      n++;
-      if (n > max_tries)
-        break;
-    }
-
-    if (!found_valid_pts)
-    {
-      std::cout << "WARNING (ransac): No valid set of points found ... " << std::endl;
-      return false;
-    }
-
-    // Declarate the 3 points selected on this iteration
-    Point pt1 = Point(in_pts[idx1].x_, in_pts[idx1].y_, in_pts[idx1].z_);
-    Point pt2 = Point(in_pts[idx2].x_, in_pts[idx2].y_, in_pts[idx2].z_);
-    Point pt3 = Point(in_pts[idx3].x_, in_pts[idx3].y_, in_pts[idx3].z_);
-
-    // Extract the plane hessian coefficients
-    Vec v1(pt2, pt1);
-    Vec v2(pt3, pt1);
-    Vec abc = v1.cross(v2);
-    float l_a = abc.x_;
-    float l_b = abc.y_;
-    float l_c = abc.z_;
-    float l_d = -(l_a * pt1.x_ + l_b * pt1.y_ + l_c * pt1.z_);
-
-    for (const auto& l_pt : in_pts)
-    {
-      // Compute the distance each point to the plane - from
-      // https://www.geeksforgeeks.org/distance-between-a-point-and-a-plane-in-3-d/
-      auto norm = std::sqrt(l_a * l_a + l_b * l_b + l_c * l_c);
-      if (std::fabs(l_a * l_pt.x_ + l_b * l_pt.y_ + l_c * l_pt.z_ + l_d) / norm < dist_threshold)
-      {
-        num_inliers++;
-        l_pcl.push_back(l_pt);
-      }
-    }
-
-    if (num_inliers > c_max_inliers)
-    {
-      c_max_inliers = num_inliers;
-
-      out_plane.points_.clear();
-      out_plane.points_ = l_pcl;
-      out_plane.a_ = l_a;
-      out_plane.b_ = l_b;
-      out_plane.c_ = l_c;
-      out_plane.d_ = l_d;
-    }
-  }
-
-  // -------------------------------------------------------------------------------
-  // ----- Use PCA to refine th normal vector using all the inliers
-  // -------------------------------------------------------------------------------
-  // - 1st: assemble data matrix
-  Eigen::MatrixXf data_mat;
-  data_mat.conservativeResize(out_plane.points_.size(), 3);
-  for (size_t i = 0; i < out_plane.points_.size(); i++)
-  {
-    Point pt = out_plane.points_[i];
-    Eigen::Matrix<float, 1, 3> pt_mat(pt.x_, pt.y_, pt.z_);
-    data_mat.block<1, 3>(i, 0) = pt_mat;
-  }
-  // - 2nd: calculate mean and subtract it to the data matrix
-  Eigen::MatrixXf centered_mat = data_mat.rowwise() - data_mat.colwise().mean();
-  // - 3rd: calculate covariance matrix
-  Eigen::MatrixXf covariance_mat = (centered_mat.adjoint() * centered_mat);
-  // - 4rd: calculate eigenvectors and eigenvalues of the covariance matrix
-  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXf> eigen_solver(covariance_mat);
-  const Eigen::VectorXf& eigen_values = eigen_solver.eigenvalues();
-  const Eigen::MatrixXf& eigen_vectors = eigen_solver.eigenvectors();
-
-  // -------------------------------------------------------------------------------
-  // ----- Make sure that z coordinate of normal vector is positive
-  // -------------------------------------------------------------------------------
-  Vec normal(eigen_vectors.col(0)[0], eigen_vectors.col(0)[1], eigen_vectors.col(0)[2]);
-  if (normal.z_ < 0)
-  {
-    Vec l_vec = normal;
-    std::array<float, 9> Rot{};
-    Pose transf(0., 0., 0., 0., M_PI, 0.);
-    transf.toRotMatrix(Rot);
-
-    l_vec.x_ = normal.x_ * Rot[0] + normal.y_ * Rot[1] + normal.z_ * Rot[2];
-    l_vec.y_ = normal.x_ * Rot[3] + normal.y_ * Rot[4] + normal.z_ * Rot[5];
-    l_vec.z_ = normal.x_ * Rot[6] + normal.y_ * Rot[7] + normal.z_ * Rot[8];
-
-    normal = l_vec;
-  }
-
-  // -------------------------------------------------------------------------------
-  // ----- Normalize and save normal vector
-  // -------------------------------------------------------------------------------
-  normal.normalize();
-
-  out_plane.a_ = normal.x_;
-  out_plane.b_ = normal.y_;
-  out_plane.c_ = normal.z_;
-
-  Point avg_pt(0, 0, 0);
-  for (const auto& pt : out_plane.points_)
-  {
-    avg_pt.x_ += pt.x_;
-    avg_pt.y_ += pt.y_;
-    avg_pt.z_ += pt.z_;
-  }
-  avg_pt.x_ = (out_plane.points_.empty()) ? 0 : avg_pt.x_ / static_cast<float>(out_plane.points_.size());
-  avg_pt.y_ = (out_plane.points_.empty()) ? 0 : avg_pt.y_ / static_cast<float>(out_plane.points_.size());
-  avg_pt.z_ = (out_plane.points_.empty()) ? 0 : avg_pt.z_ / static_cast<float>(out_plane.points_.size());
-
-  out_plane.d_ = -(out_plane.a_ * avg_pt.x_ + out_plane.b_ * avg_pt.y_ + out_plane.c_ * avg_pt.z_);
-
-  return c_max_inliers > 0;
-}
-
-bool LidarMapper::convexHull(const Plane& plane, SemiPlane& semi_plane, Tf& plane_ref)
-{
-  if (plane.points_.empty())
-  {
-    return false;
-  }
-
-  // ------------------------------------------------------------------
-  // ----- Get local plane reference frame transformation matrix
-  // ------------------------------------------------------------------
-
-  //  Define a point in the plane which is the first of the list, projected to the plane
-  //  use average y and z values (since velodyne uses x forward) to put origin on the center of the pattern
-  Point p0(0, 0, 0);
-  for (const auto& pt : plane.points_)
-  {
-    p0.y_ += pt.y_;
-    p0.z_ += pt.z_;
-  }
-  p0.y_ /= static_cast<float>(plane.points_.size());
-  p0.z_ /= static_cast<float>(plane.points_.size());
-  p0.x_ = (-plane.b_ * p0.y_ - plane.c_ * p0.z_ - plane.d_) / plane.a_;
-
-  // Define a second point. We use the first point from the list of points, and project it to the plane
-  Point p1(0, 0, 0);
-  p1.y_ = plane.points_[0].y_;
-  p1.z_ = plane.points_[0].z_;
-  p1.x_ = (-plane.b_ * p1.y_ - plane.c_ * p1.z_ - plane.d_) / plane.a_;
-
-  // Define a rotation matrix, and the n (direction vector along the x axis), s and a vectors:
-  //        n    s    a
-  // R = [ r11  r12  r13 ]
-  //     [ r21  r22  r23 ]
-  //     [ r31  r32  r33 ]
-
-  // Semi-arbitrary x-axis: only constraint is that it is coplanar with the plane. This is
-  // ensured since both p0 and p1 lie on the plane
-  Vec n(p1, p0);
-  Vec a(plane.a_, plane.b_, plane.c_);  // z axis must have the direction normal to the plane
-  Vec s = a.cross(n);                   // y axis is the cross product of z axis per the x axis
-
-  // Normalize the three vectors
-  n.normalize();
-  a.normalize();
-  s.normalize();
-
-  // Compute final transformation matrix
-  plane_ref.R_array_ = { n.x_, s.x_, a.x_, n.y_, s.y_, a.y_, n.z_, s.z_, a.z_ };
-  plane_ref.t_array_ = { p0.x_, p0.y_, p0.z_ };  // We use one the points in the plane to define the translation
-
-  // ------------------------------------------------------------------
-  // ----- Transform plane points to the local reference frame
-  // ------------------------------------------------------------------
-  std::vector<Point> l_pts;
-  for (const auto& pt : plane.points_)
-  {
-    Point l_pt = pt * plane_ref.inverse();
-    l_pts.push_back(l_pt);
-  }
-
-  // ------------------------------------------------------------------
-  // ----- Apply the Convex Hull algorithm to get the semi-plane extremas
-  // ----- from: https://www.geeksforgeeks.org/convex-hull-set-2-graham-scan/
-  // ------------------------------------------------------------------
-
-  // (A) - Find the bottom-most point
-  float ymin = l_pts[0].y_;
-  int min = 0, i = 0;
-  for (const auto& pt : l_pts)
-  {
-    if (pt.y_ < ymin || (ymin == pt.y_ && pt.x_ < l_pts[min].x_))
-    {
-      ymin = pt.y_;
-      min = i;
-    }
-
-    i++;
-  }
-
-  // (B) - Place the bottom-most point at the first position
-  Point tmp = l_pts[0];
-  l_pts[0] = l_pts[min];
-  l_pts[min] = tmp;
-  Point min_pt = l_pts[0];
-
-  // (C) - Sort n-1 points with respect to the first point. A point p1 comes before p2 in sorted output if p2
-  //       has larger polar angle (in counterclockwise direction) than p1
-
-  // To find orientation of ordered triplet (p, q, r).
-  // The function returns following values
-  // 0 --> p, q and r are colinear
-  // 1 --> Clockwise
-  // 2 --> Counterclockwise
-  auto orientation = [](const Point& p, const Point& q, const Point& r) {
-    float val = (q.y_ - p.y_) * (r.x_ - q.x_) - (q.x_ - p.x_) * (r.y_ - q.y_);
-
-    if (std::fabs(val) < 1e-5)
-      return 0;                // colinear
-    return (val > 0) ? 1 : 2;  // clock or counterclock wise
-  };
-
-  // Compare function
-  auto compare = [min_pt, orientation](const Point& p1, const Point& p2) {
-    int o = orientation(min_pt, p1, p2);
-
-    if (o == 0)
-    {
-      return min_pt.distanceXY(p2) < min_pt.distanceXY(p1);
-    }
-
-    return o != 2;
-  };
-
-  // Sort
-  std::sort(l_pts.begin() + 1, l_pts.end(), compare);
-
-  // If two or more points make same angle with p0, remove all but the one that is farthest from p0
-  // Remember that, in above sorting, our criteria was to keep the farthest point at the end when more than
-  // one points have same angle.
-  int m = 1;  // Initialize size of modified array
-  int size = l_pts.size();
-  for (int k = 1; k < size - 1; k++)
-  {
-    // Keep removing i while angle of k and k+1 is same
-    // with respect to p0
-    while (k < size - 1 && orientation(min_pt, l_pts[k], l_pts[k + 1]) == 0)
-      k++;
-
-    l_pts[m] = l_pts[k];
-    m++;  // Update size of modified array
-  }
-
-  // If modified array of points has less than 3 points, convex hull is not possible
-  if (m < 3)
-    return false;
-
-  // (D) - Find the extrema points
-
-  // Create an empty stack and push first three points to it.
-  std::stack<Point> S;
-  S.push(l_pts[0]);
-  S.push(l_pts[1]);
-  S.push(l_pts[2]);
-
-  // A utility function to find next to top in a stack
-  auto nextToTop = [](std::stack<Point>& S) {
-    if (S.size() < 2)
-    {
-      return Point(0, 0, 0);
-    }
-
-    Point p = S.top();
-    S.pop();
-    Point res = S.top();
-    S.push(p);
-    return res;
-  };
-
-  // Process remaining n-3 points
-  for (int k = 3; k < m; k++)
-  {
-    // Keep removing top while the angle formed by
-    // points next-to-top, top, and l_pts[k] makes
-    // a non-left turn
-    if (!S.empty())
-    {
-      while (orientation(nextToTop(S), S.top(), l_pts[k]) != 2)
-      {
-        if (!S.empty())
-        {
-          S.pop();
-
-          if (S.empty())
-            break;
-        }
-      }
-    }
-    S.push(l_pts[k]);
-  }
-
-  // Convert stack to vector and save the output semi-plane
-  std::vector<Point> extremas;
-  while (!S.empty())
-  {
-    Point p = S.top();
-    extremas.push_back(p);
-    S.pop();
-  }
-  semi_plane = SemiPlane(plane, extremas);
-
-  return true;
 }
 
 }  // namespace vineslam

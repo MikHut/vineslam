@@ -34,7 +34,7 @@ MappingNode::MappingNode(int argc, char** argv)
   // Publish maps and particle filter
   map3D_corners_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners", 1);
   map3D_planars_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planars", 1);
-  planes_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planes_local", 1);
+  planes_local_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/map3D/planes_local", 1);
   corners_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners_local", 1);
   planars_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planars_local", 1);
 
@@ -115,7 +115,7 @@ void MappingNode::init()
   // ---------------------------------------------------------
   std::vector<Corner> m_corners;
   std::vector<Planar> m_planars;
-  std::vector<Plane> m_planes;
+  std::vector<SemiPlane> m_planes;
   Plane m_ground_plane;
   lid_mapper_->localMap(input_data_.scan_pts_, m_corners, m_planars, m_planes, m_ground_plane);
 
@@ -139,7 +139,7 @@ void MappingNode::process()
   // ---------------------------------------------------------
   std::vector<Corner> m_corners;
   std::vector<Planar> m_planars;
-  std::vector<Plane> m_planes;
+  std::vector<SemiPlane> m_planes;
   Plane m_ground_plane;
   lid_mapper_->localMap(input_data_.scan_pts_, m_corners, m_planars, m_planes, m_ground_plane);
 

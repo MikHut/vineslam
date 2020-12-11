@@ -431,6 +431,9 @@ public:
   int zmin_;
   int zmax_;
 
+  // Global planes handler
+  std::vector<SemiPlane> planes_;
+
 private:
   // Private grid map to store all the individual layers
   // (int, MapLayer): (layer number, layer class)

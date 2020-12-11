@@ -80,6 +80,8 @@ private:
   void globalCornerMap(const Pose& robot_pose, std::vector<Corner>& corners, OccupancyMap& grid_map) const;
   // Adds the planar features to the global map
   void globalPlanarMap(const Pose& robot_pose, std::vector<Planar>& planars, OccupancyMap& grid_map) const;
+  // Adds the plane features to the global map
+  void globalPlaneMap(const Pose& robot_pose, std::vector<SemiPlane>& planes, OccupancyMap& grid_map) const;
 
   // Method to reset all the global variables and members
   void reset();

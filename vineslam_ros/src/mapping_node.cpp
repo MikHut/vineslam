@@ -34,6 +34,7 @@ MappingNode::MappingNode(int argc, char** argv)
   // Publish maps and particle filter
   map3D_corners_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners", 1);
   map3D_planars_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planars", 1);
+  map3D_planes_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/map3D/planes", 1);
   planes_local_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/map3D/planes_local", 1);
   corners_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners_local", 1);
   planars_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planars_local", 1);
@@ -159,7 +160,7 @@ void MappingNode::process()
   br.sendTransform(tf::StampedTransform(odom2map, ros::Time::now(), "odom", "map"));
 
   // Publish 3D maps
-  //  publish3DMap();
+  publish3DMap();
   publish3DMap(m_corners, corners_local_publisher_);
   publish3DMap(m_planars, planars_local_publisher_);
   std::vector<Plane> planes = { m_ground_plane };

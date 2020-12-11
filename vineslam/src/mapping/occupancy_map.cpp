@@ -1137,6 +1137,7 @@ OccupancyMap::OccupancyMap(const Parameters& params, const Pose& origin_offset)
   height_ = params.gridmap_height_;
   zmin_ = 0;
   zmax_ = static_cast<int>(std::round(height_ / resolution_z_)) - 1;
+  planes_ = {};
 
   // Initialize multi-layer grid map
   float i = origin_.z_;
@@ -1159,6 +1160,7 @@ OccupancyMap::OccupancyMap(const OccupancyMap& grid_map)
   this->resolution_z_ = grid_map.resolution_z_;
   this->zmin_ = grid_map.zmin_;
   this->zmax_ = grid_map.zmax_;
+  this->planes_ = grid_map.planes_;
 }
 
 int OccupancyMap::getLayerNumber(const float& z) const

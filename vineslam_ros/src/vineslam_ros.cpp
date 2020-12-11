@@ -172,7 +172,6 @@ void VineSLAM_ros::process()
   std::vector<Planar> l_planars;
   std::vector<SemiPlane> l_planes;
   Plane l_ground_plane;
-  Tf plane_ref;
   if (params_.use_lidar_features_)
   {
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
@@ -249,12 +248,6 @@ void VineSLAM_ros::process()
   o2m_q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
   tf::Transform odom2map(o2m_q, tf::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_));
   br.sendTransform(tf::StampedTransform(odom2map, ros::Time::now(), "odom", "map"));
-
-  tf::Quaternion p2m_q;
-  Pose plane_pose(plane_ref.R_array_, plane_ref.t_array_);
-  p2m_q.setRPY(plane_pose.R_, plane_pose.P_, plane_pose.Y_);
-  tf::Transform plane2map(p2m_q, tf::Vector3(plane_pose.x_, plane_pose.y_, plane_pose.z_));
-  br.sendTransform(tf::StampedTransform(plane2map, ros::Time::now(), "/vineslam/base_link", "plane"));
 
   // Convert vineslam pose to ROS pose and publish it
   geometry_msgs::PoseStamped pose_stamped;
@@ -347,10 +340,10 @@ void VineSLAM_ros::process()
   // Publish the 2D map
   publish2DMap(robot_pose_, input_data_.land_bearings_, input_data_.land_depths_);
   // Publish 3D maps
-  //  publish3DMap();
+  publish3DMap();
   publish3DMap(l_corners, corners_local_publisher_);
   publish3DMap(l_planars, planars_local_publisher_);
-  std::vector<Plane> planes = { l_ground_plane };
+  std::vector<SemiPlane> planes;
   for (const auto& plane : l_planes)
     planes.push_back(plane);
   publish3DMap(l_planes, planes_local_publisher_);

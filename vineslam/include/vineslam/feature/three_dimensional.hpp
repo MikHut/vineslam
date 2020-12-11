@@ -79,10 +79,62 @@ struct Plane
     points_ = l_points;
   }
 
+  Tf getLocalRefFrame() const
+  {
+    //  Define a point in the plane which is the first of the list, projected to the plane
+    //  use average y and z values (since velodyne uses x forward) to put origin on the center of the pattern
+    Point p0(0, 0, 0);
+    for (const auto& pt : points_)
+    {
+      p0.y_ += pt.y_;
+      p0.z_ += pt.z_;
+    }
+    p0.y_ /= static_cast<float>(points_.size());
+    p0.z_ /= static_cast<float>(points_.size());
+    p0.x_ = (-b_ * p0.y_ - c_ * p0.z_ - d_) / a_;
+
+    // Define a second point. We use the first point from the list of points, and project it to the plane
+    Point p1(0, 0, 0);
+    p1.y_ = points_[0].y_;
+    p1.z_ = points_[0].z_;
+    p1.x_ = (-b_ * p1.y_ - c_ * p1.z_ - d_) / a_;
+
+    // Define a rotation matrix, and the n (direction vector along the x axis), s and a vectors:
+    //        n    s    a
+    // R = [ r11  r12  r13 ]
+    //     [ r21  r22  r23 ]
+    //     [ r31  r32  r33 ]
+
+    // Semi-arbitrary x-axis: only constraint is that it is coplanar with the plane. This is
+    // ensured since both p0 and p1 lie on the plane
+    Vec n(p1, p0);
+    Vec a(a_, b_, c_);   // z axis must have the direction normal to the plane
+    Vec s = a.cross(n);  // y axis is the cross product of z axis per the x axis
+
+    // Normalize the three vectors
+    n.normalize();
+    a.normalize();
+    s.normalize();
+
+    // Compute final transformation matrix
+    Tf plane_ref;
+    plane_ref.R_array_ = { n.x_, s.x_, a.x_, n.y_, s.y_, a.y_, n.z_, s.z_, a.z_ };
+    plane_ref.t_array_ = { p0.x_, p0.y_, p0.z_ };  // We use one the points in the plane to define the translation
+
+    return plane_ref;
+  }
+
+  float point2Plane(const Point& point) const
+  {
+    auto norm = std::sqrt(a_ * a_ + b_ * b_ + c_ * c_);
+    return std::fabs(a_ * point.x_ + b_ * point.y_ + c_ * point.z_ + d_) / norm;
+  }
+
   int id_{};                     // plane identifier
   float a_{}, b_{}, c_{}, d_{};  // plane hessian coefficients
   std::vector<Point> points_;    // set of points that belong to the plane
   std::vector<Point> indexes_;   // indexes of points projected into the range image
+  Point centroid_{};             // plane centroid
 };
 
 // ---------------------------------------------------------------------------------
@@ -104,6 +156,18 @@ struct SemiPlane : public Plane
     extremas_ = l_extremas;
   }
 
+  SemiPlane(const float& l_a, const float& l_b, const float& l_c, const float& l_d, const std::vector<Point>& l_points,
+            const Point& l_centroid, std::vector<Point>& l_extremas)
+  {
+    a_ = l_a;
+    b_ = l_b;
+    c_ = l_c;
+    d_ = l_d;
+    points_ = l_points;
+    centroid_ = l_centroid;
+    extremas_ = l_extremas;
+  }
+
   SemiPlane(const Plane& l_plane, const std::vector<Point>& l_extremas)
   {
     a_ = l_plane.a_;
@@ -111,6 +175,7 @@ struct SemiPlane : public Plane
     c_ = l_plane.c_;
     d_ = l_plane.d_;
     points_ = l_plane.points_;
+    centroid_ = l_plane.centroid_;
     extremas_ = l_extremas;
   }
 

@@ -100,14 +100,14 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
   if (use_lidar_features_)
   {
     before = std::chrono::high_resolution_clock::now();
-    //    mediumLevelCorners(corners, grid_map, corner_weights);
+    mediumLevelCorners(corners, grid_map, corner_weights);
     after = std::chrono::high_resolution_clock::now();
     duration = after - before;
     logs_ += "Time elapsed on PF - corner features (msecs): " + std::to_string(duration.count()) + " (" +
              std::to_string(corners.size()) + ")\n";
 
     before = std::chrono::high_resolution_clock::now();
-    //    mediumLevelPlanars(planars, grid_map, planar_weights);
+    mediumLevelPlanars(planars, grid_map, planar_weights);
     after = std::chrono::high_resolution_clock::now();
     duration = after - before;
     logs_ += "Time elapsed on PF - planar features (msecs): " + std::to_string(duration.count()) + " (" +
@@ -353,56 +353,56 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* gr
 
 void PF::mediumLevelGround(const Plane& ground, std::vector<float>& ws)
 {
-//  if (prev_ground_plane_.points_.empty())
-//  {
-//    prev_ground_plane_ = ground;
-//    return;
-//  }
-//
-//  float sigma_ground_RP = 0.3 * DEGREE_TO_RAD;
-//  float normalizer_ground = static_cast<float>(1.) / (sigma_ground_RP * std::sqrt(M_2PI));
-//
-//  // -----------------------------------------------------------------------------
-//  // --- Find the rotation matrix that transforms one normal vector into another
-//  // -----------------------------------------------------------------------------
-//  Vec u(prev_ground_plane_.a_, prev_ground_plane_.b_, prev_ground_plane_.c_);
-//  Vec v(ground.a_, ground.b_, ground.c_);
-//
-//  std::array<float, 9> R = u.rotation(v);
-//
-//
-//  std::array<float, 9> R_ = v.rotation(Vec(0, M_PI / 2, 0));
-//  std::cout << "P: " << Pose(R_, std::array<float, 3>{ 0, 0, 0 }).P_ * RAD_TO_DEGREE << "\n";
-//  std::cout << "R: " << Pose(R_, std::array<float, 3>{ 0, 0, 0 }).R_ * RAD_TO_DEGREE + 90 << "\n";
-//
-//  // -----------------------------------------------------------------------------
-//  // --- Extract the euler angles from the rotation matrix
-//  // -----------------------------------------------------------------------------
-//  Pose delta_ground_rot(R, std::array<float, 3>{ 0, 0, 0 });
-//
-//  // -----------------------------------------------------------------------------
-//  // --- Compute the particles weight
-//  // -----------------------------------------------------------------------------
-//  for (const auto& particle : particles_)
-//  {
-//    float w_ground = 0.;
-//
-//    float delta_p_R = normalizeAngle(particle.p_.R_ - particle.pp_.R_);
-//    float delta_p_P = normalizeAngle(particle.p_.P_ - particle.pp_.P_);
-//    float error_R = std::fabs(normalizeAngle(delta_ground_rot.R_ + delta_p_R));
-//    float error_P = std::fabs(normalizeAngle(delta_ground_rot.P_ + delta_p_P));
-//
-//    w_ground = (normalizer_ground * static_cast<float>(std::exp((-1. / sigma_ground_RP) * error_R)));  // *
-//    //               (normalizer_ground * static_cast<float>(std::exp((-1. / sigma_ground_RP) * error_P)));
-//
-////    std::cout << particle.id_ << "\n :: R (" << delta_p_R << ", " << delta_ground_rot.R_ << ", " << error_R
-////              << ")\n :: P (" << delta_p_P << ", " << delta_ground_rot.P_ << ", " << error_P
-////              << ")\n :: w = " << w_ground << "\n";
-//
-//    ws[particle.id_] = w_ground;
-//  }
-//
-//  prev_ground_plane_ = ground;
+  //  if (prev_ground_plane_.points_.empty())
+  //  {
+  //    prev_ground_plane_ = ground;
+  //    return;
+  //  }
+  //
+  //  float sigma_ground_RP = 0.3 * DEGREE_TO_RAD;
+  //  float normalizer_ground = static_cast<float>(1.) / (sigma_ground_RP * std::sqrt(M_2PI));
+  //
+  //  // -----------------------------------------------------------------------------
+  //  // --- Find the rotation matrix that transforms one normal vector into another
+  //  // -----------------------------------------------------------------------------
+  //  Vec u(prev_ground_plane_.a_, prev_ground_plane_.b_, prev_ground_plane_.c_);
+  //  Vec v(ground.a_, ground.b_, ground.c_);
+  //
+  //  std::array<float, 9> R = u.rotation(v);
+  //
+  //
+  //  std::array<float, 9> R_ = v.rotation(Vec(0, M_PI / 2, 0));
+  //  std::cout << "P: " << Pose(R_, std::array<float, 3>{ 0, 0, 0 }).P_ * RAD_TO_DEGREE << "\n";
+  //  std::cout << "R: " << Pose(R_, std::array<float, 3>{ 0, 0, 0 }).R_ * RAD_TO_DEGREE + 90 << "\n";
+  //
+  //  // -----------------------------------------------------------------------------
+  //  // --- Extract the euler angles from the rotation matrix
+  //  // -----------------------------------------------------------------------------
+  //  Pose delta_ground_rot(R, std::array<float, 3>{ 0, 0, 0 });
+  //
+  //  // -----------------------------------------------------------------------------
+  //  // --- Compute the particles weight
+  //  // -----------------------------------------------------------------------------
+  //  for (const auto& particle : particles_)
+  //  {
+  //    float w_ground = 0.;
+  //
+  //    float delta_p_R = normalizeAngle(particle.p_.R_ - particle.pp_.R_);
+  //    float delta_p_P = normalizeAngle(particle.p_.P_ - particle.pp_.P_);
+  //    float error_R = std::fabs(normalizeAngle(delta_ground_rot.R_ + delta_p_R));
+  //    float error_P = std::fabs(normalizeAngle(delta_ground_rot.P_ + delta_p_P));
+  //
+  //    w_ground = (normalizer_ground * static_cast<float>(std::exp((-1. / sigma_ground_RP) * error_R)));  // *
+  //    //               (normalizer_ground * static_cast<float>(std::exp((-1. / sigma_ground_RP) * error_P)));
+  //
+  ////    std::cout << particle.id_ << "\n :: R (" << delta_p_R << ", " << delta_ground_rot.R_ << ", " << error_R
+  ////              << ")\n :: P (" << delta_p_P << ", " << delta_ground_rot.P_ << ", " << error_P
+  ////              << ")\n :: w = " << w_ground << "\n";
+  //
+  //    ws[particle.id_] = w_ground;
+  //  }
+  //
+  //  prev_ground_plane_ = ground;
 }
 
 void PF::lowLevel(const std::vector<ImageFeature>& surf_features, OccupancyMap* grid_map, std::vector<float>& ws)

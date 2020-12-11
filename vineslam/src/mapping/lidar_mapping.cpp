@@ -38,8 +38,10 @@ void LidarMapper::registerMaps(const Pose& robot_pose, std::vector<Corner>& corn
 {
   // - 3D PCL corner map estimation
   globalCornerMap(robot_pose, corners, grid_map);
-  // - 3D PCL corner map estimation
+  // - 3D PCL planar map estimation
   globalPlanarMap(robot_pose, planars, grid_map);
+  // - 3D PCL plane map estimation
+  globalPlaneMap(robot_pose, planes, grid_map);
 }
 
 // -------------------------------------------------------------------------------
@@ -151,8 +153,8 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
   for (const auto& plane : l_planes)
   {
     SemiPlane l_semi_plane;
-    convexHull(plane, l_semi_plane);
-    out_planes.push_back(l_semi_plane);
+    if (convexHull(plane, l_semi_plane))
+      out_planes.push_back(l_semi_plane);
   }
 
   //- Corners feature extraction
@@ -191,13 +193,20 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
 
 void LidarMapper::globalCornerMap(const Pose& robot_pose, std::vector<Corner>& corners, OccupancyMap& grid_map) const
 {
+  // ----------------------------------------------------------------------------
   // ------ Convert robot pose into homogeneous transformation
+  // ----------------------------------------------------------------------------
   std::array<float, 9> Rot{};
   robot_pose.toRotMatrix(Rot);
   std::array<float, 3> trans = { robot_pose.x_, robot_pose.y_, robot_pose.z_ };
   Tf tf(Rot, trans);
 
+  // Local array to store the new planar features
+  std::vector<Corner> new_corners;
+
+  // ----------------------------------------------------------------------------
   // ------ Insert corner into the grid map
+  // ----------------------------------------------------------------------------
   for (auto& corner : corners)
   {
     // - First convert them to map's referential using the robot pose
@@ -234,20 +243,31 @@ void LidarMapper::globalCornerMap(const Pose& robot_pose, std::vector<Corner>& c
     else
     {
       Corner new_corner(l_pt, corner.which_plane_);
-      grid_map.insert(new_corner);
+      new_corners.push_back(new_corner);
     }
   }
+
+  // Insert the new observations found
+  for (const auto& corner : new_corners)
+    grid_map.insert(corner);
 }
 
 void LidarMapper::globalPlanarMap(const Pose& robot_pose, std::vector<Planar>& planars, OccupancyMap& grid_map) const
 {
+  // ----------------------------------------------------------------------------
   // ------ Convert robot pose into homogeneous transformation
+  // ----------------------------------------------------------------------------
   std::array<float, 9> Rot{};
   robot_pose.toRotMatrix(Rot);
   std::array<float, 3> trans = { robot_pose.x_, robot_pose.y_, robot_pose.z_ };
   Tf tf(Rot, trans);
 
+  // Local array to store the new planar features
+  std::vector<Planar> new_planars;
+
+  // ----------------------------------------------------------------------------
   // ------ Insert planar into the grid map
+  // ----------------------------------------------------------------------------
   for (auto& planar : planars)
   {
     // - First convert them to map's referential using the robot pose
@@ -284,9 +304,170 @@ void LidarMapper::globalPlanarMap(const Pose& robot_pose, std::vector<Planar>& p
     else
     {
       Planar new_planar(l_pt, planar.which_plane_);
-      grid_map.insert(new_planar);
+      new_planars.push_back(new_planar);
     }
   }
+
+  // Insert the new observations found
+  for (const auto& planar : new_planars)
+    grid_map.insert(planar);
+}
+
+void LidarMapper::globalPlaneMap(const Pose& robot_pose, std::vector<SemiPlane>& planes, OccupancyMap& grid_map) const
+{
+  // ----------------------------------------------------------------------------
+  // ------ Search for correspondences between local planes and global planes
+  // ------ Two stage process:
+  // ------  * (A) Compare planes normals
+  // ------  *  If (A), then check (B) plane to plane distance
+  // ----------------------------------------------------------------------------
+
+  // Convert robot pose into homogeneous transformation
+  std::array<float, 9> Rot{};
+  robot_pose.toRotMatrix(Rot);
+  std::array<float, 3> trans = { robot_pose.x_, robot_pose.y_, robot_pose.z_ };
+  Tf tf(Rot, trans);
+
+  // Define correspondence thresholds
+  float th_dist = 5 * DEGREE_TO_RAD;  // max normal angular distance per component
+  float sp_dist = 0.5;                // max distance from source plane centroid to target plane
+
+  // Array to store the new planes observed
+  std::vector<SemiPlane> new_planes;
+
+  for (const auto& plane : planes)
+  {
+    if (plane.points_.empty())
+    {
+      continue;
+    }
+
+    // Initialize correspondence deltas
+    Pose delta_rot(0, 0, 0, th_dist, th_dist, th_dist);
+    float point2plane = sp_dist;
+
+    // Declare plane to store the correspondence
+    SemiPlane* correspondence;
+
+    // Convert local plane to maps' referential frame
+    SemiPlane l_plane = plane;
+    for (auto& point : l_plane.points_)
+    {
+      point = point * tf;  // Convert plane points
+    }
+    for (auto& point : l_plane.extremas_)
+    {
+      point = point * tf;  // Convert plane boundaries
+    }
+    l_plane.centroid_ = l_plane.centroid_ * tf;                                       // Convert the centroid
+    estimateNormal(l_plane.points_, l_plane.a_, l_plane.b_, l_plane.c_, l_plane.d_);  // Convert plane normal
+
+    for (auto& g_plane : grid_map.planes_)
+    {
+      if (g_plane.points_.empty())
+      {
+        continue;
+      }
+
+      // --------------------------------
+      // (A) - Compare plane normals
+      // --------------------------------
+
+      // Find the rotation matrix that transforms one normal vector into another
+      Vec u(l_plane.a_, l_plane.b_, l_plane.c_);
+      Vec v(g_plane.a_, g_plane.b_, g_plane.c_);
+
+      std::array<float, 9> R = u.rotation(v);
+
+      // Extract the euler angles from the rotation matrix
+      Pose l_delta_rot = Pose(R, std::array<float, 3>{ 0, 0, 0 });
+
+      // Account for normal vectors that are pointing to the opposite side of the plane
+      if (M_PI - std::fabs(l_delta_rot.R_) < th_dist)
+      {
+        std::cout << "Got a case (R): " << l_delta_rot.R_ << " - ";
+        l_delta_rot.R_ = M_PI - std::fabs(l_delta_rot.R_);
+        std::cout << l_delta_rot.R_ << "\n";
+      }
+      if (M_PI - std::fabs(l_delta_rot.P_) < th_dist)
+      {
+        std::cout << "Got a case (P): " << l_delta_rot.P_ << " - ";
+        l_delta_rot.P_ = M_PI - std::fabs(l_delta_rot.P_);
+        std::cout << l_delta_rot.P_ << "\n";
+      }
+      if (M_PI - std::fabs(l_delta_rot.Y_) < th_dist)
+      {
+        std::cout << "Got a case (Y): " << l_delta_rot.Y_ << " - ";
+        l_delta_rot.Y_ = M_PI - std::fabs(l_delta_rot.Y_);
+        std::cout << l_delta_rot.Y_ << "\n";
+      }
+
+      // Check if normal vectors match
+      if (std::fabs(l_delta_rot.R_) < std::fabs(delta_rot.R_) && std::fabs(l_delta_rot.P_) < std::fabs(delta_rot.P_) &&
+          std::fabs(l_delta_rot.Y_) < std::fabs(delta_rot.Y_))
+      {
+        // --------------------------------
+        // (B) - Compute local plane centroid distance to global plane
+        // --------------------------------
+        float l_point2plane = g_plane.point2Plane(l_plane.centroid_);
+        if (l_point2plane < point2plane)
+        {
+          std::cout << "FOUND CORRESPONDENCE ! \n";
+          // We found a correspondence, so, we must save the correspondence deltas
+          delta_rot = l_delta_rot;
+          point2plane = l_point2plane;
+          // Save the correspondence semi-plane
+          correspondence = &g_plane;
+        }
+      }
+    }
+    std::cout << "----------\n";
+
+    // Check if a correspondence was found
+    if (std::fabs(delta_rot.R_) < th_dist && std::fabs(delta_rot.P_) < th_dist && std::fabs(delta_rot.Y_) < th_dist &&
+        point2plane < sp_dist)
+    {
+      // If so, update plane on global map with new observation (registration)
+
+      // Insert the new observation points into the correspondent global map plane
+      correspondence->points_.insert(correspondence->points_.end(), l_plane.points_.begin(), l_plane.points_.end());
+
+      // Re-compute centroid
+      correspondence->centroid_ = Point(0, 0, 0);
+      for (const auto& pt : correspondence->points_)
+      {
+        correspondence->centroid_ = correspondence->centroid_ + pt;
+      }
+      correspondence->centroid_ = correspondence->centroid_ / static_cast<float>(correspondence->points_.size());
+
+      // Re-compute the plane normal
+      float l_a, l_b, l_c, l_d;
+      estimateNormal(correspondence->points_, l_a, l_b, l_c, l_d);
+      correspondence->a_ = l_a;
+      correspondence->b_ = l_b;
+      correspondence->c_ = l_c;
+      correspondence->d_ = l_d;
+
+      // Re-compute the semi plane boundaries
+      Plane filter_plane(l_a, l_b, l_c, l_d, correspondence->points_);
+      SemiPlane filter_semiplane;
+      convexHull(filter_plane, filter_semiplane);
+      correspondence->extremas_ = filter_semiplane.extremas_;
+    }
+    else
+    {
+      // If not, add a new plane to the map
+      new_planes.push_back(l_plane);
+    }
+  }
+
+  // Add new planes found to the map
+  if (!new_planes.empty())
+  {
+    grid_map.planes_.insert(grid_map.planes_.end(), new_planes.begin(), new_planes.end());
+  }
+
+  std::cout << "\n******************************\n";
 }
 
 void LidarMapper::groundRemoval(const std::vector<Point>& in_pts, Plane& out_pcl)
@@ -513,8 +694,8 @@ void LidarMapper::extractHighLevelPlanes(const std::vector<PlanePoint>& in_plane
 
   // - Remove outliers using RANSAC
   Plane side_plane_a_filtered, side_plane_b_filtered;
-  ransac(side_plane_a.points_, side_plane_a_filtered, 100);
-  ransac(side_plane_b.points_, side_plane_b_filtered, 100);
+  ransac(side_plane_a.points_, side_plane_a_filtered, 100, 0.03);
+  ransac(side_plane_b.points_, side_plane_b_filtered, 100, 0.03);
   side_plane_a_filtered.id_ = 0;
   side_plane_b_filtered.id_ = 1;
 
@@ -523,30 +704,20 @@ void LidarMapper::extractHighLevelPlanes(const std::vector<PlanePoint>& in_plane
   // -------------------------------------------------------------------------------
   std::vector<Plane> planes = { side_plane_a_filtered, side_plane_b_filtered };
 
-  for (const auto& plane : planes)
+  for (auto& plane : planes)
   {
-    bool A = false, B = false;
-
-    // (A) - Check if the plane have a minimum number of points
+    // Check if the plane have a minimum number of points
     if (plane.points_.size() > 500)
-      A = true;
-
-    // (B) - Compute point to line distance and check if the average distance is
-    //       bellow a threshold
-    //    float dist = 0;
-    //    if (!plane.points.empty()) {
-    //      for (const auto& pt : plane.points) {
-    //        dist += plane.regression.dist(pt);
-    //      }
-    //      dist /= static_cast<float>(plane.points.size());
-    //    }
-    //
-    //    if (dist > 0 && dist < 0.05)
-    //      B = true;
-
-    // (C) - Save plane if in case of success
-    if (A)
+    {
+      // If is valid, compute the place centroid and save it
+      plane.centroid_ = Point(0, 0, 0);
+      for (const auto& pt : plane.points_)
+      {
+        plane.centroid_ = plane.centroid_ + pt;
+      }
+      plane.centroid_ = plane.centroid_ / static_cast<float>(plane.points_.size());
       out_planes.push_back(plane);
+    }
   }
 }
 

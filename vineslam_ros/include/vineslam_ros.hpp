@@ -91,7 +91,7 @@ public:
   // Publish 2D semantic features map
   void publish2DMap(const Pose& pose, const std::vector<float>& bearings, const std::vector<float>& depths) const;
   // Publish the 3D maps
-  void publish3DMap() const;
+  void publish3DMap();
   // Publish the 3D PCL planes
   void publish3DMap(const std::vector<Plane>& planes, const ros::Publisher& pub);
   static void publish3DMap(const Pose& r_pose, const std::vector<Plane>& planes, const ros::Publisher& pub);
@@ -145,6 +145,7 @@ public:
   ros::Publisher map3D_features_publisher_;
   ros::Publisher map3D_corners_publisher_;
   ros::Publisher map3D_planars_publisher_;
+  ros::Publisher map3D_planes_publisher_;
   ros::Publisher pose_publisher_;
   ros::Publisher path_publisher_;
   ros::Publisher poses_publisher_;

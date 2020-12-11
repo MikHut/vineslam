@@ -157,7 +157,7 @@ void MapParser::parseFile(OccupancyMap* grid_map)
         }
         else if (tag == closeTag(LTAG))
         {
-          (*grid_map)(x, y, z).insert(landmark_id, semantic_feature);
+          (*grid_map).insert(semantic_feature, landmark_id);
           state = 2;
         }
         break;
@@ -189,7 +189,7 @@ void MapParser::parseFile(OccupancyMap* grid_map)
         }
         else if (tag == closeTag(CTAG))
         {
-          (*grid_map)(x, y, z).insert(corner);
+          (*grid_map).insert(corner);
           state = 4;
         }
         break;
@@ -221,7 +221,7 @@ void MapParser::parseFile(OccupancyMap* grid_map)
         }
         else if (tag == closeTag(PTAG))
         {
-          (*grid_map)(x, y, z).insert(planar);
+          (*grid_map).insert(planar);
           state = 6;
         }
         break;
@@ -277,7 +277,7 @@ void MapParser::parseFile(OccupancyMap* grid_map)
         }
         else if (tag == closeTag(STAG))
         {
-          (*grid_map)(x, y, z).insert(surf_feature);
+          (*grid_map).insert(surf_feature);
           state = 8;
         }
         break;

@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <stack>
+#include <cmath>
 
 #include <vineslam/feature/three_dimensional.hpp>
 #include <vineslam/math/Point.hpp>
@@ -65,46 +66,7 @@ static bool convexHull(const Plane& plane, SemiPlane& semi_plane)
   // ------------------------------------------------------------------
   // ----- Get local plane reference frame transformation matrix
   // ------------------------------------------------------------------
-
-  //  Define a point in the plane which is the first of the list, projected to the plane
-  //  use average y and z values (since velodyne uses x forward) to put origin on the center of the pattern
-  Point p0(0, 0, 0);
-  for (const auto& pt : plane.points_)
-  {
-    p0.y_ += pt.y_;
-    p0.z_ += pt.z_;
-  }
-  p0.y_ /= static_cast<float>(plane.points_.size());
-  p0.z_ /= static_cast<float>(plane.points_.size());
-  p0.x_ = (-plane.b_ * p0.y_ - plane.c_ * p0.z_ - plane.d_) / plane.a_;
-
-  // Define a second point. We use the first point from the list of points, and project it to the plane
-  Point p1(0, 0, 0);
-  p1.y_ = plane.points_[0].y_;
-  p1.z_ = plane.points_[0].z_;
-  p1.x_ = (-plane.b_ * p1.y_ - plane.c_ * p1.z_ - plane.d_) / plane.a_;
-
-  // Define a rotation matrix, and the n (direction vector along the x axis), s and a vectors:
-  //        n    s    a
-  // R = [ r11  r12  r13 ]
-  //     [ r21  r22  r23 ]
-  //     [ r31  r32  r33 ]
-
-  // Semi-arbitrary x-axis: only constraint is that it is coplanar with the plane. This is
-  // ensured since both p0 and p1 lie on the plane
-  Vec n(p1, p0);
-  Vec a(plane.a_, plane.b_, plane.c_);  // z axis must have the direction normal to the plane
-  Vec s = a.cross(n);                   // y axis is the cross product of z axis per the x axis
-
-  // Normalize the three vectors
-  n.normalize();
-  a.normalize();
-  s.normalize();
-
-  // Compute final transformation matrix
-  Tf plane_ref;
-  plane_ref.R_array_ = { n.x_, s.x_, a.x_, n.y_, s.y_, a.y_, n.z_, s.z_, a.z_ };
-  plane_ref.t_array_ = { p0.x_, p0.y_, p0.z_ };  // We use one the points in the plane to define the translation
+  Tf plane_ref = plane.getLocalRefFrame();
 
   // ------------------------------------------------------------------
   // ----- Transform plane points to the local reference frame
@@ -200,7 +162,10 @@ static bool convexHull(const Plane& plane, SemiPlane& semi_plane)
   while (!S.empty())
   {
     Point p = S.top() * plane_ref;
-    extremas.push_back(p);
+    if (std::isfinite(p.x_) && std::isfinite(p.y_) && std::isfinite(p.z_))
+    {
+      extremas.push_back(p);
+    }
     S.pop();
   }
   semi_plane = SemiPlane(plane, extremas);

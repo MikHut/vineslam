@@ -382,26 +382,6 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, std::vector<SemiPlane>&
       // Extract the euler angles from the rotation matrix
       Pose l_delta_rot = Pose(R, std::array<float, 3>{ 0, 0, 0 });
 
-      // Account for normal vectors that are pointing to the opposite side of the plane
-      if (M_PI - std::fabs(l_delta_rot.R_) < th_dist)
-      {
-        std::cout << "Got a case (R): " << l_delta_rot.R_ << " - ";
-        l_delta_rot.R_ = M_PI - std::fabs(l_delta_rot.R_);
-        std::cout << l_delta_rot.R_ << "\n";
-      }
-      if (M_PI - std::fabs(l_delta_rot.P_) < th_dist)
-      {
-        std::cout << "Got a case (P): " << l_delta_rot.P_ << " - ";
-        l_delta_rot.P_ = M_PI - std::fabs(l_delta_rot.P_);
-        std::cout << l_delta_rot.P_ << "\n";
-      }
-      if (M_PI - std::fabs(l_delta_rot.Y_) < th_dist)
-      {
-        std::cout << "Got a case (Y): " << l_delta_rot.Y_ << " - ";
-        l_delta_rot.Y_ = M_PI - std::fabs(l_delta_rot.Y_);
-        std::cout << l_delta_rot.Y_ << "\n";
-      }
-
       // Check if normal vectors match
       if (std::fabs(l_delta_rot.R_) < std::fabs(delta_rot.R_) && std::fabs(l_delta_rot.P_) < std::fabs(delta_rot.P_) &&
           std::fabs(l_delta_rot.Y_) < std::fabs(delta_rot.Y_))
@@ -694,8 +674,8 @@ void LidarMapper::extractHighLevelPlanes(const std::vector<PlanePoint>& in_plane
 
   // - Remove outliers using RANSAC
   Plane side_plane_a_filtered, side_plane_b_filtered;
-  ransac(side_plane_a.points_, side_plane_a_filtered, 100, 0.03);
-  ransac(side_plane_b.points_, side_plane_b_filtered, 100, 0.03);
+  ransac(side_plane_a.points_, side_plane_a_filtered, 100, 0.05);
+  ransac(side_plane_b.points_, side_plane_b_filtered, 100, 0.05);
   side_plane_a_filtered.id_ = 0;
   side_plane_b_filtered.id_ = 1;
 

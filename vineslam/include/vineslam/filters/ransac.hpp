@@ -57,7 +57,7 @@ static void estimateNormal(const std::vector<Point>& points, float& a, float& b,
 
 static bool ransac(const std::vector<Point>& in_pts, Plane& out_plane, int max_iters = 20, float dist_threshold = 0.08)
 {
-  int max_idx = in_pts.size();
+  int max_idx = static_cast<int>(in_pts.size()) - 1;
   int min_idx = 0;
   int max_tries = 1000;
   int c_max_inliers = 0;

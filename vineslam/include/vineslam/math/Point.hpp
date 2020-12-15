@@ -128,12 +128,29 @@ struct Point
     return std::sqrt(std::pow(dist_x, 2) + std::pow(dist_y, 2) + std::pow(dist_z, 2));
   }
 
+  // Squared 3D euclidean distance
+  float sqDistance(const Point& other) const
+  {
+    float dist_x = x_ - other.x_;
+    float dist_y = y_ - other.y_;
+    float dist_z = z_ - other.z_;
+    return std::pow(dist_x, 2) + std::pow(dist_y, 2) + std::pow(dist_z, 2);
+  }
+
   // 2D euclidean distance
   float distanceXY(const Point& other) const
   {
     float dist_x = x_ - other.x_;
     float dist_y = y_ - other.y_;
     return std::sqrt(std::pow(dist_x, 2) + std::pow(dist_y, 2));
+  }
+
+  // Squared 2D euclidean distance
+  float sqDistanceXY(const Point& other) const
+  {
+    float dist_x = x_ - other.x_;
+    float dist_y = y_ - other.y_;
+    return std::pow(dist_x, 2) + std::pow(dist_y, 2);
   }
 
   // 3D point norm

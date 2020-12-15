@@ -235,7 +235,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<Plane>& planes, const ros::Pub
   viz_pts.action = visualization_msgs::Marker::ADD;
   viz_pts.scale.x = 0.1;
   viz_pts.scale.y = 0.1;
-  viz_pts.lifetime = ros::Duration(0.2);
+  viz_pts.lifetime = ros::Duration(0.1);
   viz_pts.header.frame_id = "map";
 
   std::array<float, 9> robot_R{};
@@ -278,7 +278,7 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<Plane>& pl
   viz_pts.action = visualization_msgs::Marker::ADD;
   viz_pts.scale.x = 0.1;
   viz_pts.scale.y = 0.1;
-  viz_pts.lifetime = ros::Duration(0.2);
+  viz_pts.lifetime = ros::Duration(0.1);
   viz_pts.header.frame_id = "map";
 
   std::array<float, 9> robot_R{};
@@ -314,7 +314,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<SemiPlane>& planes, const ros:
 {
   visualization_msgs::MarkerArray marker_array;
   visualization_msgs::Marker viz_pts;
-  visualization_msgs::Marker viz_line;
+  visualization_msgs::Marker viz_line, viz_line1;
   visualization_msgs::Marker viz_normal;
 
   // Define markers layout
@@ -322,9 +322,8 @@ void VineSLAM_ros::publish3DMap(const std::vector<SemiPlane>& planes, const ros:
   viz_pts.ns = "/plane_pts";
   viz_pts.type = visualization_msgs::Marker::POINTS;
   viz_pts.action = visualization_msgs::Marker::ADD;
+  viz_pts.lifetime = ros::Duration(0.1);
   viz_pts.scale.x = 0.1;
-  viz_pts.scale.y = 0.1;
-  viz_pts.lifetime = ros::Duration(0.2);
   viz_pts.header.frame_id = "map";
 
   viz_line.ns = "/plane_extremas";
@@ -335,7 +334,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<SemiPlane>& planes, const ros:
   viz_line.color.g = 0.0;
   viz_line.color.b = 1.0;
   viz_line.color.a = 1.0;
-  viz_line.lifetime = ros::Duration(0.2);
+  viz_line.lifetime = ros::Duration(0.1);
   viz_line.header.frame_id = "map";
 
   viz_normal.ns = "/plane_normal";
@@ -346,7 +345,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<SemiPlane>& planes, const ros:
   viz_normal.color.b = 0;
   viz_normal.color.g = 0;
   viz_normal.scale.x = 0.1;
-  viz_normal.lifetime = ros::Duration(0.2);
+  viz_normal.lifetime = ros::Duration(0.1);
   viz_normal.header.frame_id = "map";
 
   std::array<float, 9> robot_R{};
@@ -381,6 +380,12 @@ void VineSLAM_ros::publish3DMap(const std::vector<SemiPlane>& planes, const ros:
       {
         Point l_pt = plane.extremas_[k] * robot_tf;
 
+        std_msgs::ColorRGBA color;
+        color.r = 1.0;
+        color.g = 0;
+        color.b = 0;
+        color.a = 1.0;
+
         geometry_msgs::Point viz_pt;
         viz_pt.x = p_pt.x_;
         viz_pt.y = p_pt.y_;
@@ -390,8 +395,11 @@ void VineSLAM_ros::publish3DMap(const std::vector<SemiPlane>& planes, const ros:
         viz_pt.y = l_pt.y_;
         viz_pt.z = l_pt.z_;
         viz_line.points.push_back(viz_pt);
+        viz_line.color = color;
         viz_line.id = l;
 
+        viz_pts.points.push_back(viz_pt);
+        viz_pts.colors.push_back(color);
         marker_array.markers.push_back(viz_line);
         viz_line.points.clear();
 
@@ -400,29 +408,30 @@ void VineSLAM_ros::publish3DMap(const std::vector<SemiPlane>& planes, const ros:
       }
     }
 
-    //    if (plane.extremas_.size() > 1)
-    //    {
-    //      Point p_pt = plane.extremas_[0] * robot_tf;
-    //      Point l_pt = plane.extremas_[plane.extremas_.size() - 1] * robot_tf;
-    //
-    //      geometry_msgs::Point viz_pt;
-    //      viz_pt.x = p_pt.x_;
-    //      viz_pt.y = p_pt.y_;
-    //      viz_pt.z = p_pt.z_;
-    //      viz_line.points.push_back(viz_pt);
-    //      viz_pt.x = l_pt.x_;
-    //      viz_pt.y = l_pt.y_;
-    //      viz_pt.z = l_pt.z_;
-    //      viz_line.points.push_back(viz_pt);
-    //      viz_line.id = l++;
-    //      marker_array.markers.push_back(viz_line);
-    //      viz_line.points.clear();
-    //    }
+    if (plane.extremas_.size() > 1)
+    {
+      Point p_pt = plane.extremas_[0] * robot_tf;
+      Point l_pt = plane.extremas_[plane.extremas_.size() - 1] * robot_tf;
 
+      geometry_msgs::Point viz_pt;
+      viz_pt.x = p_pt.x_;
+      viz_pt.y = p_pt.y_;
+      viz_pt.z = p_pt.z_;
+      viz_line.points.push_back(viz_pt);
+      viz_pt.x = l_pt.x_;
+      viz_pt.y = l_pt.y_;
+      viz_pt.z = l_pt.z_;
+      viz_line.points.push_back(viz_pt);
+      viz_line.id = l++;
+      marker_array.markers.push_back(viz_line);
+      viz_line.points.clear();
+    }
+
+    Point centroid = plane.centroid_ * robot_tf;
     geometry_msgs::Point p1, p2;
-    p1.x = plane.centroid_.x_;
-    p1.y = plane.centroid_.y_;
-    p1.z = plane.centroid_.z_;
+    p1.x = centroid.x_;
+    p1.y = centroid.y_;
+    p1.z = centroid.z_;
     p2.x = p1.x + plane.a_;
     p2.y = p1.y + plane.b_;
     p2.z = p1.z + plane.c_;
@@ -433,6 +442,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<SemiPlane>& planes, const ros:
     viz_normal.points.clear();
 
     i += 1;
+    l += 1;
   }
 
   marker_array.markers.push_back(viz_pts);
@@ -451,20 +461,20 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>
   viz_pts.ns = "/plane_pts";
   viz_pts.type = visualization_msgs::Marker::POINTS;
   viz_pts.action = visualization_msgs::Marker::ADD;
+  viz_pts.lifetime = ros::Duration(0.1);
   viz_pts.scale.x = 0.1;
-  viz_pts.scale.y = 0.1;
-  viz_pts.lifetime = ros::Duration(0.2);
   viz_pts.header.frame_id = "map";
 
   viz_line.ns = "/plane_extremas";
   viz_line.type = visualization_msgs::Marker::LINE_STRIP;
   viz_line.action = visualization_msgs::Marker::ADD;
-  viz_line.scale.x = 0.1;
   viz_line.color.r = 0.0;
   viz_line.color.g = 0.0;
   viz_line.color.b = 1.0;
   viz_line.color.a = 1.0;
-  viz_line.lifetime = ros::Duration(0.2);
+  viz_line.scale.x = 0.1;
+  viz_line.scale.y = 0.1;
+  viz_line.lifetime = ros::Duration(0.1);
   viz_line.header.frame_id = "map";
 
   viz_normal.ns = "/plane_normal";
@@ -475,7 +485,7 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>
   viz_normal.color.b = 0;
   viz_normal.color.g = 0;
   viz_normal.scale.x = 0.1;
-  viz_normal.lifetime = ros::Duration(0.2);
+  viz_normal.lifetime = ros::Duration(0.1);
   viz_normal.header.frame_id = "map";
 
   std::array<float, 9> robot_R{};
@@ -522,6 +532,13 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>
         viz_line.points.push_back(viz_pt);
         viz_line.id = l;
 
+        std_msgs::ColorRGBA color;
+        color.r = 1;
+        color.g = 0;
+        color.b = 0;
+        color.a = 1.0;
+        viz_pts.points.push_back(viz_pt);
+        viz_pts.colors.push_back(color);
         marker_array.markers.push_back(viz_line);
         viz_line.points.clear();
 
@@ -530,29 +547,30 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>
       }
     }
 
-    //    if (plane.extremas_.size() > 1)
-    //    {
-    //      Point p_pt = plane.extremas_[0] * robot_tf;
-    //      Point l_pt = plane.extremas_[plane.extremas_.size() - 1] * robot_tf;
-    //
-    //      geometry_msgs::Point viz_pt;
-    //      viz_pt.x = p_pt.x_;
-    //      viz_pt.y = p_pt.y_;
-    //      viz_pt.z = p_pt.z_;
-    //      viz_line.points.push_back(viz_pt);
-    //      viz_pt.x = l_pt.x_;
-    //      viz_pt.y = l_pt.y_;
-    //      viz_pt.z = l_pt.z_;
-    //      viz_line.points.push_back(viz_pt);
-    //      viz_line.id = l++;
-    //      marker_array.markers.push_back(viz_line);
-    //      viz_line.points.clear();
-    //    }
+    if (plane.extremas_.size() > 1)
+    {
+      Point p_pt = plane.extremas_[0] * robot_tf;
+      Point l_pt = plane.extremas_[plane.extremas_.size() - 1] * robot_tf;
 
+      geometry_msgs::Point viz_pt;
+      viz_pt.x = p_pt.x_;
+      viz_pt.y = p_pt.y_;
+      viz_pt.z = p_pt.z_;
+      viz_line.points.push_back(viz_pt);
+      viz_pt.x = l_pt.x_;
+      viz_pt.y = l_pt.y_;
+      viz_pt.z = l_pt.z_;
+      viz_line.points.push_back(viz_pt);
+      viz_line.id = l;
+      marker_array.markers.push_back(viz_line);
+      viz_line.points.clear();
+    }
+
+    Point centroid = plane.centroid_ * robot_tf;
     geometry_msgs::Point p1, p2;
-    p1.x = plane.centroid_.x_;
-    p1.y = plane.centroid_.y_;
-    p1.z = plane.centroid_.z_;
+    p1.x = centroid.x_;
+    p1.y = centroid.y_;
+    p1.z = centroid.z_;
     p2.x = p1.x + plane.a_;
     p2.y = p1.y + plane.b_;
     p2.z = p1.z + plane.c_;
@@ -563,6 +581,7 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>
     viz_normal.points.clear();
 
     i += 1;
+    l += 1;
   }
 
   marker_array.markers.push_back(viz_pts);

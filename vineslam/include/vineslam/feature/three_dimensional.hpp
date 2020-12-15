@@ -81,8 +81,8 @@ struct Plane
 
   Tf getLocalRefFrame() const
   {
-    //  Define a point in the plane which is the first of the list, projected to the plane
-    //  use average y and z values (since velodyne uses x forward) to put origin on the center of the pattern
+    // Define a point in the plane which is the first of the list, projected to the plane
+    // use average y and z values (since velodyne uses x forward) to put origin on the center of the pattern
     Point p0(0, 0, 0);
     for (const auto& pt : points_)
     {
@@ -177,6 +177,22 @@ struct SemiPlane : public Plane
     points_ = l_plane.points_;
     centroid_ = l_plane.centroid_;
     extremas_ = l_extremas;
+  }
+
+  // Computes the semiplane area
+  float getArea() const
+  {
+    float a = 0;
+
+    for (size_t i = 1; i < extremas_.size(); i++)
+    {
+      Point pe = extremas_[i - 1];
+      Point ce = extremas_[i];
+
+      a += (pe.x_ * ce.y_ - pe.y_ * ce.x_);
+    }
+
+    return a / 2;
   }
 
   std::vector<Point> extremas_;

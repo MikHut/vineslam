@@ -343,9 +343,6 @@ void VineSLAM_ros::process()
   publish3DMap();
   publish3DMap(l_corners, corners_local_publisher_);
   publish3DMap(l_planars, planars_local_publisher_);
-  std::vector<SemiPlane> planes;
-  for (const auto& plane : l_planes)
-    planes.push_back(plane);
   publish3DMap(l_planes, planes_local_publisher_);
 
   // - Save local map for next iteration

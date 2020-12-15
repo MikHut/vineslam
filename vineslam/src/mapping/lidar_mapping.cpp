@@ -179,6 +179,7 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
     {
       pt = pt * tf.inverse();
     }
+    plane.centroid_ = plane.centroid_ * tf.inverse();
   }
 
   // Downsample planar features
@@ -318,8 +319,9 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, std::vector<SemiPlane>&
   // ----------------------------------------------------------------------------
   // ------ Search for correspondences between local planes and global planes
   // ------ Two stage process:
-  // ------  * (A) Compare planes normals
-  // ------  *  If (A), then check (B) plane to plane distance
+  // ------  * (A) Check semi-plane overlap
+  // ------  * (B) Compare planes normals
+  // ------  *  If (B), then check (C) plane to plane distance
   // ----------------------------------------------------------------------------
 
   // Convert robot pose into homogeneous transformation
@@ -370,7 +372,33 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, std::vector<SemiPlane>&
       }
 
       // --------------------------------
-      // (A) - Compare plane normals
+      // (A) - Check semi-plane overlap
+      // --------------------------------
+
+      // First project the global and local plane extremas to the global plane reference frame
+      Tf ref_frame = g_plane.getLocalRefFrame().inverse();
+      SemiPlane gg_plane;
+      SemiPlane lg_plane;
+      for (const auto& extrema : g_plane.extremas_)
+      {
+        Point p = extrema * ref_frame;
+        gg_plane.extremas_.push_back(p);
+      }
+      for (const auto& extrema : l_plane.extremas_)
+      {
+        Point p = extrema * ref_frame;
+        lg_plane.extremas_.push_back(p);
+      }
+
+      // Now, check for transformed polygon intersections
+      SemiPlane isct;
+      polygonIntersection(gg_plane, lg_plane, isct.extremas_);
+
+      // Compute the intersection semi plane area
+      float area = isct.getArea();
+
+      // --------------------------------
+      // (B) - Compare plane normals
       // --------------------------------
 
       // Find the rotation matrix that transforms one normal vector into another
@@ -382,17 +410,21 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, std::vector<SemiPlane>&
       // Extract the euler angles from the rotation matrix
       Pose l_delta_rot = Pose(R, std::array<float, 3>{ 0, 0, 0 });
 
+      // Account for parallel vectors in opposite directions
+      l_delta_rot.R_ = std::min(std::fabs(l_delta_rot.R_), static_cast<float>(M_PI) - std::fabs(l_delta_rot.R_));
+      l_delta_rot.P_ = std::min(std::fabs(l_delta_rot.P_), static_cast<float>(M_PI) - std::fabs(l_delta_rot.P_));
+      l_delta_rot.Y_ = std::min(std::fabs(l_delta_rot.Y_), static_cast<float>(M_PI) - std::fabs(l_delta_rot.Y_));
+
       // Check if normal vectors match
       if (std::fabs(l_delta_rot.R_) < std::fabs(delta_rot.R_) && std::fabs(l_delta_rot.P_) < std::fabs(delta_rot.P_) &&
           std::fabs(l_delta_rot.Y_) < std::fabs(delta_rot.Y_))
       {
         // --------------------------------
-        // (B) - Compute local plane centroid distance to global plane
+        // (C) - Compute local plane centroid distance to global plane
         // --------------------------------
         float l_point2plane = g_plane.point2Plane(l_plane.centroid_);
         if (l_point2plane < point2plane)
         {
-          std::cout << "FOUND CORRESPONDENCE ! \n";
           // We found a correspondence, so, we must save the correspondence deltas
           delta_rot = l_delta_rot;
           point2plane = l_point2plane;
@@ -401,7 +433,6 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, std::vector<SemiPlane>&
         }
       }
     }
-    std::cout << "----------\n";
 
     // Check if a correspondence was found
     if (std::fabs(delta_rot.R_) < th_dist && std::fabs(delta_rot.P_) < th_dist && std::fabs(delta_rot.Y_) < th_dist &&
@@ -446,8 +477,6 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, std::vector<SemiPlane>&
   {
     grid_map.planes_.insert(grid_map.planes_.end(), new_planes.begin(), new_planes.end());
   }
-
-  std::cout << "\n******************************\n";
 }
 
 void LidarMapper::groundRemoval(const std::vector<Point>& in_pts, Plane& out_pcl)

@@ -68,7 +68,7 @@ public:
   void motionModel(const Pose& odom_inc, const Pose& p_odom);
   // Update particles weights using the multi-layer map
   void update(const std::vector<SemanticFeature>& landmarks, const std::vector<Corner>& corners,
-              const std::vector<Planar>& planars, const std::vector<Plane>& planes, const Plane& ground_plane,
+              const std::vector<Planar>& planars, const std::vector<SemiPlane>& planes, const SemiPlane& ground_plane,
               const std::vector<ImageFeature>& surf_features, const Pose& gps_pose, OccupancyMap* grid_map);
   // Normalize particles weights
   void normalizeWeights();
@@ -99,7 +99,7 @@ private:
   // - Medium level planar features layer
   void mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* grid_map, std::vector<float>& ws);
   // - Medium ground plane layer
-  void mediumLevelGround(const Plane& ground, std::vector<float>& ws);
+  void mediumLevelPlanes(const std::vector<SemiPlane>& planes, std::vector<float>& ws);
   // - Low level image features layer
   void lowLevel(const std::vector<ImageFeature>& surf_features, OccupancyMap* grid_map, std::vector<float>& ws);
   // -------- (Low level) K-means based particle clustering

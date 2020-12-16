@@ -77,9 +77,10 @@ struct Plane
     c_ = l_c;
     d_ = l_d;
     points_ = l_points;
+    setLocalRefFrame();
   }
 
-  Tf getLocalRefFrame() const
+  void setLocalRefFrame()
   {
     // Define a point in the plane which is the first of the list, projected to the plane
     // use average y and z values (since velodyne uses x forward) to put origin on the center of the pattern
@@ -117,11 +118,8 @@ struct Plane
     s.normalize();
 
     // Compute final transformation matrix
-    Tf plane_ref;
-    plane_ref.R_array_ = { n.x_, s.x_, a.x_, n.y_, s.y_, a.y_, n.z_, s.z_, a.z_ };
-    plane_ref.t_array_ = { p0.x_, p0.y_, p0.z_ };  // We use one the points in the plane to define the translation
-
-    return plane_ref;
+    local_ref_.R_array_ = { n.x_, s.x_, a.x_, n.y_, s.y_, a.y_, n.z_, s.z_, a.z_ };
+    local_ref_.t_array_ = { p0.x_, p0.y_, p0.z_ };  // We use one the points in the plane to define the translation
   }
 
   float point2Plane(const Point& point) const
@@ -135,6 +133,7 @@ struct Plane
   std::vector<Point> points_;    // set of points that belong to the plane
   std::vector<Point> indexes_;   // indexes of points projected into the range image
   Point centroid_{};             // plane centroid
+  Tf local_ref_;                 // local reference frame
 };
 
 // ---------------------------------------------------------------------------------
@@ -145,29 +144,6 @@ struct SemiPlane : public Plane
 {
   SemiPlane() = default;
 
-  SemiPlane(const float& l_a, const float& l_b, const float& l_c, const float& l_d, const std::vector<Point>& l_points,
-            std::vector<Point>& l_extremas)
-  {
-    a_ = l_a;
-    b_ = l_b;
-    c_ = l_c;
-    d_ = l_d;
-    points_ = l_points;
-    extremas_ = l_extremas;
-  }
-
-  SemiPlane(const float& l_a, const float& l_b, const float& l_c, const float& l_d, const std::vector<Point>& l_points,
-            const Point& l_centroid, std::vector<Point>& l_extremas)
-  {
-    a_ = l_a;
-    b_ = l_b;
-    c_ = l_c;
-    d_ = l_d;
-    points_ = l_points;
-    centroid_ = l_centroid;
-    extremas_ = l_extremas;
-  }
-
   SemiPlane(const Plane& l_plane, const std::vector<Point>& l_extremas)
   {
     a_ = l_plane.a_;
@@ -176,11 +152,14 @@ struct SemiPlane : public Plane
     d_ = l_plane.d_;
     points_ = l_plane.points_;
     centroid_ = l_plane.centroid_;
+    local_ref_ = l_plane.local_ref_;
     extremas_ = l_extremas;
+    transformAndSetArea();
   }
 
-  // Computes the semiplane area
-  float getArea() const
+  // Computes the semi-plane area
+  // Shoelace formula: https://en.wikipedia.org/wiki/Shoelace_formula
+  void setArea()
   {
     float a = 0;
 
@@ -192,10 +171,36 @@ struct SemiPlane : public Plane
       a += (pe.x_ * ce.y_ - pe.y_ * ce.x_);
     }
 
-    return a / 2;
+    area_ = std::fabs(a / 2);
+  }
+
+  // Transforms the semi-plane to its local reference frame and then computes the semi-plane area
+  // Shoelace formula: https://en.wikipedia.org/wiki/Shoelace_formula
+  void transformAndSetArea()
+  {
+    std::vector<Point> extremas;
+    for (const auto& extrema : extremas_)
+    {
+      Point p = extrema * local_ref_;
+      p.z_ = 0;
+      extremas.push_back(p);
+    }
+
+    float a = 0;
+
+    for (size_t i = 1; i < extremas.size(); i++)
+    {
+      Point pe = extremas[i - 1];
+      Point ce = extremas[i];
+
+      a += (pe.x_ * ce.y_ - pe.y_ * ce.x_);
+    }
+
+    area_ = std::fabs(a / 2);
   }
 
   std::vector<Point> extremas_;
+  float area_{};
 };
 
 }  // namespace vineslam

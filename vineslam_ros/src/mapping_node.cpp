@@ -114,14 +114,14 @@ void MappingNode::init()
   // ---------------------------------------------------------
   // ----- Initialize the multi-layer maps
   // ---------------------------------------------------------
-  std::vector<Corner> m_corners;
-  std::vector<Planar> m_planars;
-  std::vector<SemiPlane> m_planes;
-  Plane m_ground_plane;
-  lid_mapper_->localMap(input_data_.scan_pts_, m_corners, m_planars, m_planes, m_ground_plane);
+  std::vector<Corner> l_corners;
+  std::vector<Planar> l_planars;
+  std::vector<SemiPlane> l_planes;
+  SemiPlane l_ground_plane;
+  lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
 
   // - Register 3D maps
-  lid_mapper_->registerMaps(input_data_.wheel_odom_pose_, m_corners, m_planars, m_planes, *grid_map_);
+  lid_mapper_->registerMaps(input_data_.wheel_odom_pose_, l_corners, l_planars, l_planes, *grid_map_);
   grid_map_->downsamplePlanars();
 
   ROS_INFO("Mapping with known poses has started.");
@@ -138,16 +138,16 @@ void MappingNode::process()
   // ---------------------------------------------------------
   // ----- Build local maps to use in the localization
   // ---------------------------------------------------------
-  std::vector<Corner> m_corners;
-  std::vector<Planar> m_planars;
-  std::vector<SemiPlane> m_planes;
-  Plane m_ground_plane;
-  lid_mapper_->localMap(input_data_.scan_pts_, m_corners, m_planars, m_planes, m_ground_plane);
+  std::vector<Corner> l_corners;
+  std::vector<Planar> l_planars;
+  std::vector<SemiPlane> l_planes;
+  SemiPlane l_ground_plane;
+  lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
 
   // ---------------------------------------------------------
   // ----- Register multi-layer map (if performing SLAM)
   // ---------------------------------------------------------
-  lid_mapper_->registerMaps(input_data_.wheel_odom_pose_, m_corners, m_planars, m_planes, *grid_map_);
+  lid_mapper_->registerMaps(input_data_.wheel_odom_pose_, l_corners, l_planars, l_planes, *grid_map_);
   grid_map_->downsamplePlanars();
 
   // ---------------------------------------------------------
@@ -161,10 +161,10 @@ void MappingNode::process()
 
   // Publish 3D maps
   publish3DMap();
-  publish3DMap(m_corners, corners_local_publisher_);
-  publish3DMap(m_planars, planars_local_publisher_);
-  std::vector<Plane> planes = { m_ground_plane };
-  for (const auto& plane : m_planes)
+  publish3DMap(l_corners, corners_local_publisher_);
+  publish3DMap(l_planars, planars_local_publisher_);
+  std::vector<Plane> planes = { l_ground_plane };
+  for (const auto& plane : l_planes)
     planes.push_back(plane);
 }
 

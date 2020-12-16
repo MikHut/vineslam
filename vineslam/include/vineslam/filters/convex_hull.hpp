@@ -33,7 +33,7 @@ static bool convexHull(const Plane& plane, SemiPlane& semi_plane)
   // ------------------------------------------------------------------
   // ----- Get local plane reference frame transformation matrix
   // ------------------------------------------------------------------
-  Tf plane_ref = plane.getLocalRefFrame();
+  Tf plane_ref = plane.local_ref_;
 
   // ------------------------------------------------------------------
   // ----- Transform plane points to the local reference frame
@@ -259,10 +259,16 @@ static bool polygonIntersection(const SemiPlane& S1, const SemiPlane& S2, std::v
   {
     std::vector<Point> l_isct;
     getIntersectionPoints(S1.extremas_[i], S1.extremas_[next], S2, l_isct);
-    isct.insert(isct.end(), l_isct.begin(), l_isct.end());
+    if (!l_isct.empty())
+    {
+      isct.insert(isct.end(), l_isct.begin(), l_isct.end());
+    }
   }
 
-  orderCounterClockWise(isct);
+  if (!isct.empty())
+  {
+    orderCounterClockWise(isct);
+  }
 
   return true;
 }

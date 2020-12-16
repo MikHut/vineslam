@@ -425,7 +425,7 @@ bool ReplayNode::debugPF(vineslam_ros::debug_particle_filter::Request& request,
   publish3DMap(f_pose, obsv_.corners, debug_pf_corners_local_pub_);
   publish3DMap(f_pose, obsv_.planars, debug_pf_planars_local_pub_);
   publish3DMap(f_pose, obsv_.planes, debug_pf_planes_local_pub_);
-  publish3DMap(f_pose, { obsv_.ground_plane }, debug_pf_ground_local_pub_);
+  //  publish3DMap(f_pose, { obsv_.ground_plane }, debug_pf_ground_local_pub_);
 
   // Convert robot pose to tf::Transform corresponding
   tf::Quaternion q;

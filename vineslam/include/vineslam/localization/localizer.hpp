@@ -26,8 +26,8 @@ struct Observation
   std::vector<ImageFeature> surf_features;
   std::vector<Planar> planars;
   std::vector<Corner> corners;
-  std::vector<Plane> planes;
-  Plane ground_plane;
+  std::vector<SemiPlane> planes;
+  SemiPlane ground_plane;
   Pose gps_pose;
 };
 

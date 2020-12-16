@@ -117,10 +117,12 @@ void VineSLAM_ros::init()
   std::vector<Corner> l_corners;
   std::vector<Planar> l_planars;
   std::vector<SemiPlane> l_planes;
-  Plane l_ground_plane;
+  SemiPlane l_ground_plane;
   if (params_.use_lidar_features_)
   {
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+    l_planes = { l_ground_plane };
+    //    l_planes.push_back(l_ground_plane);
 
     // - Save local map for next iteration
     previous_map_->clear();
@@ -171,10 +173,12 @@ void VineSLAM_ros::process()
   std::vector<Corner> l_corners;
   std::vector<Planar> l_planars;
   std::vector<SemiPlane> l_planes;
-  Plane l_ground_plane;
+  SemiPlane l_ground_plane;
   if (params_.use_lidar_features_)
   {
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+    l_planes = { l_ground_plane };
+    //    l_planes.push_back(l_ground_plane);
   }
 
   // - Compute 3D image features on robot's referential frame
@@ -194,7 +198,7 @@ void VineSLAM_ros::process()
   obsv_.landmarks = l_landmarks;
   obsv_.corners = l_corners;
   obsv_.planars = l_planars;
-  obsv_.ground_plane = l_ground_plane;
+  //  obsv_.ground_plane = l_ground_plane;
   obsv_.surf_features = l_surf_features;
   if (has_converged_ && params_.use_gps_)
   {
@@ -344,6 +348,22 @@ void VineSLAM_ros::process()
   publish3DMap(l_corners, corners_local_publisher_);
   publish3DMap(l_planars, planars_local_publisher_);
   publish3DMap(l_planes, planes_local_publisher_);
+  //
+  //  std::vector<SemiPlane> tf_planes;
+  //  for (size_t i = 1; i < l_planes.size(); i++)
+  //  {
+  //    Vec v(l_planes[i - 1].a_, l_planes[i - 1].b_, l_planes[i - 1].c_);
+  //    Vec u(l_planes[i].a_, l_planes[i].b_, l_planes[i].c_);
+  //
+  //    std::array<float, 9> R = u.rotation(v);
+  //    // Extract the euler angles from the rotation matrix
+  //    Pose l_delta_rot = Pose(R, std::array<float, 3>{ 0, 0, 0 });
+  //    // Account for parallel vectors in opposite directions
+  //    std::cout << "NORMAL ANGLES  " << l_delta_rot.R_ * RAD_TO_DEGREE << ", " << l_delta_rot.P_ * RAD_TO_DEGREE
+  //              << ", "
+  //              << l_delta_rot.Y_ * RAD_TO_DEGREE << "\n";
+  //    std::cout << "DOT =  " << std::acos(v.dot(u)) * RAD_TO_DEGREE << "\n";
+  //  }
 
   // - Save local map for next iteration
   previous_map_->clear();

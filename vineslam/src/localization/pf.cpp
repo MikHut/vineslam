@@ -77,7 +77,7 @@ void PF::motionModel(const Pose& odom_inc, const Pose& p_odom)
 }
 
 void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector<Corner>& corners,
-                const std::vector<Planar>& planars, const std::vector<Plane>& planes, const Plane& ground_plane,
+                const std::vector<Planar>& planars, const std::vector<SemiPlane>& planes, const SemiPlane& ground_plane,
                 const std::vector<ImageFeature>& surf_features, const Pose& gps_pose, OccupancyMap* grid_map)
 {
   std::vector<float> semantic_weights(params_.number_particles_, 0.);
@@ -114,7 +114,7 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
              std::to_string(planars.size()) + ")\n";
 
     before = std::chrono::high_resolution_clock::now();
-    mediumLevelGround(ground_plane, ground_weights);
+    mediumLevelPlanes(planes, ground_weights);
     after = std::chrono::high_resolution_clock::now();
     duration = after - before;
     logs_ += "Time elapsed on PF - ground plane (msecs): " + std::to_string(duration.count()) + "\n";
@@ -316,11 +316,10 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* gr
     {
       // Convert feature to the map's referential frame
       Point X = planar.pos_ * particle.tf_;
-      //      Planar m_planar(X, planar.which_plane);
 
       std::vector<Planar> m_planars = (*grid_map)(X.x_, X.y_, X.z_).planar_features_;
 
-      //       Search for a correspondence in the current cell first
+      // Search for a correspondence in the current cell first
       float best_correspondence = 0.5;
       bool found = false;
       for (const auto& m_planar : m_planars)
@@ -336,11 +335,6 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* gr
         }
       }
 
-      //      Planar nearest_planar;
-      //      float  dist = std::numeric_limits<float>::max();
-      //      grid_map->findNearest(m_planar, nearest_planar, dist);
-      //      bool found = dist < 0.5;
-
       // Save distance if a correspondence was found
       if (found)
         w_planars += (normalizer_planar *
@@ -351,58 +345,8 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* gr
   }
 }
 
-void PF::mediumLevelGround(const Plane& ground, std::vector<float>& ws)
+void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, std::vector<float>& ws)
 {
-  //  if (prev_ground_plane_.points_.empty())
-  //  {
-  //    prev_ground_plane_ = ground;
-  //    return;
-  //  }
-  //
-  //  float sigma_ground_RP = 0.3 * DEGREE_TO_RAD;
-  //  float normalizer_ground = static_cast<float>(1.) / (sigma_ground_RP * std::sqrt(M_2PI));
-  //
-  //  // -----------------------------------------------------------------------------
-  //  // --- Find the rotation matrix that transforms one normal vector into another
-  //  // -----------------------------------------------------------------------------
-  //  Vec u(prev_ground_plane_.a_, prev_ground_plane_.b_, prev_ground_plane_.c_);
-  //  Vec v(ground.a_, ground.b_, ground.c_);
-  //
-  //  std::array<float, 9> R = u.rotation(v);
-  //
-  //
-  //  std::array<float, 9> R_ = v.rotation(Vec(0, M_PI / 2, 0));
-  //  std::cout << "P: " << Pose(R_, std::array<float, 3>{ 0, 0, 0 }).P_ * RAD_TO_DEGREE << "\n";
-  //  std::cout << "R: " << Pose(R_, std::array<float, 3>{ 0, 0, 0 }).R_ * RAD_TO_DEGREE + 90 << "\n";
-  //
-  //  // -----------------------------------------------------------------------------
-  //  // --- Extract the euler angles from the rotation matrix
-  //  // -----------------------------------------------------------------------------
-  //  Pose delta_ground_rot(R, std::array<float, 3>{ 0, 0, 0 });
-  //
-  //  // -----------------------------------------------------------------------------
-  //  // --- Compute the particles weight
-  //  // -----------------------------------------------------------------------------
-  //  for (const auto& particle : particles_)
-  //  {
-  //    float w_ground = 0.;
-  //
-  //    float delta_p_R = normalizeAngle(particle.p_.R_ - particle.pp_.R_);
-  //    float delta_p_P = normalizeAngle(particle.p_.P_ - particle.pp_.P_);
-  //    float error_R = std::fabs(normalizeAngle(delta_ground_rot.R_ + delta_p_R));
-  //    float error_P = std::fabs(normalizeAngle(delta_ground_rot.P_ + delta_p_P));
-  //
-  //    w_ground = (normalizer_ground * static_cast<float>(std::exp((-1. / sigma_ground_RP) * error_R)));  // *
-  //    //               (normalizer_ground * static_cast<float>(std::exp((-1. / sigma_ground_RP) * error_P)));
-  //
-  ////    std::cout << particle.id_ << "\n :: R (" << delta_p_R << ", " << delta_ground_rot.R_ << ", " << error_R
-  ////              << ")\n :: P (" << delta_p_P << ", " << delta_ground_rot.P_ << ", " << error_P
-  ////              << ")\n :: w = " << w_ground << "\n";
-  //
-  //    ws[particle.id_] = w_ground;
-  //  }
-  //
-  //  prev_ground_plane_ = ground;
 }
 
 void PF::lowLevel(const std::vector<ImageFeature>& surf_features, OccupancyMap* grid_map, std::vector<float>& ws)

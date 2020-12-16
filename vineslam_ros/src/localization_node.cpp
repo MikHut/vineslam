@@ -188,35 +188,35 @@ void LocalizationNode::init()
   }
 
   // - 3D PCL corner map estimation
-  std::vector<Corner> m_corners;
-  std::vector<Planar> m_planars;
-  std::vector<SemiPlane> m_planes;
-  Plane m_ground_plane;
+  std::vector<Corner> l_corners;
+  std::vector<Planar> l_planars;
+  std::vector<SemiPlane> l_planes;
+  SemiPlane l_ground_plane;
   if (params_.use_lidar_features_)
   {
-    lid_mapper_->localMap(input_data_.scan_pts_, m_corners, m_planars, m_planes, m_ground_plane);
+    lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
 
     // - Save local map for next iteration
     previous_map_->clear();
-    for (const auto& planar : m_planars)
+    for (const auto& planar : l_planars)
       previous_map_->insert(planar);
-    for (const auto& corner : m_corners)
+    for (const auto& corner : l_corners)
       previous_map_->insert(corner);
     previous_map_->downsamplePlanars();
   }
 
   // - 3D image feature map estimation
-  std::vector<ImageFeature> m_surf_features;
+  std::vector<ImageFeature> l_surf_features;
   if (params_.use_image_features_)
   {
-    vis_mapper_->localMap(input_data_.rgb_image_, input_data_.depth_array_, m_surf_features);
+    vis_mapper_->localMap(input_data_.rgb_image_, input_data_.depth_array_, l_surf_features);
   }
 
   if (register_map_)
   {
     // - Register 3D maps
-    vis_mapper_->registerMaps(robot_pose_, m_surf_features, *grid_map_);
-    lid_mapper_->registerMaps(robot_pose_, m_corners, m_planars, m_planes, *grid_map_);
+    vis_mapper_->registerMaps(robot_pose_, l_surf_features, *grid_map_);
+    lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, *grid_map_);
     grid_map_->downsamplePlanars();
   }
 

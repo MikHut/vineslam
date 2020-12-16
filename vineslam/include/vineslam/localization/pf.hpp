@@ -1,16 +1,18 @@
 #pragma once
 
 // Include class objects
-#include "../params.hpp"
-#include "../feature/visual.hpp"
-#include "../feature/semantic.hpp"
-#include "../feature/three_dimensional.hpp"
-#include "../mapping/occupancy_map.hpp"
-#include "../matcher/icp.hpp"
-#include "../math/Point.hpp"
-#include "../math/Pose.hpp"
-#include "../math/const.hpp"
-#include "../math/stat.hpp"
+#include <vineslam/params.hpp>
+#include <vineslam/feature/visual.hpp>
+#include <vineslam/feature/semantic.hpp>
+#include <vineslam/feature/three_dimensional.hpp>
+#include <vineslam/mapping/occupancy_map.hpp>
+#include <vineslam/matcher/icp.hpp>
+#include <vineslam/math/Point.hpp>
+#include <vineslam/math/Pose.hpp>
+#include <vineslam/math/const.hpp>
+#include <vineslam/math/stat.hpp>
+#include <vineslam/filters/convex_hull.hpp>
+#include <vineslam/filters/ransac.hpp>
 
 // Include std members
 #include <cstdlib>
@@ -99,7 +101,7 @@ private:
   // - Medium level planar features layer
   void mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* grid_map, std::vector<float>& ws);
   // - Medium ground plane layer
-  void mediumLevelPlanes(const std::vector<SemiPlane>& planes, std::vector<float>& ws);
+  void mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* grid_map, std::vector<float>& ws);
   // - Low level image features layer
   void lowLevel(const std::vector<ImageFeature>& surf_features, OccupancyMap* grid_map, std::vector<float>& ws);
   // -------- (Low level) K-means based particle clustering

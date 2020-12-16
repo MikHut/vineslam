@@ -307,6 +307,7 @@ struct Pose
 // stdout operator
 static std::ostream& operator<<(std::ostream& out, Pose const& p)
 {
-  return out << "Pose (" << p.x_ << ' ' << p.y_ << ' ' << p.z_ << ' ' << p.R_ << ' ' << p.P_ << ' ' << p.Y_ << ")\n";
+  return out << "Pose (" << p.x_ << ' ' << p.y_ << ' ' << p.z_ << ' ' << p.R_ * RAD_TO_DEGREE << ' '
+             << p.P_ * RAD_TO_DEGREE << ' ' << p.Y_ * RAD_TO_DEGREE << ")\n";
 }
 }  // namespace vineslam

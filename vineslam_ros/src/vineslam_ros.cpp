@@ -198,7 +198,8 @@ void VineSLAM_ros::process()
   obsv_.landmarks = l_landmarks;
   obsv_.corners = l_corners;
   obsv_.planars = l_planars;
-  //  obsv_.ground_plane = l_ground_plane;
+  obsv_.ground_plane = l_ground_plane;
+  obsv_.planes = l_planes;
   obsv_.surf_features = l_surf_features;
   if (has_converged_ && params_.use_gps_)
   {

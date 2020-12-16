@@ -128,7 +128,7 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
   // A - Extraction
   groundRemoval(transformed_pcl, unfiltered_gplane);
   // B - Filtering
-  ransac(unfiltered_gplane.points_, filtered_gplane);
+  ransac(unfiltered_gplane.points_, filtered_gplane, 100, 0.03);
   // C - Centroid calculation
   for (const auto& pt : filtered_gplane.points_)
   {
@@ -340,8 +340,8 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, std::vector<SemiPlane>&
   Tf tf(Rot, trans);
 
   // Define correspondence thresholds
-  float th_dist = 15 * DEGREE_TO_RAD;  // max normal angular distance per component
-  float sp_dist = 0.1;                 // max distance from source plane centroid to target plane
+  float th_dist = 10 * DEGREE_TO_RAD;  // max normal angular distance per component
+  float sp_dist = 0.2;                 // max distance from source plane centroid to target plane
   float area_th = 2.0;                 // minimum overlapping area between semiplanes
 
   // Array to store the new planes observed
@@ -413,6 +413,7 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, std::vector<SemiPlane>&
       // Compute the intersection semi plane area
       isct.setArea();
 
+      std::cout << "Area is " << isct.area_ << std::endl;
       if (isct.area_ > ov_area)
       {
         // --------------------------------
@@ -437,13 +438,13 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, std::vector<SemiPlane>&
 
         // Check if normal vectors match
         if (std::fabs(l_delta_rot.R_) < std::fabs(delta_rot.R_) &&
-            std::fabs(l_delta_rot.P_) < std::fabs(delta_rot.P_) && std::fabs(l_delta_rot.Y_) < std::fabs(delta_rot.Y_))
+            std::fabs(l_delta_rot.P_) < std::fabs(delta_rot.P_)/* && std::fabs(l_delta_rot.Y_) < std::fabs(delta_rot.Y_)*/)
         {
           // --------------------------------
           // (C) - Compute local plane centroid distance to global plane
           // --------------------------------
           float l_point2plane = g_plane.point2Plane(l_plane.centroid_);
-          //          std::cout << "Passed area and normal, centroid is " << l_point2plane << "\n";
+          std::cout << "Passed area and normal, centroid is " << l_point2plane << "\n";
           if (l_point2plane < point2plane)
           {
             // We found a correspondence, so, we must save the correspondence deltas

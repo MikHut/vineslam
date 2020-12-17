@@ -55,9 +55,26 @@ static void estimateNormal(const std::vector<Point>& points, float& a, float& b,
   d = -(normal.x_ * avg_pt.x_ + normal.y_ * avg_pt.y_ + normal.z_ * avg_pt.z_);
 }
 
-static bool ransac(const std::vector<Point>& in_pts, Plane& out_plane, int max_iters = 20, float dist_threshold = 0.08)
+static bool ransac(const std::vector<Point>& in_pts, Plane& out_plane, int max_iters = 20, float dist_threshold = 0.08,
+                   bool filter_distant_pts = false)
 {
-  int max_idx = static_cast<int>(in_pts.size()) - 1;
+  std::vector<Point> pts;
+  if (filter_distant_pts)
+  {
+    for (const auto& pt : in_pts)
+    {
+      if (pt.norm3D() < 5)
+      {
+        pts.push_back(pt);
+      }
+    }
+  }
+  else
+  {
+    pts = in_pts;
+  }
+
+  int max_idx = static_cast<int>(pts.size()) - 1;
   int min_idx = 0;
   int max_tries = 1000;
   int c_max_inliers = 0;
@@ -95,10 +112,10 @@ static bool ransac(const std::vector<Point>& in_pts, Plane& out_plane, int max_i
       return false;
     }
 
-    // Declarate the 3 points selected on this iteration
-    Point pt1 = Point(in_pts[idx1].x_, in_pts[idx1].y_, in_pts[idx1].z_);
-    Point pt2 = Point(in_pts[idx2].x_, in_pts[idx2].y_, in_pts[idx2].z_);
-    Point pt3 = Point(in_pts[idx3].x_, in_pts[idx3].y_, in_pts[idx3].z_);
+    // Declare the 3 points selected on this iteration
+    Point pt1 = Point(pts[idx1].x_, pts[idx1].y_, pts[idx1].z_);
+    Point pt2 = Point(pts[idx2].x_, pts[idx2].y_, pts[idx2].z_);
+    Point pt3 = Point(pts[idx3].x_, pts[idx3].y_, pts[idx3].z_);
 
     // Extract the plane hessian coefficients
     Vec v1(pt2, pt1);
@@ -109,7 +126,7 @@ static bool ransac(const std::vector<Point>& in_pts, Plane& out_plane, int max_i
     float l_c = abc.z_;
     float l_d = -(l_a * pt1.x_ + l_b * pt1.y_ + l_c * pt1.z_);
 
-    for (const auto& l_pt : in_pts)
+    for (const auto& l_pt : pts)
     {
       // Compute the distance each point to the plane - from
       // https://www.geeksforgeeks.org/distance-between-a-point-and-a-plane-in-3-d/

@@ -151,7 +151,7 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
     float m_sw = (surf_max > 0.) ? surf_weights[particle.id_] : static_cast<float>(1.);
     float m_gpsw = (gps_max > 0.) ? gps_weights[particle.id_] : static_cast<float>(1.);
 
-    particle.w_ *= m_lw * m_cw * m_rw * m_pw * m_gw * m_sw * m_gpsw;
+    particle.w_ = m_lw * m_cw * m_rw * m_pw * m_gw * m_sw * m_gpsw;
 
     w_sum_ += particle.w_;
   }
@@ -347,13 +347,16 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* gr
 
 void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* grid_map, std::vector<float>& ws)
 {
+  float sigma_plane_matching = 3 * DEGREE_TO_RAD;
+  float normalizer_plane = static_cast<float>(1.) / (sigma_plane_matching * std::sqrt(M_2PI));
+
   // Loop over all particles
   for (const auto& particle : particles_)
   {
     float w_planes = 0.;
     // ----------------------------------------------------------------------------
     // ------ Search for correspondences between local planes and global planes
-    // ------ Two stage process:
+    // ------ Three stage process:
     // ------  * (A) Check semi-plane overlap
     // ------  * (B) Compare planes normals
     // ------  *  If (B), then check (C) plane to plane distance
@@ -392,7 +395,6 @@ void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* g
       }
       l_plane.centroid_ = l_plane.centroid_ * particle.tf_;                             // Convert the centroid
       estimateNormal(l_plane.points_, l_plane.a_, l_plane.b_, l_plane.c_, l_plane.d_);  // Convert plane normal
-      l_plane.setLocalRefFrame();
 
       bool found = false;
       for (auto& g_plane : grid_map->planes_)
@@ -452,8 +454,8 @@ void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* g
 
           // Check if normal vectors match
           if (std::fabs(l_delta_rot.R_) < std::fabs(delta_rot.R_) &&
-              std::fabs(l_delta_rot.P_) < std::fabs(delta_rot.P_) &&
-              std::fabs(l_delta_rot.Y_) < std::fabs(delta_rot.Y_))
+              std::fabs(l_delta_rot.P_) < std::fabs(delta_rot.P_)  //&&
+              /*std::fabs(l_delta_rot.Y_) < std::fabs(delta_rot.Y_)*/)
           {
             // --------------------------------
             // (C) - Compute local plane centroid distance to global plane
@@ -479,10 +481,14 @@ void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* g
 
       if (found)
       {
-        w_planes += (1 / correspondence_pose.R_ + 1 / correspondence_pose.P_);
+        w_planes +=
+            ((normalizer_plane * static_cast<float>(std::exp((-1. / sigma_plane_matching) * correspondence_pose.R_))) *
+             (normalizer_plane * static_cast<float>(std::exp((-1. / sigma_plane_matching) * correspondence_pose.P_))));
+        //        w_planes += (1 / correspondence_pose.R_ + 1 / correspondence_pose.P_);
       }
     }
 
+    std::cout << particle.id_ << " - " << w_planes << "\n";
     ws[particle.id_] = w_planes;
   }
 }

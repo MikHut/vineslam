@@ -128,7 +128,7 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
   // A - Extraction
   groundRemoval(transformed_pcl, unfiltered_gplane);
   // B - Filtering
-  ransac(unfiltered_gplane.points_, filtered_gplane, 100, 0.03);
+  ransac(unfiltered_gplane.points_, filtered_gplane, 100, 0.03, true);
   // C - Centroid calculation
   for (const auto& pt : filtered_gplane.points_)
   {

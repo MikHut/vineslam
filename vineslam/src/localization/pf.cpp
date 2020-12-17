@@ -5,10 +5,9 @@ namespace vineslam
 PF::PF(const Parameters& params, const Pose& initial_pose) : params_(params)
 {
   // - General parameters
-  use_landmarks_ = params.use_landmarks_;
-  use_corners_ = params.use_corners_;
-  use_planars_ = params.use_planars_;
-  use_icp_ = params.use_icp_;
+  use_semantic_features_ = params.use_semantic_features_;
+  use_lidar_features_ = params.use_lidar_features_;
+  use_image_features_ = params.use_image_features_;
   use_gps_ = params.use_gps_;
 
   // Initialize and set ICP parameters
@@ -78,7 +77,7 @@ void PF::motionModel(const Pose& odom_inc, const Pose& p_odom)
 }
 
 void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector<Corner>& corners,
-                const std::vector<Planar>& planars, const std::vector<Plane>& planes, const Plane& ground_plane,
+                const std::vector<Planar>& planars, const std::vector<SemiPlane>& planes, const SemiPlane& ground_plane,
                 const std::vector<ImageFeature>& surf_features, const Pose& gps_pose, OccupancyMap* grid_map)
 {
   std::vector<float> semantic_weights(params_.number_particles_, 0.);
@@ -92,27 +91,37 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
   logs_ = "\n";
 
   auto before = std::chrono::high_resolution_clock::now();
-  if (use_landmarks_)
+  if (use_semantic_features_)
     highLevel(landmarks, grid_map, semantic_weights);
   auto after = std::chrono::high_resolution_clock::now();
   std::chrono::duration<float, std::milli> duration = after - before;
   logs_ += "Time elapsed on PF - high-level features (msecs): " + std::to_string(duration.count()) + "\n";
-  before = std::chrono::high_resolution_clock::now();
-  if (use_corners_)
+
+  if (use_lidar_features_)
+  {
+    before = std::chrono::high_resolution_clock::now();
     mediumLevelCorners(corners, grid_map, corner_weights);
-  after = std::chrono::high_resolution_clock::now();
-  duration = after - before;
-  logs_ += "Time elapsed on PF - corner features (msecs): " + std::to_string(duration.count()) + " (" +
-           std::to_string(corners.size()) + ")\n";
-  before = std::chrono::high_resolution_clock::now();
-  if (use_planars_)
+    after = std::chrono::high_resolution_clock::now();
+    duration = after - before;
+    logs_ += "Time elapsed on PF - corner features (msecs): " + std::to_string(duration.count()) + " (" +
+             std::to_string(corners.size()) + ")\n";
+
+    before = std::chrono::high_resolution_clock::now();
     mediumLevelPlanars(planars, grid_map, planar_weights);
-  after = std::chrono::high_resolution_clock::now();
-  duration = after - before;
-  logs_ += "Time elapsed on PF - planar features (msecs): " + std::to_string(duration.count()) + +" (" +
-           std::to_string(planars.size()) + ")\n";
-  before = std::chrono::high_resolution_clock::now();
-  if (use_icp_)
+    after = std::chrono::high_resolution_clock::now();
+    duration = after - before;
+    logs_ += "Time elapsed on PF - planar features (msecs): " + std::to_string(duration.count()) + " (" +
+             std::to_string(planars.size()) + ")\n";
+
+    before = std::chrono::high_resolution_clock::now();
+    mediumLevelPlanes(planes, grid_map, ground_weights);
+    after = std::chrono::high_resolution_clock::now();
+    duration = after - before;
+    logs_ += "Time elapsed on PF - ground plane (msecs): " + std::to_string(duration.count()) + "\n";
+    before = std::chrono::high_resolution_clock::now();
+  }
+
+  if (use_image_features_)
     lowLevel(surf_features, grid_map, surf_weights);
   after = std::chrono::high_resolution_clock::now();
   duration = after - before;
@@ -143,6 +152,7 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
     float m_gpsw = (gps_max > 0.) ? gps_weights[particle.id_] : static_cast<float>(1.);
 
     particle.w_ = m_lw * m_cw * m_rw * m_pw * m_gw * m_sw * m_gpsw;
+
     w_sum_ += particle.w_;
   }
 }
@@ -306,11 +316,10 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* gr
     {
       // Convert feature to the map's referential frame
       Point X = planar.pos_ * particle.tf_;
-      //      Planar m_planar(X, planar.which_plane);
 
       std::vector<Planar> m_planars = (*grid_map)(X.x_, X.y_, X.z_).planar_features_;
 
-      //       Search for a correspondence in the current cell first
+      // Search for a correspondence in the current cell first
       float best_correspondence = 0.5;
       bool found = false;
       for (const auto& m_planar : m_planars)
@@ -326,11 +335,6 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* gr
         }
       }
 
-      //      Planar nearest_planar;
-      //      float  dist = std::numeric_limits<float>::max();
-      //      grid_map->findNearest(m_planar, nearest_planar, dist);
-      //      bool found = dist < 0.5;
-
       // Save distance if a correspondence was found
       if (found)
         w_planars += (normalizer_planar *
@@ -338,6 +342,154 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* gr
     }
 
     ws[particle.id_] = w_planars;
+  }
+}
+
+void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* grid_map, std::vector<float>& ws)
+{
+  float sigma_plane_matching = 3 * DEGREE_TO_RAD;
+  float normalizer_plane = static_cast<float>(1.) / (sigma_plane_matching * std::sqrt(M_2PI));
+
+  // Loop over all particles
+  for (const auto& particle : particles_)
+  {
+    float w_planes = 0.;
+    // ----------------------------------------------------------------------------
+    // ------ Search for correspondences between local planes and global planes
+    // ------ Three stage process:
+    // ------  * (A) Check semi-plane overlap
+    // ------  * (B) Compare planes normals
+    // ------  *  If (B), then check (C) plane to plane distance
+    // ----------------------------------------------------------------------------
+
+    // Define correspondence thresholds
+    float th_dist = 10 * DEGREE_TO_RAD;  // max normal angular distance per component
+    float sp_dist = 0.2;                 // max distance from source plane centroid to target plane
+    float area_th = 2.0;                 // minimum overlapping area between semiplanes
+
+    // Correspondence result
+    Pose correspondence_pose;
+    float correspondence_dist;
+
+    for (const auto& plane : planes)
+    {
+      if (plane.points_.empty())
+      {
+        continue;
+      }
+
+      // Initialize correspondence deltas
+      Pose delta_rot(0, 0, 0, th_dist, th_dist, th_dist);
+      float point2plane = sp_dist;
+      float ov_area = area_th;
+
+      // Convert local plane to maps' referential frame
+      SemiPlane l_plane = plane;
+      for (auto& point : l_plane.points_)
+      {
+        point = point * particle.tf_;  // Convert plane points
+      }
+      for (auto& point : l_plane.extremas_)
+      {
+        point = point * particle.tf_;  // Convert plane boundaries
+      }
+      l_plane.centroid_ = l_plane.centroid_ * particle.tf_;                             // Convert the centroid
+      estimateNormal(l_plane.points_, l_plane.a_, l_plane.b_, l_plane.c_, l_plane.d_);  // Convert plane normal
+
+      bool found = false;
+      for (auto& g_plane : grid_map->planes_)
+      {
+        if (g_plane.points_.empty())
+        {
+          continue;
+        }
+
+        // --------------------------------
+        // (A) - Check semi-plane overlap
+        // --------------------------------
+
+        // First project the global and local plane extremas to the global plane reference frame
+        Tf ref_frame = g_plane.local_ref_.inverse();
+        SemiPlane gg_plane;
+        SemiPlane lg_plane;
+        for (const auto& extrema : g_plane.extremas_)
+        {
+          Point p = extrema * ref_frame;
+          p.z_ = 0;
+          gg_plane.extremas_.push_back(p);
+        }
+        for (const auto& extrema : l_plane.extremas_)
+        {
+          Point p = extrema * ref_frame;
+          p.z_ = 0;
+          lg_plane.extremas_.push_back(p);
+        }
+
+        // Now, check for transformed polygon intersections
+        SemiPlane isct;
+        polygonIntersection(gg_plane, lg_plane, isct.extremas_);
+
+        // Compute the intersection semi plane area
+        isct.setArea();
+
+        if (isct.area_ > ov_area)
+        {
+          // --------------------------------
+          // (B) - Compare plane normals
+          // --------------------------------
+
+          // Find the rotation matrix that transforms one normal vector into another
+          Vec u(l_plane.a_, l_plane.b_, l_plane.c_);
+          Vec v(g_plane.a_, g_plane.b_, g_plane.c_);
+
+          std::array<float, 9> R = u.rotation(v);
+
+          // Extract the euler angles from the rotation matrix
+          Pose l_delta_rot = Pose(R, std::array<float, 3>{ 0, 0, 0 });
+
+          // Account for parallel vectors in opposite directions
+          l_delta_rot.R_ = std::min(std::fabs(l_delta_rot.R_), static_cast<float>(M_PI) - std::fabs(l_delta_rot.R_));
+          l_delta_rot.P_ = std::min(std::fabs(l_delta_rot.P_), static_cast<float>(M_PI) - std::fabs(l_delta_rot.P_));
+          l_delta_rot.Y_ = std::min(std::fabs(l_delta_rot.Y_), static_cast<float>(M_PI) - std::fabs(l_delta_rot.Y_));
+
+          // Check if normal vectors match
+          if (std::fabs(l_delta_rot.R_) < std::fabs(delta_rot.R_) &&
+              std::fabs(l_delta_rot.P_) < std::fabs(delta_rot.P_)  //&&
+              /*std::fabs(l_delta_rot.Y_) < std::fabs(delta_rot.Y_)*/)
+          {
+            // --------------------------------
+            // (C) - Compute local plane centroid distance to global plane
+            // --------------------------------
+            float l_point2plane = g_plane.point2Plane(l_plane.centroid_);
+            if (l_point2plane < point2plane)
+            {
+              // We found a correspondence, so, we must save the correspondence deltas
+              delta_rot = l_delta_rot;
+              point2plane = l_point2plane;
+              ov_area = isct.area_;
+
+              // Save correspondence errors
+              correspondence_pose = l_delta_rot;
+              correspondence_dist = l_point2plane;
+
+              // Set correspondence flag
+              found = true;
+            }
+          }
+        }
+      }
+
+      if (found)
+      {
+        w_planes +=
+            ((normalizer_plane * static_cast<float>(std::exp((-1. / sigma_plane_matching) * correspondence_pose.R_))) *
+             (normalizer_plane * static_cast<float>(std::exp((-1. / sigma_plane_matching) * correspondence_pose.P_))));
+        //        w_planes += (1 / correspondence_pose.R_ + 1 / correspondence_pose.P_);
+      }
+    }
+
+    std::cout << particle.id_ << " - " << w_planes << "\n";
+    ws[particle.id_] = w_planes;
   }
 }
 

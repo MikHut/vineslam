@@ -15,18 +15,18 @@ struct Parameters
   std::string tf_topic_;
   std::string fix_topic_;
   std::string depth_img_topic_;
-  std::string left_img_topic_;
+  std::string rgb_img_topic_;
   std::string detections_topic_;
   std::string pcl_topic_;
 
   // -----------------------------------
   // ------ System flags
   // -----------------------------------
-  bool use_landmarks_{};
-  bool use_corners_{};
-  bool use_planars_{};
-  bool use_icp_{};
+  bool use_semantic_features_{};
+  bool use_lidar_features_{};
+  bool use_image_features_{};
   bool use_gps_{};
+  bool use_wheel_odometry_{};
 
   // -----------------------------------
   // ------ GPS datum

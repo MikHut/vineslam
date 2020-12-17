@@ -24,9 +24,6 @@ private:
   void loopOnce();
   // Main node function. Processes the observations and calls the map builders
   void process();
-
-  // Robot pose callback function
-  void poseListener(const geometry_msgs::PoseStampedConstPtr& msg);
 };
 
 }  // namespace vineslam

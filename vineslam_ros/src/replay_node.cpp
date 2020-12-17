@@ -63,9 +63,10 @@ ReplayNode::ReplayNode(int argc, char** argv)
   map3D_features_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZRGB>>("/vineslam/map3D/SURF", 1);
   map3D_corners_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners", 1);
   map3D_planars_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planars", 1);
+  map3D_planes_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/map3D/planes", 1);
   corners_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners_local", 1);
   planars_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planars_local", 1);
-  planes_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planes_local", 1);
+  planes_local_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/map3D/planes_local", 1);
   pose_publisher_ = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/pose", 1);
   gps_publisher_ = nh.advertise<nav_msgs::Path>("/vineslam/gps", 1);
   path_publisher_ = nh.advertise<nav_msgs::Path>("/vineslam/path", 1);
@@ -146,7 +147,7 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
   ros::Publisher tf_pub = nh.advertise<tf2_msgs::TFMessage>(params_.tf_topic_, 1);
   ros::Publisher fix_pub = nh.advertise<sensor_msgs::NavSatFix>(params_.fix_topic_, 1);
   ros::Publisher depth_img_pub = nh.advertise<sensor_msgs::Image>(params_.depth_img_topic_, 1);
-  ros::Publisher left_img_pub = nh.advertise<sensor_msgs::CompressedImage>(params_.left_img_topic_, 1);
+  ros::Publisher left_img_pub = nh.advertise<sensor_msgs::CompressedImage>(params_.rgb_img_topic_, 1);
   ros::Publisher pcl_pub = nh.advertise<sensor_msgs::PointCloud2>(params_.pcl_topic_, 1);
 
   rosgraph_msgs::Clock clock_ptr;
@@ -216,7 +217,7 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
         depth_img_pub.publish(*depth_img_ptr);
       }
     }
-    else if (topic == params_.left_img_topic_)
+    else if (topic == params_.rgb_img_topic_)
     {
       sensor_msgs::CompressedImageConstPtr left_img_comp_ptr = m.instantiate<sensor_msgs::CompressedImage>();
 
@@ -298,14 +299,13 @@ bool ReplayNode::changeNodeState(vineslam_ros::change_replay_node_state::Request
 bool ReplayNode::changeNodeFeatures(vineslam_ros::change_replay_node_features::Request& request,
                                     vineslam_ros::change_replay_node_features::Response& response)
 {
-  params_.use_landmarks_ = request.use_high_level.data;
-  params_.use_corners_ = request.use_corners.data;
-  params_.use_planars_ = request.use_planars.data;
-  params_.use_icp_ = request.use_icp.data;
+  params_.use_semantic_features_ = request.use_semantic_features.data;
+  params_.use_lidar_features_ = request.use_lidar_features.data;
+  params_.use_image_features_ = request.use_image_features.data;
   params_.use_gps_ = request.use_gps.data;
 
-  localizer_->changeObservationsToUse(params_.use_landmarks_, params_.use_corners_, params_.use_planars_,
-                                      params_.use_icp_, params_.use_gps_);
+  localizer_->changeObservationsToUse(params_.use_semantic_features_, params_.use_lidar_features_,
+                                      params_.use_image_features_, params_.use_gps_);
 
   return true;
 }
@@ -334,10 +334,9 @@ bool ReplayNode::debugPF(vineslam_ros::debug_particle_filter::Request& request,
   // -------------------------------------------------------------------------------
   // ---- Update debug PF settings
   // -------------------------------------------------------------------------------
-  debug_pf_->use_landmarks_ = params_.use_landmarks_;
-  debug_pf_->use_corners_ = params_.use_corners_;
-  debug_pf_->use_planars_ = params_.use_planars_;
-  debug_pf_->use_icp_ = params_.use_icp_;
+  debug_pf_->use_semantic_features_ = params_.use_semantic_features_;
+  debug_pf_->use_lidar_features_ = params_.use_lidar_features_;
+  debug_pf_->use_image_features_ = params_.use_image_features_;
   debug_pf_->use_gps_ = params_.use_gps_;
 
   // -------------------------------------------------------------------------------
@@ -426,7 +425,7 @@ bool ReplayNode::debugPF(vineslam_ros::debug_particle_filter::Request& request,
   publish3DMap(f_pose, obsv_.corners, debug_pf_corners_local_pub_);
   publish3DMap(f_pose, obsv_.planars, debug_pf_planars_local_pub_);
   publish3DMap(f_pose, obsv_.planes, debug_pf_planes_local_pub_);
-  publish3DMap(f_pose, { obsv_.ground_plane }, debug_pf_ground_local_pub_);
+  //  publish3DMap(f_pose, { obsv_.ground_plane }, debug_pf_ground_local_pub_);
 
   // Convert robot pose to tf::Transform corresponding
   tf::Quaternion q;
@@ -464,15 +463,6 @@ void ReplayNode::listenStdin()
 
 ReplayNode::~ReplayNode()
 {
-  // Save map data
-  bool save_map = params_.save_map_;
-
-  if (save_map)
-  {
-    std::cout << "Writing map to file ..." << std::endl;
-    MapWriter mw(params_);
-    mw.writeToFile(*grid_map_);
-  }
 }
 
 }  // namespace vineslam

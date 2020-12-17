@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <iomanip>
 #include <array>
 
 namespace vineslam
@@ -68,6 +69,11 @@ struct Tf
     return out_tf;
   }
 
+  static Tf unitary()
+  {
+    return Tf(std::array<float, 9>{ 1, 0, 0, 0, 1, 0, 0, 0, 1 }, std::array<float, 3>{ 0, 0, 0 });
+  }
+
   std::array<float, 9> R_array_{};
   std::array<float, 3> t_array_{};
 };
@@ -75,9 +81,11 @@ struct Tf
 // stdout operator
 static std::ostream& operator<<(std::ostream& out, Tf const& tf)
 {
-  return out << tf.R_array_[0] << " " << tf.R_array_[1] << " " << tf.R_array_[2] << " " << tf.t_array_[0] << "\n"
+  return out << std::setprecision(3) << tf.R_array_[0] << " " << tf.R_array_[1] << " " << tf.R_array_[2] << " "
+             << tf.t_array_[0] << "\n"
              << tf.R_array_[3] << " " << tf.R_array_[4] << " " << tf.R_array_[5] << " " << tf.t_array_[1] << "\n"
-             << tf.R_array_[6] << " " << tf.R_array_[7] << " " << tf.R_array_[8] << " " << tf.t_array_[2] << "\n";
+             << tf.R_array_[6] << " " << tf.R_array_[7] << " " << tf.R_array_[8] << " " << tf.t_array_[2] << "\n"
+             << 0 << " " << 0 << " " << 0 << " " << 1 << "\n";
 }
 
 }  // namespace vineslam

@@ -50,7 +50,7 @@ SLAMNode::SLAMNode(int argc, char** argv)
   set_datum_ = nh.serviceClient<agrob_map_transform::SetDatum>("datum");
 
   // Synchronize subscribers of both image topics
-  message_filters::Subscriber<sensor_msgs::Image> left_image_sub(nh, params_.left_img_topic_, 1);
+  message_filters::Subscriber<sensor_msgs::Image> left_image_sub(nh, params_.rgb_img_topic_, 1);
   message_filters::Subscriber<sensor_msgs::Image> depth_image_sub(nh, params_.depth_img_topic_, 1);
   message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image> sync(left_image_sub, depth_image_sub, 10);
   sync.registerCallback(boost::bind(&SLAMNode::imageListener, this, _1, _2));
@@ -75,7 +75,7 @@ SLAMNode::SLAMNode(int argc, char** argv)
   map3D_features_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZRGB>>("/vineslam/map3D/SURF", 1);
   map3D_corners_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners", 1);
   map3D_planars_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planars", 1);
-  planes_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planes_local", 1);
+  planes_local_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/map3D/planes_local", 1);
   corners_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners_local", 1);
   planars_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planars_local", 1);
   pose_publisher_ = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/pose", 1);
@@ -131,17 +131,6 @@ SLAMNode::SLAMNode(int argc, char** argv)
   ROS_INFO("ROS shutting down...");
 }
 
-SLAMNode::~SLAMNode()
-{
-  // Save map data
-  bool save_map = params_.save_map_;
-
-  if (save_map)
-  {
-    std::cout << "Writing map to file ..." << std::endl;
-    MapWriter mw(params_);
-    mw.writeToFile(*grid_map_);
-  }
-}
+SLAMNode::~SLAMNode() = default;
 
 }  // namespace vineslam

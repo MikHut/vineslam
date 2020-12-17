@@ -5,13 +5,15 @@
 #include <deque>
 #include <eigen3/Eigen/Dense>
 
-#include "../params.hpp"
-#include "../feature/three_dimensional.hpp"
-#include "../mapping/occupancy_map.hpp"
-#include "../math/Point.hpp"
-#include "../math/Pose.hpp"
-#include "../math/Tf.hpp"
-#include "../math/const.hpp"
+#include <vineslam/params.hpp>
+#include <vineslam/feature/three_dimensional.hpp>
+#include <vineslam/mapping/occupancy_map.hpp>
+#include <vineslam/math/Point.hpp>
+#include <vineslam/math/Pose.hpp>
+#include <vineslam/math/Tf.hpp>
+#include <vineslam/math/const.hpp>
+#include <vineslam/filters/ransac.hpp>
+#include <vineslam/filters/convex_hull.hpp>
 
 namespace vineslam
 {
@@ -47,15 +49,15 @@ public:
   // parameters
   explicit LidarMapper(const Parameters& params);
 
-  void registerMaps(const Pose& robot_pose, std::vector<Corner>& corners, std::vector<Planar>& planars,
-                    std::vector<Plane>& planes, OccupancyMap& grid_map);
+  static void registerMaps(const Pose& robot_pose, std::vector<Corner>& corners, std::vector<Planar>& planars,
+                    std::vector<SemiPlane>& planes, OccupancyMap& grid_map);
 
   // -------------------------------------------------------------------------------
   // ---- 3D pointcloud feature map
   // -------------------------------------------------------------------------------
   // Builds local map given the current 3D point cloud - for velodyne
   void localMap(const std::vector<Point>& pcl, std::vector<Corner>& out_corners, std::vector<Planar>& out_planars,
-                std::vector<Plane>& out_planes, Plane& out_groundplane);
+                std::vector<SemiPlane>& out_planes, SemiPlane& out_groundplane);
   void setVel2Base(const float& x, const float& y, const float& z, const float& roll, const float& pitch,
                    const float& yaw)
   {
@@ -75,9 +77,11 @@ private:
   // ---- 3D pointcloud feature map
   // -------------------------------------------------------------------------------
   // Adds the corner features to the global map
-  void globalCornerMap(const Pose& robot_pose, std::vector<Corner>& corners, OccupancyMap& grid_map) const;
+  static void globalCornerMap(const Pose& robot_pose, std::vector<Corner>& corners, OccupancyMap& grid_map) ;
   // Adds the planar features to the global map
-  void globalPlanarMap(const Pose& robot_pose, std::vector<Planar>& planars, OccupancyMap& grid_map) const;
+  static void globalPlanarMap(const Pose& robot_pose, std::vector<Planar>& planars, OccupancyMap& grid_map) ;
+  // Adds the plane features to the global map
+  static void globalPlaneMap(const Pose& robot_pose, std::vector<SemiPlane>& planes, OccupancyMap& grid_map) ;
 
   // Method to reset all the global variables and members
   void reset();
@@ -93,7 +97,7 @@ private:
   void labelComponents(const int& row, const int& col, const std::vector<Point>& in_pts, int& label);
 
   // Extract the couple of vegetation side planes
-  static void extractHighLevelPlanes(const std::vector<PlanePoint>& in_plane_pts, std::vector<Plane>& out_planes);
+  static void extractHighLevelPlanes(const std::vector<PlanePoint>& in_plane_pts, std::vector<SemiPlane>& out_planes);
 
   // 3D feature extraction from a point cloud
   void extractFeatures(const std::vector<PlanePoint>& in_plane_pts, std::vector<Corner>& out_corners,

@@ -57,6 +57,23 @@ public:
     z_ = tmp.z_ / tmp.norm();
   }
 
+  // Norm of a vector
+  float norm()
+  {
+    return std::sqrt(x_ * x_ + y_ * y_ + z_ * z_);
+  }
+
+  // Multiplication by homogeneous transformation
+  Vec operator*(const Tf& tf) const
+  {
+    Vec res;
+    res.x_ = x_ * tf.R_array_[0] + y_ * tf.R_array_[1] + z_ * tf.R_array_[2] + tf.t_array_[0];
+    res.y_ = x_ * tf.R_array_[3] + y_ * tf.R_array_[4] + z_ * tf.R_array_[5] + tf.t_array_[1];
+    res.z_ = x_ * tf.R_array_[6] + y_ * tf.R_array_[7] + z_ * tf.R_array_[8] + tf.t_array_[2];
+
+    return res;
+  }
+
   // Rotation matrix from that aligns this vector with another
   // Source: https://math.stackexchange.com/a/897677
   std::array<float, 9> rotation(Vec v)
@@ -109,11 +126,6 @@ public:
     return S;
   }
 
-  // Norm of a vector
-  float norm()
-  {
-    return std::sqrt(x_ * x_ + y_ * y_ + z_ * z_);
-  }
 
 private:
 };

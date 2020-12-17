@@ -16,4 +16,10 @@ static float normalizeAngle(const float& angle)
   return std::atan2(std::sin(angle), std::cos(angle));
 }
 
+// Check if two floats are equal
+static bool isEqual(const float& f1, const float& f2)
+{
+  return (std::fabs(f1 - f2) < 1e-8);
+}
+
 }  // namespace vineslam

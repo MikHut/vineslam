@@ -20,33 +20,33 @@ public:
   Cell() = default;
 
   // Inserts a landmark with a given id
-  void insert(const int& id, const SemanticFeature& m_landmark)
+  void insert(const int& id, const SemanticFeature& l_landmark)
   {
-    landmarks_[id] = m_landmark;
+    landmarks_[id] = l_landmark;
   }
 
   // Inserts a image feature in the features array
-  void insert(const ImageFeature& m_feature)
+  void insert(const ImageFeature& l_feature)
   {
-    surf_features_.push_back(m_feature);
+    surf_features_.push_back(l_feature);
   }
 
   // Inserts a corner feature in the features array
-  void insert(const Corner& m_feature)
+  void insert(const Corner& l_feature)
   {
-    corner_features_.push_back(m_feature);
+    corner_features_.push_back(l_feature);
   }
 
   // Inserts a planar feature in the features array
-  void insert(const Planar& m_feature)
+  void insert(const Planar& l_feature)
   {
-    planar_features_.push_back(m_feature);
+    planar_features_.push_back(l_feature);
   }
 
   // Inserts a point in the points array
-  void insert(const Point& m_point)
+  void insert(const Point& l_point)
   {
-    points_.push_back(m_point);
+    points_.push_back(l_point);
   }
 
   // List of landmarks, features, and points at each cell
@@ -89,9 +89,9 @@ public:
 
     // Compute indexes having into account that grid map considers negative values
     // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
-    int m_i = i - static_cast<int>(std::round(origin_.x_ / resolution_ + .49));
-    int m_j = j - static_cast<int>(std::round(origin_.y_ / resolution_ + .49));
-    int idx = m_i + m_j * static_cast<int>(std::round(width_ / resolution_ + .49));
+    int l_i = i - static_cast<int>(std::round(origin_.x_ / resolution_ + .49));
+    int l_j = j - static_cast<int>(std::round(origin_.y_ / resolution_ + .49));
+    int idx = l_i + l_j * static_cast<int>(std::round(width_ / resolution_ + .49));
 
     return cell_vec_[idx];
   }
@@ -100,10 +100,10 @@ public:
   Cell& operator()(float i, float j)
   {
     // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
-    int m_i = static_cast<int>(std::round(i / resolution_ + .49));
-    int m_j = static_cast<int>(std::round(j / resolution_ + .49));
+    int l_i = static_cast<int>(std::round(i / resolution_ + .49));
+    int l_j = static_cast<int>(std::round(j / resolution_ + .49));
 
-    return (*this)(m_i, m_j);
+    return (*this)(l_i, l_j);
   }
 
   // Check out of bounds indexing
@@ -111,9 +111,9 @@ public:
   {
     // Compute indexes having into account that grid map considers negative values
     // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
-    int m_i = i - static_cast<int>(std::round(origin_.x_ / resolution_ + .49));
-    int m_j = j - static_cast<int>(std::round(origin_.y_ / resolution_ + .49));
-    int index = m_i + (m_j * static_cast<int>(std::round(width_ / resolution_ + .49)));
+    int l_i = i - static_cast<int>(std::round(origin_.x_ / resolution_ + .49));
+    int l_j = j - static_cast<int>(std::round(origin_.y_ / resolution_ + .49));
+    int index = l_i + (l_j * static_cast<int>(std::round(width_ / resolution_ + .49)));
 
     // Trough exception if out of bounds indexing
     if (index >= cell_vec_.size() - 1 || index < 0)
@@ -133,30 +133,30 @@ public:
   }
 
   // Insert a Landmark using the direct grid coordinates
-  bool insert(const SemanticFeature& m_landmark, const int& id, const int& i, const int& j);
+  bool insert(const SemanticFeature& l_landmark, const int& id, const int& i, const int& j);
 
   // Insert a Landmark given a Feature/Landmark location
-  bool insert(const SemanticFeature& m_landmark, const int& id);
+  bool insert(const SemanticFeature& l_landmark, const int& id);
 
   // Insert a Image Feature using the direct grid coordinates
-  bool insert(const ImageFeature& m_feature, const int& i, const int& j);
+  bool insert(const ImageFeature& l_feature, const int& i, const int& j);
   // Insert a Image Feature given a Feature/Landmark location
-  bool insert(const ImageFeature& m_feature);
+  bool insert(const ImageFeature& l_feature);
 
   // Insert a Image Feature using the direct grid coordinates
-  bool insert(const Corner& m_feature, const int& i, const int& j);
+  bool insert(const Corner& l_feature, const int& i, const int& j);
   // Insert a Image Feature given a Feature/Landmark location
-  bool insert(const Corner& m_feature);
+  bool insert(const Corner& l_feature);
 
   // Insert a Image Feature using the direct grid coordinates
-  bool insert(const Planar& m_feature, const int& i, const int& j);
+  bool insert(const Planar& l_feature, const int& i, const int& j);
   // Insert a Image Feature given a Feature/Landmark location
-  bool insert(const Planar& m_feature);
+  bool insert(const Planar& l_feature);
 
   // Insert a point using the direct grid coordinates
-  bool insert(const Point& m_point, const int& i, const int& j);
+  bool insert(const Point& l_point, const int& i, const int& j);
   // Insert a point given a its location
-  bool insert(const Point& m_point);
+  bool insert(const Point& l_point);
 
   // Since Landmark map is built with a KF, Landmarks position change in each
   // iteration. This routine updates the position of a given Landmark
@@ -213,6 +213,15 @@ public:
         out_planars.push_back(planar);
 
     return out_planars;
+  }
+  std::vector<ImageFeature> getImageFeatures() const
+  {
+    std::vector<ImageFeature> out_surf_features;
+    for (const auto& i : surf_set_)
+      for (const auto& img_feature : cell_vec_[i].surf_features_)
+        out_surf_features.push_back(img_feature);
+
+    return out_surf_features;
   }
 
   // Returns true if the map has no features or landmarks
@@ -309,19 +318,19 @@ public:
   }
 
   // Insert a Landmark given a Feature/Landmark location
-  bool insert(const SemanticFeature& m_landmark, const int& id);
+  bool insert(const SemanticFeature& l_landmark, const int& id);
 
   // Insert a Image Feature given a Feature/Landmark location
-  bool insert(const ImageFeature& m_feature);
+  bool insert(const ImageFeature& l_feature);
 
   // Insert a corner given a Feature/Landmark location
-  bool insert(const Corner& m_feature);
+  bool insert(const Corner& l_feature);
 
   // Insert a planar feature given a Feature/Landmark location
-  bool insert(const Planar& m_feature);
+  bool insert(const Planar& l_feature);
 
   // Insert a point given a its location
-  bool insert(const Point& m_point);
+  bool insert(const Point& l_point);
 
   // Downsamples the corner map
   void downsampleCorners();
@@ -366,8 +375,8 @@ public:
     std::vector<Corner> out_corners;
     for (const auto& layer : layers_map_)
     {
-      std::vector<Corner> m_corners = layer.second.getCorners();
-      out_corners.insert(out_corners.end(), m_corners.begin(), m_corners.end());
+      std::vector<Corner> l_corners = layer.second.getCorners();
+      out_corners.insert(out_corners.end(), l_corners.begin(), l_corners.end());
     }
 
     return out_corners;
@@ -377,11 +386,22 @@ public:
     std::vector<Planar> out_planars;
     for (const auto& layer : layers_map_)
     {
-      std::vector<Planar> m_planars = layer.second.getPlanars();
-      out_planars.insert(out_planars.end(), m_planars.begin(), m_planars.end());
+      std::vector<Planar> l_planars = layer.second.getPlanars();
+      out_planars.insert(out_planars.end(), l_planars.begin(), l_planars.end());
     }
 
     return out_planars;
+  }
+  std::vector<ImageFeature> getImageFeatures()
+  {
+    std::vector<ImageFeature> out_surf_features;
+    for (const auto& layer : layers_map_)
+    {
+      std::vector<ImageFeature> l_surf_features = layer.second.getImageFeatures();
+      out_surf_features.insert(out_surf_features.end(), l_surf_features.begin(), l_surf_features.end());
+    }
+
+    return out_surf_features;
   }
 
   // Returns true is none layer has features/landmarks
@@ -410,6 +430,9 @@ public:
   float resolution_z_;
   int zmin_;
   int zmax_;
+
+  // Global planes handler
+  std::vector<SemiPlane> planes_;
 
 private:
   // Private grid map to store all the individual layers

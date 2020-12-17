@@ -34,9 +34,14 @@ MappingNode::MappingNode(int argc, char** argv)
   // Publish maps and particle filter
   map3D_corners_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners", 1);
   map3D_planars_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planars", 1);
-  planes_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planes_local", 1);
+  map3D_planes_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/map3D/planes", 1);
+  planes_local_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/map3D/planes_local", 1);
   corners_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners_local", 1);
   planars_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planars_local", 1);
+
+  // ROS services
+  ros::ServiceServer save_map_srv =
+      nh.advertiseService("save_map", &VineSLAM_ros::saveMap, dynamic_cast<VineSLAM_ros*>(this));
 
   // Get static sensor tfs
   tfScalar roll, pitch, yaw;
@@ -63,15 +68,13 @@ MappingNode::MappingNode(int argc, char** argv)
   ROS_INFO("ROS shutting down...");
 }
 
-MappingNode::~MappingNode()
-{
-}
+MappingNode::~MappingNode() = default;
 
 void MappingNode::loop()
 {
   // Reset information flags
-  input_data.received_scans_ = false;
-  input_data.received_odometry_ = false;
+  input_data_.received_scans_ = false;
+  input_data_.received_odometry_ = false;
 
   while (ros::ok())
   {
@@ -82,7 +85,7 @@ void MappingNode::loop()
 void MappingNode::loopOnce()
 {
   // Check if we have all the necessary data
-  bool can_continue = input_data.received_scans_ && input_data.received_odometry_;
+  bool can_continue = input_data_.received_scans_ && input_data_.received_odometry_;
 
   if (!can_continue)
     return;
@@ -97,8 +100,8 @@ void MappingNode::loopOnce()
     process();
 
   // Reset information flags
-  input_data.received_scans_ = false;
-  input_data.received_odometry_ = false;
+  input_data_.received_scans_ = false;
+  input_data_.received_odometry_ = false;
 }
 
 void MappingNode::init()
@@ -111,14 +114,14 @@ void MappingNode::init()
   // ---------------------------------------------------------
   // ----- Initialize the multi-layer maps
   // ---------------------------------------------------------
-  std::vector<Corner> m_corners;
-  std::vector<Planar> m_planars;
-  std::vector<Plane> m_planes;
-  Plane m_ground_plane;
-  lid_mapper_->localMap(input_data.scan_pts_, m_corners, m_planars, m_planes, m_ground_plane);
+  std::vector<Corner> l_corners;
+  std::vector<Planar> l_planars;
+  std::vector<SemiPlane> l_planes;
+  SemiPlane l_ground_plane;
+  lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
 
   // - Register 3D maps
-  lid_mapper_->registerMaps(input_data.wheel_odom_pose_, m_corners, m_planars, m_planes, *grid_map_);
+  lid_mapper_->registerMaps(input_data_.wheel_odom_pose_, l_corners, l_planars, l_planes, *grid_map_);
   grid_map_->downsamplePlanars();
 
   ROS_INFO("Mapping with known poses has started.");
@@ -135,16 +138,16 @@ void MappingNode::process()
   // ---------------------------------------------------------
   // ----- Build local maps to use in the localization
   // ---------------------------------------------------------
-  std::vector<Corner> m_corners;
-  std::vector<Planar> m_planars;
-  std::vector<Plane> m_planes;
-  Plane m_ground_plane;
-  lid_mapper_->localMap(input_data.scan_pts_, m_corners, m_planars, m_planes, m_ground_plane);
+  std::vector<Corner> l_corners;
+  std::vector<Planar> l_planars;
+  std::vector<SemiPlane> l_planes;
+  SemiPlane l_ground_plane;
+  lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
 
   // ---------------------------------------------------------
   // ----- Register multi-layer map (if performing SLAM)
   // ---------------------------------------------------------
-  lid_mapper_->registerMaps(input_data.wheel_odom_pose_, m_corners, m_planars, m_planes, *grid_map_);
+  lid_mapper_->registerMaps(input_data_.wheel_odom_pose_, l_corners, l_planars, l_planes, *grid_map_);
   grid_map_->downsamplePlanars();
 
   // ---------------------------------------------------------
@@ -158,12 +161,11 @@ void MappingNode::process()
 
   // Publish 3D maps
   publish3DMap();
-  publish3DMap(m_corners, corners_local_publisher_);
-  publish3DMap(m_planars, planars_local_publisher_);
-  std::vector<Plane> planes = { m_ground_plane };
-  for (const auto& plane : m_planes)
+  publish3DMap(l_corners, corners_local_publisher_);
+  publish3DMap(l_planars, planars_local_publisher_);
+  std::vector<Plane> planes = { l_ground_plane };
+  for (const auto& plane : l_planes)
     planes.push_back(plane);
-  publish3DMap(planes, planes_local_publisher_);
 }
 
 }  // namespace vineslam

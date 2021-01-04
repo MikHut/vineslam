@@ -82,6 +82,12 @@ public:
       return false;
     }
 
+    if (n_iters == max_iters_)
+    {
+      std::cout << "WANRING ICP::aling: Scan matcher failed - it did not converge..." << std::endl;
+      return false;
+    }
+
     // Save homogeneous transformation solution
     eigToStd(Rot, R_array_);
     eigToStd(trans, t_array_);

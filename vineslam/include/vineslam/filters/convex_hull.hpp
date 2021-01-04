@@ -34,15 +34,16 @@ static bool convexHull(const Plane& plane, SemiPlane& semi_plane)
   // ----- Get local plane reference frame transformation matrix
   // ------------------------------------------------------------------
   Tf plane_ref = plane.local_ref_;
+  Tf plane_ref_inv = plane_ref.inverse();
 
   // ------------------------------------------------------------------
   // ----- Transform plane points to the local reference frame
   // ------------------------------------------------------------------
   int n = plane.points_.size();
-  Point l_pts[n];
+  std::vector<Point> l_pts(n);
   for (int k = 0; k < n; k++)
   {
-    Point l_pt = plane.points_[k] * plane_ref.inverse();
+    Point l_pt = plane.points_[k] * plane_ref_inv;
     l_pts[k] = l_pt;
   }
 

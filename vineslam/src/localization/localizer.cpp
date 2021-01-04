@@ -25,7 +25,7 @@ void Localizer::init(const Pose& initial_pose)
   init_flag_ = true;
 }
 
-void Localizer::process(const Pose& odom, const Observation& obsv, OccupancyMap* previous_map, OccupancyMap* grid_map)
+void Localizer::process(const Pose& wheel_odom_inc, const Observation& obsv, OccupancyMap* previous_map, OccupancyMap* grid_map)
 {
   auto before = std::chrono::high_resolution_clock::now();
   // Resets
@@ -35,7 +35,18 @@ void Localizer::process(const Pose& odom, const Observation& obsv, OccupancyMap*
   // ---------------- Compute LiDAR odometry to predict the robot motion
   // ------------------------------------------------------------------------------
   Tf tf;
-  predictMotion(obsv.planars, previous_map, tf);
+  if (params_.use_wheel_odometry_)
+  {
+    Tf initial_guess;
+    wheel_odom_inc.toRotMatrix(initial_guess.R_array_);
+    initial_guess.t_array_ = { wheel_odom_inc.x_, wheel_odom_inc.y_, wheel_odom_inc.z_ };
+    predictMotion(initial_guess, obsv.planars, previous_map, tf);
+  }
+  else
+  {
+    Tf initial_guess = Tf::unitary();
+    predictMotion(initial_guess, obsv.planars, previous_map, tf);
+  }
   Pose odom_inc(tf.R_array_, tf.t_array_);
   odom_inc.normalize();
 
@@ -80,13 +91,6 @@ void Localizer::process(const Pose& odom, const Observation& obsv, OccupancyMap*
   for (const auto& particle : pf_->particles_)
     poses.push_back(particle.p_);
   average_pose_ = Pose(poses);
-  //  float w_max = 0;
-  //  for (const auto& particle : pf_->particles_) {
-  //    if (particle.w_ > w_max){
-  //      w_max = particle.w_;
-  //      average_pose_ = particle.p_;
-  //    }
-  //  }
 
   // - Save current control to use in the next iteration
   p_odom_ = icp_odom;
@@ -126,7 +130,8 @@ void Localizer::changeObservationsToUse(const bool& use_semantic_features, const
   pf_->use_gps_ = use_gps;
 }
 
-void Localizer::predictMotion(const std::vector<Planar>& planars, OccupancyMap* previous_map, Tf& result)
+void Localizer::predictMotion(const Tf& initial_guess, const std::vector<Planar>& planars, OccupancyMap* previous_map,
+                              Tf& result)
 {
   // -------------------------------------------------------------------------------
   // ----- Planar features ICP
@@ -143,13 +148,13 @@ void Localizer::predictMotion(const std::vector<Planar>& planars, OccupancyMap* 
   // - Compute ICP
   float rms_error;
   std::vector<Planar> aligned;
-  if(planar_icp.align(rms_error, aligned))
+  if (planar_icp.align(rms_error, aligned))
   {
     planar_icp.getTransform(result);
   }
   else
   {
-    result = Tf::unitary();
+    result = initial_guess;
   }
 
   std::vector<float> errors;

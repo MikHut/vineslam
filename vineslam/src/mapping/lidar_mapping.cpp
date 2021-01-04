@@ -376,7 +376,6 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, std::vector<SemiPlane>&
     estimateNormal(l_plane.points_, l_plane.a_, l_plane.b_, l_plane.c_, l_plane.d_);  // Convert plane normal
     l_plane.setLocalRefFrame();
 
-    std::cout << "Started loop .... \n";
     bool found = false;
     for (auto& g_plane : grid_map.planes_)
     {
@@ -413,7 +412,6 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, std::vector<SemiPlane>&
       // Compute the intersection semi plane area
       isct.setArea();
 
-      std::cout << "Area is " << isct.area_ << std::endl;
       if (isct.area_ > ov_area)
       {
         // --------------------------------
@@ -433,8 +431,6 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, std::vector<SemiPlane>&
         l_delta_rot.R_ = std::min(std::fabs(l_delta_rot.R_), static_cast<float>(M_PI) - std::fabs(l_delta_rot.R_));
         l_delta_rot.P_ = std::min(std::fabs(l_delta_rot.P_), static_cast<float>(M_PI) - std::fabs(l_delta_rot.P_));
         l_delta_rot.Y_ = std::min(std::fabs(l_delta_rot.Y_), static_cast<float>(M_PI) - std::fabs(l_delta_rot.Y_));
-        std::cout << "Passed area normal is " << l_delta_rot.R_ * RAD_TO_DEGREE << ", "
-                  << l_delta_rot.P_ * RAD_TO_DEGREE << ", " << l_delta_rot.Y_ * RAD_TO_DEGREE << "\n";
 
         // Check if normal vectors match
         if (std::fabs(l_delta_rot.R_) < std::fabs(delta_rot.R_) &&
@@ -444,16 +440,12 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, std::vector<SemiPlane>&
           // (C) - Compute local plane centroid distance to global plane
           // --------------------------------
           float l_point2plane = g_plane.point2Plane(l_plane.centroid_);
-          std::cout << "Passed area and normal, centroid is " << l_point2plane << "\n";
           if (l_point2plane < point2plane)
           {
             // We found a correspondence, so, we must save the correspondence deltas
             delta_rot = l_delta_rot;
             point2plane = l_point2plane;
             ov_area = isct.area_;
-
-            std::cout << "FOUND CORRESPONDENCE: area = " << ov_area << ", centroid = " << point2plane
-                      << ", rot = " << l_delta_rot << "\n";
 
             // Save the correspondence semi-plane
             correspondence = &g_plane;

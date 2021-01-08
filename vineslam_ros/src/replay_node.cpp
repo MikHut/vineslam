@@ -161,6 +161,16 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
 
   ROS_INFO("Reading ROSBAG topics...");
 
+  int num_obsv = 1;  // tf
+  if (params_.use_wheel_odometry_)
+    num_obsv++;
+  if (params_.use_image_features_)
+    num_obsv += 2;
+  if (params_.use_lidar_features_)
+    num_obsv++;
+  if (params_.use_gps_)
+    num_obsv++;
+
   bool tf_bool = false, odom_bool = false, fix_bool = false, depth_bool = false, left_bool = false, pcl_bool = false;
   for (rosbag::MessageInstance m : rosbag::View(bag))
   {
@@ -244,9 +254,11 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
       }
     }
 
-    nmessages_ = tf_bool + odom_bool + fix_bool + depth_bool + left_bool + pcl_bool;
+    nmessages_ = tf_bool + (odom_bool && params_.use_wheel_odometry_) + (fix_bool && params_.use_gps_) +
+                 (depth_bool && params_.use_image_features_) + (left_bool && params_.use_image_features_) +
+                 (pcl_bool && params_.use_lidar_features_);
 
-    if (nmessages_ == 6)
+    if (nmessages_ == num_obsv)
     {
       // Save data to use on debug procedure
       if (!init_flag_)
@@ -256,9 +268,18 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
         debug_grid_map_ = grid_map_;
       }
 
-      _imageListener(left_img, depth_img_ptr);
-      scanListener(pcl_ptr);
-      odomListener(odom_ptr);
+      if (params_.use_image_features_)
+      {
+        _imageListener(left_img, depth_img_ptr);
+      }
+      if (params_.use_lidar_features_)
+      {
+        scanListener(pcl_ptr);
+      }
+      if (params_.use_wheel_odometry_)
+      {
+        odomListener(odom_ptr);
+      }
       // TODO (Andre Aguiar): GPS and landmarks should be supported in the future
       // landmarkListener(dets);
       // gpsListener(fix_ptr);

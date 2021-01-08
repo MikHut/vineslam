@@ -347,8 +347,10 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* gr
 
 void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* grid_map, std::vector<float>& ws)
 {
-  float sigma_plane_matching = 3 * DEGREE_TO_RAD;
-  float normalizer_plane = static_cast<float>(1.) / (sigma_plane_matching * std::sqrt(M_2PI));
+  float sigma_plane_matching_angular = 3 * DEGREE_TO_RAD;
+  float sigma_plane_matching_spatial = 0.1;
+  float normalizer_plane_angular = static_cast<float>(1.) / (sigma_plane_matching_angular * std::sqrt(M_2PI));
+  float normalizer_plane_spatial = static_cast<float>(1.) / (sigma_plane_matching_angular * std::sqrt(M_2PI));
 
   // Loop over all particles
   for (const auto& particle : particles_)
@@ -481,14 +483,15 @@ void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* g
 
       if (found)
       {
-        w_planes +=
-            ((normalizer_plane * static_cast<float>(std::exp((-1. / sigma_plane_matching) * correspondence_pose.R_))) *
-             (normalizer_plane * static_cast<float>(std::exp((-1. / sigma_plane_matching) * correspondence_pose.P_))));
-        //        w_planes += (1 / correspondence_pose.R_ + 1 / correspondence_pose.P_);
+        w_planes += ((normalizer_plane_angular *
+                      static_cast<float>(std::exp((-1. / sigma_plane_matching_angular) * correspondence_pose.R_))) *
+                     (normalizer_plane_angular *
+                      static_cast<float>(std::exp((-1. / sigma_plane_matching_angular) * correspondence_pose.P_))));// *
+//                     (normalizer_plane_spatial *
+//                      static_cast<float>(std::exp((-1. / sigma_plane_matching_spatial) * correspondence_dist))));
       }
     }
 
-    std::cout << particle.id_ << " - " << w_planes << "\n";
     ws[particle.id_] = w_planes;
   }
 }
@@ -807,9 +810,7 @@ void PF::scanMatch(const std::vector<ImageFeature>& features, OccupancyMap* grid
     }
     else
     {
-      final_tf.R_array_ = std::array<float, 9>{ 1., 0., 0., 0., 1., 0., 0., 0., 1. };
-      final_tf.t_array_ = std::array<float, 3>{ 0., 0., 0. };
-
+      final_tf = Tf::unitary();
       ws[it.first] = 0.;
     }
 

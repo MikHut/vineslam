@@ -43,9 +43,9 @@ public:
 
   // Global function that handles all the localization process
   // Arguments:
-  // - odom:      odometry pose
-  // - obsv:      current multi-layer mapping observation
-  // - grid_map:  occupancy grid map that encodes the multi-layer map information
+  // - wheel_odom_inc: odometry incremental pose
+  // - obsv:           current multi-layer mapping observation
+  // - grid_map:       occupancy grid map that encodes the multi-layer map information
   void process(const Pose& odom, const Observation& obsv, OccupancyMap* previous_map, OccupancyMap* grid_map);
 
   // Export the final pose resultant from the localization procedure
@@ -59,9 +59,7 @@ public:
                                const bool& use_image_features, const bool& use_gps);
 
   // LiDAR odometry implementation
-  void predictMotion(const std::vector<Planar>& planars, OccupancyMap* previous_map, Tf& result);
-  // Camera stereo odometry implementation
-  void predictMotion(const std::vector<ImageFeature>& corners, OccupancyMap* previous_map, Tf& result);
+  void predictMotion(const Tf& initial_guess, const std::vector<Planar>& planars, OccupancyMap* previous_map, Tf& result);
 
   // Localization logs
   std::string logs_;

@@ -633,41 +633,54 @@ bool MapLayer::findNearest(const ImageFeature& input, ImageFeature& nearest, flo
           continue;
       }
 
-      // ------- Use feature descriptor to find correspondences
+      //      // ------- Use feature descriptor to find correspondences
+      //      // ------- Grid map is used to limit the search space
+      //      for (const auto& feature : (*this)(l_i, l_j).surf_features_)
+      //      {
+      //        std::vector<float> desc = input.signature_;
+      //        std::vector<float> l_desc = feature.signature_;
+      //
+      //        // Check validity of descriptors data
+      //        if (desc.size() != l_desc.size())
+      //        {
+      //          std::cout << "WARNING (findNearest): source and target descriptors have "
+      //                       "different size ... "
+      //                    << std::endl;
+      //          break;
+      //        }
+      //
+      //        // Check if source and target features are of the same type
+      //        if (feature.laplacian_ != input.laplacian_)
+      //          continue;
+      //
+      //        // Found solution if there is any correspondence between features of the
+      //        // same type
+      //        found_solution = true;
+      //
+      //        float ssd = 0.;  // sum of square errors
+      //        for (size_t k = 0; k < desc.size(); k++)
+      //          ssd += (desc[k] - l_desc[k]) * (desc[k] - l_desc[k]);
+      //
+      //        // Update correspondence if we found a local minimum
+      //        if (ssd < ddist)
+      //        {
+      //          ddist = ssd;
+      //          nearest = feature;
+      //
+      //          sdist = input.pos_.distance(feature.pos_);
+      //        }
+      //      }
+      //      // ---------------------------------------------------------------------------
+
+      // ------- Use euclidean distance to find correspondences
       // ------- Grid map is used to limit the search space
       for (const auto& feature : (*this)(l_i, l_j).surf_features_)
       {
-        std::vector<float> desc = input.signature_;
-        std::vector<float> l_desc = feature.signature_;
-
-        // Check validity of descriptors data
-        if (desc.size() != l_desc.size())
+        float dist = input.pos_.distance(feature.pos_);
+        if (dist < sdist)
         {
-          std::cout << "WARNING (findNearest): source and target descriptors have "
-                       "different size ... "
-                    << std::endl;
-          break;
-        }
-
-        // Check if source and target features are of the same type
-        if (feature.laplacian_ != input.laplacian_)
-          continue;
-
-        // Found solution if there is any correspondence between features of the
-        // same type
-        found_solution = true;
-
-        float ssd = 0.;  // sum of square errors
-        for (size_t k = 0; k < desc.size(); k++)
-          ssd += (desc[k] - l_desc[k]) * (desc[k] - l_desc[k]);
-
-        // Update correspondence if we found a local minimum
-        if (ssd < ddist)
-        {
-          ddist = ssd;
+          sdist = dist;
           nearest = feature;
-
-          sdist = input.pos_.distance(feature.pos_);
         }
       }
       // ---------------------------------------------------------------------------

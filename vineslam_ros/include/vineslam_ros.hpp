@@ -106,6 +106,8 @@ public:
   static void publish3DMap(const Pose& r_pose, const std::vector<Planar>& planars, const ros::Publisher& pub);
   // Publish the grid map that contains all the maps
   void publishGridMap(const std_msgs::Header& header) const;
+  // Publishes a VineSLAM state report for debug purposes
+  void publishReport() const;
 
   // GNSS heading estimator
   bool getGNSSHeading(const Pose& gps_odom, const std_msgs::Header& header);
@@ -125,6 +127,8 @@ public:
     cv::Mat rgb_image_;
     // Wheel odometry pose
     Pose wheel_odom_pose_;
+    // Previous wheel odometry pose
+    Pose p_wheel_odom_pose_;
     // GNSS pose
     Pose gnss_pose_;
     // LiDAR scan points

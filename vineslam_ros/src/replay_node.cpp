@@ -237,7 +237,7 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
         left_img_pub.publish(*left_img_comp_ptr);
 
         // Decompress image
-        cv::Mat img_data(1, left_img_comp_ptr->data.size(), CV_8UC3);
+        cv::Mat img_data(1, left_img_comp_ptr->data.size(), CV_8U);
         img_data.data = const_cast<uchar*>(&left_img_comp_ptr->data[0]);
         cv::InputArray data(img_data);
         left_img = cv::imdecode(data, 1);

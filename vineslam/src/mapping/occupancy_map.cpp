@@ -672,6 +672,8 @@ bool MapLayer::findNearest(const ImageFeature& input, ImageFeature& nearest, flo
       //      }
       //      // ---------------------------------------------------------------------------
 
+      found_solution = found_solution | !(*this)(l_i, l_j).surf_features_.empty();
+
       // ------- Use euclidean distance to find correspondences
       // ------- Grid map is used to limit the search space
       for (const auto& feature : (*this)(l_i, l_j).surf_features_)
@@ -1308,6 +1310,48 @@ bool OccupancyMap::update(const Planar& old_planar, const Planar& new_planar)
 
 bool OccupancyMap::update(const ImageFeature& old_image_feature, const ImageFeature& new_image_feature)
 {
+  int old_layer_num = getLayerNumber(old_image_feature.pos_.z_);
+  int new_layer_num = getLayerNumber(new_image_feature.pos_.z_);
+
+  if (old_layer_num == new_layer_num)
+  {
+    return layers_map_[old_layer_num].update(old_image_feature, new_image_feature);
+  }
+  else
+  {
+    // Compute grid coordinates for the floating point old corner location
+    // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+    int l_i = static_cast<int>(std::round(old_image_feature.pos_.x_ / resolution_ + .49));
+    int l_j = static_cast<int>(std::round(old_image_feature.pos_.y_ / resolution_ + .49));
+
+    // Access cell of old corner
+    Cell l_cell = layers_map_[old_layer_num](l_i, l_j);
+    // Get all the corner in the given cell
+    std::vector<ImageFeature> l_image_features = l_cell.surf_features_;
+
+    // Find the corner and update it
+    for (size_t i = 0; i < l_image_features.size(); i++)
+    {
+      ImageFeature l_image_feature = l_image_features[i];
+
+      if (l_image_feature.pos_.x_ == old_image_feature.pos_.x_ && l_image_feature.pos_.y_ == old_image_feature.pos_.y_ &&
+          l_image_feature.pos_.z_ == old_image_feature.pos_.z_)
+      {
+        layers_map_[old_layer_num](l_i, l_j).surf_features_.erase(
+            layers_map_[old_layer_num](l_i, l_j).surf_features_.begin() + i);
+
+        insert(new_image_feature);
+
+        return true;
+      }
+    }
+  }
+
+  std::cout << "WARNING (OcuppancyMap::update): Trying to update an image feature that is "
+               "not on the map... "
+            << std::endl;
+  return false;
+
 }
 
 void OccupancyMap::downsampleCorners()

@@ -123,25 +123,25 @@ void VisualMapper::globalMap(const std::vector<ImageFeature>& features, const Po
     }
 
     // - Then, insert the image feature into the grid map
-    if (found)
-    {
-      Point new_pt = ((correspondence.pos_ * static_cast<float>(correspondence.n_observations_)) + m_pt) /
-                     static_cast<float>(correspondence.n_observations_ + 1);
-      ImageFeature new_image_feature(image_feature.u_, image_feature.v_, image_feature.r_, image_feature.g_,
-                                     image_feature.b_, new_pt);
-      new_image_feature.laplacian_ = image_feature.laplacian_;
-      new_image_feature.signature_ = image_feature.signature_;
-      new_image_feature.n_observations_ = correspondence.n_observations_++;
-      grid_map.update(correspondence, new_image_feature);
-    }
-    else
-    {
-      ImageFeature new_image_feature(image_feature.u_, image_feature.v_, image_feature.r_, image_feature.g_,
-                                     image_feature.b_, m_pt);
-      new_image_feature.laplacian_ = image_feature.laplacian_;
-      new_image_feature.signature_ = image_feature.signature_;
-      grid_map.insert(new_image_feature);
-    }
+    //    if (found)
+    //    {
+    //      Point new_pt = ((correspondence.pos_ * static_cast<float>(correspondence.n_observations_)) + m_pt) /
+    //                     static_cast<float>(correspondence.n_observations_ + 1);
+    //      ImageFeature new_image_feature(image_feature.u_, image_feature.v_, image_feature.r_, image_feature.g_,
+    //                                     image_feature.b_, new_pt);
+    //      new_image_feature.laplacian_ = image_feature.laplacian_;
+    //      new_image_feature.signature_ = image_feature.signature_;
+    //      new_image_feature.n_observations_ = correspondence.n_observations_++;
+    //      grid_map.update(correspondence, new_image_feature);
+    //    }
+    //    else
+    //    {
+    ImageFeature new_image_feature(image_feature.u_, image_feature.v_, image_feature.r_, image_feature.g_,
+                                   image_feature.b_, m_pt);
+    new_image_feature.laplacian_ = image_feature.laplacian_;
+    new_image_feature.signature_ = image_feature.signature_;
+    grid_map.insert(new_image_feature);
+    //    }
   }
 }
 

@@ -6,8 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(catkin REQUIRED)
 
-set("OpenCV_DIR" /usr/local/include/opencv2)
-find_package(OpenCV 3.2.0 REQUIRED)
+find_package(OpenCV 4.2.0 REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(PythonLibs 2.7)
 

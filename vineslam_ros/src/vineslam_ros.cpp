@@ -101,6 +101,7 @@ void VineSLAM_ros::init()
   localizer_->init(Pose(0, 0, 0, 0, 0, 0));
   robot_pose_ = localizer_->getPose();
   grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0));
+  elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
 
   // ---------------------------------------------------------
   // ----- Initialize the multi-layer maps
@@ -121,7 +122,6 @@ void VineSLAM_ros::init()
   if (params_.use_lidar_features_)
   {
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
-    l_planes = { l_ground_plane };
 
     // - Save local map for next iteration
     previous_map_->clear();
@@ -143,7 +143,7 @@ void VineSLAM_ros::init()
   {
     // - Register 3D maps
     vis_mapper_->registerMaps(robot_pose_, l_surf_features, *grid_map_);
-    lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, *grid_map_);
+    lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, l_ground_plane, *grid_map_, *elevation_map_);
     grid_map_->downsamplePlanars();
   }
 
@@ -176,8 +176,6 @@ void VineSLAM_ros::process()
   if (params_.use_lidar_features_)
   {
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
-    l_planes = { l_ground_plane };
-    //    l_planes.push_back(l_ground_plane);
   }
 
   // - Compute 3D image features on robot's referential frame
@@ -223,7 +221,7 @@ void VineSLAM_ros::process()
   {
     land_mapper_->process(robot_pose_, l_landmarks, input_data_.land_labels_, *grid_map_);
     vis_mapper_->registerMaps(robot_pose_, l_surf_features, *grid_map_);
-    lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, *grid_map_);
+    lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, l_ground_plane, *grid_map_, *elevation_map_);
     grid_map_->downsamplePlanars();
   }
 
@@ -284,6 +282,7 @@ void VineSLAM_ros::process()
   publish2DMap(robot_pose_, input_data_.land_bearings_, input_data_.land_depths_);
   // Publish 3D maps
   publish3DMap();
+  publishElevationMap();
   publish3DMap(l_corners, corners_local_publisher_);
   publish3DMap(l_planars, planars_local_publisher_);
   publish3DMap(l_planes, planes_local_publisher_);

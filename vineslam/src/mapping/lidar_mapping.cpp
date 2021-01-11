@@ -33,15 +33,30 @@ LidarMapper::LidarMapper(const Parameters& params)
   local_map_ = new OccupancyMap(local_map_params, Pose(0, 0, 0, 0, 0, 0));
 }
 
-void LidarMapper::registerMaps(const Pose& robot_pose, std::vector<Corner>& corners, std::vector<Planar>& planars,
-                               std::vector<SemiPlane>& planes, OccupancyMap& grid_map)
+void LidarMapper::registerMaps(const Pose& robot_pose, const std::vector<Corner>& corners,
+                               const std::vector<Planar>& planars, const std::vector<SemiPlane>& planes,
+                               const SemiPlane& ground, OccupancyMap& grid_map, ElevationMap& elevation_map)
 {
   // - 3D PCL corner map estimation
   globalCornerMap(robot_pose, corners, grid_map);
   // - 3D PCL planar map estimation
   globalPlanarMap(robot_pose, planars, grid_map);
   // - 3D PCL plane map estimation
-  globalPlaneMap(robot_pose, planes, grid_map);
+  globalPlaneMap(robot_pose, { ground }, grid_map);
+  // - Elevation map estimation
+  globalElevationMap(robot_pose, ground, elevation_map);
+}
+
+void LidarMapper::registerMaps(const Pose& robot_pose, const std::vector<Corner>& corners,
+                               const std::vector<Planar>& planars, const std::vector<SemiPlane>& planes,
+                               const SemiPlane& ground, OccupancyMap& grid_map)
+{
+  // - 3D PCL corner map estimation
+  globalCornerMap(robot_pose, corners, grid_map);
+  // - 3D PCL planar map estimation
+  globalPlanarMap(robot_pose, planars, grid_map);
+  // - 3D PCL plane map estimation
+  globalPlaneMap(robot_pose, { ground }, grid_map);
 }
 
 // -------------------------------------------------------------------------------
@@ -201,7 +216,7 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
   out_planars = local_map_->getPlanars();
 }
 
-void LidarMapper::globalCornerMap(const Pose& robot_pose, std::vector<Corner>& corners, OccupancyMap& grid_map)
+void LidarMapper::globalCornerMap(const Pose& robot_pose, const std::vector<Corner>& corners, OccupancyMap& grid_map)
 {
   // ----------------------------------------------------------------------------
   // ------ Convert robot pose into homogeneous transformation
@@ -262,7 +277,7 @@ void LidarMapper::globalCornerMap(const Pose& robot_pose, std::vector<Corner>& c
     grid_map.insert(corner);
 }
 
-void LidarMapper::globalPlanarMap(const Pose& robot_pose, std::vector<Planar>& planars, OccupancyMap& grid_map)
+void LidarMapper::globalPlanarMap(const Pose& robot_pose, const std::vector<Planar>& planars, OccupancyMap& grid_map)
 {
   // ----------------------------------------------------------------------------
   // ------ Convert robot pose into homogeneous transformation
@@ -323,7 +338,7 @@ void LidarMapper::globalPlanarMap(const Pose& robot_pose, std::vector<Planar>& p
     grid_map.insert(planar);
 }
 
-void LidarMapper::globalPlaneMap(const Pose& robot_pose, std::vector<SemiPlane>& planes, OccupancyMap& grid_map)
+void LidarMapper::globalPlaneMap(const Pose& robot_pose, const std::vector<SemiPlane>& planes, OccupancyMap& grid_map)
 {
   // ----------------------------------------------------------------------------
   // ------ Search for correspondences between local planes and global planes
@@ -434,7 +449,8 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, std::vector<SemiPlane>&
 
         // Check if normal vectors match
         if (std::fabs(l_delta_rot.R_) < std::fabs(delta_rot.R_) &&
-            std::fabs(l_delta_rot.P_) < std::fabs(delta_rot.P_)/* && std::fabs(l_delta_rot.Y_) < std::fabs(delta_rot.Y_)*/)
+            std::fabs(l_delta_rot.P_) <
+                std::fabs(delta_rot.P_) /* && std::fabs(l_delta_rot.Y_) < std::fabs(delta_rot.Y_)*/)
         {
           // --------------------------------
           // (C) - Compute local plane centroid distance to global plane
@@ -500,6 +516,26 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, std::vector<SemiPlane>&
   if (!new_planes.empty())
   {
     grid_map.planes_.insert(grid_map.planes_.end(), new_planes.begin(), new_planes.end());
+  }
+}
+
+void LidarMapper::globalElevationMap(const Pose& robot_pose, const Plane& ground_plane, ElevationMap& elevation_map)
+{
+  // ----------------------------------------------------------------------------
+  // ------ Convert robot pose into homogeneous transformation
+  // ----------------------------------------------------------------------------
+  std::array<float, 9> Rot{};
+  robot_pose.toRotMatrix(Rot);
+  std::array<float, 3> trans = { robot_pose.x_, robot_pose.y_, robot_pose.z_ };
+  Tf tf(Rot, trans);
+
+  // ----------------------------------------------------------------------------
+  // ------ Add new altemetry measures to the elevation map
+  // ----------------------------------------------------------------------------
+  for (const auto& pt : ground_plane.points_)
+  {
+    Point l_pt = pt * tf;
+    elevation_map.update(l_pt.z_, l_pt.x_, l_pt.y_);
   }
 }
 

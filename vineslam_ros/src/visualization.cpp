@@ -174,7 +174,62 @@ void VineSLAM_ros::publish2DMap(const Pose& pose, const std::vector<float>& bear
   map2D_publisher_.publish(ellipse_array);
 }
 
-void VineSLAM_ros::publish3DMap()
+void VineSLAM_ros::publishElevationMap() const
+{
+  visualization_msgs::MarkerArray elevation_map_marker;
+  visualization_msgs::Marker cube;
+
+  float min_height = -0.3;
+  float max_height = 0.3;
+
+  // Define marker layout
+  cube.ns = "/elevation_cube";
+  cube.header.stamp = ros::Time::now();
+  cube.header.frame_id = "map";
+  cube.type = visualization_msgs::Marker::CUBE;
+  cube.action = visualization_msgs::Marker::ADD;
+  cube.pose.orientation.x = 0.0;
+  cube.pose.orientation.y = 0.0;
+  cube.pose.orientation.z = 0.0;
+  cube.pose.orientation.w = 1.0;
+  cube.color.a = 1.0;
+  cube.lifetime = ros::Duration();
+
+  // Compute map layer bounds
+  float xmin = elevation_map_->origin_.x_;
+  float xmax = xmin + elevation_map_->width_;
+  float ymin = elevation_map_->origin_.y_;
+  float ymax = xmin + elevation_map_->lenght_;
+  std::cout << xmin << " , " << xmax << " | " << ymin << " , " << ymax << "\n";
+  for (float i = xmin; i < xmax - grid_map_->resolution_;)
+  {
+    for (float j = ymin; j < ymax - grid_map_->resolution_;)
+    {
+      geometry_msgs::Point l_pt;
+      l_pt.x = i;
+      l_pt.y = j;
+      l_pt.z = (*elevation_map_)(i, j);
+
+      float r, g, b;
+      float h = (1.0 - std::min(std::max((l_pt.z - min_height) / (max_height - min_height), 0.0), 1.0)) * 0.8;
+      vineslam::ElevationMap::color(h, r, g, b);
+
+      cube.color.r = r;
+      cube.color.r = g;
+      cube.color.r = b;
+      cube.id = elevation_map_marker.markers.size();
+
+      elevation_map_marker.markers.push_back(cube);
+
+      j += grid_map_->resolution_;
+    }
+    i += grid_map_->resolution_;
+  }
+
+  elevation_map_publisher_.publish(elevation_map_marker);
+}
+
+void VineSLAM_ros::publish3DMap() const
 {
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr feature_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
   pcl::PointCloud<pcl::PointXYZI>::Ptr corner_cloud(new pcl::PointCloud<pcl::PointXYZI>);

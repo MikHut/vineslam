@@ -7,6 +7,7 @@
 #include <vineslam/feature/three_dimensional.hpp>
 #include <vineslam/localization/localizer.hpp>
 #include <vineslam/mapping/occupancy_map.hpp>
+#include <vineslam/mapping/elevation_map.hpp>
 #include <vineslam/mapping/landmark_mapping.hpp>
 #include <vineslam/mapping/visual_mapping.hpp>
 #include <vineslam/mapping/lidar_mapping.hpp>
@@ -90,8 +91,10 @@ public:
 
   // Publish 2D semantic features map
   void publish2DMap(const Pose& pose, const std::vector<float>& bearings, const std::vector<float>& depths) const;
+  // Publish the elevation map
+  void publishElevationMap() const;
   // Publish the 3D maps
-  void publish3DMap();
+  void publish3DMap() const;
   // Publish the 3D PCL planes
   void publish3DMap(const std::vector<Plane>& planes, const ros::Publisher& pub);
   static void publish3DMap(const Pose& r_pose, const std::vector<Plane>& planes, const ros::Publisher& pub);
@@ -145,6 +148,7 @@ public:
   // ROS publishers/services
   ros::Publisher vineslam_report_publisher_;
   ros::Publisher grid_map_publisher_;
+  ros::Publisher elevation_map_publisher_;
   ros::Publisher map2D_publisher_;
   ros::Publisher map3D_features_publisher_;
   ros::Publisher map3D_corners_publisher_;
@@ -163,6 +167,7 @@ public:
   // Classes object members
   Parameters params_;
   Localizer* localizer_;
+  ElevationMap* elevation_map_;
   OccupancyMap* grid_map_;
   OccupancyMap* previous_map_;
   LandmarkMapper* land_mapper_;

@@ -44,7 +44,7 @@ bool MapLayer::insert(const SemanticFeature& l_landmark, const int& id, const in
   }
   catch (char const* msg)
   {
-    std::cout << msg;
+    std::cout << "MapLayer::insert(SemanticFeature) --- " << msg;
     return false;
   }
 
@@ -78,7 +78,7 @@ bool MapLayer::insert(const ImageFeature& l_feature, const int& i, const int& j)
   }
   catch (char const* msg)
   {
-    std::cout << msg;
+    std::cout << "MapLayer::insert(ImageFeature) --- " << msg;
     return false;
   }
 
@@ -112,7 +112,7 @@ bool MapLayer::insert(const Corner& l_feature, const int& i, const int& j)
   }
   catch (char const* msg)
   {
-    std::cout << msg;
+    std::cout << "MapLayer::insert(Corner) --- " << msg;
     return false;
   }
 
@@ -146,7 +146,7 @@ bool MapLayer::insert(const Planar& l_feature, const int& i, const int& j)
   }
   catch (char const* msg)
   {
-    std::cout << msg;
+    std::cout << "MapLayer::insert(Planar) --- " << msg;
     return false;
   }
 
@@ -180,7 +180,7 @@ bool MapLayer::insert(const Point& l_point, const int& i, const int& j)
   }
   catch (char const* msg)
   {
-    std::cout << msg;
+    std::cout << "MapLayer::insert(Point) --- " << msg;
     return false;
   }
 
@@ -395,7 +395,7 @@ bool MapLayer::getAdjacent(const int& i, const int& j, const int& layers, std::v
   }
   catch (char const* msg)
   {
-    std::cout << msg;
+    std::cout << "MapLayer::GetAdjacent() --- " << msg;
     return false;
   }
 
@@ -502,7 +502,7 @@ bool MapLayer::findNearest(const ImageFeature& input, ImageFeature& nearest, flo
           }
           catch (char const* msg)
           {
-            std::cout << msg;
+            std::cout << "MapLayer::findNearest(ImageFeature) --- " << msg;
             return false;
           }
 
@@ -744,7 +744,7 @@ bool MapLayer::findNearest(const Corner& input, Corner& nearest, float& sdist)
           }
           catch (char const* msg)
           {
-            std::cout << msg;
+            std::cout << "MapLayer::findNearest(Corner) --- " << msg;
             return false;
           }
 
@@ -951,7 +951,7 @@ bool MapLayer::findNearest(const Planar& input, Planar& nearest, float& sdist)
           }
           catch (char const* msg)
           {
-            std::cout << msg;
+            std::cout << "MapLayer::findNearest(Planar) --- " << msg;
             return false;
           }
 

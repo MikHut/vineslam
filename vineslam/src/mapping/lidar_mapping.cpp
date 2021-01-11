@@ -112,7 +112,7 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
       continue;
     }
 
-    if (range < 1.0 && range > 25.0)
+    if (/*range < 1.0 &&*/ range > 10.0)
     {
       continue;
     }

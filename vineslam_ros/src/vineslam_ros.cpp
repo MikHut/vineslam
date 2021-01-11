@@ -211,6 +211,7 @@ void VineSLAM_ros::process()
   // ----- Localization procedure
   // ---------------------------------------------------------
   Pose odom_inc = input_data_.wheel_odom_pose_ - input_data_.p_wheel_odom_pose_;
+  input_data_.p_wheel_odom_pose_ = input_data_.wheel_odom_pose_;
   odom_inc.normalize();
   localizer_->process(odom_inc, obsv_, previous_map_, grid_map_);
   robot_pose_ = localizer_->getPose();
@@ -294,7 +295,6 @@ void VineSLAM_ros::process()
   for (const auto& corner : l_corners)
     previous_map_->insert(corner);
   previous_map_->downsamplePlanars();
-  input_data_.p_wheel_odom_pose_ = input_data_.wheel_odom_pose_;
 }
 
 void VineSLAM_ros::imageListener(const sensor_msgs::ImageConstPtr& rgb_image,

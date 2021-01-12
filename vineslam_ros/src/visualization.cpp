@@ -211,6 +211,7 @@ void VineSLAM_ros::publishElevationMap() const
         continue;
       }
 
+
       float r, g, b;
       float h = (static_cast<float>(1) -
                  std::min(std::max((std::fabs(z) - min_height) / (max_height - min_height), static_cast<float>(0)),

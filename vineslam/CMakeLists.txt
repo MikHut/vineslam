@@ -1,10 +1,12 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(vineslam)
 
-add_compile_options(-std=c++11)
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 find_package(catkin REQUIRED)
 
-find_package(OpenCV 3.2.0 REQUIRED)
+find_package(OpenCV 4.2.0 REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(PythonLibs 2.7)
 

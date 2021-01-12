@@ -179,8 +179,8 @@ void VineSLAM_ros::publishElevationMap() const
   visualization_msgs::MarkerArray elevation_map_marker;
   visualization_msgs::Marker cube;
 
-  float min_height = -0.3;
-  float max_height = 0.3;
+  float min_height = -1.0;
+  float max_height = 1.0;
 
   // Define marker layout
   cube.ns = "/elevation_cube";
@@ -213,13 +213,13 @@ void VineSLAM_ros::publishElevationMap() const
 
       float r, g, b;
       float h = (static_cast<float>(1) -
-                 std::min(std::max((z - min_height) / (max_height - min_height), static_cast<float>(0)),
+                 std::min(std::max((std::fabs(z) - min_height) / (max_height - min_height), static_cast<float>(0)),
                           static_cast<float>(1)));
       vineslam::ElevationMap::color(h, r, g, b);
 
       cube.pose.position.x = i;
       cube.pose.position.y = j;
-      cube.pose.position.z = 0;
+      cube.pose.position.z = z / 2;
       cube.scale.x = elevation_map_->resolution_;
       cube.scale.y = elevation_map_->resolution_;
       cube.scale.z = z;

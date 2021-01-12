@@ -8,8 +8,6 @@
 #include <vector>
 #include <cmath>
 
-#define UNDEFINED_Z -M_PI
-
 namespace vineslam
 {
 class ElevationMap
@@ -82,9 +80,9 @@ public:
 
   // Grid map dimensions
   Point origin_;
-  float resolution_;
-  float width_;
-  float lenght_;
+  float resolution_{};
+  float width_{};
+  float lenght_{};
 
 private:
   // Private grid map to store all the cells

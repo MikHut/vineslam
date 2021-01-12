@@ -114,7 +114,7 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
              std::to_string(planars.size()) + ")\n";
 
     before = std::chrono::high_resolution_clock::now();
-    mediumLevelPlanes(planes, grid_map, ground_weights);
+    mediumLevelPlanes({ ground_plane }, grid_map, ground_weights);
     after = std::chrono::high_resolution_clock::now();
     duration = after - before;
     logs_ += "Time elapsed on PF - ground plane (msecs): " + std::to_string(duration.count()) + "\n";
@@ -483,12 +483,14 @@ void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* g
 
       if (found)
       {
-        w_planes += ((normalizer_plane_angular *
-                      static_cast<float>(std::exp((-1. / sigma_plane_matching_angular) * correspondence_pose.R_))) *
-                     (normalizer_plane_angular *
-                      static_cast<float>(std::exp((-1. / sigma_plane_matching_angular) * correspondence_pose.P_))));// *
-//                     (normalizer_plane_spatial *
-//                      static_cast<float>(std::exp((-1. / sigma_plane_matching_spatial) * correspondence_dist))));
+        w_planes +=
+            ((normalizer_plane_angular *
+              static_cast<float>(std::exp((-1. / sigma_plane_matching_angular) * correspondence_pose.R_))) *
+             (normalizer_plane_angular *
+              static_cast<float>(std::exp((-1. / sigma_plane_matching_angular) * correspondence_pose.P_))));  // *
+        //                     (normalizer_plane_spatial *
+        //                      static_cast<float>(std::exp((-1. / sigma_plane_matching_spatial) *
+        //                      correspondence_dist))));
       }
     }
 

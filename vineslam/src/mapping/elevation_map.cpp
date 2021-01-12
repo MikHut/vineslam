@@ -13,7 +13,7 @@ ElevationMap::ElevationMap(const Parameters& params, const Pose& origin_offset)
 
   // Set the grid map size
   int map_size = static_cast<int>(std::round((width_ / resolution_) * (lenght_ / resolution_)));
-  cell_vec_ = std::vector<float>(map_size, UNDEFINED_Z);
+  cell_vec_ = std::vector<float>(map_size, 0);
 }
 
 ElevationMap::ElevationMap(const ElevationMap& elevation_map)
@@ -37,7 +37,7 @@ bool ElevationMap::update(const float& z, const int& i, const int& j)
     return false;
   }
 
-  (*this)(i, j)  = (z > (*this)(i, j)) ? z : (*this)(i, j);
+  (*this)(i, j)  = (z > (*this)(i, j) || (*this)(i,j) == 0) ? z : (*this)(i, j);
 
   return true;
 }

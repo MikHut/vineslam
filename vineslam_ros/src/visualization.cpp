@@ -200,23 +200,32 @@ void VineSLAM_ros::publishElevationMap() const
   float xmax = xmin + elevation_map_->width_;
   float ymin = elevation_map_->origin_.y_;
   float ymax = xmin + elevation_map_->lenght_;
-  std::cout << xmin << " , " << xmax << " | " << ymin << " , " << ymax << "\n";
-  for (float i = xmin; i < xmax - grid_map_->resolution_;)
+  for (float i = xmin; i < xmax - elevation_map_->resolution_;)
   {
-    for (float j = ymin; j < ymax - grid_map_->resolution_;)
+    for (float j = ymin; j < ymax - elevation_map_->resolution_;)
     {
-      geometry_msgs::Point l_pt;
-      l_pt.x = i;
-      l_pt.y = j;
-      l_pt.z = (*elevation_map_)(i, j);
+      float z = (*elevation_map_)(i, j);
+      if (z == 0)
+      {
+        j += elevation_map_->resolution_;
+        continue;
+      }
 
       float r, g, b;
-      float h = (1.0 - std::min(std::max((l_pt.z - min_height) / (max_height - min_height), 0.0), 1.0)) * 0.8;
+      float h = (static_cast<float>(1) -
+                 std::min(std::max((z - min_height) / (max_height - min_height), static_cast<float>(0)),
+                          static_cast<float>(1)));
       vineslam::ElevationMap::color(h, r, g, b);
 
+      cube.pose.position.x = i;
+      cube.pose.position.y = j;
+      cube.pose.position.z = 0;
+      cube.scale.x = elevation_map_->resolution_;
+      cube.scale.y = elevation_map_->resolution_;
+      cube.scale.z = z;
       cube.color.r = r;
-      cube.color.r = g;
-      cube.color.r = b;
+      cube.color.g = g;
+      cube.color.b = b;
       cube.id = elevation_map_marker.markers.size();
 
       elevation_map_marker.markers.push_back(cube);

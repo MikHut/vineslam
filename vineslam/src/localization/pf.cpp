@@ -114,7 +114,8 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
              std::to_string(planars.size()) + ")\n";
 
     before = std::chrono::high_resolution_clock::now();
-    mediumLevelPlanes({ ground_plane }, grid_map, ground_weights);
+    mediumLevelPlanes({ground_plane}, grid_map, ground_weights);
+    mediumLevelPlanes(planes, grid_map, planes_weights);
     after = std::chrono::high_resolution_clock::now();
     duration = after - before;
     logs_ += "Time elapsed on PF - ground plane (msecs): " + std::to_string(duration.count()) + "\n";
@@ -347,10 +348,8 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* gr
 
 void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* grid_map, std::vector<float>& ws)
 {
-  float sigma_plane_matching_angular = 3 * DEGREE_TO_RAD;
-  float sigma_plane_matching_spatial = 0.1;
-  float normalizer_plane_angular = static_cast<float>(1.) / (sigma_plane_matching_angular * std::sqrt(M_2PI));
-  float normalizer_plane_spatial = static_cast<float>(1.) / (sigma_plane_matching_angular * std::sqrt(M_2PI));
+  float sigma_plane_matching_vector = 0.02;
+  float normalizer_plane_vector = static_cast<float>(1.) / (sigma_plane_matching_vector * std::sqrt(M_2PI));
 
   // Loop over all particles
   for (const auto& particle : particles_)
@@ -365,13 +364,12 @@ void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* g
     // ----------------------------------------------------------------------------
 
     // Define correspondence thresholds
-    float th_dist = 10 * DEGREE_TO_RAD;  // max normal angular distance per component
-    float sp_dist = 0.2;                 // max distance from source plane centroid to target plane
-    float area_th = 2.0;                 // minimum overlapping area between semiplanes
+    float v_dist = 0.2;   // max vector displacement for all the components
+    float sp_dist = 0.2;  // max distance from source plane centroid to target plane
+    float area_th = 2.0;  // minimum overlapping area between semiplanes
 
     // Correspondence result
-    Pose correspondence_pose;
-    float correspondence_dist;
+    float correspondence_vec;
 
     for (const auto& plane : planes)
     {
@@ -381,7 +379,7 @@ void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* g
       }
 
       // Initialize correspondence deltas
-      Pose delta_rot(0, 0, 0, th_dist, th_dist, th_dist);
+      float vec_disp = v_dist;
       float point2plane = sp_dist;
       float ov_area = area_th;
 
@@ -440,24 +438,13 @@ void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* g
           // (B) - Compare plane normals
           // --------------------------------
 
-          // Find the rotation matrix that transforms one normal vector into another
           Vec u(l_plane.a_, l_plane.b_, l_plane.c_);
           Vec v(g_plane.a_, g_plane.b_, g_plane.c_);
 
-          std::array<float, 9> R = u.rotation(v);
-
-          // Extract the euler angles from the rotation matrix
-          Pose l_delta_rot = Pose(R, std::array<float, 3>{ 0, 0, 0 });
-
-          // Account for parallel vectors in opposite directions
-          l_delta_rot.R_ = std::min(std::fabs(l_delta_rot.R_), static_cast<float>(M_PI) - std::fabs(l_delta_rot.R_));
-          l_delta_rot.P_ = std::min(std::fabs(l_delta_rot.P_), static_cast<float>(M_PI) - std::fabs(l_delta_rot.P_));
-          l_delta_rot.Y_ = std::min(std::fabs(l_delta_rot.Y_), static_cast<float>(M_PI) - std::fabs(l_delta_rot.Y_));
+          float D = ((u - v).norm3D() < (u + v).norm3D()) ? (u - v).norm3D() : (u + v).norm3D();
 
           // Check if normal vectors match
-          if (std::fabs(l_delta_rot.R_) < std::fabs(delta_rot.R_) &&
-              std::fabs(l_delta_rot.P_) < std::fabs(delta_rot.P_)  //&&
-              /*std::fabs(l_delta_rot.Y_) < std::fabs(delta_rot.Y_)*/)
+          if (D < vec_disp)
           {
             // --------------------------------
             // (C) - Compute local plane centroid distance to global plane
@@ -466,13 +453,12 @@ void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* g
             if (l_point2plane < point2plane)
             {
               // We found a correspondence, so, we must save the correspondence deltas
-              delta_rot = l_delta_rot;
+              vec_disp = D;
               point2plane = l_point2plane;
               ov_area = isct.area_;
 
               // Save correspondence errors
-              correspondence_pose = l_delta_rot;
-              correspondence_dist = l_point2plane;
+              correspondence_vec = D;
 
               // Set correspondence flag
               found = true;
@@ -483,14 +469,8 @@ void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* g
 
       if (found)
       {
-        w_planes +=
-            ((normalizer_plane_angular *
-              static_cast<float>(std::exp((-1. / sigma_plane_matching_angular) * correspondence_pose.R_))) *
-             (normalizer_plane_angular *
-              static_cast<float>(std::exp((-1. / sigma_plane_matching_angular) * correspondence_pose.P_))));  // *
-        //                     (normalizer_plane_spatial *
-        //                      static_cast<float>(std::exp((-1. / sigma_plane_matching_spatial) *
-        //                      correspondence_dist))));
+        w_planes += (normalizer_plane_vector *
+                     static_cast<float>(std::exp((-1. / sigma_plane_matching_vector) * correspondence_vec)));
       }
     }
 

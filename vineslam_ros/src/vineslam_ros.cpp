@@ -285,6 +285,7 @@ void VineSLAM_ros::process()
   publishElevationMap();
   publish3DMap(l_corners, corners_local_publisher_);
   publish3DMap(l_planars, planars_local_publisher_);
+  l_planes.push_back(l_ground_plane);
   publish3DMap(l_planes, planes_local_publisher_);
 
   // - Prepare next iteration

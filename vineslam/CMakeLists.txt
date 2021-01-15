@@ -1,12 +1,19 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(vineslam)
 
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+if($ENV{ROS_DISTRO} STREQUAL "noetic")
+    set(CMAKE_CXX_STANDARD 14)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+    find_package(OpenCV 4.2.0 REQUIRED)
+else()
+    set(CMAKE_CXX_STANDARD 11)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+    find_package(OpenCV 3.2.0 REQUIRED)
+endif()
 
 find_package(catkin REQUIRED)
-
-find_package(OpenCV 4.2.0 REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(PythonLibs 2.7)
 

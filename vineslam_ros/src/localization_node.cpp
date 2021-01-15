@@ -216,7 +216,7 @@ void LocalizationNode::init()
   {
     // - Register 3D maps
     vis_mapper_->registerMaps(robot_pose_, l_surf_features, *grid_map_);
-    lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, *grid_map_);
+    lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, l_ground_plane, *grid_map_);
     grid_map_->downsamplePlanars();
   }
 

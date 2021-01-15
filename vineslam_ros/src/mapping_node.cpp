@@ -32,6 +32,7 @@ MappingNode::MappingNode(int argc, char** argv)
       nh.subscribe(params_.odom_topic_, 1, &VineSLAM_ros::odomListener, dynamic_cast<VineSLAM_ros*>(this));
 
   // Publish maps and particle filter
+  elevation_map_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/elevationMap", 1);
   map3D_corners_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners", 1);
   map3D_planars_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planars", 1);
   map3D_planes_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/map3D/planes", 1);
@@ -110,6 +111,7 @@ void MappingNode::init()
   // ----- Initialize Occupancy Grid map
   // ---------------------------------------------------------
   grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0));
+  elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
 
   // ---------------------------------------------------------
   // ----- Initialize the multi-layer maps
@@ -121,7 +123,8 @@ void MappingNode::init()
   lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
 
   // - Register 3D maps
-  lid_mapper_->registerMaps(input_data_.wheel_odom_pose_, l_corners, l_planars, l_planes, *grid_map_);
+  lid_mapper_->registerMaps(input_data_.wheel_odom_pose_, l_corners, l_planars, l_planes, l_ground_plane, *grid_map_,
+                            *elevation_map_);
   grid_map_->downsamplePlanars();
 
   ROS_INFO("Mapping with known poses has started.");
@@ -147,7 +150,8 @@ void MappingNode::process()
   // ---------------------------------------------------------
   // ----- Register multi-layer map (if performing SLAM)
   // ---------------------------------------------------------
-  lid_mapper_->registerMaps(input_data_.wheel_odom_pose_, l_corners, l_planars, l_planes, *grid_map_);
+  lid_mapper_->registerMaps(input_data_.wheel_odom_pose_, l_corners, l_planars, l_planes, l_ground_plane, *grid_map_,
+                            *elevation_map_);
   grid_map_->downsamplePlanars();
 
   // ---------------------------------------------------------
@@ -163,9 +167,6 @@ void MappingNode::process()
   publish3DMap();
   publish3DMap(l_corners, corners_local_publisher_);
   publish3DMap(l_planars, planars_local_publisher_);
-  std::vector<Plane> planes = { l_ground_plane };
-  for (const auto& plane : l_planes)
-    planes.push_back(plane);
 }
 
 }  // namespace vineslam

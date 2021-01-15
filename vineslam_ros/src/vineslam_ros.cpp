@@ -101,6 +101,7 @@ void VineSLAM_ros::init()
   localizer_->init(Pose(0, 0, 0, 0, 0, 0));
   robot_pose_ = localizer_->getPose();
   grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0));
+  elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
 
   // ---------------------------------------------------------
   // ----- Initialize the multi-layer maps
@@ -121,8 +122,6 @@ void VineSLAM_ros::init()
   if (params_.use_lidar_features_)
   {
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
-    l_planes = { l_ground_plane };
-    //    l_planes.push_back(l_ground_plane);
 
     // - Save local map for next iteration
     previous_map_->clear();
@@ -144,7 +143,7 @@ void VineSLAM_ros::init()
   {
     // - Register 3D maps
     vis_mapper_->registerMaps(robot_pose_, l_surf_features, *grid_map_);
-    lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, *grid_map_);
+    lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, l_ground_plane, *grid_map_, *elevation_map_);
     grid_map_->downsamplePlanars();
   }
 
@@ -177,8 +176,6 @@ void VineSLAM_ros::process()
   if (params_.use_lidar_features_)
   {
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
-    l_planes = { l_ground_plane };
-    //    l_planes.push_back(l_ground_plane);
   }
 
   // - Compute 3D image features on robot's referential frame
@@ -211,7 +208,10 @@ void VineSLAM_ros::process()
   // ---------------------------------------------------------
   // ----- Localization procedure
   // ---------------------------------------------------------
-  localizer_->process(input_data_.wheel_odom_pose_, obsv_, previous_map_, grid_map_);
+  Pose odom_inc = input_data_.wheel_odom_pose_ - input_data_.p_wheel_odom_pose_;
+  input_data_.p_wheel_odom_pose_ = input_data_.wheel_odom_pose_;
+  odom_inc.normalize();
+  localizer_->process(odom_inc, obsv_, previous_map_, grid_map_);
   robot_pose_ = localizer_->getPose();
 
   // ---------------------------------------------------------
@@ -221,7 +221,7 @@ void VineSLAM_ros::process()
   {
     land_mapper_->process(robot_pose_, l_landmarks, input_data_.land_labels_, *grid_map_);
     vis_mapper_->registerMaps(robot_pose_, l_surf_features, *grid_map_);
-    lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, *grid_map_);
+    lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, l_ground_plane, *grid_map_, *elevation_map_);
     grid_map_->downsamplePlanars();
   }
 
@@ -275,98 +275,20 @@ void VineSLAM_ros::process()
   ros_path.poses = path_;
   path_publisher_.publish(ros_path);
 
-  // Publish particle poses (after and before resampling)
-  // - Get the particles
-  std::vector<Particle> b_particles, a_particles;
-  (*localizer_).getParticlesBeforeResampling(b_particles);
-  (*localizer_).getParticles(a_particles);
-  // - Convert them to ROS pose array and fill the vineslam report msgs
-  vineslam_msgs::report report;
-  geometry_msgs::PoseArray ros_poses;
-  ros_poses.header.stamp = ros::Time::now();
-  ros_poses.header.frame_id = "map";
-  report.header.stamp = ros_poses.header.stamp;
-  report.header.frame_id = ros_poses.header.frame_id;
-  for (const auto& particle : b_particles)
-  {
-    tf::Quaternion l_q;
-    l_q.setRPY(particle.p_.R_, particle.p_.P_, particle.p_.Y_);
-    l_q.normalize();
-
-    geometry_msgs::Pose l_pose;
-    l_pose.position.x = particle.p_.x_;
-    l_pose.position.y = particle.p_.y_;
-    l_pose.position.z = particle.p_.z_;
-    l_pose.orientation.x = l_q.x();
-    l_pose.orientation.y = l_q.y();
-    l_pose.orientation.z = l_q.z();
-    l_pose.orientation.w = l_q.w();
-
-    vineslam_msgs::particle particle_info;
-    particle_info.id = particle.id_;
-    particle_info.pose = l_pose;
-    particle_info.w = particle.w_;
-
-    report.b_particles.push_back(particle_info);
-  }
-  for (const auto& particle : a_particles)
-  {
-    tf::Quaternion l_q;
-    l_q.setRPY(particle.p_.R_, particle.p_.P_, particle.p_.Y_);
-    l_q.normalize();
-
-    geometry_msgs::Pose l_pose;
-    l_pose.position.x = particle.p_.x_;
-    l_pose.position.y = particle.p_.y_;
-    l_pose.position.z = particle.p_.z_;
-    l_pose.orientation.x = l_q.x();
-    l_pose.orientation.y = l_q.y();
-    l_pose.orientation.z = l_q.z();
-    l_pose.orientation.w = l_q.w();
-
-    ros_poses.poses.push_back(l_pose);
-
-    vineslam_msgs::particle particle_info;
-    particle_info.id = particle.id_;
-    particle_info.pose = l_pose;
-    particle_info.w = particle.w_;
-
-    report.a_particles.push_back(particle_info);
-  }
-  poses_publisher_.publish(ros_poses);
-
-  report.log.data = localizer_->logs_;
-  report.use_semantic_features.data = params_.use_semantic_features_;
-  report.use_lidar_features.data = params_.use_lidar_features_;
-  report.use_image_features.data = params_.use_image_features_;
-  report.use_gps.data = params_.use_gps_;
-  vineslam_report_publisher_.publish(report);
+  // Publishes the VineSLAM report
+  publishReport();
 
   // Publish the 2D map
   publish2DMap(robot_pose_, input_data_.land_bearings_, input_data_.land_depths_);
   // Publish 3D maps
   publish3DMap();
+  publishElevationMap();
   publish3DMap(l_corners, corners_local_publisher_);
   publish3DMap(l_planars, planars_local_publisher_);
+  l_planes.push_back(l_ground_plane);
   publish3DMap(l_planes, planes_local_publisher_);
-  //
-  //  std::vector<SemiPlane> tf_planes;
-  //  for (size_t i = 1; i < l_planes.size(); i++)
-  //  {
-  //    Vec v(l_planes[i - 1].a_, l_planes[i - 1].b_, l_planes[i - 1].c_);
-  //    Vec u(l_planes[i].a_, l_planes[i].b_, l_planes[i].c_);
-  //
-  //    std::array<float, 9> R = u.rotation(v);
-  //    // Extract the euler angles from the rotation matrix
-  //    Pose l_delta_rot = Pose(R, std::array<float, 3>{ 0, 0, 0 });
-  //    // Account for parallel vectors in opposite directions
-  //    std::cout << "NORMAL ANGLES  " << l_delta_rot.R_ * RAD_TO_DEGREE << ", " << l_delta_rot.P_ * RAD_TO_DEGREE
-  //              << ", "
-  //              << l_delta_rot.Y_ * RAD_TO_DEGREE << "\n";
-  //    std::cout << "DOT =  " << std::acos(v.dot(u)) * RAD_TO_DEGREE << "\n";
-  //  }
 
-  // - Save local map for next iteration
+  // - Prepare next iteration
   previous_map_->clear();
   for (const auto& planar : l_planars)
     previous_map_->insert(planar);
@@ -506,6 +428,7 @@ void VineSLAM_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)
       yaw = 0;
 
     init_odom_pose_ = Pose(msg->pose.pose.position.x, msg->pose.pose.position.y, 0, 0, 0, yaw);
+    input_data_.p_wheel_odom_pose_ = init_odom_pose_;
 
     init_odom_ = false;
     return;
@@ -716,6 +639,76 @@ bool VineSLAM_ros::getGNSSHeading(const Pose& gps_odom, const std_msgs::Header& 
   }
 
   return weight_max > 0.6;
+}
+
+void VineSLAM_ros::publishReport() const
+{
+  // Publish particle poses (after and before resampling)
+  // - Get the particles
+  std::vector<Particle> b_particles, a_particles;
+  (*localizer_).getParticlesBeforeResampling(b_particles);
+  (*localizer_).getParticles(a_particles);
+  // - Convert them to ROS pose array and fill the vineslam report msgs
+  vineslam_msgs::report report;
+  geometry_msgs::PoseArray ros_poses;
+  ros_poses.header.stamp = ros::Time::now();
+  ros_poses.header.frame_id = "map";
+  report.header.stamp = ros_poses.header.stamp;
+  report.header.frame_id = ros_poses.header.frame_id;
+  for (const auto& particle : b_particles)
+  {
+    tf::Quaternion l_q;
+    l_q.setRPY(particle.p_.R_, particle.p_.P_, particle.p_.Y_);
+    l_q.normalize();
+
+    geometry_msgs::Pose l_pose;
+    l_pose.position.x = particle.p_.x_;
+    l_pose.position.y = particle.p_.y_;
+    l_pose.position.z = particle.p_.z_;
+    l_pose.orientation.x = l_q.x();
+    l_pose.orientation.y = l_q.y();
+    l_pose.orientation.z = l_q.z();
+    l_pose.orientation.w = l_q.w();
+
+    vineslam_msgs::particle particle_info;
+    particle_info.id = particle.id_;
+    particle_info.pose = l_pose;
+    particle_info.w = particle.w_;
+
+    report.b_particles.push_back(particle_info);
+  }
+  for (const auto& particle : a_particles)
+  {
+    tf::Quaternion l_q;
+    l_q.setRPY(particle.p_.R_, particle.p_.P_, particle.p_.Y_);
+    l_q.normalize();
+
+    geometry_msgs::Pose l_pose;
+    l_pose.position.x = particle.p_.x_;
+    l_pose.position.y = particle.p_.y_;
+    l_pose.position.z = particle.p_.z_;
+    l_pose.orientation.x = l_q.x();
+    l_pose.orientation.y = l_q.y();
+    l_pose.orientation.z = l_q.z();
+    l_pose.orientation.w = l_q.w();
+
+    ros_poses.poses.push_back(l_pose);
+
+    vineslam_msgs::particle particle_info;
+    particle_info.id = particle.id_;
+    particle_info.pose = l_pose;
+    particle_info.w = particle.w_;
+
+    report.a_particles.push_back(particle_info);
+  }
+  poses_publisher_.publish(ros_poses);
+
+  report.log.data = localizer_->logs_;
+  report.use_semantic_features.data = params_.use_semantic_features_;
+  report.use_lidar_features.data = params_.use_lidar_features_;
+  report.use_image_features.data = params_.use_image_features_;
+  report.use_gps.data = params_.use_gps_;
+  vineslam_report_publisher_.publish(report);
 }
 
 }  // namespace vineslam

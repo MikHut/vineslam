@@ -59,6 +59,7 @@ ReplayNode::ReplayNode(int argc, char** argv)
   // Publish maps and particle filter
   vineslam_report_publisher_ = nh.advertise<vineslam_msgs::report>("/vineslam/report", 1);
   grid_map_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/occupancyMap", 1);
+  elevation_map_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/elevationMap", 1);
   map2D_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/map2D", 1);
   map3D_features_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZRGB>>("/vineslam/map3D/SURF", 1);
   map3D_corners_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners", 1);
@@ -161,6 +162,16 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
 
   ROS_INFO("Reading ROSBAG topics...");
 
+  int num_obsv = 1;  // tf
+  if (params_.use_wheel_odometry_)
+    num_obsv++;
+  if (params_.use_image_features_)
+    num_obsv += 2;
+  if (params_.use_lidar_features_)
+    num_obsv++;
+  if (params_.use_gps_)
+    num_obsv++;
+
   bool tf_bool = false, odom_bool = false, fix_bool = false, depth_bool = false, left_bool = false, pcl_bool = false;
   for (rosbag::MessageInstance m : rosbag::View(bag))
   {
@@ -227,7 +238,7 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
         left_img_pub.publish(*left_img_comp_ptr);
 
         // Decompress image
-        cv::Mat img_data(1, left_img_comp_ptr->data.size(), CV_8UC3);
+        cv::Mat img_data(1, left_img_comp_ptr->data.size(), CV_8U);
         img_data.data = const_cast<uchar*>(&left_img_comp_ptr->data[0]);
         cv::InputArray data(img_data);
         left_img = cv::imdecode(data, 1);
@@ -244,9 +255,11 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
       }
     }
 
-    nmessages_ = tf_bool + odom_bool + fix_bool + depth_bool + left_bool + pcl_bool;
+    nmessages_ = tf_bool + (odom_bool && params_.use_wheel_odometry_) + (fix_bool && params_.use_gps_) +
+                 (depth_bool && params_.use_image_features_) + (left_bool && params_.use_image_features_) +
+                 (pcl_bool && params_.use_lidar_features_);
 
-    if (nmessages_ == 6)
+    if (nmessages_ == num_obsv)
     {
       // Save data to use on debug procedure
       if (!init_flag_)
@@ -256,9 +269,18 @@ void ReplayNode::replayFct(ros::NodeHandle nh)
         debug_grid_map_ = grid_map_;
       }
 
-      _imageListener(left_img, depth_img_ptr);
-      scanListener(pcl_ptr);
-      odomListener(odom_ptr);
+      if (params_.use_image_features_)
+      {
+        _imageListener(left_img, depth_img_ptr);
+      }
+      if (params_.use_lidar_features_)
+      {
+        scanListener(pcl_ptr);
+      }
+      if (params_.use_wheel_odometry_)
+      {
+        odomListener(odom_ptr);
+      }
       // TODO (Andre Aguiar): GPS and landmarks should be supported in the future
       // landmarkListener(dets);
       // gpsListener(fix_ptr);

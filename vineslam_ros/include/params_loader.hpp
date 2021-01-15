@@ -51,17 +51,20 @@ static void loadParameters(const ros::NodeHandle& nh, const std::string& prefix,
     ROS_ERROR("%s/pcl_topic parameter not found. Shutting down...", prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/system/use_semantic_features", params.use_semantic_features_) && !(node_name == "/mapping_node"))
+  if (!nh.getParam(prefix + "/system/use_semantic_features", params.use_semantic_features_) && !(node_name == "/mapping"
+                                                                                                              "_node"))
   {
     ROS_ERROR("%s/system/semantic_features parameter not found. Shutting down...", prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/system/use_lidar_features", params.use_lidar_features_) && !(node_name == "/mapping_node"))
+  if (!nh.getParam(prefix + "/system/use_lidar_features", params.use_lidar_features_) && !(node_name == "/mapping_"
+                                                                                                        "node"))
   {
     ROS_ERROR("%s/system/use_lidar_features parameter not found. Shutting down...", prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/system/use_image_features", params.use_image_features_) && !(node_name == "/mapping_node"))
+  if (!nh.getParam(prefix + "/system/use_image_features", params.use_image_features_) && !(node_name == "/mapping_"
+                                                                                                        "node"))
   {
     ROS_ERROR("%s/system/use_image_features parameter not found. Shutting down...", prefix.c_str());
     exit(-1);
@@ -70,6 +73,11 @@ static void loadParameters(const ros::NodeHandle& nh, const std::string& prefix,
   {
     ROS_ERROR("%s/system/use_gps parameter not found. Shutting down...", prefix.c_str());
     exit(-1);
+  }
+  if (!nh.getParam(prefix + "/system/use_wheel_odometry", params.use_wheel_odometry_) && !(node_name == "/mapping_"
+                                                                                                        "node"))
+  {
+    ROS_WARN("%s/use_wheel_odometry parameter has not been set. Not using it...", prefix.c_str());
   }
   if (!nh.getParam(prefix + "/system/gps_datum/lat", params.latitude_) && !(node_name == "/mapping_node"))
   {

@@ -44,7 +44,7 @@ bool MapLayer::insert(const SemanticFeature& l_landmark, const int& id, const in
   }
   catch (char const* msg)
   {
-    std::cout << msg;
+    std::cout << "MapLayer::insert(SemanticFeature) --- " << msg;
     return false;
   }
 
@@ -78,7 +78,7 @@ bool MapLayer::insert(const ImageFeature& l_feature, const int& i, const int& j)
   }
   catch (char const* msg)
   {
-    std::cout << msg;
+    std::cout << "MapLayer::insert(ImageFeature) --- " << msg;
     return false;
   }
 
@@ -112,7 +112,7 @@ bool MapLayer::insert(const Corner& l_feature, const int& i, const int& j)
   }
   catch (char const* msg)
   {
-    std::cout << msg;
+    std::cout << "MapLayer::insert(Corner) --- " << msg;
     return false;
   }
 
@@ -146,7 +146,7 @@ bool MapLayer::insert(const Planar& l_feature, const int& i, const int& j)
   }
   catch (char const* msg)
   {
-    std::cout << msg;
+    std::cout << "MapLayer::insert(Planar) --- " << msg;
     return false;
   }
 
@@ -180,7 +180,7 @@ bool MapLayer::insert(const Point& l_point, const int& i, const int& j)
   }
   catch (char const* msg)
   {
-    std::cout << msg;
+    std::cout << "MapLayer::insert(Point) --- " << msg;
     return false;
   }
 
@@ -395,7 +395,7 @@ bool MapLayer::getAdjacent(const int& i, const int& j, const int& layers, std::v
   }
   catch (char const* msg)
   {
-    std::cout << msg;
+    std::cout << "MapLayer::GetAdjacent() --- " << msg;
     return false;
   }
 
@@ -502,7 +502,7 @@ bool MapLayer::findNearest(const ImageFeature& input, ImageFeature& nearest, flo
           }
           catch (char const* msg)
           {
-            std::cout << msg;
+            std::cout << "MapLayer::findNearest(ImageFeature) --- " << msg;
             return false;
           }
 
@@ -633,41 +633,56 @@ bool MapLayer::findNearest(const ImageFeature& input, ImageFeature& nearest, flo
           continue;
       }
 
-      // ------- Use feature descriptor to find correspondences
+      //      // ------- Use feature descriptor to find correspondences
+      //      // ------- Grid map is used to limit the search space
+      //      for (const auto& feature : (*this)(l_i, l_j).surf_features_)
+      //      {
+      //        std::vector<float> desc = input.signature_;
+      //        std::vector<float> l_desc = feature.signature_;
+      //
+      //        // Check validity of descriptors data
+      //        if (desc.size() != l_desc.size())
+      //        {
+      //          std::cout << "WARNING (findNearest): source and target descriptors have "
+      //                       "different size ... "
+      //                    << std::endl;
+      //          break;
+      //        }
+      //
+      //        // Check if source and target features are of the same type
+      //        if (feature.laplacian_ != input.laplacian_)
+      //          continue;
+      //
+      //        // Found solution if there is any correspondence between features of the
+      //        // same type
+      //        found_solution = true;
+      //
+      //        float ssd = 0.;  // sum of square errors
+      //        for (size_t k = 0; k < desc.size(); k++)
+      //          ssd += (desc[k] - l_desc[k]) * (desc[k] - l_desc[k]);
+      //
+      //        // Update correspondence if we found a local minimum
+      //        if (ssd < ddist)
+      //        {
+      //          ddist = ssd;
+      //          nearest = feature;
+      //
+      //          sdist = input.pos_.distance(feature.pos_);
+      //        }
+      //      }
+      //      // ---------------------------------------------------------------------------
+
+      found_solution = found_solution | !(*this)(l_i, l_j).surf_features_.empty();
+
+      // ------- Use euclidean distance to find correspondences
       // ------- Grid map is used to limit the search space
       for (const auto& feature : (*this)(l_i, l_j).surf_features_)
       {
-        std::vector<float> desc = input.signature_;
-        std::vector<float> l_desc = feature.signature_;
-
-        // Check validity of descriptors data
-        if (desc.size() != l_desc.size())
+        float dist = input.pos_.distance(feature.pos_);
+        if (dist < sdist)
         {
-          std::cout << "WARNING (findNearest): source and target descriptors have "
-                       "different size ... "
-                    << std::endl;
-          break;
-        }
-
-        // Check if source and target features are of the same type
-        if (feature.laplacian_ != input.laplacian_)
-          continue;
-
-        // Found solution if there is any correspondence between features of the
-        // same type
-        found_solution = true;
-
-        float ssd = 0.;  // sum of square errors
-        for (size_t k = 0; k < desc.size(); k++)
-          ssd += (desc[k] - l_desc[k]) * (desc[k] - l_desc[k]);
-
-        // Update correspondence if we found a local minimum
-        if (ssd < ddist)
-        {
-          ddist = ssd;
+          sdist = dist;
           nearest = feature;
-
-          sdist = input.pos_.distance(feature.pos_);
         }
       }
       // ---------------------------------------------------------------------------
@@ -731,7 +746,7 @@ bool MapLayer::findNearest(const Corner& input, Corner& nearest, float& sdist)
           }
           catch (char const* msg)
           {
-            std::cout << msg;
+            std::cout << "MapLayer::findNearest(Corner) --- " << msg;
             return false;
           }
 
@@ -938,7 +953,7 @@ bool MapLayer::findNearest(const Planar& input, Planar& nearest, float& sdist)
           }
           catch (char const* msg)
           {
-            std::cout << msg;
+            std::cout << "MapLayer::findNearest(Planar) --- " << msg;
             return false;
           }
 
@@ -1295,6 +1310,48 @@ bool OccupancyMap::update(const Planar& old_planar, const Planar& new_planar)
 
 bool OccupancyMap::update(const ImageFeature& old_image_feature, const ImageFeature& new_image_feature)
 {
+  int old_layer_num = getLayerNumber(old_image_feature.pos_.z_);
+  int new_layer_num = getLayerNumber(new_image_feature.pos_.z_);
+
+  if (old_layer_num == new_layer_num)
+  {
+    return layers_map_[old_layer_num].update(old_image_feature, new_image_feature);
+  }
+  else
+  {
+    // Compute grid coordinates for the floating point old corner location
+    // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+    int l_i = static_cast<int>(std::round(old_image_feature.pos_.x_ / resolution_ + .49));
+    int l_j = static_cast<int>(std::round(old_image_feature.pos_.y_ / resolution_ + .49));
+
+    // Access cell of old corner
+    Cell l_cell = layers_map_[old_layer_num](l_i, l_j);
+    // Get all the corner in the given cell
+    std::vector<ImageFeature> l_image_features = l_cell.surf_features_;
+
+    // Find the corner and update it
+    for (size_t i = 0; i < l_image_features.size(); i++)
+    {
+      ImageFeature l_image_feature = l_image_features[i];
+
+      if (l_image_feature.pos_.x_ == old_image_feature.pos_.x_ && l_image_feature.pos_.y_ == old_image_feature.pos_.y_ &&
+          l_image_feature.pos_.z_ == old_image_feature.pos_.z_)
+      {
+        layers_map_[old_layer_num](l_i, l_j).surf_features_.erase(
+            layers_map_[old_layer_num](l_i, l_j).surf_features_.begin() + i);
+
+        insert(new_image_feature);
+
+        return true;
+      }
+    }
+  }
+
+  std::cout << "WARNING (OcuppancyMap::update): Trying to update an image feature that is "
+               "not on the map... "
+            << std::endl;
+  return false;
+
 }
 
 void OccupancyMap::downsampleCorners()

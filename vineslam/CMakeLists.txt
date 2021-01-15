@@ -1,13 +1,19 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(vineslam)
 
-add_compile_options(-std=c++11)
-#add_definitions(-DTEST)
+if($ENV{ROS_DISTRO} STREQUAL "noetic")
+    set(CMAKE_CXX_STANDARD 14)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+    find_package(OpenCV 4.2.0 REQUIRED)
+else()
+    set(CMAKE_CXX_STANDARD 11)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+    find_package(OpenCV 3.2.0 REQUIRED)
+endif()
 
 find_package(catkin REQUIRED)
-
-set("OpenCV_DIR" /usr/local/include/opencv2)
-find_package(OpenCV 3.2.0 REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(PythonLibs 2.7)
 
@@ -28,6 +34,7 @@ add_library(vineslam
         src/mapping/visual_mapping.cpp
         src/mapping/lidar_mapping.cpp
         src/mapping/occupancy_map.cpp
+        src/mapping/elevation_map.cpp
         src/localization/localizer.cpp
         src/localization/pf.cpp
         src/mapxml/map_writer.cpp

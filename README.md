@@ -57,6 +57,8 @@ Figueiredo Vineyard | Aveleda Vineyard | Aveleda Vineyard Thermal
 
 A 3D map with features - **corners**, **planars** and **semi-planes** directly extracted from a 3D point cloud.
 
+Watch the **following videos** to see the multi-layer map creation, regarding geometric maps.
+
 * **Corner features maps**
 
 [![](https://i9.ytimg.com/vi/QKrOnOlvLEQ/mq3.jpg?sqp=CPzZloAG&rs=AOn4CLCcfv48Nt0MeoYfiRI2I4bxHKTJUg)](https://youtu.be/QKrOnOlvLEQ)
@@ -81,10 +83,10 @@ for each cell.
 A 3D map built with SURF features detected on the image.
 
 <p float="left">
-<img src="./docs/surf_map_sequence1_1" width="250" height="200"/>  <img src="./docs/surf_map_sequence1_2.png" width="250" height="200"/>
+<img src="./docs/surf_map_sequence1_1.png" width="250" height="200"/>  <img src="./docs/surf_map_sequence1_2.png" width="250" height="200"/>
 </p>
 <p float="left">
-<img src="./docs/surf_map_sequence2_1" width="250" height="200"/>  <img src="./docs/surf_map_sequence2_2.png" width="250" height="200"/>
+<img src="./docs/surf_map_sequence2_1.png" width="250" height="200"/>  <img src="./docs/surf_map_sequence2_2.png" width="250" height="200"/>
 </p>
 
 

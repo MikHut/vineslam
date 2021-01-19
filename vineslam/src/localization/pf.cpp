@@ -114,7 +114,7 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
              std::to_string(planars.size()) + ")\n";
 
     before = std::chrono::high_resolution_clock::now();
-    mediumLevelPlanes({ground_plane}, grid_map, ground_weights);
+    mediumLevelPlanes({ ground_plane }, grid_map, ground_weights);
     mediumLevelPlanes(planes, grid_map, planes_weights);
     after = std::chrono::high_resolution_clock::now();
     duration = after - before;
@@ -349,7 +349,9 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* gr
 void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* grid_map, std::vector<float>& ws)
 {
   float sigma_plane_matching_vector = 0.02;
+  float sigma_plane_matching_centroid = 0.10;
   float normalizer_plane_vector = static_cast<float>(1.) / (sigma_plane_matching_vector * std::sqrt(M_2PI));
+  float normalizer_plane_centroid = static_cast<float>(1.) / (sigma_plane_matching_centroid * std::sqrt(M_2PI));
 
   // Loop over all particles
   for (const auto& particle : particles_)
@@ -370,6 +372,7 @@ void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* g
 
     // Correspondence result
     float correspondence_vec;
+    float correspondence_centroid;
 
     for (const auto& plane : planes)
     {
@@ -459,6 +462,7 @@ void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* g
 
               // Save correspondence errors
               correspondence_vec = D;
+              correspondence_centroid = l_point2plane;
 
               // Set correspondence flag
               found = true;
@@ -467,13 +471,22 @@ void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* g
         }
       }
 
+      float vv = 0, cc = 0;
       if (found)
       {
-        w_planes += (normalizer_plane_vector *
-                     static_cast<float>(std::exp((-1. / sigma_plane_matching_vector) * correspondence_vec)));
+        vv = ((normalizer_plane_vector *
+                      static_cast<float>(std::exp((-1. / sigma_plane_matching_vector) * correspondence_vec))));
+        cc = ((normalizer_plane_centroid *
+               static_cast<float>(std::exp((-1. / sigma_plane_matching_centroid) * correspondence_centroid))));
+        w_planes += ((normalizer_plane_vector *
+                      static_cast<float>(std::exp((-1. / sigma_plane_matching_vector) * correspondence_vec))) *
+                     (normalizer_plane_centroid *
+                      static_cast<float>(std::exp((-1. / sigma_plane_matching_centroid) * correspondence_centroid))));
       }
+      std::cout << "     (" << vv << ", " << cc << ")\n";
     }
 
+    std::cout << particle.id_ << " -> " << w_planes << "\n";
     ws[particle.id_] = w_planes;
   }
 }

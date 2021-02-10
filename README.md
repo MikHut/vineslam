@@ -61,22 +61,22 @@ Watch the **following videos** to see the multi-layer map creation, regarding ge
 
 * **Corner features maps**
 
-[![](https://i9.ytimg.com/vi/QKrOnOlvLEQ/mq3.jpg?sqp=CPzZloAG&rs=AOn4CLCcfv48Nt0MeoYfiRI2I4bxHKTJUg)](https://youtu.be/QKrOnOlvLEQ)
+[![](./docs/corners_video.png)](https://youtu.be/QKrOnOlvLEQ)
 
 * **Planar features maps**
 
-[![](https://i9.ytimg.com/vi/4nrELtalvYU/mq2.jpg?sqp=CPzZloAG&rs=AOn4CLCM8x-FRq2lVCq4kca1YkpCrx_P_w)](https://youtu.be/4nrELtalvYU)
+[![](./docs/planars_video.png)](https://youtu.be/4nrELtalvYU)
 
 * **Semi-plane features maps**
 
-[![](https://i9.ytimg.com/vi/ANISWolZIx8/mq2.jpg?sqp=CKjcloAG&rs=AOn4CLCTvEwxAIWOJC7oHjt4Y5yCX1W2Xg)](https://youtu.be/ANISWolZIx8)
+[![](./docs/semiplane_video.png)](https://youtu.be/ANISWolZIx8)
 
 ### Elevation Map
 
 Elevation map extracted from the ground plane. It considers a well-defined grid map structure with altitude information
 for each cell.
 
-[![](https://i9.ytimg.com/vi/3LDqRQFx-00/mq2.jpg?sqp=CKjcloAG&rs=AOn4CLB_lfHI_Pr8DIwE_euja81IQQRFeg)](https://youtu.be/3LDqRQFx-00)
+[![](./docs/elevation_map_video.png)](https://youtu.be/3LDqRQFx-00)
 
 ### Visual maps
 
@@ -108,7 +108,7 @@ and then follow the instruction provided [here](https://gitlab.inesctec.pt/agrob
 
 VineSLAM requires many input topics from sensor data, and outputs many topics (robot pose and maps). Also, some
 parameters can be tuned to improve its performance. All this information is summarized in
-the [configuration file description](./docs/ros_structure.md).
+the [configuration file description](docs/interfaces.md).
 
 ## <a name="run"/> How to run
 

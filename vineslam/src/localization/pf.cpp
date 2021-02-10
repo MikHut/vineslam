@@ -483,10 +483,8 @@ void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* g
                      (normalizer_plane_centroid *
                       static_cast<float>(std::exp((-1. / sigma_plane_matching_centroid) * correspondence_centroid))));
       }
-      std::cout << "     (" << vv << ", " << cc << ")\n";
     }
 
-    std::cout << particle.id_ << " -> " << w_planes << "\n";
     ws[particle.id_] = w_planes;
   }
 }

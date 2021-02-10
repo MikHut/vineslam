@@ -20,7 +20,7 @@ research and innovation programme under grant agreement no. 732287.
 
 1. [System architecture](#architecture)
 2. [System components](#components)
-3. [Setup](#setup)
+3. [Installation](#installation)
 4. [ROS structure](#ros)
 5. [How to run](#run)
 
@@ -90,19 +90,38 @@ A 3D map built with SURF features detected on the image.
 </p>
 
 
-## <a name="setup"/> Setup
+## <a name="installation"/> Installation
 
-### Installation
-
-* To install the VineSLAM package, follow the instructions detailed [here](./docs/installation.md).
-
-* To use the Semantic Feature map layer, clone the following repo:
+### General ROS dependencies
 
 ```
-git clone https://gitlab.inesctec.pt/agrob/tpudetector
+sudo apt-get install ros-melodic-geographic-msgs ros-melodic-vision-msgs ros-melodic-pcl-ros
 ```
 
-and then follow the instruction provided [here](https://gitlab.inesctec.pt/agrob/vineslam_stack/tpudetector).
+### Non-catkin dependencies
+
+```
+mkdir -p ~/vineslam_ws_isolated/src
+cd ~/vineslam_ws_isolated/src
+git clone git@gitlab.inesctec.pt:agrob/third_party_component/opencv.git -b agro_devel
+git clone git@gitlab.inesctec.pt:agrob/third_party_component/opencv_contrib.git -b 3.2.0
+cd ~/vineslam_ws_isolated
+source /opt/ros/melodic/setup.bash
+catkin_make_isolated -DCMAKE_BUILD_TYPE=Release -DENABLE_PRECOMPILED_HEADERS=OFF -DOPENCV_GENERATE_PKGCONFIG=ON -DOPENCV_EXTRA_MODULES_PATH=~/catkin_ws_agro_nav_tests_isolated/src/opencv_contrib/modules
+```
+
+### Catkin dependencies
+
+```
+mkdir -p ~/vineslam_ws/src
+cd ~/vineslam_ws/src
+catkin_init_workspace
+git clone git@gitlab.inesctec.pt:agrob/agrob_map_transform.git -b master
+git clone git@gitlab.inesctec.pt:agrob/vineslam.git -b master
+cd ~/vineslam_ws
+source ~/vineslam_ws_isolated/devel_isolated/setup.bash
+catkin_make -DCMAKE_BUILD_TYPE=Release
+```
 
 ## <a name="ros"/> ROS structure
 

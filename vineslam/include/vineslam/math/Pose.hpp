@@ -276,6 +276,15 @@ struct Pose
     m_rot[8] = cj * ci;
   }
 
+  // Convert pose to a transformation matrix
+  Tf toTf()
+  {
+    std::array<float, 9> l_R;
+    (*this).toRotMatrix(l_R);
+
+    return Tf(l_R, {x_, y_, z_});
+  }
+
   // Convert pose to Eigen 6D pose
   Eigen::VectorXf toEig3D() const
   {

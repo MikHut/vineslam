@@ -16,3 +16,6 @@ std_msgs/Bool use_semantic_features
 std_msgs/Bool use_lidar_features
 std_msgs/Bool use_image_features
 std_msgs/Bool use_gps
+
+# GPS heading estimation
+float32 gps_heading

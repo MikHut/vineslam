@@ -208,7 +208,10 @@ void VineSLAM_ros::process()
   // ---------------------------------------------------------
   // ----- Localization procedure
   // ---------------------------------------------------------
-  Pose odom_inc = input_data_.wheel_odom_pose_ - input_data_.p_wheel_odom_pose_;
+  Tf p_odom_tf = input_data_.p_wheel_odom_pose_.toTf();
+  Tf c_odom_tf = input_data_.wheel_odom_pose_.toTf();
+  Tf odom_inc_tf = p_odom_tf.inverse() * c_odom_tf;
+  Pose odom_inc(odom_inc_tf.R_array_, odom_inc_tf.t_array_);
   input_data_.p_wheel_odom_pose_ = input_data_.wheel_odom_pose_;
   odom_inc.normalize();
   localizer_->process(odom_inc, obsv_, previous_map_, grid_map_);
@@ -708,6 +711,7 @@ void VineSLAM_ros::publishReport() const
   report.use_lidar_features.data = params_.use_lidar_features_;
   report.use_image_features.data = params_.use_image_features_;
   report.use_gps.data = params_.use_gps_;
+  report.gps_heading = heading_;
   vineslam_report_publisher_.publish(report);
 }
 

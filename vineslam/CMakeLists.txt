@@ -4,13 +4,9 @@ project(vineslam)
 if($ENV{ROS_DISTRO} STREQUAL "noetic")
     set(CMAKE_CXX_STANDARD 14)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-    find_package(OpenCV 4.2.0 REQUIRED)
 else()
     set(CMAKE_CXX_STANDARD 11)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-    find_package(OpenCV 3.2.0 REQUIRED)
 endif()
 
 find_package(catkin REQUIRED)
@@ -43,7 +39,6 @@ add_library(vineslam
 target_link_libraries(vineslam
         ${catkin_LIBRARIES}
         ${Eigen3_LIBRARIES}
-        ${OpenCV_LIBRARIES}
         ${PYTHON_LIBRARIES})
 
 install(TARGETS vineslam

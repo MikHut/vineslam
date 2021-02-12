@@ -61,15 +61,9 @@ LocalizationNode::LocalizationNode(int argc, char** argv)
   polar2pose_ = nh.serviceClient<agrob_map_transform::GetPose>("polar_to_pose");
   set_datum_ = nh.serviceClient<agrob_map_transform::SetDatum>("datum");
 
-  // ---------------------------------------------------------
-  // ----- Synchronize subscribers of both image topics
-  // ---------------------------------------------------------
-  message_filters::Subscriber<sensor_msgs::Image> left_image_sub(nh, params_.rgb_img_topic_, 1);
-  message_filters::Subscriber<sensor_msgs::Image> depth_image_sub(nh, params_.depth_img_topic_, 1);
-  message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image> sync(left_image_sub, depth_image_sub, 10);
-  sync.registerCallback(boost::bind(&LocalizationNode::imageListener, this, _1, _2));
-
   // Landmark subscription
+  ros::Subscriber feat_subscriber = nh.subscribe(params_.image_features_topic_, 1, &VineSLAM_ros::imageFeatureListener,
+                                                 dynamic_cast<VineSLAM_ros*>(this));
   ros::Subscriber land_subscriber =
       nh.subscribe(params_.detections_topic_, 1, &VineSLAM_ros::landmarkListener, dynamic_cast<VineSLAM_ros*>(this));
   // Scan subscription
@@ -96,7 +90,8 @@ LocalizationNode::LocalizationNode(int argc, char** argv)
   corners_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners_local", 1);
   planars_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planars_local", 1);
   pose_publisher_ = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/pose", 1);
-  gps_publisher_ = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/gps", 1);
+  gps_path_publisher_ = nh.advertise<nav_msgs::Path>("/vineslam/gps_path", 1);
+  gps_pose_publisher_ = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/gps_pose", 1);
   path_publisher_ = nh.advertise<nav_msgs::Path>("/vineslam/path", 1);
   poses_publisher_ = nh.advertise<geometry_msgs::PoseArray>("/vineslam/poses", 1);
 
@@ -209,7 +204,8 @@ void LocalizationNode::init()
   std::vector<ImageFeature> l_surf_features;
   if (params_.use_image_features_)
   {
-    vis_mapper_->localMap(input_data_.rgb_image_, input_data_.depth_array_, l_surf_features);
+    //    vis_mapper_->localMap(input_data_.rgb_image_, input_data_.depth_array_, l_surf_features);
+    vis_mapper_->localMap(input_data_.image_features_, l_surf_features);
   }
 
   if (register_map_)

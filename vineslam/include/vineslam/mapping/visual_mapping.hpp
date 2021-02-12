@@ -35,7 +35,7 @@ public:
   // ---- 3D image feature map
   // -------------------------------------------------------------------------------
   // Builds local map given the current image feature observations
-  void localMap(const cv::Mat& img, const float* depths, std::vector<ImageFeature>& out_features);
+  void localMap(const std::vector<ImageFeature>& in_features, std::vector<ImageFeature>& out_features);
 
   // Setter functions
   void setCam2Base(const float& x, const float& y, const float& z, const float& roll, const float& pitch,
@@ -57,20 +57,8 @@ private:
   void globalMap(const std::vector<ImageFeature>& features, const Pose& robot_pose, OccupancyMap& grid_map) const;
 
   // Perform feature extraction
-  void extractSurfFeatures(const cv::Mat& in, std::vector<ImageFeature>& out) const;
   // Converts a pixel into world's coordinate reference
-  void pixel2base(const Point& in_pt, const float& depth, Point& out_pt) const;
-
-  // Camera info parameters
-  float fx_;
-  float fy_;
-  float cx_;
-  float cy_;
-
-  // 3D map parameters
-  float max_range_;
-  float max_height_;
-  int hessian_threshold_;
+  void pixel2base(const Point& in_pt, Point& out_pt) const;
 
   // Transformation parameters
   float cam2base_x_{}, cam2base_y_{}, cam2base_z_{}, cam2base_roll_{}, cam2base_pitch_{}, cam2base_yaw_{};

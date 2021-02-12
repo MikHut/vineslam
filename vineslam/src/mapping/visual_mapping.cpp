@@ -4,16 +4,6 @@ namespace vineslam
 {
 VisualMapper::VisualMapper(const Parameters& params)
 {
-  // Load camera info parameters
-  fx_ = params.fx_;
-  fy_ = params.fy_;
-  cx_ = params.cx_;
-  cy_ = params.cy_;
-  // Load 3D map parameters
-  max_range_ = params.max_range_;
-  max_height_ = params.max_height_;
-  // Feature detector
-  hessian_threshold_ = params.hessian_threshold_;
 }
 
 void VisualMapper::registerMaps(const Pose& robot_pose, std::vector<ImageFeature>& img_features, OccupancyMap& grid_map)
@@ -26,47 +16,16 @@ void VisualMapper::registerMaps(const Pose& robot_pose, std::vector<ImageFeature
 // ---- 3D image feature map functions
 // -------------------------------------------------------------------------------
 
-void VisualMapper::localMap(const cv::Mat& img, const float* depths, std::vector<ImageFeature>& out_features)
+void VisualMapper::localMap(const std::vector<ImageFeature>& in_features, std::vector<ImageFeature>& out_features)
 {
-  // --------- Image feature extraction
-  std::vector<ImageFeature> features;
-  extractSurfFeatures(img, features);
-  // ----------------------------------
-
-  // --------- Build local map of 3D points ----------------------------------------
-  for (const auto& feature : features)
+  for (const auto& in_feature : in_features)
   {
-    int idx = feature.u_ + img.cols * feature.v_;
-    float m_depth = depths[idx];
-
-    // Check validity of depth information
-    if (!std::isfinite(depths[idx]))
-    {
-      continue;
-    }
-
-    Point out_pt;
-    Point in_pt(static_cast<float>(feature.u_), static_cast<float>(feature.v_), 0.);
-    pixel2base(in_pt, m_depth, out_pt);
-    // Get the RGB pixel values
-    auto* p = img.ptr<cv::Point3_<uchar>>(feature.v_, feature.u_);
-    //------------------------------------------------------------------------------
-    std::array<uint8_t, 3> c_int = { (*p).z, (*p).y, (*p).x };
-    //------------------------------------------------------------------------------
-    // Compute feature and insert on grid map
-    float dist = std::sqrt((out_pt.x_ * out_pt.x_) + (out_pt.y_ * out_pt.y_) + (out_pt.z_ * out_pt.z_));
-    if (out_pt.z_ < max_height_ && dist < max_range_)
-    {
-      ImageFeature m_feature = feature;
-      m_feature.r_ = c_int[0];
-      m_feature.g_ = c_int[1];
-      m_feature.b_ = c_int[2];
-      m_feature.pos_ = out_pt;
-      out_features.push_back(m_feature);
-    }
+    ImageFeature l_feature = in_feature;
+    pixel2base(l_feature.pos_, l_feature.pos_);
+    out_features.push_back(l_feature);
   }
-  // -------------------------------------------------------------------------------
 }
+
 
 void VisualMapper::globalMap(const std::vector<ImageFeature>& features, const Pose& robot_pose,
                              OccupancyMap& grid_map) const
@@ -145,47 +104,9 @@ void VisualMapper::globalMap(const std::vector<ImageFeature>& features, const Po
   }
 }
 
-void VisualMapper::extractSurfFeatures(const cv::Mat& in, std::vector<ImageFeature>& out) const
+
+void VisualMapper::pixel2base(const Point& in_pt, Point& out_pt) const
 {
-  using namespace cv::xfeatures2d;
-
-  // Array to store the features
-  std::vector<cv::KeyPoint> kpts;
-  // String to store the type of feature
-  std::string type;
-  // Matrix to store the descriptor
-  cv::Mat desc;
-
-  // Perform feature extraction
-  auto surf = SURF::create(hessian_threshold_);
-  surf->detectAndCompute(in, cv::Mat(), kpts, desc);
-
-  // Save features in the output array
-  for (auto& kpt : kpts)
-  {
-    ImageFeature m_ft(kpt.pt.x, kpt.pt.y);
-    m_ft.laplacian_ = kpt.class_id;
-    out.push_back(m_ft);
-  }
-
-  // Save features descriptors
-  for (int32_t i = 0; i < desc.rows; i++)
-  {
-    for (int32_t j = 0; j < desc.cols; j++)
-    {
-      out[i].signature_.push_back(desc.at<float>(i, j));
-    }
-  }
-}
-
-void VisualMapper::pixel2base(const Point& in_pt, const float& depth, Point& out_pt) const
-{
-  // Project 2D pixel into a 3D Point using the stereo depth information
-  float x_cam = (in_pt.x_ - cx_) * (depth / fx_);
-  float y_cam = (in_pt.y_ - cy_) * (depth / fy_);
-  float z_cam = depth;
-  Point pt_cam(x_cam, y_cam, z_cam);
-
   // Compute camera-world axis transformation matrix
   Pose cam2world(0., 0., 0, -M_PI / 2., 0., -M_PI / 2.);
   std::array<float, 9> c2w_rot{};
@@ -193,7 +114,7 @@ void VisualMapper::pixel2base(const Point& in_pt, const float& depth, Point& out
   Tf cam2world_tf(c2w_rot, std::array<float, 3>{ 0., 0., 0. });
 
   // Align world and camera axis
-  Point wpoint = pt_cam * cam2world_tf;
+  Point wpoint = in_pt * cam2world_tf;
 
   // Compute camera-to-base transformation matrix
   Pose cam2base(cam2base_x_, cam2base_y_, cam2base_z_, cam2base_roll_, cam2base_pitch_, cam2base_yaw_);

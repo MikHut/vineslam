@@ -1,0 +1,71 @@
+# ROS topic and bagfile names
+odom_topic: /husky_velocity_controller/odom
+fix_topic: /fix
+tf_topic: /tf
+image_features_topic: /image_feature_array
+detections_topic: /tpu/detections
+pcl_topic: /velodyne_points
+
+# General system settings
+system:
+  # - System flags
+  # ---- Define system inputs
+  use_semantic_features: False
+  use_lidar_features: True
+  use_image_features: True
+  use_gps: False
+  use_wheel_odometry: True
+  # ---------------------
+  # GPS datum
+  gps_datum:
+    lat: 41.205517
+    long: -8.3073515
+  # ---------------------
+  # Sensors to base static tfs (x, y, z, qx, qy, qz, qw)
+  cam2base: [0.343, 0.079, 0.820, -0.002, 0.100, -0.004, 0.995]
+  vel2base: [0.000, 0.000, 0.942, -0.000, 0.000, -0.000, 1.000]
+
+camera_info:
+  baseline: 0.12 # meters
+  fx: 692.95849609375  # pixels
+
+multilayer_mapping:
+  # Grid map definitions
+  grid_map:
+    origin:
+      x: -75
+      y: -75
+      z: -0.5
+    width: 150
+    lenght: 150
+    height: 2.5
+    resolution: 0.25 # meters
+    save_map: True
+    output_folder: "/home/andresaguiar/Desktop/"
+    input_file: "/home/andresaguiar/map.xml"
+  # ICP definitions
+  ICP:
+    max_iters: 20
+    distance_threshold: 0.02
+    reject_outliers: True
+
+
+pf:
+  n_particles: 500
+
+  # Particles innovation
+  sigma_xx: 0.1 # meters
+  sigma_yy: 0.2 # meters
+  sigma_zz: 0.2 # meters
+  sigma_RR: 0.2 # radians
+  sigma_PP: 0.2 # radians
+  sigma_YY: 0.8 # radians
+
+  ## Particles update
+  sigma_landmark_matching: 0.01 # meters
+  sigma_feature_matching: 0.05 # meters
+  sigma_corner_matching: 0.1 # meters
+  sigma_planar_matching: 0.1 # meters
+  sigma_gps: 0.08 # meters
+
+  k_clusters: 3

@@ -54,12 +54,6 @@ add_dependencies(slam_node ${${PROJECT_NAME}_EXPORTED_TARGETS}
 target_link_libraries(slam_node
         ${catkin_LIBRARIES})
 
-add_executable(replay_node src/replay_node.cpp src/vineslam_ros.cpp src/visualization.cpp)
-add_dependencies(replay_node ${${PROJECT_NAME}_EXPORTED_TARGETS}
-        ${catkin_EXPORTED_TARGETS})
-target_link_libraries(replay_node
-        ${catkin_LIBRARIES})
-
 add_executable(localization_node src/localization_node.cpp src/vineslam_ros.cpp src/visualization.cpp)
 add_dependencies(localization_node ${${PROJECT_NAME}_EXPORTED_TARGETS}
         ${catkin_EXPORTED_TARGETS})

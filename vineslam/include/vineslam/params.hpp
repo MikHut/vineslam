@@ -14,8 +14,7 @@ struct Parameters
   std::string odom_topic_;
   std::string tf_topic_;
   std::string fix_topic_;
-  std::string depth_img_topic_;
-  std::string rgb_img_topic_;
+  std::string image_features_topic_;
   std::string detections_topic_;
   std::string pcl_topic_;
 
@@ -44,14 +43,8 @@ struct Parameters
   // ------ Camera info parameters
   // -----------------------------------
   float baseline_{};
-  float depth_hfov_{};
-  float depth_vfov_{};
-  int img_width_{};
-  int img_height_{};
   float fx_{};
-  float fy_{};
   float cx_{};
-  float cy_{};
 
   // -----------------------------------
   // ------ Multi-layer mapping parameters
@@ -68,9 +61,6 @@ struct Parameters
   std::string map_output_folder_;
   std::string map_input_file_;
   // - 3D map
-  int hessian_threshold_{};
-  float max_range_{};
-  float max_height_{};
   int icp_max_iters_{};
   float icp_distance_threshold_{};
   bool icp_reject_outliers_{};

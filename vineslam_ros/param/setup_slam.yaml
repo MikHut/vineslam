@@ -1,48 +1,34 @@
 # ROS topic and bagfile names
-bagfile_name: $(arg bagfile_name)
 odom_topic: /husky_velocity_controller/odom
-rs_odom_topic: /camerat265/odom/sample
 fix_topic: /fix
 tf_topic: /tf
-depth_img_topic: /zed/zed_node/depth/depth_registered
-#left_img_topic: /zed/zed_node/left_raw/image_raw_color/compressed
-left_img_topic: /zed/zed_node/left/image
+image_features_topic: /image_feature_array
 detections_topic: /tpu/detections
 pcl_topic: /velodyne_points
-
 
 # General system settings
 system:
   # - System flags
-  # ---------------------
-  debug: True
   # ---- Define system inputs
-  use_semantic_features: False
+  use_semantic_features: True
   use_lidar_features: True
   use_image_features: False
   use_gps: False
+  use_wheel_odometry: True
   # ---------------------
   # GPS datum
   gps_datum:
-    lat: 41.6520631667
-    long: -8.7052965
+    lat: 41.205517
+    long: -8.3073515
   # ---------------------
   # Sensors to base static tfs (x, y, z, qx, qy, qz, qw)
   cam2base: [0.343, 0.079, 0.820, -0.002, 0.100, -0.004, 0.995]
   vel2base: [0.000, 0.000, 0.942, -0.000, 0.000, -0.000, 1.000]
 
-# Camera calibration info
 camera_info:
-  baseline: 0.12       # meters
-  depth_hfov: 90.0     # degrees - depth image horizontal field of view
-  depth_vfov: 60.0     # degrees - depth image vertical field of view
-  img_width: 1280      # pixels
-  img_height: 720      # pixels
+  baseline: 0.12 # meters
   fx: 692.95849609375  # pixels
-  fy: 636.41424560546  # pixels
   cx: 692.95849609375  # pixels
-  cy: 382.80633544921  # pixels
-
 
 multilayer_mapping:
   # Grid map definitions
@@ -56,19 +42,12 @@ multilayer_mapping:
     height: 2.5
     resolution: 0.25 # meters
     save_map: True
-    output_folder: "/home/andre-criis/Source/vineslam_data/raw_data/maps/"
-    input_file: "/home/andre-criis/map.xml"
-  # Feature extractor and descriptor settings
-  image_feature:
-    hessian_threshold: 3500 # SURF threshold: the higher the value, the lesser the number of features computed
-  # 3D map definitions
-  map_3D:
-    max_range: 5.0 # meters
-    max_height: 4.5 # meters
+    output_folder: "/home/andresaguiar/Desktop/"
+    input_file: "/home/andresaguiar/map.xml"
   # ICP definitions
   ICP:
     max_iters: 20
-    distance_threshold: 0.20
+    distance_threshold: 0.02
     reject_outliers: True
 
 
@@ -76,11 +55,11 @@ pf:
   n_particles: 500
 
   # Particles innovation
-  sigma_xx: 0.2 # meters
+  sigma_xx: 0.1 # meters
   sigma_yy: 0.2 # meters
   sigma_zz: 0.2 # meters
-  sigma_RR: 0.5 # radians
-  sigma_PP: 0.5 # radians
+  sigma_RR: 0.2 # radians
+  sigma_PP: 0.2 # radians
   sigma_YY: 0.8 # radians
 
   ## Particles update

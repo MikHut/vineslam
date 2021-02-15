@@ -20,6 +20,8 @@
 // ----------------------------
 #include <vineslam_msgs/particle.h>
 #include <vineslam_msgs/report.h>
+#include <vineslam_msgs/Feature.h>
+#include <vineslam_msgs/FeatureArray.h>
 // ----------------------------
 #include <vineslam_ros/start_map_registration.h>
 #include <vineslam_ros/stop_map_registration.h>
@@ -46,8 +48,8 @@
 #include <sensor_msgs/point_cloud_conversion.h>
 #include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
-#include <vision_msgs/Detection2D.h>
-#include <vision_msgs/Detection2DArray.h>
+#include <vision_msgs/Detection3D.h>
+#include <vision_msgs/Detection3DArray.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <nav_msgs/OccupancyGrid.h>
 #include <pcl_ros/point_cloud.h>
@@ -71,10 +73,11 @@ public:
   virtual void process();
 
   // Stereo camera images callback function
-  void imageListener(const sensor_msgs::ImageConstPtr& rgb_image, const sensor_msgs::ImageConstPtr& depth_image);
-  void _imageListener(const cv::Mat& rgb_image, const sensor_msgs::ImageConstPtr& depth_image);
+//  void imageListener(const sensor_msgs::ImageConstPtr& rgb_image, const sensor_msgs::ImageConstPtr& depth_image);
+//  void _imageListener(const cv::Mat& rgb_image, const sensor_msgs::ImageConstPtr& depth_image);
+  void imageFeatureListener(const vineslam_msgs::FeatureArrayConstPtr& features);
   // Landmark detection callback function
-  void landmarkListener(const vision_msgs::Detection2DArrayConstPtr& dets);
+  void landmarkListener(const vision_msgs::Detection3DArrayConstPtr& dets);
   // Scan callback function
   void scanListener(const sensor_msgs::PointCloud2ConstPtr& msg);
   // Odometry callback function
@@ -124,10 +127,8 @@ public:
     std::vector<float> land_bearings_;
     // Landmark depths array
     std::vector<float> land_depths_;
-    // Depth image transformed into a linear vector
-    float* depth_array_;
-    // Input RGB image
-    cv::Mat rgb_image_;
+    // Image features
+    std::vector<ImageFeature> image_features_;
     // Wheel odometry pose
     Pose wheel_odom_pose_;
     // Previous wheel odometry pose
@@ -139,7 +140,7 @@ public:
 
     // Observation flags
     bool received_landmarks_;
-    bool received_images_;
+    bool received_image_features_;
     bool received_odometry_;
     bool received_gnss_;
     bool received_scans_;
@@ -157,7 +158,8 @@ public:
   ros::Publisher pose_publisher_;
   ros::Publisher path_publisher_;
   ros::Publisher poses_publisher_;
-  ros::Publisher gps_publisher_;
+  ros::Publisher gps_path_publisher_;
+  ros::Publisher gps_pose_publisher_;
   ros::Publisher corners_local_publisher_;
   ros::Publisher planars_local_publisher_;
   ros::Publisher planes_local_publisher_;

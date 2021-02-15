@@ -31,14 +31,9 @@ static void loadParameters(const ros::NodeHandle& nh, const std::string& prefix,
     ROS_ERROR("%s/fix_topic parameter not found. Shutting down...", prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/depth_img_topic", params.depth_img_topic_) && !(node_name == "/mapping_node"))
+  if (!nh.getParam(prefix + "/image_features_topic", params.image_features_topic_) && !(node_name == "/mapping_node"))
   {
-    ROS_ERROR("%s/depth_img_topic parameter not found. Shutting down...", prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/left_img_topic", params.rgb_img_topic_) && !(node_name == "/mapping_node"))
-  {
-    ROS_ERROR("%s/left_img_topic parameter not found. Shutting down...", prefix.c_str());
+    ROS_ERROR("%s/img_features_topic parameter not found. Shutting down...", prefix.c_str());
     exit(-1);
   }
   if (!nh.getParam(prefix + "/detections_topic", params.detections_topic_) && !(node_name == "/mapping_node"))
@@ -104,44 +99,14 @@ static void loadParameters(const ros::NodeHandle& nh, const std::string& prefix,
     ROS_ERROR("%s/camera_info/baseline parameter not found. Shutting down...", prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/camera_info/depth_hfov", params.depth_hfov_) && !(node_name == "/mapping_node"))
-  {
-    ROS_ERROR("%s/camera_info/depth_hfov parameter not found. Shutting down...", prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/camera_info/depth_vfov", params.depth_vfov_) && !(node_name == "/mapping_node"))
-  {
-    ROS_ERROR("%s/camera_info/depth_vfov parameter not found. Shutting down...", prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/camera_info/cx", params.cx_) && !(node_name == "/mapping_node"))
-  {
-    ROS_ERROR("%s/camera_info/cx parameter not found. Shutting down...", prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/camera_info/cy", params.cy_) && !(node_name == "/mapping_node"))
-  {
-    ROS_ERROR("%s/camera_info/cy parameter not found. Shutting down...", prefix.c_str());
-    exit(-1);
-  }
   if (!nh.getParam(prefix + "/camera_info/fx", params.fx_) && !(node_name == "/mapping_node"))
   {
     ROS_ERROR("%s/camera_info/fx parameter not found. Shutting down...", prefix.c_str());
     exit(-1);
   }
-  if (!nh.getParam(prefix + "/camera_info/fy", params.fy_) && !(node_name == "/mapping_node"))
+  if (!nh.getParam(prefix + "/camera_info/cx", params.cx_) && !(node_name == "/mapping_node"))
   {
-    ROS_ERROR("%s/camera_info/fy parameter not found. Shutting down...", prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/camera_info/img_width", params.img_width_) && !(node_name == "/mapping_node"))
-  {
-    ROS_ERROR("%s/camera_info/img_width parameter not found. Shutting down...", prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/camera_info/img_height", params.img_height_) && !(node_name == "/mapping_node"))
-  {
-    ROS_ERROR("%s/camera_info/img_height parameter not found. Shutting down...", prefix.c_str());
+    ROS_ERROR("%s/camera_info/cx parameter not found. Shutting down...", prefix.c_str());
     exit(-1);
   }
   if (!nh.getParam(prefix + "/multilayer_mapping/ICP/distance_threshold", params.icp_distance_threshold_) &&
@@ -257,30 +222,6 @@ static void loadParameters(const ros::NodeHandle& nh, const std::string& prefix,
                                                                                                                  "e"))
   {
     ROS_ERROR("%s/multilayer_mapping/grid_map/input_file "
-              "not found. Shutting down...",
-              prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/multilayer_mapping/image_feature/hessian_threshold", params.hessian_threshold_) &&
-      !(node_name == "/mapping_node"))
-  {
-    ROS_ERROR("%s/multilayer_mapping/image_feature/hessian_threshold "
-              "not found. Shutting down...",
-              prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/multilayer_mapping/map_3D/max_range", params.max_range_) && !(node_name == "/mapping_"
-                                                                                                         "node"))
-  {
-    ROS_ERROR("%s/multilayer_mapping/map_3D/max_range "
-              "not found. Shutting down...",
-              prefix.c_str());
-    exit(-1);
-  }
-  if (!nh.getParam(prefix + "/multilayer_mapping/map_3D/max_height", params.max_height_) && !(node_name == "/mapping_"
-                                                                                                           "node"))
-  {
-    ROS_ERROR("%s/multilayer_mapping/map_3D/max_height "
               "not found. Shutting down...",
               prefix.c_str());
     exit(-1);

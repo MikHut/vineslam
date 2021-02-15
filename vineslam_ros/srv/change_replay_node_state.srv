@@ -1,4 +1,0 @@
-std_msgs/Bool pause_node
-std_msgs/Bool play_node
-std_msgs/Bool iterate_node
----

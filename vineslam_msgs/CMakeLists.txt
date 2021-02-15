@@ -10,7 +10,7 @@ find_package(catkin REQUIRED COMPONENTS message_generation
 
 add_message_files(
         DIRECTORY msg
-        FILES particle.msg report.msg
+        FILES particle.msg report.msg Feature.msg FeatureArray.msg
 )
 
 generate_messages(DEPENDENCIES std_msgs

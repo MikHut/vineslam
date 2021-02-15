@@ -48,8 +48,8 @@
 #include <sensor_msgs/point_cloud_conversion.h>
 #include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
-#include <vision_msgs/Detection2D.h>
-#include <vision_msgs/Detection2DArray.h>
+#include <vision_msgs/Detection3D.h>
+#include <vision_msgs/Detection3DArray.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <nav_msgs/OccupancyGrid.h>
 #include <pcl_ros/point_cloud.h>
@@ -77,7 +77,7 @@ public:
 //  void _imageListener(const cv::Mat& rgb_image, const sensor_msgs::ImageConstPtr& depth_image);
   void imageFeatureListener(const vineslam_msgs::FeatureArrayConstPtr& features);
   // Landmark detection callback function
-  void landmarkListener(const vision_msgs::Detection2DArrayConstPtr& dets);
+  void landmarkListener(const vision_msgs::Detection3DArrayConstPtr& dets);
   // Scan callback function
   void scanListener(const sensor_msgs::PointCloud2ConstPtr& msg);
   // Odometry callback function

@@ -320,86 +320,38 @@ void VineSLAM_ros::imageFeatureListener(const vineslam_msgs::FeatureArrayConstPt
   input_data_.received_image_features_ = true;
 }
 
-void VineSLAM_ros::landmarkListener(const vision_msgs::Detection2DArrayConstPtr& dets)
+void VineSLAM_ros::landmarkListener(const vision_msgs::Detection3DArrayConstPtr& dets)
 {
-  //  // Declaration of the arrays that will constitute the SLAM observations
-  //  std::vector<int> labels;
-  //  std::vector<float> bearings;
-  //  std::vector<float> depths;
-  //
-  //  // -------------------------------------------------------------------------------
-  //  // ---- Extract high-level semantic features
-  //  // -------------------------------------------------------------------------------
-  //  // Loop over all the bounding box detections
-  //  if (dets != nullptr && input_data_.received_images_)
-  //  {
-  //    for (const auto& detection : (*dets).detections)
-  //    {
-  //      // Load a single bounding box detection
-  //      vision_msgs::BoundingBox2D l_bbox = detection.bbox;
-  //
-  //      // Calculate the bearing and depth of the detected object
-  //      float depth;
-  //      float bearing;
-  //
-  //      // Compute bounding box limits
-  //      auto xmin = static_cast<int>(l_bbox.center.x - l_bbox.size_x / 2);
-  //      auto ymin = static_cast<int>(l_bbox.center.y - l_bbox.size_y / 2);
-  //      auto xmax = static_cast<int>(l_bbox.center.x + l_bbox.size_x / 2);
-  //      auto ymax = static_cast<int>(l_bbox.center.y + l_bbox.size_y / 2);
-  //
-  //      // Set minimum and maximum depth values to consider
-  //      float range_min = 0.01;
-  //      float range_max = 10.0;
-  //
-  //      std::map<float, float> dtheta;
-  //      for (uint32_t i = xmin; i < xmax; i++)
-  //      {
-  //        for (uint32_t j = ymin; j < ymax; j++)
-  //        {
-  //          uint32_t idx = i + input_data_.rgb_image_.cols * j;
-  //
-  //          // Fill the depth array with the values of interest
-  //          if (std::isfinite(input_data_.depth_array_[idx]) && input_data_.depth_array_[idx] > range_min &&
-  //              input_data_.depth_array_[idx] < range_max)
-  //          {
-  //            float x = input_data_.depth_array_[idx];
-  //            float y = -(static_cast<float>(i) - params_.cx_) * (x / params_.fx_);
-  //            auto l_depth = static_cast<float>(sqrt(pow(x, 2) + pow(y, 2)));
-  //            dtheta[l_depth] = atan2(y, x);
-  //          }
-  //        }
-  //      }
-  //
-  //      // compute minimum of all observations
-  //      size_t n_depths = dtheta.size();
-  //      if (n_depths > 0)
-  //      {
-  //        depth = dtheta.begin()->first;
-  //        bearing = dtheta.begin()->second;
-  //      }
-  //      else
-  //      {
-  //        depth = -1;
-  //        bearing = -1;
-  //      }
-  //
-  //      // Check if the calculated depth is valid
-  //      if (depth == -1)
-  //        continue;
-  //
-  //      // Insert the measures in the observations arrays
-  //      labels.push_back(detection.results[0].id);
-  //      depths.push_back(depth);
-  //      bearings.push_back(bearing);
-  //    }
-  //  }
-  //
-  //  input_data_.land_labels_ = labels;
-  //  input_data_.land_bearings_ = bearings;
-  //  input_data_.land_depths_ = depths;
-  //
-  //  input_data_.received_landmarks_ = true;
+  // Declaration of the arrays that will constitute the SLAM observations
+  std::vector<int> labels;
+  std::vector<float> bearings;
+  std::vector<float> depths;
+
+  // -------------------------------------------------------------------------------
+  // ---- Compute range-bearing representation of semantic features
+  // -------------------------------------------------------------------------------
+  for (const auto& detection : (*dets).detections)
+  {
+    vision_msgs::BoundingBox3D l_bbox = detection.bbox;
+
+    float x = l_bbox.center.position.z;
+    float y = -(static_cast<float>(l_bbox.center.position.x) - params_.cx_) * (x / params_.fx_);
+
+    auto depth = static_cast<float>(sqrt(pow(x, 2) + pow(y, 2)));
+    float theta = atan2(y, x);
+
+    // Insert the measures in the observations arrays
+    //    labels.push_back(detection.results[0].id);
+    labels.push_back(0);
+    depths.push_back(depth);
+    bearings.push_back(theta);
+  }
+
+  input_data_.land_labels_ = labels;
+  input_data_.land_bearings_ = bearings;
+  input_data_.land_depths_ = depths;
+
+  input_data_.received_landmarks_ = true;
 }
 
 void VineSLAM_ros::scanListener(const sensor_msgs::PointCloud2ConstPtr& msg)

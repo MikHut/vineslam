@@ -104,6 +104,11 @@ static void loadParameters(const ros::NodeHandle& nh, const std::string& prefix,
     ROS_ERROR("%s/camera_info/fx parameter not found. Shutting down...", prefix.c_str());
     exit(-1);
   }
+  if (!nh.getParam(prefix + "/camera_info/cx", params.cx_) && !(node_name == "/mapping_node"))
+  {
+    ROS_ERROR("%s/camera_info/cx parameter not found. Shutting down...", prefix.c_str());
+    exit(-1);
+  }
   if (!nh.getParam(prefix + "/multilayer_mapping/ICP/distance_threshold", params.icp_distance_threshold_) &&
       !(node_name == "/mapping_node"))
   {

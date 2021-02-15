@@ -44,6 +44,7 @@ struct Parameters
   // -----------------------------------
   float baseline_{};
   float fx_{};
+  float cx_{};
 
   // -----------------------------------
   // ------ Multi-layer mapping parameters

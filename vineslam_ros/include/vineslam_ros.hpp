@@ -46,8 +46,9 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 //#include <sensor_msgs/point_cloud_conversion.h>
-//#include <tf/transform_listener.h>
-//#include <tf/transform_broadcaster.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2/utils.h>
 #include <vision_msgs/msg/detection3_d.hpp>
 #include <vision_msgs/msg/detection3_d_array.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
@@ -68,136 +69,149 @@ public:
 
   // Runtime execution routines
   virtual void init();
+
   virtual void loop();
+
   virtual void loopOnce();
+
   virtual void process();
 
-//  // Stereo camera images callback function
-////  void imageListener(const sensor_msgs::ImageConstPtr& rgb_image, const sensor_msgs::ImageConstPtr& depth_image);
-////  void _imageListener(const cv::Mat& rgb_image, const sensor_msgs::ImageConstPtr& depth_image);
-//  void imageFeatureListener(const vineslam_msgs::FeatureArrayConstPtr& features);
-//  // Landmark detection callback function
-//  void landmarkListener(const vision_msgs::Detection3DArrayConstPtr& dets);
-//  // Scan callback function
-//  void scanListener(const sensor_msgs::PointCloud2ConstPtr& msg);
-//  // Odometry callback function
-//  void odomListener(const nav_msgs::OdometryConstPtr& msg);
-//  // GPS callback function
-//  void gpsListener(const sensor_msgs::NavSatFixConstPtr& msg);
-//  // Services callbacks
-//  bool startRegistration(vineslam_ros::start_map_registration::Request&,
-//                         vineslam_ros::start_map_registration::Response&);
-//  bool stopRegistration(vineslam_ros::stop_map_registration::Request&, vineslam_ros::stop_map_registration::Response&);
-//  bool stopHeadingEstimation(vineslam_ros::stop_gps_heading_estimation::Request&,
-//                             vineslam_ros::stop_gps_heading_estimation::Response&);
-//  bool saveMap(vineslam_ros::save_map::Request&, vineslam_ros::save_map::Response&);
-//
-//  // Publish 2D semantic features map
-//  void publish2DMap(const Pose& pose, const std::vector<float>& bearings, const std::vector<float>& depths) const;
-//  // Publish the elevation map
-//  void publishElevationMap() const;
-//  // Publish the 3D maps
-//  void publish3DMap() const;
-//  // Publish the 3D PCL planes
-//  void publish3DMap(const std::vector<Plane>& planes, const ros::Publisher& pub);
-//  static void publish3DMap(const Pose& r_pose, const std::vector<Plane>& planes, const ros::Publisher& pub);
-//  // Publish the 3D PCL semi planes
-//  void publish3DMap(const std::vector<SemiPlane>& planes, const ros::Publisher& pub);
-//  static void publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>& planes, const ros::Publisher& pub);
-//  // Publish a 3D PCL corners map
-//  void publish3DMap(const std::vector<Corner>& corners, const ros::Publisher& pub);
-//  static void publish3DMap(const Pose& r_pose, const std::vector<Corner>& corners, const ros::Publisher& pub);
-//  // Publish a 3D PCL planar features map
-//  void publish3DMap(const std::vector<Planar>& planars, const ros::Publisher& pub);
-//  static void publish3DMap(const Pose& r_pose, const std::vector<Planar>& planars, const ros::Publisher& pub);
-//  // Publish the grid map that contains all the maps
-//  void publishGridMap(const std_msgs::Header& header) const;
-//  // Publishes a VineSLAM state report for debug purposes
-//  void publishReport() const;
-//
-//  // GNSS heading estimator
-//  bool getGNSSHeading(const Pose& gps_odom, const std_msgs::Header& header);
-//
-//  // VineSLAM input data
-//  struct InputData
-//  {
-//    // Landmark labels array
-//    std::vector<int> land_labels_;
-//    // Landmark bearings array
-//    std::vector<float> land_bearings_;
-//    // Landmark depths array
-//    std::vector<float> land_depths_;
-//    // Image features
-//    std::vector<ImageFeature> image_features_;
-//    // Wheel odometry pose
-//    Pose wheel_odom_pose_;
-//    // Previous wheel odometry pose
-//    Pose p_wheel_odom_pose_;
-//    // GNSS pose
-//    Pose gnss_pose_;
-//    // LiDAR scan points
-//    std::vector<Point> scan_pts_;
-//
-//    // Observation flags
-//    bool received_landmarks_;
-//    bool received_image_features_;
-//    bool received_odometry_;
-//    bool received_gnss_;
-//    bool received_scans_;
-//  } input_data_;
-//
-//  // ROS publishers/services
-//  ros::Publisher vineslam_report_publisher_;
-//  ros::Publisher grid_map_publisher_;
-//  ros::Publisher elevation_map_publisher_;
-//  ros::Publisher map2D_publisher_;
-//  ros::Publisher map3D_features_publisher_;
-//  ros::Publisher map3D_corners_publisher_;
-//  ros::Publisher map3D_planars_publisher_;
-//  ros::Publisher map3D_planes_publisher_;
-//  ros::Publisher pose_publisher_;
-//  ros::Publisher path_publisher_;
-//  ros::Publisher poses_publisher_;
-//  ros::Publisher gps_path_publisher_;
-//  ros::Publisher gps_pose_publisher_;
-//  ros::Publisher corners_local_publisher_;
-//  ros::Publisher planars_local_publisher_;
-//  ros::Publisher planes_local_publisher_;
-//  ros::ServiceClient polar2pose_;
-//  ros::ServiceClient set_datum_;
-//
-//  // Classes object members
-//  Parameters params_;
-//  Localizer* localizer_;
-//  ElevationMap* elevation_map_;
-//  OccupancyMap* grid_map_;
-//  OccupancyMap* previous_map_;
-//  LandmarkMapper* land_mapper_;
-//  VisualMapper* vis_mapper_;
-//  LidarMapper* lid_mapper_;
-//  Observation obsv_;
-//
-//  // Array of poses to store and publish the robot path
-//  std::vector<geometry_msgs::PoseStamped> path_;
-//  std::vector<geometry_msgs::PoseStamped> gps_poses_;
-//
-//  // Motion variables
-//  Pose init_odom_pose_;
-//  Pose robot_pose_;
-//
-//  // GNSS variables
-//  int datum_autocorrection_stage_;
-//  int32_t global_counter_;
-//  float datum_orientation_[360][4]{};
-//  bool has_converged_{};
-//  bool estimate_heading_;
-//  float heading_;
-//
-//  // Initialization flags
-//  bool init_flag_;
-//  bool init_gps_;
-//  bool init_odom_;
-//  bool register_map_;
+  // Stereo camera images callback function
+  void imageFeatureListener(const vineslam_msgs::msg::FeatureArray::SharedPtr features);
+
+  // Landmark detection callback function
+  void landmarkListener(const vision_msgs::msg::Detection3DArray::SharedPtr dets);
+
+  // Scan callback function
+  void scanListener(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
+
+  // Odometry callback function
+  void odomListener(const nav_msgs::msg::Odometry::SharedPtr msg);
+
+  // GPS callback function
+  void gpsListener(const sensor_msgs::msg::NavSatFix::SharedPtr msg);
+
+  // Services callbacks
+  bool startRegistration(vineslam_ros::srv::StartMapRegistration::Request::SharedPtr,
+                         vineslam_ros::srv::StartMapRegistration::Response::SharedPtr);
+  bool stopRegistration(vineslam_ros::srv::StopMapRegistration::Request::SharedPtr,
+                        vineslam_ros::srv::StopMapRegistration::Response::SharedPtr);
+  bool stopHeadingEstimation(vineslam_ros::srv::StopGpsHeadingEstimation::Request::SharedPtr,
+                             vineslam_ros::srv::StopGpsHeadingEstimation::Response::SharedPtr);
+  bool saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr, vineslam_ros::srv::SaveMap::Response::SharedPtr);
+
+  // Tf pose to geometry_msgs transform stamped conversion routine
+  void pose2TransformStamped(const tf2::Quaternion& q, const tf2::Vector3& t, geometry_msgs::msg::TransformStamped tf);
+
+  // Publish 2D semantic features map
+  void publish2DMap(const Pose& pose, const std::vector<float>& bearings, const std::vector<float>& depths) const;
+  // Publish the elevation map
+  void publishElevationMap() const;
+  // Publish the 3D maps
+  void publish3DMap() const;
+  // Publish the 3D PCL planes
+  //  void publish3DMap(const std::vector<Plane>& planes, const ros::Publisher& pub);
+  //  static void publish3DMap(const Pose& r_pose, const std::vector<Plane>& planes, const ros::Publisher& pub);
+  //  // Publish the 3D PCL semi planes
+  //  void publish3DMap(const std::vector<SemiPlane>& planes, const ros::Publisher& pub);
+  //  static void publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>& planes, const ros::Publisher& pub);
+  //  // Publish a 3D PCL corners map
+  //  void publish3DMap(const std::vector<Corner>& corners, const ros::Publisher& pub);
+  //  static void publish3DMap(const Pose& r_pose, const std::vector<Corner>& corners, const ros::Publisher& pub);
+  //  // Publish a 3D PCL planar features map
+  //  void publish3DMap(const std::vector<Planar>& planars, const ros::Publisher& pub);
+  //  static void publish3DMap(const Pose& r_pose, const std::vector<Planar>& planars, const ros::Publisher& pub);
+  // Publish the grid map that contains all the maps
+  void publishGridMap(const std_msgs::msg::Header& header) const;
+  // Publishes a VineSLAM state report for debug purposes
+  void publishReport() const;
+
+  // GNSS heading estimator
+  bool getGNSSHeading(const Pose& gps_odom, const std_msgs::msg::Header& header);
+
+  // VineSLAM input data
+  struct InputData
+  {
+    // Landmark labels array
+    std::vector<int> land_labels_;
+    // Landmark bearings array
+    std::vector<float> land_bearings_;
+    // Landmark depths array
+    std::vector<float> land_depths_;
+    // Image features
+    std::vector<ImageFeature> image_features_;
+    // Wheel odometry pose
+    Pose wheel_odom_pose_;
+    // Previous wheel odometry pose
+    Pose p_wheel_odom_pose_;
+    // GNSS pose
+    Pose gnss_pose_;
+    // LiDAR scan points
+    std::vector<Point> scan_pts_;
+
+    // Observation flags
+    bool received_landmarks_;
+    bool received_image_features_;
+    bool received_odometry_;
+    bool received_gnss_;
+    bool received_scans_;
+  } input_data_;
+
+  // ROS Node
+  rclcpp::Node::SharedPtr nh_;
+
+  // ROS publishers/services
+  rclcpp::Publisher<vineslam_msgs::msg::Report>::SharedPtr vineslam_report_publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr grid_map_publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr elevation_map_publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr map2D_publisher_;
+  //  rclcpp::Publisher<vineslam_msgs::msg::Report>::SharedPtr map3D_features_publisher_;
+  //  rclcpp::Publisher<vineslam_msgs::msg::Report>::SharedPtr map3D_corners_publisher_;
+  //  rclcpp::Publisher<vineslam_msgs::msg::Report>::SharedPtr map3D_planars_publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr map3D_planes_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_publisher_;
+  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr poses_publisher_;
+  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr gps_path_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr gps_pose_publisher_;
+  //  rclcpp::Publisher<vineslam_msgs::msg::Report>::SharedPtr corners_local_publisher_;
+  //  rclcpp::Publisher<vineslam_msgs::msg::Report>::SharedPtr planars_local_publisher_;
+  //  rclcpp::Publisher<vineslam_msgs::msg::Report>::SharedPtr planes_local_publisher_;
+  //  ros::ServiceClient polar2pose_;
+  //  ros::ServiceClient set_datum_;
+
+  // Classes object members
+  Parameters params_;
+  Localizer* localizer_;
+  ElevationMap* elevation_map_;
+  OccupancyMap* grid_map_;
+  OccupancyMap* previous_map_;
+  LandmarkMapper* land_mapper_;
+  VisualMapper* vis_mapper_;
+  LidarMapper* lid_mapper_;
+  Observation obsv_;
+
+  // Array of poses to store and publish the robot path
+  std::vector<geometry_msgs::msg::PoseStamped> path_;
+  std::vector<geometry_msgs::msg::PoseStamped> gps_poses_;
+
+  // Motion variables
+  Pose init_odom_pose_;
+  Pose robot_pose_;
+
+  // GNSS variables
+  int datum_autocorrection_stage_;
+  int32_t global_counter_;
+  float datum_orientation_[360][4]{};
+  bool has_converged_{};
+  bool estimate_heading_;
+  float heading_;
+
+  // Initialization flags
+  bool init_flag_;
+  bool init_gps_;
+  bool init_odom_;
+  bool register_map_;
 };
 
 }  // namespace vineslam

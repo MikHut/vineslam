@@ -4,9 +4,7 @@ project(vineslam)
 find_package(ament_cmake REQUIRED)
 find_package(Eigen3 REQUIRED)
 
-include_directories(
-        include
-)
+include_directories(include)
 
 add_library(vineslam
         src/mapping/landmark_mapping.cpp

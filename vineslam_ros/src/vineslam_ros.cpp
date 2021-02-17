@@ -6,33 +6,34 @@ namespace vineslam
 // ----- Callbacks and observation functions
 // --------------------------------------------------------------------------------
 
-bool VineSLAM_ros::startRegistration(vineslam_ros::start_map_registration::Request&,
-                                     vineslam_ros::start_map_registration::Response&)
+bool VineSLAM_ros::startRegistration(vineslam_ros::srv::StartMapRegistration::Request::SharedPtr,
+                                     vineslam_ros::srv::StartMapRegistration::Response::SharedPtr)
 {
-  ROS_INFO("Activating map registration ...\n");
+  RCLCPP_INFO(nh_->get_logger(), "Activating map registration ...\n");
   register_map_ = true;
   return true;
 }
 
-bool VineSLAM_ros::stopRegistration(vineslam_ros::stop_map_registration::Request&,
-                                    vineslam_ros::stop_map_registration::Response&)
+bool VineSLAM_ros::stopRegistration(vineslam_ros::srv::StopMapRegistration::Request::SharedPtr,
+                                    vineslam_ros::srv::StopMapRegistration::Response::SharedPtr)
 {
-  ROS_INFO("Deactivating map registration ...\n");
+  RCLCPP_INFO(nh_->get_logger(), "Deactivating map registration ...\n");
   register_map_ = false;
   return true;
 }
 
-bool VineSLAM_ros::stopHeadingEstimation(vineslam_ros::stop_gps_heading_estimation::Request&,
-                                         vineslam_ros::stop_gps_heading_estimation::Response&)
+bool VineSLAM_ros::stopHeadingEstimation(vineslam_ros::srv::StopGpsHeadingEstimation::Request::SharedPtr,
+                                         vineslam_ros::srv::StopGpsHeadingEstimation::Response::SharedPtr)
 {
-  ROS_INFO("Deactivating gps heading estimation ...\n");
+  RCLCPP_INFO(nh_->get_logger(), "Deactivating gps heading estimation ...\n");
   estimate_heading_ = false;
   return true;
 }
 
-bool VineSLAM_ros::saveMap(vineslam_ros::save_map::Request&, vineslam_ros::save_map::Response&)
+bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
+                           vineslam_ros::srv::SaveMap::Response::SharedPtr)
 {
-  ROS_INFO("Saving map to xml file.");
+  RCLCPP_INFO(nh_->get_logger(), "Saving map to xml file.");
 
   // Save map data
   bool save_map = params_.save_map_;
@@ -43,9 +44,21 @@ bool VineSLAM_ros::saveMap(vineslam_ros::save_map::Request&, vineslam_ros::save_
     mw.writeToFile(grid_map_);
   }
 
-  ROS_INFO("Map saved.");
+  RCLCPP_INFO(nh_->get_logger(), "Map saved.");
 
   return true;
+}
+
+void VineSLAM_ros::pose2TransformStamped(const tf2::Quaternion& q, const tf2::Vector3& t,
+                                         geometry_msgs::msg::TransformStamped tf)
+{
+  tf.transform.rotation.x = q.x();
+  tf.transform.rotation.y = q.y();
+  tf.transform.rotation.z = q.z();
+  tf.transform.rotation.w = q.w();
+  tf.transform.translation.x = t.x();
+  tf.transform.translation.y = t.y();
+  tf.transform.translation.z = t.z();
 }
 
 void VineSLAM_ros::loop()
@@ -57,7 +70,7 @@ void VineSLAM_ros::loop()
   input_data_.received_odometry_ = false;
   input_data_.received_gnss_ = false;
 
-  while (ros::ok())
+  while (rclcpp::ok())
   {
     loopOnce();
   }
@@ -77,9 +90,9 @@ void VineSLAM_ros::loopOnce()
   // VineSLAM main loop
   if (init_flag_)
   {
-    ROS_INFO("Initializing system...");
+    RCLCPP_INFO(nh_->get_logger(), "Initializing system...");
     init();
-    ROS_INFO("Initialization performed!");
+    RCLCPP_INFO(nh_->get_logger(), "Initialization performed!");
     init_flag_ = false;
   }
   else
@@ -147,7 +160,7 @@ void VineSLAM_ros::init()
     grid_map_->downsamplePlanars();
   }
 
-  ROS_INFO("Localization and Mapping has started.");
+  RCLCPP_INFO(nh_->get_logger(), "Localization and Mapping has started.");
 }
 
 void VineSLAM_ros::process()
@@ -232,33 +245,54 @@ void VineSLAM_ros::process()
   // ----- ROS publishers and tf broadcasting
   // ---------------------------------------------------------
 
-  // Convert robot pose to tf::Transform corresponding
-  tf::Quaternion q;
+  // Publish tf::Trasforms
+  std::shared_ptr<tf2_ros::TransformBroadcaster> br;
+  tf2::Quaternion q;
+
+  // ---- base2map
+  geometry_msgs::msg::TransformStamped base2map_tf;
+  base2map_tf.header.stamp = rclcpp::Time();
+  base2map_tf.header.frame_id = "/map";
+  base2map_tf.child_frame_id = "/base_link";
   q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
   q.normalize();
-  tf::Transform base2map;
-  base2map.setRotation(q);
-  base2map.setOrigin(tf::Vector3(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_));
+  pose2TransformStamped(q, tf2::Vector3(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_), base2map_tf);
+  br->sendTransform(base2map_tf);
 
-  // Publish tf::Trasforms
-  static tf::TransformBroadcaster br;
-  br.sendTransform(tf::StampedTransform(base2map, ros::Time::now(), "map", "/base_link"));
-  tf::Transform cam2base(
-      tf::Quaternion(params_.cam2base_[3], params_.cam2base_[4], params_.cam2base_[5], params_.cam2base_[6]),
-      tf::Vector3(params_.cam2base_[0], params_.cam2base_[1], params_.cam2base_[2]));
-  br.sendTransform(tf::StampedTransform(cam2base, ros::Time::now(), "/base_link", "zed_camera_left_optical_frame"));
-  tf::Transform vel2base(
-      tf::Quaternion(params_.vel2base_[3], params_.vel2base_[4], params_.vel2base_[5], params_.vel2base_[6]),
-      tf::Vector3(params_.vel2base_[0], params_.vel2base_[1], params_.vel2base_[2]));
-  br.sendTransform(tf::StampedTransform(vel2base, ros::Time::now(), "/base_link", "velodyne"));
-  tf::Quaternion o2m_q;
-  o2m_q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
-  tf::Transform odom2map(o2m_q, tf::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_));
-  br.sendTransform(tf::StampedTransform(odom2map, ros::Time::now(), "odom", "map"));
+  // ---- cam2base
+  geometry_msgs::msg::TransformStamped cam2base_tf;
+  cam2base_tf.header.stamp = rclcpp::Time();
+  cam2base_tf.header.frame_id = "/base_link";
+  cam2base_tf.child_frame_id = "/zed_camera_left_optical_frame";
+  pose2TransformStamped(
+      tf2::Quaternion(params_.cam2base_[3], params_.cam2base_[4], params_.cam2base_[5], params_.cam2base_[6]),
+      tf2::Vector3(params_.cam2base_[0], params_.cam2base_[1], params_.cam2base_[2]), cam2base_tf);
+  br->sendTransform(cam2base_tf);
+
+  // ---- vel2base
+  geometry_msgs::msg::TransformStamped vel2base_tf;
+  vel2base_tf.header.stamp = rclcpp::Time();
+  vel2base_tf.header.frame_id = "/base_link";
+  vel2base_tf.child_frame_id = "/velodyne";
+  pose2TransformStamped(
+      tf2::Quaternion(params_.vel2base_[3], params_.vel2base_[4], params_.vel2base_[5], params_.vel2base_[6]),
+      tf2::Vector3(params_.vel2base_[0], params_.vel2base_[1], params_.vel2base_[2]), vel2base_tf);
+  br->sendTransform(vel2base_tf);
+
+  // ---- odom2map
+  geometry_msgs::msg::TransformStamped map2odom_tf;
+  map2odom_tf.header.stamp = rclcpp::Time();
+  map2odom_tf.header.frame_id = "/odom";
+  map2odom_tf.child_frame_id = "/map";
+  q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
+  q.normalize();
+  pose2TransformStamped(q, tf2::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_), map2odom_tf);
+  br->sendTransform(map2odom_tf);
+  // ----
 
   // Convert vineslam pose to ROS pose and publish it
-  geometry_msgs::PoseStamped pose_stamped;
-  pose_stamped.header.stamp = ros::Time::now();
+  geometry_msgs::msg::PoseStamped pose_stamped;
+  pose_stamped.header.stamp = rclcpp::Time();
   pose_stamped.header.frame_id = "map";
   pose_stamped.pose.position.x = robot_pose_.x_;
   pose_stamped.pose.position.y = robot_pose_.y_;
@@ -267,28 +301,28 @@ void VineSLAM_ros::process()
   pose_stamped.pose.orientation.y = q.y();
   pose_stamped.pose.orientation.z = q.z();
   pose_stamped.pose.orientation.w = q.w();
-  pose_publisher_.publish(pose_stamped);
+  pose_publisher_->publish(pose_stamped);
 
   // Push back the current pose to the path container and publish it
   path_.push_back(pose_stamped);
-  nav_msgs::Path ros_path;
-  ros_path.header.stamp = ros::Time::now();
+  nav_msgs::msg::Path ros_path;
+  ros_path.header.stamp = rclcpp::Time();
   ros_path.header.frame_id = "map";
   ros_path.poses = path_;
-  path_publisher_.publish(ros_path);
+  path_publisher_->publish(ros_path);
 
   // Publishes the VineSLAM report
   publishReport();
 
   // Publish the 2D map
-  publish2DMap(robot_pose_, input_data_.land_bearings_, input_data_.land_depths_);
+  //  publish2DMap(robot_pose_, input_data_.land_bearings_, input_data_.land_depths_);
   // Publish 3D maps
-  publish3DMap();
-  publishElevationMap();
-  publish3DMap(l_corners, corners_local_publisher_);
-  publish3DMap(l_planars, planars_local_publisher_);
-  l_planes.push_back(l_ground_plane);
-  publish3DMap(l_planes, planes_local_publisher_);
+  //  publish3DMap();
+  //  publishElevationMap();
+  //  publish3DMap(l_corners, corners_local_publisher_);
+  //  publish3DMap(l_planars, planars_local_publisher_);
+  //  l_planes.push_back(l_ground_plane);
+  //  publish3DMap(l_planes, planes_local_publisher_);
 
   // - Prepare next iteration
   previous_map_->clear();
@@ -299,7 +333,7 @@ void VineSLAM_ros::process()
   previous_map_->downsamplePlanars();
 }
 
-void VineSLAM_ros::imageFeatureListener(const vineslam_msgs::FeatureArrayConstPtr& features)
+void VineSLAM_ros::imageFeatureListener(const vineslam_msgs::msg::FeatureArray::SharedPtr features)
 {
   std::vector<vineslam::ImageFeature> img_features;
   for (const auto& in_feature : features->features)
@@ -320,7 +354,7 @@ void VineSLAM_ros::imageFeatureListener(const vineslam_msgs::FeatureArrayConstPt
   input_data_.received_image_features_ = true;
 }
 
-void VineSLAM_ros::landmarkListener(const vision_msgs::Detection3DArrayConstPtr& dets)
+void VineSLAM_ros::landmarkListener(const vision_msgs::msg::Detection3DArray::SharedPtr dets)
 {
   // Declaration of the arrays that will constitute the SLAM observations
   std::vector<int> labels;
@@ -332,7 +366,7 @@ void VineSLAM_ros::landmarkListener(const vision_msgs::Detection3DArrayConstPtr&
   // -------------------------------------------------------------------------------
   for (const auto& detection : (*dets).detections)
   {
-    vision_msgs::BoundingBox3D l_bbox = detection.bbox;
+    vision_msgs::msg::BoundingBox3D l_bbox = detection.bbox;
 
     float x = l_bbox.center.position.z;
     float y = -(static_cast<float>(l_bbox.center.position.x) - params_.cx_) * (x / params_.fx_);
@@ -354,36 +388,39 @@ void VineSLAM_ros::landmarkListener(const vision_msgs::Detection3DArrayConstPtr&
   input_data_.received_landmarks_ = true;
 }
 
-void VineSLAM_ros::scanListener(const sensor_msgs::PointCloud2ConstPtr& msg)
+void VineSLAM_ros::scanListener(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
 {
-  pcl::PointCloud<pcl::PointXYZI>::Ptr velodyne_pcl(new pcl::PointCloud<pcl::PointXYZI>);
-  pcl::fromROSMsg(*msg, *velodyne_pcl);
-  // Remove Nan points
-  std::vector<int> indices;
-  pcl::removeNaNFromPointCloud(*velodyne_pcl, *velodyne_pcl, indices);
-
-  input_data_.scan_pts_.clear();
-  for (const auto& pt : *velodyne_pcl)
-  {
-    Point l_pt(pt.x, pt.y, pt.z);
-    input_data_.scan_pts_.push_back(l_pt);
-  }
-
-  input_data_.received_scans_ = true;
+  //  pcl::PointCloud<pcl::PointXYZI>::Ptr velodyne_pcl(new pcl::PointCloud<pcl::PointXYZI>);
+  //  pcl::fromROSMsg(*msg, *velodyne_pcl);
+  //  // Remove Nan points
+  //  std::vector<int> indices;
+  //  pcl::removeNaNFromPointCloud(*velodyne_pcl, *velodyne_pcl, indices);
+  //
+  //  input_data_.scan_pts_.clear();
+  //  for (const auto& pt : *velodyne_pcl)
+  //  {
+  //    Point l_pt(pt.x, pt.y, pt.z);
+  //    input_data_.scan_pts_.push_back(l_pt);
+  //  }
+  //
+  //  input_data_.received_scans_ = true;
 }
 
-void VineSLAM_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)
+void VineSLAM_ros::odomListener(const nav_msgs::msg::Odometry::SharedPtr msg)
 {
   // If it is the first iteration - initialize odometry origin
   if (init_odom_)
   {
     // Convert odometry msg to pose msg
-    tf::Pose pose_;
-    geometry_msgs::Pose odom_pose = (*msg).pose.pose;
-    tf::poseMsgToTF(odom_pose, pose_);
+    tf2::Quaternion q;
+    q.setX(msg->pose.pose.orientation.x);
+    q.setY(msg->pose.pose.orientation.y);
+    q.setZ(msg->pose.pose.orientation.z);
+    q.setW(msg->pose.pose.orientation.w);
+    q.normalize();
 
     // Check if yaw is NaN
-    float yaw = static_cast<float>(tf::getYaw(pose_.getRotation()));
+    float yaw = tf2::getYaw(q);
     if (!std::isfinite(yaw))
       yaw = 0;
 
@@ -395,124 +432,38 @@ void VineSLAM_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)
   }
 
   // Transform odometry msg to maps' referential frame
-  tf::Quaternion o2m_q;
+  tf2::Quaternion o2m_q;
   o2m_q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
-  tf::Transform odom2map(o2m_q, tf::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_));
+  tf2::Transform odom2map(o2m_q, tf2::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_));
 
-  tf::Quaternion odom_q;
+  tf2::Quaternion odom_q;
   odom_q.setX(msg->pose.pose.orientation.x);
   odom_q.setY(msg->pose.pose.orientation.y);
   odom_q.setZ(msg->pose.pose.orientation.z);
   odom_q.setW(msg->pose.pose.orientation.w);
-  tf::Transform odom_tf(odom_q,
-                        tf::Vector3(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z));
+  tf2::Transform odom_tf(odom_q,
+                         tf2::Vector3(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z));
 
   odom_tf = odom2map.inverseTimes(odom_tf);
 
-  tf::Vector3 trans = odom_tf.getOrigin();
-  tf::Quaternion rot = odom_tf.getRotation();
+  tf2::Vector3 trans = odom_tf.getOrigin();
+  tf2::Quaternion rot = odom_tf.getRotation();
 
-  input_data_.wheel_odom_pose_ = Pose(trans.x(), trans.y(), 0, 0, 0, static_cast<float>(tf::getYaw(rot)));
+  input_data_.wheel_odom_pose_ = Pose(trans.x(), trans.y(), 0, 0, 0, static_cast<float>(tf2::getYaw(rot)));
 
   input_data_.received_odometry_ = true;
 }
 
-void VineSLAM_ros::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
+void VineSLAM_ros::gpsListener(const sensor_msgs::msg::NavSatFix::SharedPtr msg)
 {
-  if (!params_.use_gps_)
-    return;
-
-  if (init_gps_)
-  {
-    // Set initial datum
-    agrob_map_transform::SetDatum srv;
-    srv.request.geo_pose.position.latitude = params_.latitude_;
-    srv.request.geo_pose.position.longitude = params_.longitude_;
-    srv.request.geo_pose.position.altitude = 0.0;
-    tf::Quaternion quat;
-    quat.setRPY(0.0, 0.0, 0.0);
-    tf::quaternionTFToMsg(quat, srv.request.geo_pose.orientation);
-
-    ROS_INFO("Setting GNSS datum...");
-    set_datum_.call(srv);
-
-    init_gps_ = false;
-  }
-
-  agrob_map_transform::GetPose srv;
-
-  // GNSS - odom service call
-  srv.request.geo_pose.latitude = msg->latitude;
-  srv.request.geo_pose.longitude = msg->longitude;
-
-  if (polar2pose_.call(srv))
-  {
-    Pose gps_odom;
-    gps_odom.x_ = srv.response.local_pose.pose.pose.position.x;
-    gps_odom.y_ = srv.response.local_pose.pose.pose.position.y;
-
-    if (estimate_heading_)
-      has_converged_ = getGNSSHeading(gps_odom, msg->header);
-
-    // Compute the gnss to map transform
-    tf::Quaternion heading_quat;
-    heading_quat.setRPY(0., 0., heading_);
-    heading_quat.normalize();
-    tf::Transform ned2map(heading_quat, tf::Vector3(0., 0., 0.));
-
-    // Publish gnss to map tf::Transform
-    static tf::TransformBroadcaster br;
-    br.sendTransform(tf::StampedTransform(ned2map, ros::Time::now(), "enu", "map"));
-
-    // Publish gnss pose in the enu reference frame
-    geometry_msgs::PoseStamped gnss_pose;
-    gnss_pose.pose.position.x = gps_odom.x_;
-    gnss_pose.pose.position.y = gps_odom.y_;
-    gnss_pose.pose.position.z = gps_odom.z_;
-    gnss_pose.pose.orientation.x = 0.;
-    gnss_pose.pose.orientation.y = 0.;
-    gnss_pose.pose.orientation.z = 0.;
-    gnss_pose.pose.orientation.w = 1.;
-    gnss_pose.header.stamp = ros::Time::now();
-    gnss_pose.header.frame_id = "enu";
-    gps_pose_publisher_.publish(gnss_pose);
-
-    gps_poses_.push_back(gnss_pose);
-    nav_msgs::Path ros_path;
-    ros_path.header.stamp = ros::Time::now();
-    ros_path.header.frame_id = "enu";
-    ros_path.poses = gps_poses_;
-    gps_path_publisher_.publish(ros_path);
-
-    // Transform locally the gps pose from enu to map to use in localization
-    tf::Matrix3x3 Rot = ned2map.getBasis().inverse();
-
-    input_data_.gnss_pose_.x_ = static_cast<float>(Rot[0].getX()) * gps_odom.x_ +
-                                static_cast<float>(Rot[0].getY()) * gps_odom.y_ +
-                                static_cast<float>(Rot[0].getZ()) * gps_odom.z_;
-    input_data_.gnss_pose_.y_ = static_cast<float>(Rot[1].getX()) * gps_odom.x_ +
-                                static_cast<float>(Rot[1].getY()) * gps_odom.y_ +
-                                static_cast<float>(Rot[1].getZ()) * gps_odom.z_;
-    input_data_.gnss_pose_.z_ = 0.;
-    input_data_.gnss_pose_.R_ = 0.;
-    input_data_.gnss_pose_.P_ = 0.;
-    input_data_.gnss_pose_.Y_ = 0.;
-  }
-  else
-  {
-    ROS_ERROR("Failed to call service Polar2Pose\n");
-    return;
-  }
-
-  input_data_.received_gnss_ = true;
 }
 
-bool VineSLAM_ros::getGNSSHeading(const Pose& gps_odom, const std_msgs::Header& header)
+bool VineSLAM_ros::getGNSSHeading(const Pose& gps_odom, const std_msgs::msg::Header& header)
 {
   float weight_max = 0.;
   if (datum_autocorrection_stage_ == 0)
   {
-    ROS_DEBUG("Initialization of AGROB DATUM");
+    RCLCPP_DEBUG(nh_->get_logger(), "Initialization of AGROB DATUM");
     datum_autocorrection_stage_++;
   }
   else
@@ -534,19 +485,19 @@ bool VineSLAM_ros::getGNSSHeading(const Pose& gps_odom, const std_msgs::Header& 
         }
         else
         {
-          ROS_ERROR("Datum localization is bad. Error on heading location.");
+          RCLCPP_ERROR(nh_->get_logger(), "Datum localization is bad. Error on heading location.");
           datum_autocorrection_stage_ = -1;
         }
       }
       else
       {
-        ROS_ERROR("Error on heading location.");
+        RCLCPP_ERROR(nh_->get_logger(), "Error on heading location.");
         datum_autocorrection_stage_ = -1;
       }
     }
     else if (datum_autocorrection_stage_ == 2)
     {
-      ROS_DEBUG("Initializing datum filter.");
+      RCLCPP_DEBUG(nh_->get_logger(), "Initializing datum filter.");
       for (int i = 0; i < 360; i++)
       {
         datum_orientation_[i][0] = static_cast<float>(i);
@@ -590,13 +541,13 @@ bool VineSLAM_ros::getGNSSHeading(const Pose& gps_odom, const std_msgs::Header& 
       if (weight_max > 0.)
       {
         heading_ = static_cast<float>(indexT) * DEGREE_TO_RAD;
-        ROS_DEBUG("Solution = %d.", indexT);
+        RCLCPP_DEBUG(nh_->get_logger(), "Solution = %d.", indexT);
       }
       else
-        ROS_INFO("Did not find any solution for datum heading.");
+        RCLCPP_INFO(nh_->get_logger(), "Did not find any solution for datum heading.");
     }
     else
-      ROS_ERROR("Datum localization is bad. Error on heading location.");
+      RCLCPP_ERROR(nh_->get_logger(), "Datum localization is bad. Error on heading location.");
   }
 
   return weight_max > 0.6;
@@ -610,19 +561,19 @@ void VineSLAM_ros::publishReport() const
   (*localizer_).getParticlesBeforeResampling(b_particles);
   (*localizer_).getParticles(a_particles);
   // - Convert them to ROS pose array and fill the vineslam report msgs
-  vineslam_msgs::report report;
-  geometry_msgs::PoseArray ros_poses;
-  ros_poses.header.stamp = ros::Time::now();
+  vineslam_msgs::msg::Report report;
+  geometry_msgs::msg::PoseArray ros_poses;
+  ros_poses.header.stamp = rclcpp::Time();
   ros_poses.header.frame_id = "map";
   report.header.stamp = ros_poses.header.stamp;
   report.header.frame_id = ros_poses.header.frame_id;
   for (const auto& particle : b_particles)
   {
-    tf::Quaternion l_q;
+    tf2::Quaternion l_q;
     l_q.setRPY(particle.p_.R_, particle.p_.P_, particle.p_.Y_);
     l_q.normalize();
 
-    geometry_msgs::Pose l_pose;
+    geometry_msgs::msg::Pose l_pose;
     l_pose.position.x = particle.p_.x_;
     l_pose.position.y = particle.p_.y_;
     l_pose.position.z = particle.p_.z_;
@@ -631,7 +582,7 @@ void VineSLAM_ros::publishReport() const
     l_pose.orientation.z = l_q.z();
     l_pose.orientation.w = l_q.w();
 
-    vineslam_msgs::particle particle_info;
+    vineslam_msgs::msg::Particle particle_info;
     particle_info.id = particle.id_;
     particle_info.pose = l_pose;
     particle_info.w = particle.w_;
@@ -640,11 +591,11 @@ void VineSLAM_ros::publishReport() const
   }
   for (const auto& particle : a_particles)
   {
-    tf::Quaternion l_q;
+    tf2::Quaternion l_q;
     l_q.setRPY(particle.p_.R_, particle.p_.P_, particle.p_.Y_);
     l_q.normalize();
 
-    geometry_msgs::Pose l_pose;
+    geometry_msgs::msg::Pose l_pose;
     l_pose.position.x = particle.p_.x_;
     l_pose.position.y = particle.p_.y_;
     l_pose.position.z = particle.p_.z_;
@@ -655,14 +606,14 @@ void VineSLAM_ros::publishReport() const
 
     ros_poses.poses.push_back(l_pose);
 
-    vineslam_msgs::particle particle_info;
+    vineslam_msgs::msg::Particle particle_info;
     particle_info.id = particle.id_;
     particle_info.pose = l_pose;
     particle_info.w = particle.w_;
 
     report.a_particles.push_back(particle_info);
   }
-  poses_publisher_.publish(ros_poses);
+  poses_publisher_->publish(ros_poses);
 
   report.log.data = localizer_->logs_;
   report.use_semantic_features.data = params_.use_semantic_features_;
@@ -670,7 +621,7 @@ void VineSLAM_ros::publishReport() const
   report.use_image_features.data = params_.use_image_features_;
   report.use_gps.data = params_.use_gps_;
   report.gps_heading = heading_;
-  vineslam_report_publisher_.publish(report);
+  vineslam_report_publisher_->publish(report);
 }
 
 }  // namespace vineslam

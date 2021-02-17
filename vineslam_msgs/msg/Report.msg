@@ -1,0 +1,21 @@
+# VineSLAM report msg
+
+std_msgs/Header header
+
+## Particles before resampling
+Particle[] b_particles
+
+## Particles after resampling
+Particle[] a_particles
+
+## VineSLAM logs
+std_msgs/String log
+
+## VineSLAM features in use
+std_msgs/Bool use_semantic_features
+std_msgs/Bool use_lidar_features
+std_msgs/Bool use_image_features
+std_msgs/Bool use_gps
+
+# GPS heading estimation
+float32 gps_heading

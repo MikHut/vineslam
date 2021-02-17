@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>vineslam_msgs</name>
+  <version>0.3.4</version>
+  <description>
+    This package provides messages <a href="https://gitlab.inesctec.pt/agrob/agrobvslam">vineslam library</a>.
+  </description>
+
+  <author email="andre.s.aguiar@inesctec.pt">André Aguiar</author>
+  <maintainer email="andre.s.aguiar@inesctec.pt">André Aguiar</maintainer>
+
+  <license>TODO</license>  
+
+  <url type="website">https://gitlab.inesctec.pt/agrob/agrobvslam</url>
+  <url type="bugtracker">https://gitlab.inesctec.pt/agrob/agrobvslam/issues</url>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>rosidl_default_generators</buildtool_depend>
+
+  <depend>std_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>visualization_msgs</depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
+
+  <member_of_group>rosidl_interface_packages</member_of_group>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+
+</package>

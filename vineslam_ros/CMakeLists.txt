@@ -17,10 +17,11 @@ find_package(vision_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
-#find_package(message_filters REQUIRED)
+find_package(pcl_conversions REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(image_geometry REQUIRED)
 find_package(image_transport REQUIRED)
+find_package(PCL COMPONENTS common REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
         "srv/StartMapRegistration.srv"
@@ -47,14 +48,14 @@ set(dependencies
         "cv_bridge"
         "image_geometry"
         "image_transport"
-#        "pcl_ros"
+        "pcl_conversions"
         "geometry_msgs")
 
 add_executable(slam_node src/slam_node.cpp src/vineslam_ros.cpp)# src/visualization.cpp)
 ament_target_dependencies(slam_node ${dependencies})
 rosidl_target_interfaces(slam_node ${PROJECT_NAME} "rosidl_typesupport_cpp")
-#target_link_libraries(slam_node
-#        ${catkin_LIBRARIES})
+target_link_libraries(slam_node
+        ${PCL_LIBRARIES})
 
 add_executable(localization_node src/localization_node.cpp)# src/vineslam_ros.cpp src/visualization.cpp)
 ament_target_dependencies(localization_node ${dependencies})

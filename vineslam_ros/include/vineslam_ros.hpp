@@ -1,7 +1,7 @@
 #pragma once
 
 // vineslam members
-//#include <params_loader.hpp>
+#include <params_loader.hpp>
 #include <vineslam/feature/semantic.hpp>
 #include <vineslam/feature/visual.hpp>
 #include <vineslam/feature/three_dimensional.hpp>
@@ -38,14 +38,11 @@
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/msg/pose_array.hpp>
 #include <image_transport/image_transport.hpp>
-//#include <message_filters/subscriber.h>
-//#include <message_filters/time_synchronizer.h>
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
-//#include <sensor_msgs/point_cloud_conversion.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2/utils.h>
@@ -53,8 +50,9 @@
 #include <vision_msgs/msg/detection3_d_array.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
-//#include <pcl_ros/point_cloud.h>
-//#include <pcl/filters/filter.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl/point_cloud.h>
+#include <pcl/filters/filter.h>
 
 // Services
 //#include <agrob_map_transform/GetPose.h>
@@ -100,8 +98,12 @@ public:
                              vineslam_ros::srv::StopGpsHeadingEstimation::Response::SharedPtr);
   bool saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr, vineslam_ros::srv::SaveMap::Response::SharedPtr);
 
-  // Tf pose to geometry_msgs transform stamped conversion routine
-  void pose2TransformStamped(const tf2::Quaternion& q, const tf2::Vector3& t, geometry_msgs::msg::TransformStamped tf);
+  // Conversions
+  static void pose2TransformStamped(const tf2::Quaternion& q, const tf2::Vector3& t,
+                                    geometry_msgs::msg::TransformStamped& tf);
+
+  // ROS node
+  static rclcpp::Node nh_;
 
   // Publish 2D semantic features map
   void publish2DMap(const Pose& pose, const std::vector<float>& bearings, const std::vector<float>& depths) const;
@@ -122,12 +124,12 @@ public:
   //  void publish3DMap(const std::vector<Planar>& planars, const ros::Publisher& pub);
   //  static void publish3DMap(const Pose& r_pose, const std::vector<Planar>& planars, const ros::Publisher& pub);
   // Publish the grid map that contains all the maps
-  void publishGridMap(const std_msgs::msg::Header& header) const;
+  void publishGridMap(const std_msgs::msg::Header header) const;
   // Publishes a VineSLAM state report for debug purposes
   void publishReport() const;
 
   // GNSS heading estimator
-  bool getGNSSHeading(const Pose& gps_odom, const std_msgs::msg::Header& header);
+  bool getGNSSHeading(const Pose& gps_odom, const std_msgs::msg::Header header);
 
   // VineSLAM input data
   struct InputData
@@ -157,26 +159,23 @@ public:
     bool received_scans_;
   } input_data_;
 
-  // ROS Node
-  rclcpp::Node::SharedPtr nh_;
-
   // ROS publishers/services
   rclcpp::Publisher<vineslam_msgs::msg::Report>::SharedPtr vineslam_report_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr grid_map_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr elevation_map_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr map2D_publisher_;
-  //  rclcpp::Publisher<vineslam_msgs::msg::Report>::SharedPtr map3D_features_publisher_;
-  //  rclcpp::Publisher<vineslam_msgs::msg::Report>::SharedPtr map3D_corners_publisher_;
-  //  rclcpp::Publisher<vineslam_msgs::msg::Report>::SharedPtr map3D_planars_publisher_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map3D_features_publisher_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map3D_corners_publisher_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map3D_planars_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr map3D_planes_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_publisher_;
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr poses_publisher_;
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr gps_path_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr gps_pose_publisher_;
-  //  rclcpp::Publisher<vineslam_msgs::msg::Report>::SharedPtr corners_local_publisher_;
-  //  rclcpp::Publisher<vineslam_msgs::msg::Report>::SharedPtr planars_local_publisher_;
-  //  rclcpp::Publisher<vineslam_msgs::msg::Report>::SharedPtr planes_local_publisher_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr corners_local_publisher_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr planars_local_publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr planes_local_publisher_;
   //  ros::ServiceClient polar2pose_;
   //  ros::ServiceClient set_datum_;
 

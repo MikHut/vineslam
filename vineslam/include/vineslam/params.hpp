@@ -36,8 +36,8 @@ struct Parameters
   // -----------------------------------
   // ------ On-board sensors transformations to base link
   // -----------------------------------
-  std::vector<float> cam2base_;
-  std::vector<float> vel2base_;
+  std::vector<double> cam2base_;
+  std::vector<double> vel2base_;
 
   // -----------------------------------
   // ------ Camera info parameters

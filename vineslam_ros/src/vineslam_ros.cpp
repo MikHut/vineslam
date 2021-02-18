@@ -9,7 +9,7 @@ namespace vineslam
 bool VineSLAM_ros::startRegistration(vineslam_ros::srv::StartMapRegistration::Request::SharedPtr,
                                      vineslam_ros::srv::StartMapRegistration::Response::SharedPtr)
 {
-  RCLCPP_INFO(nh_->get_logger(), "Activating map registration ...\n");
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Activating map registration ...\n");
   register_map_ = true;
   return true;
 }
@@ -17,7 +17,7 @@ bool VineSLAM_ros::startRegistration(vineslam_ros::srv::StartMapRegistration::Re
 bool VineSLAM_ros::stopRegistration(vineslam_ros::srv::StopMapRegistration::Request::SharedPtr,
                                     vineslam_ros::srv::StopMapRegistration::Response::SharedPtr)
 {
-  RCLCPP_INFO(nh_->get_logger(), "Deactivating map registration ...\n");
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Deactivating map registration ...\n");
   register_map_ = false;
   return true;
 }
@@ -25,7 +25,7 @@ bool VineSLAM_ros::stopRegistration(vineslam_ros::srv::StopMapRegistration::Requ
 bool VineSLAM_ros::stopHeadingEstimation(vineslam_ros::srv::StopGpsHeadingEstimation::Request::SharedPtr,
                                          vineslam_ros::srv::StopGpsHeadingEstimation::Response::SharedPtr)
 {
-  RCLCPP_INFO(nh_->get_logger(), "Deactivating gps heading estimation ...\n");
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Deactivating gps heading estimation ...\n");
   estimate_heading_ = false;
   return true;
 }
@@ -33,7 +33,7 @@ bool VineSLAM_ros::stopHeadingEstimation(vineslam_ros::srv::StopGpsHeadingEstima
 bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
                            vineslam_ros::srv::SaveMap::Response::SharedPtr)
 {
-  RCLCPP_INFO(nh_->get_logger(), "Saving map to xml file.");
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Saving map to xml file.");
 
   // Save map data
   bool save_map = params_.save_map_;
@@ -44,13 +44,13 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
     mw.writeToFile(grid_map_);
   }
 
-  RCLCPP_INFO(nh_->get_logger(), "Map saved.");
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Map saved.");
 
   return true;
 }
 
 void VineSLAM_ros::pose2TransformStamped(const tf2::Quaternion& q, const tf2::Vector3& t,
-                                         geometry_msgs::msg::TransformStamped tf)
+                                         geometry_msgs::msg::TransformStamped& tf)
 {
   tf.transform.rotation.x = q.x();
   tf.transform.rotation.y = q.y();
@@ -90,9 +90,9 @@ void VineSLAM_ros::loopOnce()
   // VineSLAM main loop
   if (init_flag_)
   {
-    RCLCPP_INFO(nh_->get_logger(), "Initializing system...");
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Initializing system...");
     init();
-    RCLCPP_INFO(nh_->get_logger(), "Initialization performed!");
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Initialization performed!");
     init_flag_ = false;
   }
   else
@@ -160,7 +160,7 @@ void VineSLAM_ros::init()
     grid_map_->downsamplePlanars();
   }
 
-  RCLCPP_INFO(nh_->get_logger(), "Localization and Mapping has started.");
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Localization and Mapping has started.");
 }
 
 void VineSLAM_ros::process()
@@ -420,7 +420,7 @@ void VineSLAM_ros::odomListener(const nav_msgs::msg::Odometry::SharedPtr msg)
     q.normalize();
 
     // Check if yaw is NaN
-    float yaw = tf2::getYaw(q);
+    float yaw = static_cast<float>(tf2::getYaw(q));
     if (!std::isfinite(yaw))
       yaw = 0;
 
@@ -458,12 +458,12 @@ void VineSLAM_ros::gpsListener(const sensor_msgs::msg::NavSatFix::SharedPtr msg)
 {
 }
 
-bool VineSLAM_ros::getGNSSHeading(const Pose& gps_odom, const std_msgs::msg::Header& header)
+bool VineSLAM_ros::getGNSSHeading(const Pose& gps_odom, const std_msgs::msg::Header header)
 {
   float weight_max = 0.;
   if (datum_autocorrection_stage_ == 0)
   {
-    RCLCPP_DEBUG(nh_->get_logger(), "Initialization of AGROB DATUM");
+    RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Initialization of AGROB DATUM");
     datum_autocorrection_stage_++;
   }
   else
@@ -485,19 +485,19 @@ bool VineSLAM_ros::getGNSSHeading(const Pose& gps_odom, const std_msgs::msg::Hea
         }
         else
         {
-          RCLCPP_ERROR(nh_->get_logger(), "Datum localization is bad. Error on heading location.");
+          RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Datum localization is bad. Error on heading location.");
           datum_autocorrection_stage_ = -1;
         }
       }
       else
       {
-        RCLCPP_ERROR(nh_->get_logger(), "Error on heading location.");
+        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Error on heading location.");
         datum_autocorrection_stage_ = -1;
       }
     }
     else if (datum_autocorrection_stage_ == 2)
     {
-      RCLCPP_DEBUG(nh_->get_logger(), "Initializing datum filter.");
+      RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Initializing datum filter.");
       for (int i = 0; i < 360; i++)
       {
         datum_orientation_[i][0] = static_cast<float>(i);
@@ -541,13 +541,13 @@ bool VineSLAM_ros::getGNSSHeading(const Pose& gps_odom, const std_msgs::msg::Hea
       if (weight_max > 0.)
       {
         heading_ = static_cast<float>(indexT) * DEGREE_TO_RAD;
-        RCLCPP_DEBUG(nh_->get_logger(), "Solution = %d.", indexT);
+        RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Solution = %d.", indexT);
       }
       else
-        RCLCPP_INFO(nh_->get_logger(), "Did not find any solution for datum heading.");
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Did not find any solution for datum heading.");
     }
     else
-      RCLCPP_ERROR(nh_->get_logger(), "Datum localization is bad. Error on heading location.");
+      RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Datum localization is bad. Error on heading location.");
   }
 
   return weight_max > 0.6;

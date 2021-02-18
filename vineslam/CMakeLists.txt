@@ -37,6 +37,6 @@ install(TARGETS vineslam
         RUNTIME DESTINATION bin)
 
 install(DIRECTORY include/vineslam
-        DESTINATION include/vineslam)
+        DESTINATION include/)
 
 ament_package()

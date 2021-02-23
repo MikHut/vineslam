@@ -1,0 +1,46 @@
+slam_node:
+  # - System inputs
+  use_semantic_features: True
+  use_lidar_features: True
+  use_image_features: False
+  use_gps: False
+  use_wheel_odometry: True
+
+  # GPS datum
+  gps_datum:
+    lat: 41.205517
+    long: -8.3073515
+
+  # Sensors to base static tfs (x, y, z, qx, qy, qz, qw)
+  cam2base: [0.343, 0.079, 0.820, -0.002, 0.100, -0.004, 0.995]
+  vel2base: [0.000, 0.000, 0.942, -0.000, 0.000, -0.000, 1.000]
+
+  camera_info:
+    baseline: 0.12 # meters
+    fx: 692.95849609375  # pixels
+    cx: 692.95849609375  # pixels
+
+  multilayer_mapping:
+    # Grid map definitions
+    grid_map:
+      origin:
+        x: -75.0
+        y: -75.0
+        z: -0.5
+      width: 150.0
+      lenght: 150.0
+      height: 2.5
+      resolution: 0.25 # meters
+      save_map: True
+      output_folder: "/home/andresaguiar/Desktop/"
+
+  pf:
+    n_particles: 500
+
+    # Particles innovation
+    sigma_xx: 0.1 # meters
+    sigma_yy: 0.2 # meters
+    sigma_zz: 0.2 # meters
+    sigma_RR: 0.2 # radians
+    sigma_PP: 0.2 # radians
+    sigma_YY: 0.8 # radians

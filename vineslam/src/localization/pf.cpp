@@ -11,7 +11,10 @@ PF::PF(const Parameters& params, const Pose& initial_pose) : params_(params)
   use_gps_ = params.use_gps_;
 
   // Initialize and set ICP parameters
-  icp_ = new ICP<ImageFeature>(params);
+  icp_ = new ICP<ImageFeature>();
+  icp_->setTolerance(1e-5);
+  icp_->setMaxIterations(20);
+  icp_->setRejectOutliersFlag(false);
 
   // Initialize normal distributions
   particles_.resize(params.number_particles_);
@@ -30,6 +33,16 @@ PF::PF(const Parameters& params, const Pose& initial_pose) : params_(params)
     // Insert the particle into the particles array
     particles_[i] = Particle(i, m_pose, weight);
   }
+
+  // Set filter settings
+  sigma_landmark_matching_ = 0.01;
+  sigma_feature_matching_ = 0.05;
+  sigma_corner_matching_ = 0.1;
+  sigma_planar_matching_ = 0.1;
+  sigma_plane_matching_vector_ = 0.02;
+  sigma_plane_matching_centroid_ = 0.10;
+  sigma_gps_ = 0.08;
+  number_clusters_ = 3;
 }
 
 void PF::motionModel(const Pose& odom_inc, const Pose& p_odom)
@@ -160,14 +173,14 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
 
 void PF::gps(const Pose& gps_pose, std::vector<float>& ws)
 {
-  float normalizer_gps = static_cast<float>(1.) / (params_.sigma_gps_ * std::sqrt(M_2PI));
+  float normalizer_gps = static_cast<float>(1.) / (sigma_gps_ * std::sqrt(M_2PI));
 
   for (const auto& particle : particles_)
   {
     // - GPS [x, y] weight
     float w_gps;
     float dist = particle.p_.distance(gps_pose);
-    w_gps = (normalizer_gps * static_cast<float>(std::exp(-1. / params_.sigma_gps_ * dist)));
+    w_gps = (normalizer_gps * static_cast<float>(std::exp(-1. / sigma_gps_ * dist)));
 
     ws[particle.id_] = w_gps;
   }
@@ -175,7 +188,7 @@ void PF::gps(const Pose& gps_pose, std::vector<float>& ws)
 
 void PF::highLevel(const std::vector<SemanticFeature>& landmarks, OccupancyMap* grid_map, std::vector<float>& ws)
 {
-  float normalizer_landmark = static_cast<float>(1.) / (params_.sigma_landmark_matching_ * std::sqrt(M_2PI));
+  float normalizer_landmark = static_cast<float>(1.) / (sigma_landmark_matching_ * std::sqrt(M_2PI));
 
   // Loop over all particles
   for (const auto& particle : particles_)
@@ -250,7 +263,7 @@ void PF::highLevel(const std::vector<SemanticFeature>& landmarks, OccupancyMap* 
     {
       for (const auto& dist : dlandmarkvec)
         w_landmarks +=
-            (normalizer_landmark * static_cast<float>(std::exp(-1. / params_.sigma_landmark_matching_ * dist)));
+            (normalizer_landmark * static_cast<float>(std::exp(-1. / sigma_landmark_matching_ * dist)));
     }
 
     ws[particle.id_] = w_landmarks;
@@ -259,7 +272,7 @@ void PF::highLevel(const std::vector<SemanticFeature>& landmarks, OccupancyMap* 
 
 void PF::mediumLevelCorners(const std::vector<Corner>& corners, OccupancyMap* grid_map, std::vector<float>& ws)
 {
-  float normalizer_corner = static_cast<float>(1.) / (params_.sigma_corner_matching_ * std::sqrt(M_2PI));
+  float normalizer_corner = static_cast<float>(1.) / (sigma_corner_matching_ * std::sqrt(M_2PI));
 
   // Loop over all particles
   for (const auto& particle : particles_)
@@ -295,7 +308,7 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners, OccupancyMap* gr
       // Save distance if a correspondence was found
       if (found)
         w_corners += (normalizer_corner *
-                      static_cast<float>(std::exp(-1. / params_.sigma_corner_matching_ * best_correspondence)));
+                      static_cast<float>(std::exp(-1. / sigma_corner_matching_ * best_correspondence)));
     }
 
     ws[particle.id_] = w_corners;
@@ -304,7 +317,7 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners, OccupancyMap* gr
 
 void PF::mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* grid_map, std::vector<float>& ws)
 {
-  float normalizer_planar = static_cast<float>(1.) / (params_.sigma_planar_matching_ * std::sqrt(M_2PI));
+  float normalizer_planar = static_cast<float>(1.) / (sigma_planar_matching_ * std::sqrt(M_2PI));
 
   // Loop over all particles
   for (const auto& particle : particles_)
@@ -339,7 +352,7 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* gr
       // Save distance if a correspondence was found
       if (found)
         w_planars += (normalizer_planar *
-                      static_cast<float>(std::exp((-1. / params_.sigma_planar_matching_) * best_correspondence)));
+                      static_cast<float>(std::exp((-1. / sigma_planar_matching_) * best_correspondence)));
     }
 
     ws[particle.id_] = w_planars;
@@ -348,10 +361,9 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* gr
 
 void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* grid_map, std::vector<float>& ws)
 {
-  float sigma_plane_matching_vector = 0.02;
-  float sigma_plane_matching_centroid = 0.10;
-  float normalizer_plane_vector = static_cast<float>(1.) / (sigma_plane_matching_vector * std::sqrt(M_2PI));
-  float normalizer_plane_centroid = static_cast<float>(1.) / (sigma_plane_matching_centroid * std::sqrt(M_2PI));
+
+  float normalizer_plane_vector = static_cast<float>(1.) / (sigma_plane_matching_vector_ * std::sqrt(M_2PI));
+  float normalizer_plane_centroid = static_cast<float>(1.) / (sigma_plane_matching_centroid_ * std::sqrt(M_2PI));
 
   // Loop over all particles
   for (const auto& particle : particles_)
@@ -475,13 +487,13 @@ void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* g
       if (found)
       {
         vv = ((normalizer_plane_vector *
-                      static_cast<float>(std::exp((-1. / sigma_plane_matching_vector) * correspondence_vec))));
+                      static_cast<float>(std::exp((-1. / sigma_plane_matching_vector_) * correspondence_vec))));
         cc = ((normalizer_plane_centroid *
-               static_cast<float>(std::exp((-1. / sigma_plane_matching_centroid) * correspondence_centroid))));
+               static_cast<float>(std::exp((-1. / sigma_plane_matching_centroid_) * correspondence_centroid))));
         w_planes += ((normalizer_plane_vector *
-                      static_cast<float>(std::exp((-1. / sigma_plane_matching_vector) * correspondence_vec))) *
+                      static_cast<float>(std::exp((-1. / sigma_plane_matching_vector_) * correspondence_vec))) *
                      (normalizer_plane_centroid *
-                      static_cast<float>(std::exp((-1. / sigma_plane_matching_centroid) * correspondence_centroid))));
+                      static_cast<float>(std::exp((-1. / sigma_plane_matching_centroid_) * correspondence_centroid))));
       }
     }
 
@@ -516,7 +528,7 @@ void PF::cluster(std::map<int, Gaussian<Pose, Pose>>& gauss_map)
   srand(time(nullptr));  // need to set the random seed
   centroids.push_back(particles_[rand() % n].p_);
   // -- Compute remaining k - 1 centroids
-  for (int i = 1; i < params_.number_clusters_; i++)
+  for (int i = 1; i < number_clusters_; i++)
   {
     std::vector<float> min_dists;
     for (const auto& particle : particles_)
@@ -539,8 +551,8 @@ void PF::cluster(std::map<int, Gaussian<Pose, Pose>>& gauss_map)
     centroids.push_back(particles_[idx].p_);
   }
   // -- Initialize equal-sized cluster
-  std::vector<std::map<int, float>> heap(params_.number_clusters_);
-  for (int i = 0; i < params_.number_clusters_; i++)
+  std::vector<std::map<int, float>> heap(number_clusters_);
+  for (int i = 0; i < number_clusters_; i++)
   {
     for (const auto& particle : particles_)
     {
@@ -548,13 +560,13 @@ void PF::cluster(std::map<int, Gaussian<Pose, Pose>>& gauss_map)
       heap[i][particle.id_] = dist;
     }
   }
-  std::vector<int> num_per_cluster(params_.number_clusters_, 0);
+  std::vector<int> num_per_cluster(number_clusters_, 0);
   int max_num =
-      static_cast<int>(static_cast<float>(params_.number_particles_) / static_cast<float>(params_.number_clusters_));
+      static_cast<int>(static_cast<float>(params_.number_particles_) / static_cast<float>(number_clusters_));
   for (auto& particle : particles_)
   {
     float min_dist = std::numeric_limits<float>::max();
-    for (int i = 0; i < params_.number_clusters_; i++)
+    for (int i = 0; i < number_clusters_; i++)
     {
       float dist = heap[i][particle.id_];
       if (dist < min_dist && num_per_cluster[i] < max_num)
@@ -573,7 +585,7 @@ void PF::cluster(std::map<int, Gaussian<Pose, Pose>>& gauss_map)
     // -----------------------------------------------------------------------------
     // ------ (2) Re-compute the centroids
     // -----------------------------------------------------------------------------
-    num_per_cluster = std::vector<int>(params_.number_clusters_, 0);
+    num_per_cluster = std::vector<int>(number_clusters_, 0);
     for (const auto& particle : particles_)
     {
       centroids[particle.which_cluster_].x_ += particle.p_.x_;
@@ -583,7 +595,7 @@ void PF::cluster(std::map<int, Gaussian<Pose, Pose>>& gauss_map)
       num_per_cluster[particle.which_cluster_]++;
     }
 
-    for (int j = 0; j < params_.number_clusters_; j++)
+    for (int j = 0; j < number_clusters_; j++)
     {
       if (num_per_cluster[j] == 0)
       {
@@ -607,7 +619,7 @@ void PF::cluster(std::map<int, Gaussian<Pose, Pose>>& gauss_map)
     {
       float min_dist = std::numeric_limits<float>::max();
       int which_cluster = -1;
-      for (int cluster = 0; cluster < params_.number_clusters_; cluster++)
+      for (int cluster = 0; cluster < number_clusters_; cluster++)
       {
         float m_dist = particle.p_.distance(centroids[cluster]);
         if (m_dist < min_dist)
@@ -621,7 +633,7 @@ void PF::cluster(std::map<int, Gaussian<Pose, Pose>>& gauss_map)
       {
         auto it = swap.find(particle.which_cluster_);
         if (num_per_cluster[particle.which_cluster_] >
-            static_cast<float>(params_.number_particles_) / static_cast<float>(params_.number_clusters_))
+            static_cast<float>(params_.number_particles_) / static_cast<float>(number_clusters_))
         {
           num_per_cluster[which_cluster]++;
           num_per_cluster[particle.which_cluster_]--;
@@ -659,10 +671,10 @@ void PF::cluster(std::map<int, Gaussian<Pose, Pose>>& gauss_map)
   // ---- Weighted mean
   // - For the orientations - Mean of circular quantities
   // (https://en.wikipedia.org/wiki/Mean_of_circular_quantities)
-  std::vector<Pose> means(params_.number_clusters_, Pose(0., 0., 0., 0., 0., 0.));
-  std::vector<Pose> means_sin(params_.number_clusters_, Pose(0., 0., 0., 0., 0., 0.));
-  std::vector<Pose> means_cos(params_.number_clusters_, Pose(0., 0., 0., 0., 0., 0.));
-  std::vector<float> sums(params_.number_clusters_, 0.);
+  std::vector<Pose> means(number_clusters_, Pose(0., 0., 0., 0., 0., 0.));
+  std::vector<Pose> means_sin(number_clusters_, Pose(0., 0., 0., 0., 0., 0.));
+  std::vector<Pose> means_cos(number_clusters_, Pose(0., 0., 0., 0., 0., 0.));
+  std::vector<float> sums(number_clusters_, 0.);
   for (const auto& particle : particles_)
   {
     means[particle.which_cluster_].x_ += (particle.w_ * particle.p_.x_);
@@ -677,7 +689,7 @@ void PF::cluster(std::map<int, Gaussian<Pose, Pose>>& gauss_map)
 
     sums[particle.which_cluster_] += particle.w_;
   }
-  for (int cluster = 0; cluster < params_.number_clusters_; cluster++)
+  for (int cluster = 0; cluster < number_clusters_; cluster++)
   {
     if (sums[cluster] > 0.)
     {
@@ -691,8 +703,8 @@ void PF::cluster(std::map<int, Gaussian<Pose, Pose>>& gauss_map)
   }
 
   // ---- Weighted standard deviation
-  std::vector<Pose> stds(params_.number_clusters_, Pose(0., 0., 0., 0., 0., 0.));
-  std::vector<float> non_zero(params_.number_clusters_, 0.);
+  std::vector<Pose> stds(number_clusters_, Pose(0., 0., 0., 0., 0., 0.));
+  std::vector<float> non_zero(number_clusters_, 0.);
   for (const auto& particle : particles_)
   {
     float w_x = particle.w_ * ((particle.p_.x_ - means[particle.which_cluster_].x_) *
@@ -719,7 +731,7 @@ void PF::cluster(std::map<int, Gaussian<Pose, Pose>>& gauss_map)
                                             (non_zero[particle.which_cluster_] + static_cast<float>(1.)) :
                                             non_zero[particle.which_cluster_];
   }
-  for (int cluster = 0; cluster < params_.number_clusters_; cluster++)
+  for (int cluster = 0; cluster < number_clusters_; cluster++)
   {
     if (sums[cluster] > 0. && non_zero[cluster] > 1.)
     {
@@ -739,7 +751,7 @@ void PF::cluster(std::map<int, Gaussian<Pose, Pose>>& gauss_map)
 void PF::scanMatch(const std::vector<ImageFeature>& features, OccupancyMap* grid_map,
                    std::map<int, Gaussian<Pose, Pose>>& gauss_map, std::vector<float>& ws)
 {
-  float normalizer_icp = static_cast<float>(1.) / (params_.sigma_feature_matching_ * std::sqrt(M_2PI));
+  float normalizer_icp = static_cast<float>(1.) / (sigma_feature_matching_ * std::sqrt(M_2PI));
 
   std::map<int, Tf> tfs;
   // -------------------------------------------------------------------------------
@@ -795,7 +807,7 @@ void PF::scanMatch(const std::vector<ImageFeature>& features, OccupancyMap* grid
       float w = 0.;
       for (float i : serror)
       {
-        w += static_cast<float>(normalizer_icp * exp(-1. / params_.sigma_feature_matching_ * i));
+        w += static_cast<float>(normalizer_icp * exp(-1. / sigma_feature_matching_ * i));
       }
 
       cluster_ws[it.first] = w;

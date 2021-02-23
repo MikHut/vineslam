@@ -4,7 +4,7 @@
 
 namespace vineslam
 {
-class SLAMNode : public VineSLAM_ros, rclcpp::Node
+class SLAMNode : public VineSLAM_ros
 {
 public:
   // Class constructor that
@@ -16,6 +16,9 @@ public:
   ~SLAMNode();
 
 private:
+  // Parameters loader
+  void loadParameters(Parameters& params);
+
   // ROS subscribers
   rclcpp::Subscription<vineslam_msgs::msg::FeatureArray>::SharedPtr feature_subscriber_;
   rclcpp::Subscription<vision_msgs::msg::Detection3DArray>::SharedPtr landmark_subscriber_;

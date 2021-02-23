@@ -1,7 +1,7 @@
 #pragma once
 
 // vineslam members
-#include <params_loader.hpp>
+//#include <params_loader.hpp>
 #include <vineslam/feature/semantic.hpp>
 #include <vineslam/feature/visual.hpp>
 #include <vineslam/feature/three_dimensional.hpp>
@@ -60,10 +60,11 @@
 
 namespace vineslam
 {
-class VineSLAM_ros
+class VineSLAM_ros : public rclcpp::Node
 {
 public:
   VineSLAM_ros() = default;
+  VineSLAM_ros(const std::string& node) : Node(node) {}
 
   // Runtime execution routines
   virtual void init();
@@ -103,7 +104,7 @@ public:
                                     geometry_msgs::msg::TransformStamped& tf);
 
   // ROS node
-  static rclcpp::Node nh_;
+  rclcpp::Node::SharedPtr nh_;
 
   // Publish 2D semantic features map
   void publish2DMap(const Pose& pose, const std::vector<float>& bearings, const std::vector<float>& depths) const;

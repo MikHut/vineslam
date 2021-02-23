@@ -13,6 +13,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
         "msg/Particle.msg"
         "msg/Report.msg"
         "msg/Feature.msg"
-        "msg/FeatureArray.msg")
+        "msg/FeatureArray.msg"
+        DEPENDENCIES std_msgs nav_msgs geometry_msgs sensor_msgs visualization_msgs)
 
 ament_package()

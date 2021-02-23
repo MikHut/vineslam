@@ -1,6 +1,6 @@
 slam_node:
   # - System inputs
-  use_semantic_features: True
+  use_semantic_features: False
   use_lidar_features: True
   use_image_features: False
   use_gps: False

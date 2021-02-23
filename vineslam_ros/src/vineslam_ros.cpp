@@ -390,20 +390,20 @@ void VineSLAM_ros::landmarkListener(const vision_msgs::msg::Detection3DArray::Sh
 
 void VineSLAM_ros::scanListener(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
 {
-  //  pcl::PointCloud<pcl::PointXYZI>::Ptr velodyne_pcl(new pcl::PointCloud<pcl::PointXYZI>);
-  //  pcl::fromROSMsg(*msg, *velodyne_pcl);
-  //  // Remove Nan points
-  //  std::vector<int> indices;
-  //  pcl::removeNaNFromPointCloud(*velodyne_pcl, *velodyne_pcl, indices);
-  //
-  //  input_data_.scan_pts_.clear();
-  //  for (const auto& pt : *velodyne_pcl)
-  //  {
-  //    Point l_pt(pt.x, pt.y, pt.z);
-  //    input_data_.scan_pts_.push_back(l_pt);
-  //  }
-  //
-  //  input_data_.received_scans_ = true;
+  pcl::PointCloud<pcl::PointXYZI>::Ptr velodyne_pcl(new pcl::PointCloud<pcl::PointXYZI>);
+  pcl::fromROSMsg(*msg, *velodyne_pcl);
+  // Remove Nan points
+  std::vector<int> indices;
+  pcl::removeNaNFromPointCloud(*velodyne_pcl, *velodyne_pcl, indices);
+
+  input_data_.scan_pts_.clear();
+  for (const auto& pt : *velodyne_pcl)
+  {
+    Point l_pt(pt.x, pt.y, pt.z);
+    input_data_.scan_pts_.push_back(l_pt);
+  }
+
+  input_data_.received_scans_ = true;
 }
 
 void VineSLAM_ros::odomListener(const nav_msgs::msg::Odometry::SharedPtr msg)

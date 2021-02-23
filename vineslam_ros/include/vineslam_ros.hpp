@@ -35,9 +35,7 @@
 
 // ROS
 #include <rclcpp/rclcpp.hpp>
-#include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/msg/pose_array.hpp>
-#include <image_transport/image_transport.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
@@ -54,17 +52,15 @@
 #include <pcl/point_cloud.h>
 #include <pcl/filters/filter.h>
 
-// Services
-//#include <agrob_map_transform/GetPose.h>
-//#include <agrob_map_transform/SetDatum.h>
-
 namespace vineslam
 {
 class VineSLAM_ros : public rclcpp::Node
 {
 public:
   VineSLAM_ros() = default;
-  VineSLAM_ros(const std::string& node) : Node(node) {}
+  VineSLAM_ros(const std::string& node) : Node(node)
+  {
+  }
 
   // Runtime execution routines
   virtual void init();
@@ -113,19 +109,25 @@ public:
   // Publish the 3D maps
   void publish3DMap() const;
   // Publish the 3D PCL planes
-  //  void publish3DMap(const std::vector<Plane>& planes, const ros::Publisher& pub);
-  //  static void publish3DMap(const Pose& r_pose, const std::vector<Plane>& planes, const ros::Publisher& pub);
-  //  // Publish the 3D PCL semi planes
-  //  void publish3DMap(const std::vector<SemiPlane>& planes, const ros::Publisher& pub);
-  //  static void publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>& planes, const ros::Publisher& pub);
-  //  // Publish a 3D PCL corners map
-  //  void publish3DMap(const std::vector<Corner>& corners, const ros::Publisher& pub);
-  //  static void publish3DMap(const Pose& r_pose, const std::vector<Corner>& corners, const ros::Publisher& pub);
-  //  // Publish a 3D PCL planar features map
-  //  void publish3DMap(const std::vector<Planar>& planars, const ros::Publisher& pub);
-  //  static void publish3DMap(const Pose& r_pose, const std::vector<Planar>& planars, const ros::Publisher& pub);
+  void publish3DMap(const std::vector<Plane>& planes,
+                    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub);
+  static void publish3DMap(const Pose& r_pose, const std::vector<Plane>& planes,
+                           rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub);
+  // Publish the 3D PCL semi planes
+  void publish3DMap(const std::vector<SemiPlane>& planes,
+                    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub);
+  static void publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>& planes,
+                           rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub);
+  // Publish a 3D PCL corners map
+  void publish3DMap(const std::vector<Corner>& corners, const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub);
+  static void publish3DMap(const Pose& r_pose, const std::vector<Corner>& corners,
+                           rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub);
+  // Publish a 3D PCL planar features map
+  void publish3DMap(const std::vector<Planar>& planars, const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub);
+  static void publish3DMap(const Pose& r_pose, const std::vector<Planar>& planars,
+                           rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub);
   // Publish the grid map that contains all the maps
-  void publishGridMap(const std_msgs::msg::Header header) const;
+  void publishGridMap(const std_msgs::msg::Header& header) const;
   // Publishes a VineSLAM state report for debug purposes
   void publishReport() const;
 
@@ -177,8 +179,6 @@ public:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr corners_local_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr planars_local_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr planes_local_publisher_;
-  //  ros::ServiceClient polar2pose_;
-  //  ros::ServiceClient set_datum_;
 
   // Classes object members
   Parameters params_;

@@ -16,6 +16,21 @@ def generate_launch_description():
         config = yaml.safe_load(f)
 
     return LaunchDescription([
+        # Tf transformations
+        Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            name='cam2base',
+            arguments=['0.343', '0.079', '0.820', '-0.002', '0.100', '-0.004', '0.995', 'cam', 'base_link'],
+        ),
+        Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            name='velodyne2base',
+            arguments=['0.000', '0.000', '0.942', '-0.000', '0.000', '-0.000', '1.000', 'cam', 'base_link'],
+        ),
+
+        # VineSLAM node
         Node(
             package='vineslam_ros',
             executable='slam_node',

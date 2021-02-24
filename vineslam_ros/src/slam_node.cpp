@@ -111,34 +111,69 @@ SLAMNode::SLAMNode(int argc, char** argv) : VineSLAM_ros("SLAMNode")
     global_counter_ = 0;
   }
 
-  // Get static sensor tfs
-//  tf2::Transform cam2base;
-//  cam2base.setRotation(
-//      tf2::Quaternion(params_.cam2base_[3], params_.cam2base_[4], params_.cam2base_[5], params_.cam2base_[6]));
-//  cam2base.setOrigin(tf2::Vector3(params_.cam2base_[0], params_.cam2base_[1], params_.cam2base_[2]));
-//  cam2base = cam2base.inverse();
-//  tf2::Vector3 t = cam2base.getOrigin();
-//  tf2Scalar roll, pitch, yaw;
-//  cam2base.getBasis().getRPY(roll, pitch, yaw);
-//
-//  vis_mapper_->setCam2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
-//  land_mapper_->setCamPitch(pitch);
-//
-//  tf2::Transform vel2base;
-//  vel2base.setRotation(
-//      tf2::Quaternion(params_.vel2base_[3], params_.vel2base_[4], params_.vel2base_[5], params_.vel2base_[6]));
-//  vel2base.setOrigin(tf2::Vector3(params_.vel2base_[0], params_.vel2base_[1], params_.vel2base_[2]));
-//  vel2base = vel2base.inverse();
-//  t = vel2base.getOrigin();
-//  vel2base.getBasis().getRPY(roll, pitch, yaw);
-//
-//  lid_mapper_->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
+  RCLCPP_INFO(this->get_logger(), "Waiting for static transforms...");
+  tf2_ros::Buffer tf_buffer(this->get_clock());
+  tf2_ros::TransformListener tfListener(tf_buffer);
+  geometry_msgs::msg::TransformStamped cam2base_msg, vel2base_msg;
+  bool got_cam2base = false, got_vel2base = false;
+  while (!got_cam2base && rclcpp::ok())
+  {
+    try
+    {
+      cam2base_msg = tf_buffer.lookupTransform("zed_camera_left_optical_frame", "base_link", rclcpp::Time(0));
+    }
+    catch (tf2::TransformException& ex)
+    {
+      RCLCPP_WARN(this->get_logger(), "%s", ex.what());
+      rclcpp::sleep_for(std::chrono::nanoseconds(1000000000));
+      continue;
+    }
+    got_cam2base = true;
+  }
+  while (!got_vel2base && rclcpp::ok())
+  {
+    try
+    {
+      vel2base_msg = tf_buffer.lookupTransform("velodyne", "base_link", rclcpp::Time(0));
+    }
+    catch (tf2::TransformException& ex)
+    {
+      RCLCPP_WARN(this->get_logger(), "%s", ex.what());
+      rclcpp::sleep_for(std::chrono::nanoseconds(1000000000));
+      continue;
+    }
+    got_vel2base = true;
+  }
+  RCLCPP_INFO(this->get_logger(), "Received!");
+
+  // Save sensors to map transformation
+  tf2::Stamped<tf2::Transform> cam2base_stamped;
+  tf2::fromMsg(cam2base_msg, cam2base_stamped);
+
+  tf2::Transform cam2base = cam2base_stamped;//.inverse();
+  tf2::Vector3 t = cam2base.getOrigin();
+  tf2Scalar roll, pitch, yaw;
+  cam2base.getBasis().getRPY(roll, pitch, yaw);
+  vis_mapper_->setCam2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
+  land_mapper_->setCamPitch(pitch);
+
+  tf2::Stamped<tf2::Transform> vel2base_stamped;
+  tf2::fromMsg(vel2base_msg, vel2base_stamped);
+
+  tf2::Transform vel2base = vel2base_stamped;//.inverse();
+  t = vel2base.getOrigin();
+  vel2base.getBasis().getRPY(roll, pitch, yaw);
+  lid_mapper_->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
+
+  // Allocate map memory
+  RCLCPP_INFO(this->get_logger(), "Allocating map memory!");
+  grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0));
+  elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
+  RCLCPP_INFO(this->get_logger(), "Done!");
 
   // Call execution thread
   std::thread th(&VineSLAM_ros::loop, dynamic_cast<VineSLAM_ros*>(this));
   th.detach();
-
-  RCLCPP_INFO(this->get_logger(), "VineSLAM::slam_node execution started.");
 }
 
 void SLAMNode::loadParameters(Parameters& params)

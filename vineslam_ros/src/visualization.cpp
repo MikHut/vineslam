@@ -94,7 +94,7 @@ void VineSLAM_ros::publish2DMap(const Pose& pose, const std::vector<float>& bear
   marker.color.g = 0.0f;
   marker.color.b = 1.0f;
   marker.color.a = 1.0;
-  marker.lifetime = rclcpp::Duration(20000000);
+  marker.lifetime = rclcpp::Duration(200000000);
 
   // Define marker layout
   ellipse.ns = "/ellipses";
@@ -107,7 +107,7 @@ void VineSLAM_ros::publish2DMap(const Pose& pose, const std::vector<float>& bear
   ellipse.color.g = 1.0f;
   ellipse.color.b = 0.0f;
   ellipse.color.a = 1.0f;
-  ellipse.lifetime = rclcpp::Duration(20000000);
+  ellipse.lifetime = rclcpp::Duration(200000000);
 
   // Publish markers
   int id = 1;
@@ -193,7 +193,7 @@ void VineSLAM_ros::publishElevationMap() const
   cube.pose.orientation.z = 0.0;
   cube.pose.orientation.w = 1.0;
   cube.color.a = 1.0;
-  cube.lifetime = rclcpp::Duration(20000000);
+  cube.lifetime = rclcpp::Duration(200000000);
 
   // Compute map layer bounds
   float xmin = elevation_map_->origin_.x_;
@@ -308,7 +308,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<Plane>& planes,
   viz_pts.action = visualization_msgs::msg::Marker::ADD;
   viz_pts.scale.x = 0.1;
   viz_pts.scale.y = 0.1;
-  viz_pts.lifetime = rclcpp::Duration(20000000);
+  viz_pts.lifetime = rclcpp::Duration(200000000);
   viz_pts.header.frame_id = "map";
 
   std::array<float, 9> robot_R{};
@@ -352,7 +352,7 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<Plane>& pl
   viz_pts.action = visualization_msgs::msg::Marker::ADD;
   viz_pts.scale.x = 0.1;
   viz_pts.scale.y = 0.1;
-  viz_pts.lifetime = rclcpp::Duration(20000000);
+  viz_pts.lifetime = rclcpp::Duration(200000000);
   viz_pts.header.frame_id = "map";
 
   std::array<float, 9> robot_R{};
@@ -397,7 +397,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<SemiPlane>& planes,
   viz_pts.ns = "/plane_pts";
   viz_pts.type = visualization_msgs::msg::Marker::POINTS;
   viz_pts.action = visualization_msgs::msg::Marker::ADD;
-  viz_pts.lifetime = rclcpp::Duration(20000000);
+  viz_pts.lifetime = rclcpp::Duration(200000000);
   viz_pts.scale.x = 0.1;
   viz_pts.header.frame_id = "map";
 
@@ -409,7 +409,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<SemiPlane>& planes,
   viz_line.color.g = 0.0;
   viz_line.color.b = 1.0;
   viz_line.color.a = 1.0;
-  viz_line.lifetime = rclcpp::Duration(20000000);
+  viz_line.lifetime = rclcpp::Duration(200000000);
   viz_line.header.frame_id = "map";
 
   viz_normal.ns = "/plane_normal";
@@ -420,7 +420,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<SemiPlane>& planes,
   viz_normal.color.b = 0;
   viz_normal.color.g = 0;
   viz_normal.scale.x = 0.1;
-  viz_normal.lifetime = rclcpp::Duration(20000000);
+  viz_normal.lifetime = rclcpp::Duration(200000000);
   viz_normal.header.frame_id = "map";
 
   std::array<float, 9> robot_R{};
@@ -537,7 +537,7 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>
   viz_pts.ns = "/plane_pts";
   viz_pts.type = visualization_msgs::msg::Marker::POINTS;
   viz_pts.action = visualization_msgs::msg::Marker::ADD;
-  viz_pts.lifetime = rclcpp::Duration(20000000);
+  viz_pts.lifetime = rclcpp::Duration(200000000);
   viz_pts.scale.x = 0.1;
   viz_pts.header.frame_id = "map";
 
@@ -550,7 +550,7 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>
   viz_line.color.a = 1.0;
   viz_line.scale.x = 0.1;
   viz_line.scale.y = 0.1;
-  viz_line.lifetime = rclcpp::Duration(20000000);
+  viz_line.lifetime = rclcpp::Duration(200000000);
   viz_line.header.frame_id = "map";
 
   viz_normal.ns = "/plane_normal";
@@ -561,7 +561,7 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>
   viz_normal.color.b = 0;
   viz_normal.color.g = 0;
   viz_normal.scale.x = 0.1;
-  viz_normal.lifetime = rclcpp::Duration(20000000);
+  viz_normal.lifetime = rclcpp::Duration(200000000);
   viz_normal.header.frame_id = "map";
 
   std::array<float, 9> robot_R{};

@@ -92,7 +92,7 @@ void VineSLAM_ros::loopOnce()
   {
     RCLCPP_INFO(this->get_logger(), "Initializing system...");
     init();
-    RCLCPP_INFO(this->get_logger(), "Initialization performed!");
+    RCLCPP_INFO(this->get_logger(), "Initialization performed! Starting execution.");
     init_flag_ = false;
   }
   else
@@ -113,8 +113,6 @@ void VineSLAM_ros::init()
   // ---------------------------------------------------------
   localizer_->init(Pose(0, 0, 0, 0, 0, 0));
   robot_pose_ = localizer_->getPose();
-  grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0));
-  elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
 
   // ---------------------------------------------------------
   // ----- Initialize the multi-layer maps
@@ -246,7 +244,7 @@ void VineSLAM_ros::process()
   // ---------------------------------------------------------
 
   // Publish tf::Trasforms
-  std::shared_ptr<tf2_ros::TransformBroadcaster> br;
+  tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
   tf2::Quaternion q;
 
   // ---- base2map
@@ -257,27 +255,7 @@ void VineSLAM_ros::process()
   q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
   q.normalize();
   pose2TransformStamped(q, tf2::Vector3(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_), base2map_tf);
-  br->sendTransform(base2map_tf);
-
-  // ---- cam2base
-  geometry_msgs::msg::TransformStamped cam2base_tf;
-  cam2base_tf.header.stamp = rclcpp::Time();
-  cam2base_tf.header.frame_id = "/base_link";
-  cam2base_tf.child_frame_id = "/zed_camera_left_optical_frame";
-  pose2TransformStamped(
-      tf2::Quaternion(params_.cam2base_[3], params_.cam2base_[4], params_.cam2base_[5], params_.cam2base_[6]),
-      tf2::Vector3(params_.cam2base_[0], params_.cam2base_[1], params_.cam2base_[2]), cam2base_tf);
-  br->sendTransform(cam2base_tf);
-
-  // ---- vel2base
-  geometry_msgs::msg::TransformStamped vel2base_tf;
-  vel2base_tf.header.stamp = rclcpp::Time();
-  vel2base_tf.header.frame_id = "/base_link";
-  vel2base_tf.child_frame_id = "/velodyne";
-  pose2TransformStamped(
-      tf2::Quaternion(params_.vel2base_[3], params_.vel2base_[4], params_.vel2base_[5], params_.vel2base_[6]),
-      tf2::Vector3(params_.vel2base_[0], params_.vel2base_[1], params_.vel2base_[2]), vel2base_tf);
-  br->sendTransform(vel2base_tf);
+  tf_broadcaster_->sendTransform(base2map_tf);
 
   // ---- odom2map
   geometry_msgs::msg::TransformStamped map2odom_tf;
@@ -287,7 +265,7 @@ void VineSLAM_ros::process()
   q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
   q.normalize();
   pose2TransformStamped(q, tf2::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_), map2odom_tf);
-  br->sendTransform(map2odom_tf);
+  tf_broadcaster_->sendTransform(map2odom_tf);
   // ----
 
   // Convert vineslam pose to ROS pose and publish it
@@ -315,14 +293,14 @@ void VineSLAM_ros::process()
   publishReport();
 
   // Publish the 2D map
-  //  publish2DMap(robot_pose_, input_data_.land_bearings_, input_data_.land_depths_);
+  publish2DMap(robot_pose_, input_data_.land_bearings_, input_data_.land_depths_);
   // Publish 3D maps
-  //  publish3DMap();
-  //  publishElevationMap();
-  //  publish3DMap(l_corners, corners_local_publisher_);
-  //  publish3DMap(l_planars, planars_local_publisher_);
-  //  l_planes.push_back(l_ground_plane);
-  //  publish3DMap(l_planes, planes_local_publisher_);
+  publish3DMap();
+  publishElevationMap();
+  publish3DMap(l_corners, corners_local_publisher_);
+  publish3DMap(l_planars, planars_local_publisher_);
+  l_planes.push_back(l_ground_plane);
+  publish3DMap(l_planes, planes_local_publisher_);
 
   // - Prepare next iteration
   previous_map_->clear();

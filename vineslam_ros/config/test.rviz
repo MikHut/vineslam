@@ -3,9 +3,7 @@ Panels:
     Help Height: 78
     Name: Displays
     Property Tree Widget:
-      Expanded:
-        - /Global Options1
-        - /Status1
+      Expanded: ~
       Splitter Ratio: 0.5740740895271301
     Tree Height: 787
   - Class: rviz_common/Selection
@@ -53,7 +51,7 @@ Visualization Manager:
           Value: true
         zed_camera_left_optical_frame:
           Value: true
-      Marker Scale: 1
+      Marker Scale: 5
       Name: TF
       Show Arrows: true
       Show Axes: true
@@ -476,7 +474,7 @@ Visualization Manager:
       Name: Sensors
   Enabled: true
   Global Options:
-    Background Color: 48; 48; 48
+    Background Color: 255; 255; 255
     Fixed Frame: map
     Frame Rate: 30
   Name: root
@@ -517,7 +515,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 10
+      Distance: 14.177528381347656
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1

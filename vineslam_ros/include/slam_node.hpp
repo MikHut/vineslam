@@ -16,6 +16,8 @@ public:
   ~SLAMNode();
 
 private:
+  // Parameter loading routine
+  void loadParameters(const ros::NodeHandle& nh, const std::string& prefix, Parameters& params);
 };
 
 }  // namespace vineslam

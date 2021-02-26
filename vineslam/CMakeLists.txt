@@ -11,7 +11,6 @@ endif()
 
 find_package(catkin REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(PythonLibs 2.7)
 
 catkin_package(
         INCLUDE_DIRS include
@@ -21,7 +20,6 @@ catkin_package(
 include_directories(
         include
         ${catkin_INCLUDE_DIRS}
-        ${PYTHON_INCLUDE_DIRS}
 )
 
 add_library(vineslam
@@ -38,8 +36,7 @@ add_library(vineslam
 
 target_link_libraries(vineslam
         ${catkin_LIBRARIES}
-        ${Eigen3_LIBRARIES}
-        ${PYTHON_LIBRARIES})
+        ${Eigen3_LIBRARIES})
 
 install(TARGETS vineslam
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

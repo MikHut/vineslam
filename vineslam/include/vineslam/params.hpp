@@ -8,17 +8,6 @@ namespace vineslam
 struct Parameters
 {
   // -----------------------------------
-  // ------ ROS topic names
-  // -----------------------------------
-  std::string bagfile_name_;
-  std::string odom_topic_;
-  std::string tf_topic_;
-  std::string fix_topic_;
-  std::string image_features_topic_;
-  std::string detections_topic_;
-  std::string pcl_topic_;
-
-  // -----------------------------------
   // ------ System flags
   // -----------------------------------
   bool use_semantic_features_{};
@@ -32,12 +21,6 @@ struct Parameters
   // -----------------------------------
   float latitude_{};
   float longitude_{};
-
-  // -----------------------------------
-  // ------ On-board sensors transformations to base link
-  // -----------------------------------
-  std::vector<float> cam2base_;
-  std::vector<float> vel2base_;
 
   // -----------------------------------
   // ------ Camera info parameters
@@ -60,10 +43,6 @@ struct Parameters
   bool save_map_{};
   std::string map_output_folder_;
   std::string map_input_file_;
-  // - 3D map
-  int icp_max_iters_{};
-  float icp_distance_threshold_{};
-  bool icp_reject_outliers_{};
 
   // -----------------------------------
   // ------ Particle filter parameters
@@ -75,12 +54,7 @@ struct Parameters
   float sigma_RR_{};
   float sigma_PP_{};
   float sigma_YY_{};
-  float sigma_landmark_matching_{};
-  float sigma_feature_matching_{};
-  float sigma_corner_matching_{};
-  float sigma_planar_matching_{};
-  float sigma_gps_{};
-  int number_clusters_{};
+
 
   // -----------------------------------
   // ------ METHODS

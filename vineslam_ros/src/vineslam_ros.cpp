@@ -100,8 +100,6 @@ void VineSLAM_ros::init()
   // ---------------------------------------------------------
   localizer_->init(Pose(0, 0, 0, 0, 0, 0));
   robot_pose_ = localizer_->getPose();
-  grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0));
-  elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
 
   // ---------------------------------------------------------
   // ----- Initialize the multi-layer maps
@@ -231,29 +229,15 @@ void VineSLAM_ros::process()
   // ---------------------------------------------------------
   // ----- ROS publishers and tf broadcasting
   // ---------------------------------------------------------
-
-  // Convert robot pose to tf::Transform corresponding
-  tf::Quaternion q;
-  q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
-  q.normalize();
-  tf::Transform base2map;
-  base2map.setRotation(q);
-  base2map.setOrigin(tf::Vector3(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_));
-
-  // Publish tf::Trasforms
   static tf::TransformBroadcaster br;
+  tf::Quaternion q;
+
+  q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
+  tf::Transform base2map(q, tf::Vector3(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_));
   br.sendTransform(tf::StampedTransform(base2map, ros::Time::now(), "map", "/base_link"));
-  tf::Transform cam2base(
-      tf::Quaternion(params_.cam2base_[3], params_.cam2base_[4], params_.cam2base_[5], params_.cam2base_[6]),
-      tf::Vector3(params_.cam2base_[0], params_.cam2base_[1], params_.cam2base_[2]));
-  br.sendTransform(tf::StampedTransform(cam2base, ros::Time::now(), "/base_link", "zed_camera_left_optical_frame"));
-  tf::Transform vel2base(
-      tf::Quaternion(params_.vel2base_[3], params_.vel2base_[4], params_.vel2base_[5], params_.vel2base_[6]),
-      tf::Vector3(params_.vel2base_[0], params_.vel2base_[1], params_.vel2base_[2]));
-  br.sendTransform(tf::StampedTransform(vel2base, ros::Time::now(), "/base_link", "velodyne"));
-  tf::Quaternion o2m_q;
-  o2m_q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
-  tf::Transform odom2map(o2m_q, tf::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_));
+
+  q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
+  tf::Transform odom2map(q, tf::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_));
   br.sendTransform(tf::StampedTransform(odom2map, ros::Time::now(), "odom", "map"));
 
   // Convert vineslam pose to ROS pose and publish it

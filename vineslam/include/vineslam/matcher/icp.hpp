@@ -20,14 +20,14 @@ public:
   // -------------------------------------------------------------------------------
   // ----- Class constructor - sets the default stop criteria parameters
   // -------------------------------------------------------------------------------
-  explicit ICP(const Parameters& params)
+  ICP()
   {
     // Set the default stop criteria parameters
     // - they can (and should) be overwritten from the outside call (!)
-    max_iters_ = params.icp_max_iters_;
+    max_iters_ = 20;
     tolerance_ = 1e-3;
-    dist_threshold_ = params.icp_distance_threshold_;
-    reject_outliers_ = params.icp_reject_outliers_;
+    dist_threshold_ = 0.2;
+    reject_outliers_ = false;
 
     // Initialize homogeneous transformation
     R_array_ = { 1., 0., 0., 0., 1., 0., 0., 0., 1. };

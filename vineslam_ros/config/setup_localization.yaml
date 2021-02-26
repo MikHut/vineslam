@@ -1,0 +1,32 @@
+# General system settings
+use_semantic_features: False
+use_lidar_features: True
+use_image_features: False
+use_gps: False
+use_wheel_odometry: True
+
+# GPS datum
+gps_datum:
+  lat: 41.205517
+  long: -8.3073515
+
+camera_info:
+  baseline: 0.12 # meters
+  fx: 692.95849609375  # pixels
+  cx: 692.95849609375  # pixels
+
+grid_map:
+  input_file: "/home/andresaguiar/map.xml"
+
+pf:
+  n_particles: 500
+
+  # Particles innovation
+  sigma_xx: 0.1 # meters
+  sigma_yy: 0.2 # meters
+  sigma_zz: 0.2 # meters
+  sigma_RR: 0.2 # radians
+  sigma_PP: 0.2 # radians
+  sigma_YY: 0.8 # radians
+
+  k_clusters: 3

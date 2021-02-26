@@ -59,9 +59,3 @@ add_dependencies(localization_node ${${PROJECT_NAME}_EXPORTED_TARGETS}
         ${catkin_EXPORTED_TARGETS})
 target_link_libraries(localization_node
         ${catkin_LIBRARIES})
-
-add_executable(mapping_node src/mapping_node.cpp src/vineslam_ros.cpp src/visualization.cpp)
-add_dependencies(mapping_node ${${PROJECT_NAME}_EXPORTED_TARGETS}
-        ${catkin_EXPORTED_TARGETS})
-target_link_libraries(mapping_node
-        ${catkin_LIBRARIES})

@@ -61,20 +61,20 @@ LocalizationNode::LocalizationNode(int argc, char** argv)
   polar2pose_ = nh.serviceClient<agrob_map_transform::GetPose>("polar_to_pose");
   set_datum_ = nh.serviceClient<agrob_map_transform::SetDatum>("datum");
 
-  // Landmark subscription
-  ros::Subscriber feat_subscriber = nh.subscribe(params_.image_features_topic_, 1, &VineSLAM_ros::imageFeatureListener,
+ // Landmark subscription
+  ros::Subscriber feat_subscriber = nh.subscribe("/features_topic", 1, &VineSLAM_ros::imageFeatureListener,
                                                  dynamic_cast<VineSLAM_ros*>(this));
   ros::Subscriber land_subscriber =
-      nh.subscribe(params_.detections_topic_, 1, &VineSLAM_ros::landmarkListener, dynamic_cast<VineSLAM_ros*>(this));
+      nh.subscribe("/detections_topic", 1, &VineSLAM_ros::landmarkListener, dynamic_cast<VineSLAM_ros*>(this));
   // Scan subscription
   ros::Subscriber scan_subscriber =
-      nh.subscribe(params_.pcl_topic_, 1, &VineSLAM_ros::scanListener, dynamic_cast<VineSLAM_ros*>(this));
+      nh.subscribe("/scan_topic", 1, &VineSLAM_ros::scanListener, dynamic_cast<VineSLAM_ros*>(this));
   // Odometry subscription
   ros::Subscriber odom_subscriber =
-      nh.subscribe(params_.odom_topic_, 1, &VineSLAM_ros::odomListener, dynamic_cast<VineSLAM_ros*>(this));
+      nh.subscribe("/odom_topic", 1, &VineSLAM_ros::odomListener, dynamic_cast<VineSLAM_ros*>(this));
   // GPS subscription
   ros::Subscriber gps_subscriber =
-      nh.subscribe(params_.fix_topic_, 1, &VineSLAM_ros::gpsListener, dynamic_cast<VineSLAM_ros*>(this));
+      nh.subscribe("/gps_topic", 1, &VineSLAM_ros::gpsListener, dynamic_cast<VineSLAM_ros*>(this));
 
   // ---------------------------------------------------------
   // ----- Publish maps and particle filter
@@ -110,31 +110,6 @@ LocalizationNode::LocalizationNode(int argc, char** argv)
     global_counter_ = 0;
   }
 
-  // ---------------------------------------------------------
-  // ----- Get static sensor tfs
-  // ---------------------------------------------------------
-  tf::Transform cam2base;
-  cam2base.setRotation(
-      tf::Quaternion(params_.cam2base_[3], params_.cam2base_[4], params_.cam2base_[5], params_.cam2base_[6]));
-  cam2base.setOrigin(tf::Vector3(params_.cam2base_[0], params_.cam2base_[1], params_.cam2base_[2]));
-  cam2base = cam2base.inverse();
-  tf::Vector3 t = cam2base.getOrigin();
-  tfScalar roll, pitch, yaw;
-  cam2base.getBasis().getRPY(roll, pitch, yaw);
-
-  vis_mapper_->setCam2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
-  land_mapper_->setCamPitch(pitch);
-
-  tf::Transform vel2base;
-  vel2base.setRotation(
-      tf::Quaternion(params_.vel2base_[3], params_.vel2base_[4], params_.vel2base_[5], params_.vel2base_[6]));
-  vel2base.setOrigin(tf::Vector3(params_.vel2base_[0], params_.vel2base_[1], params_.vel2base_[2]));
-  vel2base = vel2base.inverse();
-  t = vel2base.getOrigin();
-  vel2base.getBasis().getRPY(roll, pitch, yaw);
-
-  lid_mapper_->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
-
   ROS_INFO("Loading map from xml file...");
   // ---------------------------------------------------------
   // ----- Load map dimensions and initialize it
@@ -148,6 +123,44 @@ LocalizationNode::LocalizationNode(int argc, char** argv)
   // ---------------------------------------------------------
   parser.parseFile(&(*grid_map_));
   ROS_INFO("The map has been loaded...");
+
+  ROS_INFO("Allocating map memory...");
+  grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0));
+  elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
+
+  ROS_INFO("Waiting for static transforms...");
+  tf::TransformListener listener;
+  tf::StampedTransform cam2base_msg, vel2base_msg;
+  bool got_cam2base = false, got_vel2base = false;
+  while (!got_cam2base && ros::ok())
+  {
+    try
+    {
+      listener.lookupTransform("/zed_camera_left_optical_frame", "/base_link", ros::Time(0), cam2base_msg);
+    }
+    catch (tf::TransformException ex)
+    {
+      ROS_ERROR("%s", ex.what());
+      ros::Duration(0.5).sleep();
+      continue;
+    }
+    got_cam2base = true;
+  }
+  while (!got_vel2base && ros::ok())
+  {
+    try
+    {
+      listener.lookupTransform("/velodyne", "/base_link", ros::Time(0), vel2base_msg);
+    }
+    catch (tf::TransformException ex)
+    {
+      ROS_ERROR("%s", ex.what());
+      ros::Duration(0.5).sleep();
+      continue;
+    }
+    got_vel2base = true;
+  }
+  ROS_INFO("Received!");
 
   // ---------------------------------------------------------
   // ----- Call execution thread
@@ -217,6 +230,85 @@ void LocalizationNode::init()
   }
 
   ROS_INFO("Localization and Mapping has started.");
+}
+
+void LocalizationNode::loadParameters(const ros::NodeHandle& nh, const std::string& prefix, Parameters& params)
+{
+  const std::string& node_name = ros::this_node::getName();
+
+  // Load params
+  if (!nh.getParam(prefix + "/use_semantic_features", params.use_semantic_features_))
+  {
+    ROS_WARN("%s/semantic_features parameter not found. Shutting down...", prefix.c_str());
+  }
+  if (!nh.getParam(prefix + "/use_lidar_features", params.use_lidar_features_))
+  {
+    ROS_WARN("%s/use_lidar_features parameter not found. Shutting down...", prefix.c_str());
+  }
+  if (!nh.getParam(prefix + "/use_image_features", params.use_image_features_))
+  {
+    ROS_WARN("%s/use_image_features parameter not found. Shutting down...", prefix.c_str());
+  }
+  if (!nh.getParam(prefix + "/use_gps", params.use_gps_))
+  {
+    ROS_WARN("%s/use_gps parameter not found. Shutting down...", prefix.c_str());
+  }
+  if (!nh.getParam(prefix + "/use_wheel_odometry", params.use_wheel_odometry_))
+  {
+    ROS_WARN("%s/use_wheel_odometry parameter has not been set. Not using it...", prefix.c_str());
+  }
+  if (!nh.getParam(prefix + "/gps_datum/lat", params.latitude_))
+  {
+    ROS_WARN("%s/gps_datum/lat parameter not found. Shutting down...", prefix.c_str());
+  }
+  if (!nh.getParam(prefix + "/gps_datum/long", params.longitude_))
+  {
+    ROS_WARN("%s/gps_datum/long parameter not found. Shutting down...", prefix.c_str());
+  }
+ if (!nh.getParam(prefix + "/camera_info/baseline", params.baseline_))
+  {
+    ROS_WARN("%s/camera_info/baseline parameter not found. Shutting down...", prefix.c_str());
+  }
+  if (!nh.getParam(prefix + "/camera_info/fx", params.fx_))
+  {
+    ROS_WARN("%s/camera_info/fx parameter not found. Shutting down...", prefix.c_str());
+  }
+  if (!nh.getParam(prefix + "/camera_info/cx", params.cx_))
+  {
+    ROS_WARN("%s/camera_info/cx parameter not found. Shutting down...", prefix.c_str());
+  }
+  if (!nh.getParam(prefix + "/grid_map/input_file", params.map_input_file_))
+  {
+    ROS_WARN("%s/grid_map/input_file not found. Shutting down...", prefix.c_str());
+  }
+  if (!nh.getParam(prefix + "/pf/n_particles", params.number_particles_))
+  {
+    ROS_WARN("%s/pf/n_particles not found. Shutting down...", prefix.c_str());
+  }
+  if (!nh.getParam(prefix + "/pf/sigma_xx", params.sigma_xx_))
+  {
+    ROS_WARN("%s/pf/sigma_xx not found. Shutting down...", prefix.c_str());
+  }
+  if (!nh.getParam(prefix + "/pf/sigma_yy", params.sigma_yy_))
+  {
+    ROS_WARN("%s/pf/sigma_yy not found. Shutting down...", prefix.c_str());
+  }
+  if (!nh.getParam(prefix + "/pf/sigma_zz", params.sigma_zz_))
+  {
+    ROS_WARN("%s/pf/sigma_zz not found. Shutting down...", prefix.c_str());
+  }
+  if (!nh.getParam(prefix + "/pf/sigma_RR", params.sigma_RR_))
+  {
+    ROS_WARN("%s/pf/sigma_RR not found. Shutting down...", prefix.c_str());
+  }
+  if (!nh.getParam(prefix + "/pf/sigma_PP", params.sigma_PP_))
+  {
+    ROS_WARN("%s/pf/sigma_pitch not found. Shutting down...", prefix.c_str());
+  }
+  if (!nh.getParam(prefix + "/pf/sigma_YY", params.sigma_YY_))
+  {
+    ROS_WARN("%s/pf/sigma_YY not found. Shutting down...", prefix.c_str());
+  }
 }
 
 LocalizationNode::~LocalizationNode() = default;

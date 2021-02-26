@@ -338,6 +338,7 @@ bool MapLayer::update(const Planar& old_planar, const Planar& new_planar)
 
 bool MapLayer::update(const ImageFeature& old_image_feature, const ImageFeature& new_image_feature)
 {
+    return false;
 }
 
 void MapLayer::downsampleCorners()

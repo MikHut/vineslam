@@ -18,6 +18,9 @@ public:
 private:
   // Initialization function. This node has its own init() routine since it does not initialize the grid map in here.
   void init();
+
+  // Parameter loading routine
+  void loadParameters(const ros::NodeHandle& nh, const std::string& prefix, Parameters& params);
 };
 
 }  // namespace vineslam

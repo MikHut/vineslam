@@ -138,7 +138,7 @@ void Localizer::predictMotion(const Tf& initial_guess, const std::vector<Planar>
   // -------------------------------------------------------------------------------
 
   // - Set ICP input parameters
-  ICP<Planar> planar_icp(params_);
+  ICP<Planar> planar_icp;
   planar_icp.setInputSource(planars);
   planar_icp.setInputTarget(previous_map);
   planar_icp.setTolerance(1e-5);

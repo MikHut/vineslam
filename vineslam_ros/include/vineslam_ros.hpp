@@ -1,7 +1,7 @@
 #pragma once
 
 // vineslam members
-#include <params_loader.hpp>
+#include <vineslam/params.hpp>
 #include <vineslam/feature/semantic.hpp>
 #include <vineslam/feature/visual.hpp>
 #include <vineslam/feature/three_dimensional.hpp>
@@ -72,9 +72,7 @@ public:
   virtual void loopOnce();
   virtual void process();
 
-  // Stereo camera images callback function
-//  void imageListener(const sensor_msgs::ImageConstPtr& rgb_image, const sensor_msgs::ImageConstPtr& depth_image);
-//  void _imageListener(const cv::Mat& rgb_image, const sensor_msgs::ImageConstPtr& depth_image);
+  // Image features listener
   void imageFeatureListener(const vineslam_msgs::FeatureArrayConstPtr& features);
   // Landmark detection callback function
   void landmarkListener(const vision_msgs::Detection3DArrayConstPtr& dets);

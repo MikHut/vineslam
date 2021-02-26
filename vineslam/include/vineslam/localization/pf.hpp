@@ -92,6 +92,16 @@ public:
   bool use_image_features_;
   bool use_gps_;
 
+  // Filter settings
+  float sigma_landmark_matching_;
+  float sigma_feature_matching_;
+  float sigma_corner_matching_;
+  float sigma_planar_matching_;
+  float sigma_plane_matching_vector_;
+  float sigma_plane_matching_centroid_;
+  float sigma_gps_;
+  int number_clusters_;
+
 private:
   // Update functions
   // - High level semantic features layer

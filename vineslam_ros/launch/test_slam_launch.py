@@ -89,8 +89,8 @@ def generate_launch_description():
             executable='run_detection_model',
             name='run_detection_model',
             parameters=[
-                {'model_file': '/home/andresaguiar/catkin_ws_ros2/src/tpu-object-detection/object_detection/models/mv1/edgetpu_cpp_model_output_tflite_graph_edgetpu.tflite'},
-                {'labels_file': '/home/andresaguiar/catkin_ws_ros2/src/tpu-object-detection/object_detection/models/mv1/edgetpu_cpp_model_labels.txt'}
+                {'model_file': '/home/andresaguiar/ROS/catkin_ws_ros2/src/tpu-object-detection/object_detection/models/mv1/edgetpu_cpp_model_output_tflite_graph_edgetpu.tflite'},
+                {'labels_file': '/home/andresaguiar/ROS/catkin_ws_ros2/src/tpu-object-detection/object_detection/models/mv1/edgetpu_cpp_model_labels.txt'}
             ],
             remappings=[
                 ('/input_rgb_image', image_topic),
@@ -98,6 +98,29 @@ def generate_launch_description():
             ]
         )
         ld.add_action(detector)
+
+    if config['slam_node']['use_semantic_features'] == True:
+        vfe_config_path = os.path.join(
+            get_package_share_directory('vfe'),
+            'config',
+            'setup.yaml'
+        )
+
+        with open(vfe_config_path, 'r') as f:
+            vfe_config = yaml.safe_load(f)
+
+        # vfe node
+        extractor = Node(
+            package='vfe',
+            executable='vfe',
+            name='vfe',
+            parameters=[vfe_config],
+            remappings=[
+                ('/input_rgb_image', image_topic),
+                ('/input_depth_image', depth_topic),
+            ]
+        )
+        ld.add_action(extractor)
 
     # Rviz
     rviz = Node(

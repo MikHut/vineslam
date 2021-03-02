@@ -63,13 +63,8 @@ All the parameters are set to their **default values**, so you can run the syste
         * **lat** - GPS latitude datum (degrees)
         * **long** - GPS latitude datum (degrees)
 * **camera_info**:
-    * **baseline** - stereo camera baseline (meters)
-    * **depth_hfov** - depth image horizontal field of view (degrees)
-    * **depth_vfov** - depth image vertical field of view (degrees)
-    * **fx** - horizontal focal length (pixels)
-    * **fy** - vertical focal length (pixels)
+   * **fx** - horizontal focal length (pixels)
     * **cx** - x coordinate of image principal point (pixels)
-    * **cy** - y coordinate of image principal point (pixels)
 * **multilayer-mapping**:
     * **grid_map**:
         * **origin**:
@@ -83,15 +78,6 @@ All the parameters are set to their **default values**, so you can run the syste
         * **save_map** - [True/False] whether to save or not the map when the system ends
         * **output_file** - name of the map output file (.xml)
         * **input_file** - name of the map input file (.xml) if using localization-only
-    * **image_feature**:
-        * **hessian_threshold** - SURF threshold: the higher the value, the lesser the number of features computed
-    * **map_3D**:
-        * **max_range** - maximum depth range to consider on 3D maps (meters)
-        * **max_height** - maximum points height to consider on 3D maps (meters)
-    * **ICP**:
-        * **max_iters** - maximum number of iterations of ICP
-        * **distance_threshold** - maximum distance to consider point correspondences (meters)
-        * **reject_outliers** - [True/False]
 * **pf**:
     * **n_particles** - number of particles of the particle filter
     * **sigma_xx** - motion model xx constant (meters)

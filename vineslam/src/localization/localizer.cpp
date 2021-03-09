@@ -25,7 +25,8 @@ void Localizer::init(const Pose& initial_pose)
   init_flag_ = true;
 }
 
-void Localizer::process(const Pose& wheel_odom_inc, const Observation& obsv, OccupancyMap* previous_map, OccupancyMap* grid_map)
+void Localizer::process(const Pose& wheel_odom_inc, const Observation& obsv, OccupancyMap* previous_map,
+                        OccupancyMap* grid_map)
 {
   auto before = std::chrono::high_resolution_clock::now();
   // Resets
@@ -47,7 +48,8 @@ void Localizer::process(const Pose& wheel_odom_inc, const Observation& obsv, Occ
     Tf initial_guess = Tf::unitary();
     predictMotion(initial_guess, obsv.planars, previous_map, tf);
   }
-  Pose odom_inc(tf.R_array_, tf.t_array_);
+  //  Pose odom_inc(tf.R_array_, tf.t_array_);
+  Pose odom_inc = wheel_odom_inc;
   odom_inc.normalize();
 
   // ------------------------------------------------------------------------------

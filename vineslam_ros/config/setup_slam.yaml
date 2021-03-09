@@ -7,8 +7,8 @@ use_wheel_odometry: True
 
 # GPS datum
 gps_datum:
-  lat: 41.205517
-  long: -8.3073515
+  lat: 41.166805833333335
+  long: -7.5549815
 
 camera_info:
   baseline: 0.12 # meters
@@ -33,11 +33,11 @@ pf:
   n_particles: 500
 
   # Particles innovation
-  sigma_xx: 0.1 # meters
+  sigma_xx: 0.2 # meters
   sigma_yy: 0.2 # meters
   sigma_zz: 0.2 # meters
   sigma_RR: 0.2 # radians
   sigma_PP: 0.2 # radians
-  sigma_YY: 0.8 # radians
+  sigma_YY: 0.2 # radians
 
   k_clusters: 3

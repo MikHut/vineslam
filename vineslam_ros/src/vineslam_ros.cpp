@@ -68,7 +68,7 @@ void VineSLAM_ros::loopOnce()
   // Check if we have all the necessary data
   bool can_continue = (input_data_.received_image_features_ || (!params_.use_image_features_)) &&
                       input_data_.received_scans_ &&
-                      (input_data_.received_landmarks_ || !params_.use_semantic_features_) &&
+                      (input_data_.received_landmarks_ || !params_.use_semantic_features_);
                       (input_data_.received_gnss_ || !params_.use_gps_);
 
   if (!can_continue)
@@ -210,6 +210,9 @@ void VineSLAM_ros::process()
   Tf c_odom_tf = input_data_.wheel_odom_pose_.toTf();
   Tf odom_inc_tf = p_odom_tf.inverse() * c_odom_tf;
   Pose odom_inc(odom_inc_tf.R_array_, odom_inc_tf.t_array_);
+  std::cout << input_data_.p_wheel_odom_pose_;
+  std::cout << input_data_.wheel_odom_pose_;
+  std::cout << odom_inc << "\n";
   input_data_.p_wheel_odom_pose_ = input_data_.wheel_odom_pose_;
   odom_inc.normalize();
   localizer_->process(odom_inc, obsv_, previous_map_, grid_map_);
@@ -252,6 +255,18 @@ void VineSLAM_ros::process()
   pose_stamped.pose.orientation.z = q.z();
   pose_stamped.pose.orientation.w = q.w();
   pose_publisher_.publish(pose_stamped);
+  // Convert vineslam pose to ROS odometry pose and publish it
+  nav_msgs::Odometry vineslam_odom;
+  vineslam_odom.header.stamp = ros::Time::now();
+  vineslam_odom.header.frame_id = "map";
+  vineslam_odom.pose.pose.position.x = robot_pose_.x_;
+  vineslam_odom.pose.pose.position.y = robot_pose_.y_;
+  vineslam_odom.pose.pose.position.z = robot_pose_.z_;
+  vineslam_odom.pose.pose.orientation.x = q.x();
+  vineslam_odom.pose.pose.orientation.y = q.y();
+  vineslam_odom.pose.pose.orientation.z = q.z();
+  vineslam_odom.pose.pose.orientation.w = q.w();
+  odom_publisher_.publish(vineslam_odom);
 
   // Push back the current pose to the path container and publish it
   path_.push_back(pose_stamped);
@@ -372,7 +387,7 @@ void VineSLAM_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)
       yaw = 0;
 
     init_odom_pose_ = Pose(msg->pose.pose.position.x, msg->pose.pose.position.y, 0, 0, 0, yaw);
-    input_data_.p_wheel_odom_pose_ = init_odom_pose_;
+    input_data_.p_wheel_odom_pose_ = Pose(0, 0, 0, 0, 0, 0);
 
     init_odom_ = false;
     return;

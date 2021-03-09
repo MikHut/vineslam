@@ -77,6 +77,7 @@ SLAMNode::SLAMNode(int argc, char** argv)
   corners_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners_local", 1);
   planars_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planars_local", 1);
   pose_publisher_ = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/pose", 1);
+  odom_publisher_ = nh.advertise<nav_msgs::Odometry>("/vineslam/odom", 1);
   gps_path_publisher_ = nh.advertise<nav_msgs::Path>("/vineslam/gps_path", 1);
   gps_pose_publisher_ = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/gps_pose", 1);
   path_publisher_ = nh.advertise<nav_msgs::Path>("/vineslam/path", 1);

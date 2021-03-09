@@ -154,6 +154,7 @@ public:
   ros::Publisher map3D_planars_publisher_;
   ros::Publisher map3D_planes_publisher_;
   ros::Publisher pose_publisher_;
+  ros::Publisher odom_publisher_;
   ros::Publisher path_publisher_;
   ros::Publisher poses_publisher_;
   ros::Publisher gps_path_publisher_;

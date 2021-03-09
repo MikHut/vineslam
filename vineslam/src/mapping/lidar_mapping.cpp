@@ -136,7 +136,7 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
       continue;
     }
 
-    if (/*range < 1.0 &&*/ range > 10.0)
+    if (/*range < 1.0 &&*/ range > 30.0)
     {
       continue;
     }
@@ -150,7 +150,7 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
   // - Ground plane processing
   Plane unfiltered_gplane, filtered_gplane;
   // A - Extraction
-  groundRemoval(transformed_pcl, unfiltered_gplane);
+  flatGroundRemoval(transformed_pcl, unfiltered_gplane);
   // B - Filtering
   ransac(unfiltered_gplane.points_, filtered_gplane, 100, 0.03, true);
   // C - Centroid calculation
@@ -174,7 +174,9 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
   // -------------------------------------------------------------------------------
   // ----- Mark raw ground points
   // -------------------------------------------------------------------------------
-  for (const auto& index : out_groundplane.indexes_)
+  Plane non_flat_ground;
+  groundRemoval(transformed_pcl, non_flat_ground);
+  for (const auto& index : non_flat_ground.indexes_)
   {
     int i = static_cast<int>(index.x_);
     int j = static_cast<int>(index.y_);
@@ -537,6 +539,47 @@ void LidarMapper::globalElevationMap(const Pose& robot_pose, const Plane& ground
   }
 }
 
+void LidarMapper::flatGroundRemoval(const std::vector<Point>& in_pts, Plane& out_pcl)
+{
+  // _ground_mat
+  // -1, no valid info to check if ground of not
+  //  0, initial value, after validation, means not ground
+  //  1, ground
+  for (int j = 0; j < horizontal_scans_; j++)
+  {
+    for (int i = 0; i < ground_scan_idx_; i++)
+    {
+      int lower_idx = j + i * horizontal_scans_;
+      int upper_idx = j + (i + 1) * horizontal_scans_;
+
+      Point upper_pt = in_pts[upper_idx];
+      Point lower_pt = in_pts[lower_idx];
+
+      if (range_mat_(i, j) == -1 || range_mat_(i + 1, j) == -1)
+      {
+        // no info to check, invalid points
+        //        ground_mat_(i, j) = -1;
+        continue;
+      }
+
+      float dX = upper_pt.x_ - lower_pt.x_;
+      float dY = upper_pt.y_ - lower_pt.y_;
+      float dZ = upper_pt.z_ - lower_pt.z_;
+
+      float vertical_angle = std::atan2(dZ, std::sqrt(dX * dX + dY * dY + dZ * dZ));
+
+      if (vertical_angle <= ground_th_ && std::fabs(lower_pt.z_) > lidar_height / 2 &&
+          std::fabs(upper_pt.z_) > lidar_height / 2)
+      {
+        out_pcl.points_.push_back(lower_pt);
+        out_pcl.points_.push_back(upper_pt);
+        out_pcl.indexes_.emplace_back(i, j);
+        out_pcl.indexes_.emplace_back(i + 1, j);
+      }
+    }
+  }
+}
+
 void LidarMapper::groundRemoval(const std::vector<Point>& in_pts, Plane& out_pcl)
 {
   // _ground_mat
@@ -556,7 +599,7 @@ void LidarMapper::groundRemoval(const std::vector<Point>& in_pts, Plane& out_pcl
       if (range_mat_(i, j) == -1 || range_mat_(i + 1, j) == -1)
       {
         // no info to check, invalid points
-        ground_mat_(i, j) = -1;
+        //        ground_mat_(i, j) = -1;
         continue;
       }
 
@@ -566,8 +609,7 @@ void LidarMapper::groundRemoval(const std::vector<Point>& in_pts, Plane& out_pcl
 
       float vertical_angle = std::atan2(dZ, std::sqrt(dX * dX + dY * dY + dZ * dZ));
 
-      if (vertical_angle <= ground_th_ && std::fabs(lower_pt.z_) > lidar_height / 2 &&
-          std::fabs(upper_pt.z_) > lidar_height / 2)
+      if (vertical_angle <= ground_th_)
       {
         out_pcl.points_.push_back(lower_pt);
         out_pcl.points_.push_back(upper_pt);
@@ -608,10 +650,10 @@ void LidarMapper::cloudSegmentation(const std::vector<Point>& in_pts, std::vecto
         // The majority of ground points are skipped
         if (ground_mat_(i, j) == 1)
         {
-          //          if (j % 5 != 0 && j > 5 && j < horizontal_scans_ - 5)
-          //          {
-          continue;
-          //          }
+          if (j % 20 != 0 && j > 20 && j < horizontal_scans_ - 20)
+          {
+            continue;
+          }
         }
 
         // Mark ground points so they will not be considered as edge features later

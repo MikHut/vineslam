@@ -9,7 +9,7 @@ Panels:
         - /Local Maps1
         - /Local Maps1/Local Map 4 - Planes1/Status1
       Splitter Ratio: 0.6997792720794678
-    Tree Height: 550
+    Tree Height: 570
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -28,7 +28,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: Global Map 3 - Planar Features
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -70,7 +70,79 @@ Visualization Manager:
       Enabled: true
       Frame Timeout: 15
       Frames:
-        All Enabled: true
+        All Enabled: false
+        Vertex/1000:
+          Value: false
+        Vertex/1001:
+          Value: false
+        Vertex/1003:
+          Value: false
+        Vertex/1004:
+          Value: false
+        Vertex/1005:
+          Value: false
+        Vertex/1006:
+          Value: false
+        Vertex/1007:
+          Value: false
+        Vertex/1008:
+          Value: false
+        Vertex/1009:
+          Value: false
+        Vertex/1010:
+          Value: false
+        base_footprint:
+          Value: false
+        base_link:
+          Value: true
+        front_bumper_link:
+          Value: false
+        front_left_wheel_link:
+          Value: false
+        front_right_wheel_link:
+          Value: false
+        gps_sensor_link:
+          Value: false
+        imu_link:
+          Value: false
+        imu_link_um7:
+          Value: false
+        inertial_link:
+          Value: false
+        map:
+          Value: true
+        map_sn0:
+          Value: true
+        odom:
+          Value: true
+        radio0_frame_id:
+          Value: false
+        radio1_frame_id:
+          Value: false
+        radio2_frame_id:
+          Value: false
+        radio3_frame_id:
+          Value: false
+        rear_bumper_link:
+          Value: false
+        rear_left_wheel_link:
+          Value: false
+        rear_right_wheel_link:
+          Value: false
+        top_chassis_link:
+          Value: false
+        top_plate_front_link:
+          Value: false
+        top_plate_link:
+          Value: false
+        top_plate_rear_link:
+          Value: false
+        user_rail_link:
+          Value: false
+        velodyne:
+          Value: true
+        zed_camera_left_optical_frame:
+          Value: false
       Marker Alpha: 1
       Marker Scale: 5
       Name: TF
@@ -78,7 +150,74 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        {}
+        odom:
+          base_link:
+            base_footprint:
+              {}
+            front_bumper_link:
+              {}
+            front_left_wheel_link:
+              {}
+            front_right_wheel_link:
+              {}
+            gps_sensor_link:
+              {}
+            imu_link:
+              {}
+            imu_link_um7:
+              {}
+            inertial_link:
+              {}
+            map_sn0:
+              Vertex/1000:
+                {}
+              Vertex/1001:
+                {}
+              Vertex/1003:
+                {}
+              Vertex/1004:
+                {}
+              Vertex/1005:
+                {}
+              Vertex/1006:
+                {}
+              Vertex/1007:
+                {}
+              Vertex/1008:
+                {}
+              Vertex/1009:
+                {}
+              Vertex/1010:
+                {}
+            radio0_frame_id:
+              {}
+            radio1_frame_id:
+              {}
+            radio2_frame_id:
+              {}
+            radio3_frame_id:
+              {}
+            rear_bumper_link:
+              {}
+            rear_left_wheel_link:
+              {}
+            rear_right_wheel_link:
+              {}
+            top_chassis_link:
+              {}
+            top_plate_link:
+              top_plate_front_link:
+                {}
+              top_plate_rear_link:
+                {}
+            user_rail_link:
+              {}
+            velodyne:
+              {}
+            zed_camera_left_optical_frame:
+              {}
+          map:
+            {}
       Update Interval: 0
       Value: true
     - Class: rviz/Group
@@ -117,14 +256,14 @@ Visualization Manager:
           Marker Topic: /vineslam/map2D
           Name: Global Map 1 - Semantic
           Namespaces:
-            {}
+            /ellipses: true
           Queue Size: 100
           Value: true
         - Alpha: 0.800000011920929
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 3.2941579818725586
-            Min Value: -0.2022618055343628
+            Max Value: 7.775601387023926
+            Min Value: -19.21047019958496
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -132,7 +271,7 @@ Visualization Manager:
           Color: 237; 212; 0
           Color Transformer: AxisColor
           Decay Time: 0
-          Enabled: true
+          Enabled: false
           Invert Rainbow: false
           Max Color: 255; 255; 255
           Max Intensity: 0
@@ -149,12 +288,12 @@ Visualization Manager:
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
-          Value: true
+          Value: false
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 3.313270092010498
-            Min Value: -0.8442476391792297
+            Max Value: 7.799769878387451
+            Min Value: -2.930238962173462
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -162,7 +301,7 @@ Visualization Manager:
           Color: 255; 255; 255
           Color Transformer: AxisColor
           Decay Time: 0
-          Enabled: false
+          Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
           Max Intensity: 0
@@ -179,7 +318,7 @@ Visualization Manager:
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
-          Value: false
+          Value: true
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
@@ -215,7 +354,9 @@ Visualization Manager:
           Marker Topic: /vineslam/map3D/planes
           Name: Global Map 5 - Planes
           Namespaces:
-            {}
+            /plane_extremas: true
+            /plane_normal: true
+            /plane_pts: true
           Queue Size: 100
           Value: true
         - Class: rviz/MarkerArray
@@ -295,7 +436,9 @@ Visualization Manager:
           Marker Topic: /vineslam/map3D/planes_local
           Name: Local Map 4 - Planes
           Namespaces:
-            {}
+            /plane_extremas: true
+            /plane_normal: true
+            /plane_pts: true
           Queue Size: 100
           Value: true
       Enabled: true
@@ -328,7 +471,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 15.042454719543457
+      Distance: 23.797067642211914
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -344,19 +487,19 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.6397969722747803
+      Pitch: 0.9547967314720154
       Target Frame: <Fixed Frame>
-      Yaw: 4.226439476013184
+      Yaw: 4.216439247131348
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 1016
+  Height: 1043
   Hide Left Dock: false
   Hide Right Dock: false
   Left camera image:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd0000000400000000000001c70000035afc020000000afb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d00000263000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb00000022004c006500660074002000630061006d00650072006100200069006d00610067006501000002a6000000f10000001600fffffffb00000022004c006500660074002000630061006d00650072006100200069006d00610067006501000002ac000000f40000000000000000000000010000017d0000037efc0200000004fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a0049006d006100670065010000003d000002270000000000000000fc0000003d0000037e0000000000fffffffa000000000100000002fb0000000a0049006d0061006700650100000000ffffffff0000000000000000fb0000000a00560069006500770073000000062e0000010f0000010000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000007380000003efc0100000002fb0000000800540069006d0065010000000000000738000002eb00fffffffb0000000800540069006d006501000000000000045000000000000000000000056b0000035a00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000400000000000001c700000375fc020000000afb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d00000277000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb00000022004c006500660074002000630061006d00650072006100200069006d00610067006501000002ba000000f80000001600fffffffb00000022004c006500660074002000630061006d00650072006100200069006d00610067006501000002ac000000f40000000000000000000000010000017d0000037efc0200000004fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a0049006d006100670065010000003d000002270000000000000000fc0000003d0000037e0000000000fffffffa000000000100000002fb0000000a0049006d0061006700650100000000ffffffff0000000000000000fb0000000a00560069006500770073000000062e0000010f0000010000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000007800000003efc0100000002fb0000000800540069006d0065010000000000000780000002eb00fffffffb0000000800540069006d00650100000000000004500000000000000000000005b30000037500000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -365,6 +508,6 @@ Window Geometry:
     collapsed: false
   Views:
     collapsed: false
-  Width: 1848
-  X: 1992
-  Y: 27
+  Width: 1920
+  X: 0
+  Y: 0

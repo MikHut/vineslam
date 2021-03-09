@@ -94,6 +94,7 @@ private:
 
   // Method that extracts the ground plane of an input point cloud
   void groundRemoval(const std::vector<Point>& in_pts, Plane& out_pcl);
+  void flatGroundRemoval(const std::vector<Point>& in_pts, Plane& out_pcl);
 
   // Cloud generic plane segmentation
   void cloudSegmentation(const std::vector<Point>& in_pts, std::vector<PlanePoint>& cloud_seg,

@@ -83,7 +83,11 @@ void VineSLAM_ros::loopOnce()
     init_flag_ = false;
   }
   else
+  {
+    timer_.tick("vineslam_ros::process()");
     process();
+    timer_.tock();
+  }
 
   // Reset information flags
   input_data_.received_image_features_ = false;
@@ -91,6 +95,9 @@ void VineSLAM_ros::loopOnce()
   input_data_.received_landmarks_ = false;
   input_data_.received_odometry_ = false;
   input_data_.received_gnss_ = false;
+
+  timer_.getLog();
+  timer_.clearLog();
 }
 
 void VineSLAM_ros::init()
@@ -210,9 +217,6 @@ void VineSLAM_ros::process()
   Tf c_odom_tf = input_data_.wheel_odom_pose_.toTf();
   Tf odom_inc_tf = p_odom_tf.inverse() * c_odom_tf;
   Pose odom_inc(odom_inc_tf.R_array_, odom_inc_tf.t_array_);
-  std::cout << input_data_.p_wheel_odom_pose_;
-  std::cout << input_data_.wheel_odom_pose_;
-  std::cout << odom_inc << "\n";
   input_data_.p_wheel_odom_pose_ = input_data_.wheel_odom_pose_;
   odom_inc.normalize();
   localizer_->process(odom_inc, obsv_, previous_map_, grid_map_);

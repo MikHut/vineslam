@@ -17,6 +17,7 @@
 #include <vineslam/mapxml/map_writer.hpp>
 #include <vineslam/mapxml/map_parser.hpp>
 #include <vineslam/utils/save_data.hpp>
+#include <vineslam/utils/Timer.hpp>
 // ----------------------------
 #include <vineslam_msgs/particle.h>
 #include <vineslam_msgs/report.h>
@@ -175,6 +176,7 @@ public:
   VisualMapper* vis_mapper_;
   LidarMapper* lid_mapper_;
   Observation obsv_;
+  Timer timer_;
 
   // Array of poses to store and publish the robot path
   std::vector<geometry_msgs::PoseStamped> path_;

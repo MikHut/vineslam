@@ -2,6 +2,29 @@
 
 namespace vineslam
 {
+
+void VineSLAM_ros::publishDenseInfo()
+{
+  ros::Rate r(1);
+  while (ros::ok())
+  {
+    if (init_flag_)
+      continue;
+
+    // Publishes the VineSLAM report
+    publishReport();
+
+    // Publish the 2D map
+    publish2DMap(robot_pose_, input_data_.land_bearings_, input_data_.land_depths_);
+    // Publish 3D maps
+    publish3DMap();
+    publishElevationMap();
+
+    // Impose loop frequency
+    r.sleep();
+  }
+}
+
 void VineSLAM_ros::publishGridMap(const std_msgs::Header& header) const
 {
   // -------------------------------------------------------------------------------

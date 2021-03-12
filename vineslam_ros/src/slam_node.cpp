@@ -144,8 +144,10 @@ SLAMNode::SLAMNode(int argc, char** argv)
   lid_mapper_->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
 
   // Call execution thread
-  std::thread th(&VineSLAM_ros::loop, dynamic_cast<VineSLAM_ros*>(this));
-  th.detach();
+  std::thread th1(&VineSLAM_ros::loop, dynamic_cast<VineSLAM_ros*>(this));
+  std::thread th2(&VineSLAM_ros::publishDenseInfo, dynamic_cast<VineSLAM_ros*>(this));
+  th1.detach();
+  th2.detach();
 
   // ROS spin ...
   ROS_INFO("Done! Execution started.");

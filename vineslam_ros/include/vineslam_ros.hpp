@@ -91,6 +91,8 @@ public:
                              vineslam_ros::stop_gps_heading_estimation::Response&);
   bool saveMap(vineslam_ros::save_map::Request&, vineslam_ros::save_map::Response&);
 
+  // Global thread to publish maps and other info
+  void publishDenseInfo();
   // Publish 2D semantic features map
   void publish2DMap(const Pose& pose, const std::vector<float>& bearings, const std::vector<float>& depths) const;
   // Publish the elevation map

@@ -177,8 +177,8 @@ public:
   LandmarkMapper* land_mapper_;
   VisualMapper* vis_mapper_;
   LidarMapper* lid_mapper_;
+  Timer *timer_;
   Observation obsv_;
-  Timer timer_;
 
   // Array of poses to store and publish the robot path
   std::vector<geometry_msgs::PoseStamped> path_;

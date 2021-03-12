@@ -20,17 +20,7 @@ LidarMapper::LidarMapper(const Parameters& params)
   ang_res_y_ = static_cast<float>(2.) * DEGREE_TO_RAD;
   lidar_height = 1.20;
 
-  // Initialize local map for downsampling
-  Parameters local_map_params;
-  local_map_params.gridmap_origin_x_ = -30;
-  local_map_params.gridmap_origin_y_ = -30;
-  local_map_params.gridmap_origin_z_ = -0.5;
-  local_map_params.gridmap_resolution_ = 0.20;
-  local_map_params.gridmap_width_ = 60;
-  local_map_params.gridmap_lenght_ = 60;
-  local_map_params.gridmap_height_ = 2.5;
 
-  local_map_ = new OccupancyMap(local_map_params, Pose(0, 0, 0, 0, 0, 0));
   prev_robot_pose_ = Pose(0, 0, 0, 0, 0, 0);
 }
 
@@ -94,16 +84,23 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
                            std::vector<Planar>& out_planars, std::vector<SemiPlane>& out_planes,
                            SemiPlane& out_groundplane)
 {
+  Timer t("lidar_mapper::localMap subfunctions");
+
+  t.tick("vel2base");
   // Build velodyne to base_link transformation matrix
   Pose tf_pose(vel2base_x_, vel2base_y_, vel2base_z_, vel2base_roll_, vel2base_pitch_, vel2base_yaw_);
   Tf tf;
   std::array<float, 9> tf_rot{};
   tf_pose.toRotMatrix(tf_rot);
   tf = Tf(tf_rot, std::array<float, 3>{ tf_pose.x_, tf_pose.y_, tf_pose.z_ });
+  t.tock();
 
   // Reset global variables and members
+  t.tick("reset()");
   reset();
+  t.tock();
 
+  t.tick("for()");
   // Range image projection
   const size_t cloud_size = pcl.size();
   std::vector<Point> transformed_pcl(vertical_scans_ * horizontal_scans_);
@@ -146,8 +143,10 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
     size_t idx = column_idx + row_idx * horizontal_scans_;
     transformed_pcl[idx] = l_pt;
   }
+  t.tock();
 
   // - Ground plane processing
+  t.tick("flat ground removal");
   Plane unfiltered_gplane, filtered_gplane;
   // A - Extraction
   flatGroundRemoval(transformed_pcl, unfiltered_gplane);
@@ -170,10 +169,12 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
     pt = pt * tf.inverse();
   }
   out_groundplane.centroid_ = out_groundplane.centroid_ * tf.inverse();
+  t.tock();
 
   // -------------------------------------------------------------------------------
   // ----- Mark raw ground points
   // -------------------------------------------------------------------------------
+  t.tick("non flat ground removal");
   Plane non_flat_ground;
   groundRemoval(transformed_pcl, non_flat_ground);
   for (const auto& index : non_flat_ground.indexes_)
@@ -184,18 +185,26 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
     ground_mat_(i, j) = 1;
     label_mat_(i, j) = -1;
   }
+  t.tock();
 
   // - Planes that are not the ground
+  t.tick("cloudSegmentation()");
   std::vector<PlanePoint> cloud_seg, cloud_seg_pure;
   cloudSegmentation(transformed_pcl, cloud_seg, cloud_seg_pure);
+  t.tock();
 
   // - Extract high level planes, and then convert them to semi-planes
+  t.tick("extractHighLevelPlanes()");
   extractHighLevelPlanes(transformed_pcl, out_groundplane, out_planes);
+  t.tock();
 
   //- Corners feature extraction
+  t.tick("extractFeatures");
   extractFeatures(cloud_seg, out_corners, out_planars);
+  t.tock();
 
   // - Convert local maps to base link
+  t.tick("conversions ...");
   for (auto& corner : out_corners)
   {
     corner.pos_ = corner.pos_ * tf.inverse();
@@ -216,15 +225,10 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
     }
     plane.centroid_ = plane.centroid_ * tf.inverse();
   }
+  t.tock();
 
-  // Downsample planar features
-  local_map_->clear();
-  for (const auto& planar : out_planars)
-    local_map_->insert(planar);
-  local_map_->downsamplePlanars();
-
-  out_planars.clear();
-  out_planars = local_map_->getPlanars();
+  t.getLog();
+  t.clearLog();
 }
 
 void LidarMapper::globalCornerMap(const Pose& robot_pose, const std::vector<Corner>& corners, OccupancyMap& grid_map)

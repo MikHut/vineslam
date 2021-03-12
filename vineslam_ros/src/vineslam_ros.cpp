@@ -69,7 +69,7 @@ void VineSLAM_ros::loopOnce()
   bool can_continue = (input_data_.received_image_features_ || (!params_.use_image_features_)) &&
                       input_data_.received_scans_ &&
                       (input_data_.received_landmarks_ || !params_.use_semantic_features_);
-                      (input_data_.received_gnss_ || !params_.use_gps_);
+  (input_data_.received_gnss_ || !params_.use_gps_);
 
   if (!can_continue)
     return;
@@ -84,7 +84,7 @@ void VineSLAM_ros::loopOnce()
   }
   else
   {
-    Timer l_timer;
+    Timer l_timer("VineSLAM main loop");
     l_timer.tick("vineslam_ros::process()");
     process();
     l_timer.tock();
@@ -99,8 +99,8 @@ void VineSLAM_ros::loopOnce()
   input_data_.received_odometry_ = false;
   input_data_.received_gnss_ = false;
 
-  timer_.getLog();
-  timer_.clearLog();
+  timer_->getLog();
+  timer_->clearLog();
 }
 
 void VineSLAM_ros::init()
@@ -173,9 +173,9 @@ void VineSLAM_ros::process()
   std::vector<SemanticFeature> l_landmarks;
   if (params_.use_semantic_features_)
   {
-    timer_.tick("landmark_mapper::localMap()");
+    timer_->tick("landmark_mapper::localMap()");
     land_mapper_->localMap(input_data_.land_bearings_, input_data_.land_depths_, l_landmarks);
-    timer_.tock();
+    timer_->tock();
   }
 
   // - Compute 3D PCL corners and ground plane on robot's referential frame
@@ -185,18 +185,18 @@ void VineSLAM_ros::process()
   SemiPlane l_ground_plane;
   if (params_.use_lidar_features_)
   {
-    timer_.tick("lidar_mapper::localMap()");
+    timer_->tick("lidar_mapper::localMap()");
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
-    timer_.tock();
+    timer_->tock();
   }
 
   // - Compute 3D image features on robot's referential frame
   std::vector<ImageFeature> l_surf_features;
   if (params_.use_image_features_)
   {
-    timer_.tick("visual_mapper::localMap()");
+    timer_->tick("visual_mapper::localMap()");
     vis_mapper_->localMap(input_data_.image_features_, l_surf_features);
-    timer_.tock();
+    timer_->tock();
   }
 
   // ---------------------------------------------------------
@@ -222,47 +222,46 @@ void VineSLAM_ros::process()
   // ---------------------------------------------------------
   // ----- Localization procedure
   // ---------------------------------------------------------
-  timer_.tick("odom2map");
+  timer_->tick("odom2map");
   Tf p_odom_tf = input_data_.p_wheel_odom_pose_.toTf();
   Tf c_odom_tf = input_data_.wheel_odom_pose_.toTf();
   Tf odom_inc_tf = p_odom_tf.inverse() * c_odom_tf;
   Pose odom_inc(odom_inc_tf.R_array_, odom_inc_tf.t_array_);
   input_data_.p_wheel_odom_pose_ = input_data_.wheel_odom_pose_;
   odom_inc.normalize();
-  timer_.tock();
+  timer_->tock();
 
-  timer_.tick("localizer::process()");
+  timer_->tick("localizer::process()");
   localizer_->process(odom_inc, obsv_, previous_map_, grid_map_);
   robot_pose_ = localizer_->getPose();
-  timer_.tock();
+  timer_->tock();
 
   // ---------------------------------------------------------
   // ----- Register multi-layer map (if performing SLAM)
   // ---------------------------------------------------------
   if (register_map_)
   {
-    timer_.tick("landmark_mapper::process()");
+    timer_->tick("landmark_mapper::process()");
     land_mapper_->process(robot_pose_, l_landmarks, input_data_.land_labels_, *grid_map_);
-    timer_.tock();
+    timer_->tock();
 
-    timer_.tick("visual_mapper::registerMaps()");
+    timer_->tick("visual_mapper::registerMaps()");
     vis_mapper_->registerMaps(robot_pose_, l_surf_features, *grid_map_);
-    timer_.tock();
+    timer_->tock();
 
-    timer_.tick("lidar_mapper::registerMaps()");
+    timer_->tick("lidar_mapper::registerMaps()");
     lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, l_ground_plane, *grid_map_, *elevation_map_);
-    timer_.tock();
+    timer_->tock();
 
-    timer_.tick("grid_map::downsamplePlanars()");
+    timer_->tick("grid_map::downsamplePlanars()");
     grid_map_->downsamplePlanars();
-    timer_.tock();
-
+    timer_->tock();
   }
 
   // ---------------------------------------------------------
   // ----- ROS publishers and tf broadcasting
   // ---------------------------------------------------------
-  timer_.tick("ros::publishers");
+  timer_->tick("ros::publishers");
 
   static tf::TransformBroadcaster br;
   tf::Quaternion q;
@@ -314,17 +313,7 @@ void VineSLAM_ros::process()
   l_planes.push_back(l_ground_plane);
   publish3DMap(l_planes, planes_local_publisher_);
 
-  timer_.tock();
-
-  // - Prepare next iteration
-  timer_.tick("prepare_next_iteration");
-  previous_map_->clear();
-  for (const auto& planar : l_planars)
-    previous_map_->insert(planar);
-  for (const auto& corner : l_corners)
-    previous_map_->insert(corner);
-  previous_map_->downsamplePlanars();
-  timer_.tock();
+  timer_->tock();
 }
 
 void VineSLAM_ros::imageFeatureListener(const vineslam_msgs::FeatureArrayConstPtr& features)

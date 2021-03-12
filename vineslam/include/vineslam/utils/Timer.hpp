@@ -9,10 +9,11 @@ namespace vineslam
 class Timer
 {
 public:
-  Timer()
+  Timer(const std::string& header)
   {
     log_ = "";
     prefix_ = "";
+    header_ = header;
   }
 
   void tick(const std::string& prefix)
@@ -31,7 +32,7 @@ public:
 
   void getLog()
   {
-    std::cout << "\n************************************************\n";
+    std::cout << "\n***************** " << header_ << " ***********************\n";
     std::cout << log_;
     std::cout << "\n------------------------------------------------\n\n";
   }
@@ -44,6 +45,7 @@ public:
 private:
   std::string log_;
   std::string prefix_;
+  std::string header_;
   std::chrono::high_resolution_clock::time_point start_time_;
 };
 }  // namespace vineslam

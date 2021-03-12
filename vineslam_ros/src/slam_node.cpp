@@ -33,7 +33,7 @@ SLAMNode::SLAMNode(int argc, char** argv)
   land_mapper_ = new LandmarkMapper(params_);
   vis_mapper_ = new VisualMapper(params_);
   lid_mapper_ = new LidarMapper(params_);
-  timer_ = Timer();
+  timer_ = new Timer("VineSLAM subfunctions");
 
   // Initialize local grid map that will be used for relative motion calculation
   Parameters local_map_params;

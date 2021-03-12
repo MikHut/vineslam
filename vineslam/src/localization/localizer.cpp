@@ -33,22 +33,8 @@ void Localizer::process(const Pose& wheel_odom_inc, const Observation& obsv, Occ
   pf_->w_sum_ = 0.;
 
   // ------------------------------------------------------------------------------
-  // ---------------- Compute LiDAR odometry to predict the robot motion
+  // ---------------- Predict the robot motion
   // ------------------------------------------------------------------------------
-  Tf tf;
-  if (params_.use_wheel_odometry_)
-  {
-    Tf initial_guess;
-    wheel_odom_inc.toRotMatrix(initial_guess.R_array_);
-    initial_guess.t_array_ = { wheel_odom_inc.x_, wheel_odom_inc.y_, wheel_odom_inc.z_ };
-    predictMotion(initial_guess, obsv.planars, previous_map, tf);
-  }
-  else
-  {
-    Tf initial_guess = Tf::unitary();
-    predictMotion(initial_guess, obsv.planars, previous_map, tf);
-  }
-  //  Pose odom_inc(tf.R_array_, tf.t_array_);
   Pose odom_inc = wheel_odom_inc;
   odom_inc.normalize();
 
@@ -61,8 +47,8 @@ void Localizer::process(const Pose& wheel_odom_inc, const Observation& obsv, Occ
   for (const auto& particle : pf_->particles_)
     m_particles_.push_back(particle);
 
-  Pose icp_odom = p_odom_ + odom_inc;
-  Pose delta_pose = icp_odom - last_update_pose_;
+  Pose odom = p_odom_ + odom_inc;
+  Pose delta_pose = odom - last_update_pose_;
   delta_pose.normalize();
 
   if (std::fabs(delta_pose.x_) > 0.1 || std::fabs(delta_pose.y_) > 0.1 ||
@@ -84,7 +70,7 @@ void Localizer::process(const Pose& wheel_odom_inc, const Observation& obsv, Occ
     // ------------------------------------------------------------------------------
     pf_->resample();
 
-    last_update_pose_ = icp_odom;
+    last_update_pose_ = odom;
     init_flag_ = false;
   }
 
@@ -95,7 +81,7 @@ void Localizer::process(const Pose& wheel_odom_inc, const Observation& obsv, Occ
   average_pose_ = Pose(poses);
 
   // - Save current control to use in the next iteration
-  p_odom_ = icp_odom;
+  p_odom_ = odom;
 
   // - Save pf logs
   auto after = std::chrono::high_resolution_clock::now();

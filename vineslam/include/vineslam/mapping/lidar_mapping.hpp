@@ -15,6 +15,7 @@
 #include <vineslam/math/const.hpp>
 #include <vineslam/filters/ransac.hpp>
 #include <vineslam/filters/convex_hull.hpp>
+#include <vineslam/utils/Timer.hpp>
 
 namespace vineslam
 {
@@ -110,9 +111,6 @@ private:
   // 3D feature extraction from a point cloud
   void extractFeatures(const std::vector<PlanePoint>& in_plane_pts, std::vector<Corner>& out_corners,
                        std::vector<Planar>& out_planars);
-
-  // Local occupancy grid map
-  OccupancyMap* local_map_;
 
   // Previous robot pose
   Pose prev_robot_pose_;

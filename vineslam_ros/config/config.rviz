@@ -8,6 +8,8 @@ Panels:
         - /Global Maps1/Global Map 5 - Planes1/Namespaces1
         - /Local Maps1
         - /Local Maps1/Local Map 4 - Planes1/Status1
+        - /Sensors1/Odometry1/Status1
+        - /Sensors1/Odometry1/Shape1
       Splitter Ratio: 0.6997792720794678
     Tree Height: 570
   - Class: rviz/Selection
@@ -71,74 +73,28 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: false
-        Vertex/1000:
-          Value: false
-        Vertex/1001:
-          Value: false
-        Vertex/1003:
-          Value: false
-        Vertex/1004:
-          Value: false
-        Vertex/1005:
-          Value: false
-        Vertex/1006:
-          Value: false
-        Vertex/1007:
-          Value: false
-        Vertex/1008:
-          Value: false
-        Vertex/1009:
-          Value: false
-        Vertex/1010:
-          Value: false
-        base_footprint:
-          Value: false
         base_link:
           Value: true
-        front_bumper_link:
-          Value: false
+        camerat265_odom_frame:
+          Value: true
         front_left_wheel_link:
           Value: false
         front_right_wheel_link:
           Value: false
-        gps_sensor_link:
-          Value: false
+        hokuyo_link:
+          Value: true
         imu_link:
-          Value: false
-        imu_link_um7:
-          Value: false
-        inertial_link:
           Value: false
         map:
           Value: true
-        map_sn0:
-          Value: true
         odom:
           Value: true
-        radio0_frame_id:
-          Value: false
-        radio1_frame_id:
-          Value: false
-        radio2_frame_id:
-          Value: false
-        radio3_frame_id:
-          Value: false
-        rear_bumper_link:
-          Value: false
         rear_left_wheel_link:
           Value: false
         rear_right_wheel_link:
           Value: false
-        top_chassis_link:
-          Value: false
-        top_plate_front_link:
-          Value: false
-        top_plate_link:
-          Value: false
-        top_plate_rear_link:
-          Value: false
-        user_rail_link:
-          Value: false
+        tower_base:
+          Value: true
         velodyne:
           Value: true
         zed_camera_left_optical_frame:
@@ -150,74 +106,29 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        odom:
+        map:
           base_link:
-            base_footprint:
-              {}
-            front_bumper_link:
-              {}
             front_left_wheel_link:
               {}
             front_right_wheel_link:
               {}
-            gps_sensor_link:
-              {}
-            imu_link:
-              {}
-            imu_link_um7:
-              {}
-            inertial_link:
-              {}
-            map_sn0:
-              Vertex/1000:
-                {}
-              Vertex/1001:
-                {}
-              Vertex/1003:
-                {}
-              Vertex/1004:
-                {}
-              Vertex/1005:
-                {}
-              Vertex/1006:
-                {}
-              Vertex/1007:
-                {}
-              Vertex/1008:
-                {}
-              Vertex/1009:
-                {}
-              Vertex/1010:
-                {}
-            radio0_frame_id:
-              {}
-            radio1_frame_id:
-              {}
-            radio2_frame_id:
-              {}
-            radio3_frame_id:
-              {}
-            rear_bumper_link:
+            hokuyo_link:
               {}
             rear_left_wheel_link:
               {}
             rear_right_wheel_link:
               {}
-            top_chassis_link:
-              {}
-            top_plate_link:
-              top_plate_front_link:
+            tower_base:
+              imu_link:
                 {}
-              top_plate_rear_link:
-                {}
-            user_rail_link:
-              {}
             velodyne:
               {}
             zed_camera_left_optical_frame:
               {}
-          map:
+          camerat265_odom_frame:
             {}
+        odom:
+          {}
       Update Interval: 0
       Value: true
     - Class: rviz/Group
@@ -247,7 +158,7 @@ Visualization Manager:
           Topic: /vineslam/poses
           Unreliable: false
           Value: true
-      Enabled: true
+      Enabled: false
       Name: Poses
     - Class: rviz/Group
       Displays:
@@ -292,8 +203,8 @@ Visualization Manager:
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 7.799769878387451
-            Min Value: -2.930238962173462
+            Max Value: 7.115676403045654
+            Min Value: -0.3601950407028198
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -360,13 +271,13 @@ Visualization Manager:
           Queue Size: 100
           Value: true
         - Class: rviz/MarkerArray
-          Enabled: false
+          Enabled: true
           Marker Topic: /vineslam/elevationMap
           Name: Global Map 6 - Elevation Map
           Namespaces:
-            {}
+            /elevation_cube: true
           Queue Size: 100
-          Value: false
+          Value: true
       Enabled: true
       Name: Global Maps
     - Class: rviz/Group
@@ -443,6 +354,45 @@ Visualization Manager:
           Value: true
       Enabled: true
       Name: Local Maps
+    - Class: rviz/Group
+      Displays:
+        - Angle Tolerance: 0.10000000149011612
+          Class: rviz/Odometry
+          Covariance:
+            Orientation:
+              Alpha: 0.5
+              Color: 255; 255; 127
+              Color Style: Unique
+              Frame: Local
+              Offset: 1
+              Scale: 1
+              Value: true
+            Position:
+              Alpha: 0.30000001192092896
+              Color: 204; 51; 204
+              Scale: 1
+              Value: true
+            Value: true
+          Enabled: true
+          Keep: 100000
+          Name: Odometry
+          Position Tolerance: 0.10000000149011612
+          Queue Size: 10
+          Shape:
+            Alpha: 1
+            Axes Length: 1
+            Axes Radius: 0.10000000149011612
+            Color: 255; 25; 0
+            Head Length: 0.30000001192092896
+            Head Radius: 0.10000000149011612
+            Shaft Length: 1
+            Shaft Radius: 0.10000000149011612
+            Value: Arrow
+          Topic: /husky_velocity_controller/odom
+          Unreliable: false
+          Value: true
+      Enabled: true
+      Name: Sensors
   Enabled: true
   Global Options:
     Background Color: 255; 255; 255
@@ -471,7 +421,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 23.797067642211914
+      Distance: 44.190181732177734
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -479,17 +429,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -0.36445629596710205
-        Y: 1.013191819190979
+        X: -1.304833173751831
+        Y: 2.6482090950012207
         Z: -2.556606887083035e-06
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.9547967314720154
+      Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 4.216439247131348
+      Yaw: 2.8982577323913574
     Saved: ~
 Window Geometry:
   Displays:

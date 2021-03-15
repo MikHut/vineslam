@@ -20,7 +20,6 @@ LidarMapper::LidarMapper(const Parameters& params)
   ang_res_y_ = static_cast<float>(2.) * DEGREE_TO_RAD;
   lidar_height = 1.20;
 
-
   prev_robot_pose_ = Pose(0, 0, 0, 0, 0, 0);
 }
 
@@ -227,8 +226,8 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
   }
   t.tock();
 
-  t.getLog();
-  t.clearLog();
+  //  t.getLog();
+  //  t.clearLog();
 }
 
 void LidarMapper::globalCornerMap(const Pose& robot_pose, const std::vector<Corner>& corners, OccupancyMap& grid_map)

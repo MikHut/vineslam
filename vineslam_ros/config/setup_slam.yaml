@@ -33,11 +33,11 @@ pf:
   n_particles: 500
 
   # Particles innovation
-  sigma_xx: 0.2 # meters
-  sigma_yy: 0.2 # meters
-  sigma_zz: 0.2 # meters
-  sigma_RR: 0.2 # radians
-  sigma_PP: 0.2 # radians
-  sigma_YY: 0.2 # radians
+  sigma_xx: 0.5 # meters
+  sigma_yy: 0.5 # meters
+  sigma_zz: 0.3 # meters
+  sigma_RR: 0.3 # radians
+  sigma_PP: 0.3 # radians
+  sigma_YY: 0.7 # radians
 
   k_clusters: 3

@@ -13,6 +13,8 @@
 #include <vineslam/math/stat.hpp>
 #include <vineslam/filters/convex_hull.hpp>
 #include <vineslam/filters/ransac.hpp>
+#include <vineslam/utils/Timer.hpp>
+#include <vineslam/extern/thread_pool.h>
 
 // Include std members
 #include <cstdlib>
@@ -21,6 +23,8 @@
 #include <iostream>
 #include <map>
 #include <cmath>
+
+#define NUM_THREADS 8
 
 namespace vineslam
 {
@@ -82,6 +86,12 @@ public:
 
   // Particles
   std::vector<Particle> particles_;
+
+  // Thread pool
+  lama::ThreadPool* thread_pool_;
+
+  // Profiler
+  Timer *t_;
 
   // Logs
   std::string logs_;

@@ -16,6 +16,13 @@ PF::PF(const Parameters& params, const Pose& initial_pose) : params_(params)
   icp_->setMaxIterations(20);
   icp_->setRejectOutliersFlag(false);
 
+  // Initialize thread pool
+  thread_pool_ = new lama::ThreadPool;
+  thread_pool_->init(NUM_THREADS);
+
+  // Initialize profiler
+  t_ = new Timer("Particle Filter");
+
   // Initialize normal distributions
   particles_.resize(params.number_particles_);
 
@@ -113,22 +120,28 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
   if (use_lidar_features_)
   {
     before = std::chrono::high_resolution_clock::now();
+    t_->tick("pf::corners()");
     mediumLevelCorners(corners, grid_map, corner_weights);
+    t_->tock();
     after = std::chrono::high_resolution_clock::now();
     duration = after - before;
     logs_ += "Time elapsed on PF - corner features (msecs): " + std::to_string(duration.count()) + " (" +
              std::to_string(corners.size()) + ")\n";
 
     before = std::chrono::high_resolution_clock::now();
+    t_->tick("pf::planars()");
     mediumLevelPlanars(planars, grid_map, planar_weights);
+    t_->tock();
     after = std::chrono::high_resolution_clock::now();
     duration = after - before;
     logs_ += "Time elapsed on PF - planar features (msecs): " + std::to_string(duration.count()) + " (" +
              std::to_string(planars.size()) + ")\n";
 
     before = std::chrono::high_resolution_clock::now();
+    t_->tick("pf::planes()");
     mediumLevelPlanes({ ground_plane }, grid_map, ground_weights);
     mediumLevelPlanes(planes, grid_map, planes_weights);
+    t_->tock();
     after = std::chrono::high_resolution_clock::now();
     duration = after - before;
     logs_ += "Time elapsed on PF - ground plane (msecs): " + std::to_string(duration.count()) + "\n";
@@ -169,6 +182,10 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
 
     w_sum_ += particle.w_;
   }
+  std::cout << "\n";
+
+  t_->getLog();
+  t_->clearLog();
 }
 
 void PF::gps(const Pose& gps_pose, std::vector<float>& ws)
@@ -262,8 +279,7 @@ void PF::highLevel(const std::vector<SemanticFeature>& landmarks, OccupancyMap* 
     else
     {
       for (const auto& dist : dlandmarkvec)
-        w_landmarks +=
-            (normalizer_landmark * static_cast<float>(std::exp(-1. / sigma_landmark_matching_ * dist)));
+        w_landmarks += (normalizer_landmark * static_cast<float>(std::exp(-1. / sigma_landmark_matching_ * dist)));
     }
 
     ws[particle.id_] = w_landmarks;
@@ -275,44 +291,55 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners, OccupancyMap* gr
   float normalizer_corner = static_cast<float>(1.) / (sigma_corner_matching_ * std::sqrt(M_2PI));
 
   // Loop over all particles
-  for (const auto& particle : particles_)
+  //  for (const auto& particle : particles_)
+  for (uint32_t i = 0; i < particles_.size(); ++i)
   {
-    // ------------------------------------------------------
-    // --- 3D corner map fitting
-    // ------------------------------------------------------
-    float w_corners = 0;
-    std::vector<float> dcornervec;
-    for (const auto& corner : corners)
-    {
-      // Convert feature to the map's referential frame
-      Point X = corner.pos_ * particle.tf_;
-
-      std::vector<Corner> m_corners = (*grid_map)(X.x_, X.y_, X.z_).corner_features_;
-
-      // Search for a correspondence in the current cell first
-      float best_correspondence = 0.5;
-      bool found = false;
-      for (const auto& m_corner : m_corners)
+#if NUM_THREADS > 1
+    thread_pool_->enqueue([this, corners, grid_map, normalizer_corner, &ws, i]() {
+#endif
+      // ------------------------------------------------------
+      // --- 3D corner map fitting
+      // ------------------------------------------------------
+      float w_corners = 0;
+      std::vector<float> dcornervec;
+      for (const auto& corner : corners)
       {
-        float dist_sq = ((X.x_ - m_corner.pos_.x_) * (X.x_ - m_corner.pos_.x_) +
-                         (X.y_ - m_corner.pos_.y_) * (X.y_ - m_corner.pos_.y_) +
-                         (X.z_ - m_corner.pos_.z_) * (X.z_ - m_corner.pos_.z_));
+        // Convert feature to the map's referential frame
+        Point X = corner.pos_ * particles_[i].tf_;
 
-        if (dist_sq < best_correspondence)
+        std::vector<Corner> m_corners = (*grid_map)(X.x_, X.y_, X.z_).corner_features_;
+
+        // Search for a correspondence in the current cell first
+        float best_correspondence = 0.5;
+        bool found = false;
+        for (const auto& m_corner : m_corners)
         {
-          best_correspondence = dist_sq;
-          found = true;
+          float dist_sq = ((X.x_ - m_corner.pos_.x_) * (X.x_ - m_corner.pos_.x_) +
+                           (X.y_ - m_corner.pos_.y_) * (X.y_ - m_corner.pos_.y_) +
+                           (X.z_ - m_corner.pos_.z_) * (X.z_ - m_corner.pos_.z_));
+
+          if (dist_sq < best_correspondence)
+          {
+            best_correspondence = dist_sq;
+            found = true;
+          }
         }
+
+        // Save distance if a correspondence was found
+        if (found)
+          w_corners +=
+              (normalizer_corner * static_cast<float>(std::exp(-1. / sigma_corner_matching_ * best_correspondence)));
       }
 
-      // Save distance if a correspondence was found
-      if (found)
-        w_corners += (normalizer_corner *
-                      static_cast<float>(std::exp(-1. / sigma_corner_matching_ * best_correspondence)));
-    }
-
-    ws[particle.id_] = w_corners;
+      ws[particles_[i].id_] = w_corners;
+#if NUM_THREADS > 1
+    });
+#endif
   }
+
+#if NUM_THREADS > 1
+  thread_pool_->wait();
+#endif
 }
 
 void PF::mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* grid_map, std::vector<float>& ws)
@@ -320,185 +347,207 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* gr
   float normalizer_planar = static_cast<float>(1.) / (sigma_planar_matching_ * std::sqrt(M_2PI));
 
   // Loop over all particles
-  for (const auto& particle : particles_)
+  //  for (const auto& particle : particles_)
+  for (uint32_t i = 0; i < particles_.size(); ++i)
   {
-    // ------------------------------------------------------
-    // --- 3D planar map fitting
-    // ------------------------------------------------------
-    float w_planars = 0.;
-    for (const auto& planar : planars)
-    {
-      // Convert feature to the map's referential frame
-      Point X = planar.pos_ * particle.tf_;
-
-      std::vector<Planar> m_planars = (*grid_map)(X.x_, X.y_, X.z_).planar_features_;
-
-      // Search for a correspondence in the current cell first
-      float best_correspondence = 0.5;
-      bool found = false;
-      for (const auto& m_planar : m_planars)
+#if NUM_THREADS > 1
+    thread_pool_->enqueue([this, planars, grid_map, normalizer_planar, &ws, i]() {
+#endif
+      // ------------------------------------------------------
+      // --- 3D planar map fitting
+      // ------------------------------------------------------
+      float w_planars = 0.;
+      for (const auto& planar : planars)
       {
-        float dist_sq = ((X.x_ - m_planar.pos_.x_) * (X.x_ - m_planar.pos_.x_) +
-                         (X.y_ - m_planar.pos_.y_) * (X.y_ - m_planar.pos_.y_) +
-                         (X.z_ - m_planar.pos_.z_) * (X.z_ - m_planar.pos_.z_));
+        // Convert feature to the map's referential frame
+        Point X = planar.pos_ * particles_[i].tf_;
 
-        if (dist_sq < best_correspondence)
+        std::vector<Planar> m_planars = (*grid_map)(X.x_, X.y_, X.z_).planar_features_;
+
+        // Search for a correspondence in the current cell first
+        float best_correspondence = 0.5;
+        bool found = false;
+        for (const auto& m_planar : m_planars)
         {
-          best_correspondence = dist_sq;
-          found = true;
+          float dist_sq = ((X.x_ - m_planar.pos_.x_) * (X.x_ - m_planar.pos_.x_) +
+                           (X.y_ - m_planar.pos_.y_) * (X.y_ - m_planar.pos_.y_) +
+                           (X.z_ - m_planar.pos_.z_) * (X.z_ - m_planar.pos_.z_));
+
+          if (dist_sq < best_correspondence)
+          {
+            best_correspondence = dist_sq;
+            found = true;
+          }
         }
+
+        // Save distance if a correspondence was found
+        if (found)
+          w_planars +=
+              (normalizer_planar * static_cast<float>(std::exp((-1. / sigma_planar_matching_) * best_correspondence)));
       }
 
-      // Save distance if a correspondence was found
-      if (found)
-        w_planars += (normalizer_planar *
-                      static_cast<float>(std::exp((-1. / sigma_planar_matching_) * best_correspondence)));
-    }
-
-    ws[particle.id_] = w_planars;
+      ws[particles_[i].id_] = w_planars;
+#if NUM_THREADS > 1
+    });
+#endif
   }
+
+#if NUM_THREADS > 1
+  thread_pool_->wait();
+#endif
 }
 
 void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* grid_map, std::vector<float>& ws)
 {
-
   float normalizer_plane_vector = static_cast<float>(1.) / (sigma_plane_matching_vector_ * std::sqrt(M_2PI));
   float normalizer_plane_centroid = static_cast<float>(1.) / (sigma_plane_matching_centroid_ * std::sqrt(M_2PI));
 
   // Loop over all particles
-  for (const auto& particle : particles_)
+  //  for (const auto& particle : particles_)
+  for (uint32_t i = 0; i < particles_.size(); ++i)
   {
-    float w_planes = 0.;
-    // ----------------------------------------------------------------------------
-    // ------ Search for correspondences between local planes and global planes
-    // ------ Three stage process:
-    // ------  * (A) Check semi-plane overlap
-    // ------  * (B) Compare planes normals
-    // ------  *  If (B), then check (C) plane to plane distance
-    // ----------------------------------------------------------------------------
+#if NUM_THREADS > 1
+    thread_pool_->enqueue([this, planes, grid_map, normalizer_plane_vector, normalizer_plane_centroid, &ws, i]() {
+#endif
+      float w_planes = 0.;
+      // ----------------------------------------------------------------------------
+      // ------ Search for correspondences between local planes and global planes
+      // ------ Three stage process:
+      // ------  * (A) Check semi-plane overlap
+      // ------  * (B) Compare planes normals
+      // ------  *  If (B), then check (C) plane to plane distance
+      // ----------------------------------------------------------------------------
 
-    // Define correspondence thresholds
-    float v_dist = 0.2;   // max vector displacement for all the components
-    float sp_dist = 0.2;  // max distance from source plane centroid to target plane
-    float area_th = 2.0;  // minimum overlapping area between semiplanes
+      // Define correspondence thresholds
+      float v_dist = 0.2;   // max vector displacement for all the components
+      float sp_dist = 0.2;  // max distance from source plane centroid to target plane
+      float area_th = 2.0;  // minimum overlapping area between semiplanes
 
-    // Correspondence result
-    float correspondence_vec;
-    float correspondence_centroid;
+      // Correspondence result
+      float correspondence_vec;
+      float correspondence_centroid;
 
-    for (const auto& plane : planes)
-    {
-      if (plane.points_.empty())
+      for (const auto& plane : planes)
       {
-        continue;
-      }
-
-      // Initialize correspondence deltas
-      float vec_disp = v_dist;
-      float point2plane = sp_dist;
-      float ov_area = area_th;
-
-      // Convert local plane to maps' referential frame
-      SemiPlane l_plane = plane;
-      for (auto& point : l_plane.points_)
-      {
-        point = point * particle.tf_;  // Convert plane points
-      }
-      for (auto& point : l_plane.extremas_)
-      {
-        point = point * particle.tf_;  // Convert plane boundaries
-      }
-      l_plane.centroid_ = l_plane.centroid_ * particle.tf_;                             // Convert the centroid
-      estimateNormal(l_plane.points_, l_plane.a_, l_plane.b_, l_plane.c_, l_plane.d_);  // Convert plane normal
-
-      bool found = false;
-      for (auto& g_plane : grid_map->planes_)
-      {
-        if (g_plane.points_.empty())
+        if (plane.points_.empty())
         {
           continue;
         }
 
-        // --------------------------------
-        // (A) - Check semi-plane overlap
-        // --------------------------------
+        // Initialize correspondence deltas
+        float vec_disp = v_dist;
+        float point2plane = sp_dist;
+        float ov_area = area_th;
 
-        // First project the global and local plane extremas to the global plane reference frame
-        Tf ref_frame = g_plane.local_ref_.inverse();
-        SemiPlane gg_plane;
-        SemiPlane lg_plane;
-        for (const auto& extrema : g_plane.extremas_)
+        // Convert local plane to maps' referential frame
+        SemiPlane l_plane = plane;
+        for (auto& point : l_plane.points_)
         {
-          Point p = extrema * ref_frame;
-          p.z_ = 0;
-          gg_plane.extremas_.push_back(p);
+          point = point * particles_[i].tf_;  // Convert plane points
         }
-        for (const auto& extrema : l_plane.extremas_)
+        for (auto& point : l_plane.extremas_)
         {
-          Point p = extrema * ref_frame;
-          p.z_ = 0;
-          lg_plane.extremas_.push_back(p);
+          point = point * particles_[i].tf_;  // Convert plane boundaries
         }
+        l_plane.centroid_ = l_plane.centroid_ * particles_[i].tf_;                             // Convert the centroid
+        estimateNormal(l_plane.points_, l_plane.a_, l_plane.b_, l_plane.c_, l_plane.d_);  // Convert plane normal
 
-        // Now, check for transformed polygon intersections
-        SemiPlane isct;
-        polygonIntersection(gg_plane, lg_plane, isct.extremas_);
-
-        // Compute the intersection semi plane area
-        isct.setArea();
-
-        if (isct.area_ > ov_area)
+        bool found = false;
+        for (auto& g_plane : grid_map->planes_)
         {
+          if (g_plane.points_.empty())
+          {
+            continue;
+          }
+
           // --------------------------------
-          // (B) - Compare plane normals
+          // (A) - Check semi-plane overlap
           // --------------------------------
 
-          Vec u(l_plane.a_, l_plane.b_, l_plane.c_);
-          Vec v(g_plane.a_, g_plane.b_, g_plane.c_);
+          // First project the global and local plane extremas to the global plane reference frame
+          Tf ref_frame = g_plane.local_ref_.inverse();
+          SemiPlane gg_plane;
+          SemiPlane lg_plane;
+          for (const auto& extrema : g_plane.extremas_)
+          {
+            Point p = extrema * ref_frame;
+            p.z_ = 0;
+            gg_plane.extremas_.push_back(p);
+          }
+          for (const auto& extrema : l_plane.extremas_)
+          {
+            Point p = extrema * ref_frame;
+            p.z_ = 0;
+            lg_plane.extremas_.push_back(p);
+          }
 
-          float D = ((u - v).norm3D() < (u + v).norm3D()) ? (u - v).norm3D() : (u + v).norm3D();
+          // Now, check for transformed polygon intersections
+          SemiPlane isct;
+          polygonIntersection(gg_plane, lg_plane, isct.extremas_);
 
-          // Check if normal vectors match
-          if (D < vec_disp)
+          // Compute the intersection semi plane area
+          isct.setArea();
+
+          if (isct.area_ > ov_area)
           {
             // --------------------------------
-            // (C) - Compute local plane centroid distance to global plane
+            // (B) - Compare plane normals
             // --------------------------------
-            float l_point2plane = g_plane.point2Plane(l_plane.centroid_);
-            if (l_point2plane < point2plane)
+
+            Vec u(l_plane.a_, l_plane.b_, l_plane.c_);
+            Vec v(g_plane.a_, g_plane.b_, g_plane.c_);
+
+            float D = ((u - v).norm3D() < (u + v).norm3D()) ? (u - v).norm3D() : (u + v).norm3D();
+
+            // Check if normal vectors match
+            if (D < vec_disp)
             {
-              // We found a correspondence, so, we must save the correspondence deltas
-              vec_disp = D;
-              point2plane = l_point2plane;
-              ov_area = isct.area_;
+              // --------------------------------
+              // (C) - Compute local plane centroid distance to global plane
+              // --------------------------------
+              float l_point2plane = g_plane.point2Plane(l_plane.centroid_);
+              if (l_point2plane < point2plane)
+              {
+                // We found a correspondence, so, we must save the correspondence deltas
+                vec_disp = D;
+                point2plane = l_point2plane;
+                ov_area = isct.area_;
 
-              // Save correspondence errors
-              correspondence_vec = D;
-              correspondence_centroid = l_point2plane;
+                // Save correspondence errors
+                correspondence_vec = D;
+                correspondence_centroid = l_point2plane;
 
-              // Set correspondence flag
-              found = true;
+                // Set correspondence flag
+                found = true;
+              }
             }
           }
         }
+
+        float vv = 0, cc = 0;
+        if (found)
+        {
+          vv = ((normalizer_plane_vector *
+                 static_cast<float>(std::exp((-1. / sigma_plane_matching_vector_) * correspondence_vec))));
+          cc = ((normalizer_plane_centroid *
+                 static_cast<float>(std::exp((-1. / sigma_plane_matching_centroid_) * correspondence_centroid))));
+          w_planes +=
+              ((normalizer_plane_vector *
+                static_cast<float>(std::exp((-1. / sigma_plane_matching_vector_) * correspondence_vec))) *
+               (normalizer_plane_centroid *
+                static_cast<float>(std::exp((-1. / sigma_plane_matching_centroid_) * correspondence_centroid))));
+        }
       }
 
-      float vv = 0, cc = 0;
-      if (found)
-      {
-        vv = ((normalizer_plane_vector *
-                      static_cast<float>(std::exp((-1. / sigma_plane_matching_vector_) * correspondence_vec))));
-        cc = ((normalizer_plane_centroid *
-               static_cast<float>(std::exp((-1. / sigma_plane_matching_centroid_) * correspondence_centroid))));
-        w_planes += ((normalizer_plane_vector *
-                      static_cast<float>(std::exp((-1. / sigma_plane_matching_vector_) * correspondence_vec))) *
-                     (normalizer_plane_centroid *
-                      static_cast<float>(std::exp((-1. / sigma_plane_matching_centroid_) * correspondence_centroid))));
-      }
-    }
-
-    ws[particle.id_] = w_planes;
+      ws[particles_[i].id_] = w_planes;
+#if NUM_THREADS > 1
+    });
+#endif
   }
+
+#if NUM_THREADS > 1
+  thread_pool_->wait();
+#endif
 }
 
 void PF::lowLevel(const std::vector<ImageFeature>& surf_features, OccupancyMap* grid_map, std::vector<float>& ws)
@@ -561,8 +610,7 @@ void PF::cluster(std::map<int, Gaussian<Pose, Pose>>& gauss_map)
     }
   }
   std::vector<int> num_per_cluster(number_clusters_, 0);
-  int max_num =
-      static_cast<int>(static_cast<float>(params_.number_particles_) / static_cast<float>(number_clusters_));
+  int max_num = static_cast<int>(static_cast<float>(params_.number_particles_) / static_cast<float>(number_clusters_));
   for (auto& particle : particles_)
   {
     float min_dist = std::numeric_limits<float>::max();

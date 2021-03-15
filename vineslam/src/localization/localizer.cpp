@@ -51,8 +51,8 @@ void Localizer::process(const Pose& wheel_odom_inc, const Observation& obsv, Occ
   Pose delta_pose = odom - last_update_pose_;
   delta_pose.normalize();
 
-  if (std::fabs(delta_pose.x_) > 0.1 || std::fabs(delta_pose.y_) > 0.1 ||
-      std::fabs(delta_pose.Y_) > 2 * DEGREE_TO_RAD || init_flag_)
+  if (std::fabs(delta_pose.x_) > 0.05 || std::fabs(delta_pose.y_) > 0.05 ||
+      std::fabs(delta_pose.Y_) > 1 * DEGREE_TO_RAD || init_flag_)
   {
     // ------------------------------------------------------------------------------
     // ---------------- Update particles weights using multi-layer map

@@ -133,6 +133,9 @@ private:
   // Iterative closest point member
   ICP<ImageFeature>* icp_;
 
+  // Number of particles
+  uint32_t particles_size_;
+
   // Ground plane observed on the previous frame
   Plane prev_ground_plane_;
 

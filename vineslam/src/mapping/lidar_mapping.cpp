@@ -837,7 +837,7 @@ void LidarMapper::extractHighLevelPlanes(const std::vector<Point>& in_pts, const
 
     SemiPlane l_semi_plane;
     float dot = Vec(plane.a_, plane.b_, plane.c_).dot(Vec(ground_plane.a_, ground_plane.b_, ground_plane.c_));
-    if (convexHull(plane, l_semi_plane) && l_semi_plane.area_ > 2 && std::fabs(dot) < 0.03)  // && plane.points_.size()
+    if (convexHull(plane, l_semi_plane) && l_semi_plane.area_ > 2 && std::fabs(dot) < 0.15)  // && plane.points_.size()
                                                                                              // > 500)
     {
       out_planes.push_back(l_semi_plane);

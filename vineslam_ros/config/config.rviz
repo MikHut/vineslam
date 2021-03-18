@@ -42,7 +42,7 @@ Visualization Manager:
     - Alpha: 0.5
       Cell Size: 1
       Class: rviz/Grid
-      Color: 0; 0; 0
+      Color: 238; 238; 236
       Enabled: true
       Line Style:
         Line Width: 0.029999999329447746
@@ -76,25 +76,9 @@ Visualization Manager:
         All Enabled: false
         base_link:
           Value: true
-        camerat265_odom_frame:
-          Value: true
-        front_left_wheel_link:
-          Value: false
-        front_right_wheel_link:
-          Value: false
-        hokuyo_link:
-          Value: true
-        imu_link:
-          Value: false
         map:
           Value: true
         odom:
-          Value: true
-        rear_left_wheel_link:
-          Value: false
-        rear_right_wheel_link:
-          Value: false
-        tower_base:
           Value: true
         velodyne:
           Value: true
@@ -107,29 +91,13 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        map:
-          base_link:
-            front_left_wheel_link:
-              {}
-            front_right_wheel_link:
-              {}
-            hokuyo_link:
-              {}
-            rear_left_wheel_link:
-              {}
-            rear_right_wheel_link:
-              {}
-            tower_base:
-              imu_link:
-                {}
-            velodyne:
-              {}
-            zed_camera_left_optical_frame:
-              {}
-          camerat265_odom_frame:
-            {}
         odom:
-          {}
+          map:
+            base_link:
+              velodyne:
+                {}
+              zed_camera_left_optical_frame:
+                {}
       Update Interval: 0
       Value: true
     - Class: rviz/Group
@@ -204,8 +172,8 @@ Visualization Manager:
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 6.248697280883789
-            Min Value: -0.40192437171936035
+            Max Value: 10.462973594665527
+            Min Value: -5.3661112785339355
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -408,7 +376,7 @@ Visualization Manager:
       Name: Sensors
   Enabled: true
   Global Options:
-    Background Color: 255; 255; 255
+    Background Color: 0; 0; 0
     Default Light: true
     Fixed Frame: map
     Frame Rate: 30
@@ -434,7 +402,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 89.54924011230469
+      Distance: 31.93183708190918
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -442,17 +410,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -1.304833173751831
-        Y: 2.6482090950012207
-        Z: -2.556606887083035e-06
+        X: -1.0552575588226318
+        Y: -7.874792098999023
+        Z: -1.1195492334081791e-05
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: 1.2947959899902344
       Target Frame: <Fixed Frame>
-      Yaw: 3.1432583332061768
+      Yaw: 4.313274383544922
     Saved: ~
 Window Geometry:
   Displays:

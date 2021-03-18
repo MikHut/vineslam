@@ -127,10 +127,16 @@ SLAMNode::SLAMNode(int argc, char** argv)
   ROS_INFO("Received!");
 
   // Save sensors to map transformation
-  tf::Vector3 t = vel2base_msg.getOrigin();
-  tfScalar roll, pitch, yaw;
-  vel2base_msg.getBasis().getRPY(roll, pitch, yaw);
-  lid_mapper_->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
+  // Cam
+  tf::Vector3 t_cam = cam2base_msg.getOrigin();
+  tfScalar roll_cam, pitch_cam, yaw_cam;
+  cam2base_msg.getBasis().getRPY(roll_cam, pitch_cam, yaw_cam);
+  vis_mapper_->setCam2Base(t_cam.getX(), t_cam.getY(), t_cam.getZ(), roll_cam, pitch_cam, yaw_cam);
+  // LiDAR
+  tf::Vector3 t_vel = vel2base_msg.getOrigin();
+  tfScalar roll_vel, pitch_vel, yaw_vel;
+  vel2base_msg.getBasis().getRPY(roll_vel, pitch_vel, yaw_vel);
+  lid_mapper_->setVel2Base(t_vel.getX(), t_vel.getY(), t_vel.getZ(), roll_vel, pitch_vel, yaw_vel);
 
   // Call execution thread
   std::thread th1(&VineSLAM_ros::loop, dynamic_cast<VineSLAM_ros*>(this));

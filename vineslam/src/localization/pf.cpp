@@ -9,6 +9,7 @@ PF::PF(const Parameters& params, const Pose& initial_pose) : params_(params)
   use_lidar_features_ = params.use_lidar_features_;
   use_image_features_ = params.use_image_features_;
   use_gps_ = params.use_gps_;
+  particles_size_ = params.number_particles_;
 
   // Initialize and set ICP parameters
   icp_ = new ICP<ImageFeature>();
@@ -24,10 +25,10 @@ PF::PF(const Parameters& params, const Pose& initial_pose) : params_(params)
   t_ = new Timer("Particle Filter");
 
   // Initialize normal distributions
-  particles_.resize(params.number_particles_);
+  particles_.resize(particles_size_);
 
   // Initialize all particles
-  for (size_t i = 0; i < particles_.size(); i++)
+  for (size_t i = 0; i < particles_size_; i++)
   {
     // Calculate the initial pose for each particle considering
     // - the input initial pose
@@ -100,19 +101,23 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
                 const std::vector<Planar>& planars, const std::vector<SemiPlane>& planes, const SemiPlane& ground_plane,
                 const std::vector<ImageFeature>& surf_features, const Pose& gps_pose, OccupancyMap* grid_map)
 {
-  std::vector<float> semantic_weights(params_.number_particles_, 0.);
-  std::vector<float> corner_weights(params_.number_particles_, 0.);
-  std::vector<float> planar_weights(params_.number_particles_, 0.);
-  std::vector<float> planes_weights(params_.number_particles_, 0.);
-  std::vector<float> ground_weights(params_.number_particles_, 0.);
-  std::vector<float> surf_weights(params_.number_particles_, 0.);
-  std::vector<float> gps_weights(params_.number_particles_, 0.);
+  std::vector<float> semantic_weights(particles_size_, 0.);
+  std::vector<float> corner_weights(particles_size_, 0.);
+  std::vector<float> planar_weights(particles_size_, 0.);
+  std::vector<float> planes_weights(particles_size_, 0.);
+  std::vector<float> ground_weights(particles_size_, 0.);
+  std::vector<float> surf_weights(particles_size_, 0.);
+  std::vector<float> gps_weights(particles_size_, 0.);
 
   logs_ = "\n";
 
   auto before = std::chrono::high_resolution_clock::now();
   if (use_semantic_features_)
+  {
+    t_->tick("pf::semantic()");
     highLevel(landmarks, grid_map, semantic_weights);
+    t_->tock();
+  }
   auto after = std::chrono::high_resolution_clock::now();
   std::chrono::duration<float, std::milli> duration = after - before;
   logs_ += "Time elapsed on PF - high-level features (msecs): " + std::to_string(duration.count()) + "\n";
@@ -149,7 +154,11 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
   }
 
   if (use_image_features_)
+  {
+    t_->tick("pf::image_features()");
     lowLevel(surf_features, grid_map, surf_weights);
+    t_->tock();
+  }
   after = std::chrono::high_resolution_clock::now();
   duration = after - before;
   logs_ += "Time elapsed on PF - icp (msecs): " + std::to_string(duration.count()) + "\n";
@@ -207,82 +216,93 @@ void PF::highLevel(const std::vector<SemanticFeature>& landmarks, OccupancyMap* 
   float normalizer_landmark = static_cast<float>(1.) / (sigma_landmark_matching_ * std::sqrt(M_2PI));
 
   // Loop over all particles
-  for (const auto& particle : particles_)
+  for (uint32_t i = 0; i < particles_size_; ++i)
   {
-    // Convert particle orientation to rotation matrix
-    Pose m_pose = particle.p_;
-    m_pose.R_ = 0.;
-    m_pose.P_ = 0.;
-    m_pose.z_ = 0.;
-    std::array<float, 9> Rot{};
-    m_pose.toRotMatrix(Rot);
+#if NUM_THREADS > 1
+    thread_pool_->enqueue([this, landmarks, grid_map, normalizer_landmark, &ws, i]() {
+#endif
+      // Convert particle orientation to rotation matrix
+      Pose m_pose = particles_[i].p_;
+      m_pose.R_ = 0.;
+      m_pose.P_ = 0.;
+      m_pose.z_ = 0.;
+      std::array<float, 9> Rot{};
+      m_pose.toRotMatrix(Rot);
 
-    // ------------------------------------------------------
-    // --- 2D semantic feature map fitting
-    // ------------------------------------------------------
-    std::vector<float> dlandmarkvec;
-    for (const auto& landmark : landmarks)
-    {
-      // Convert landmark to the maps's referential frame
-      Point X;
-      X.x_ = landmark.pos_.x_ * Rot[0] + landmark.pos_.y_ * Rot[1] + landmark.pos_.z_ * Rot[2] + m_pose.x_;
-      X.y_ = landmark.pos_.x_ * Rot[3] + landmark.pos_.y_ * Rot[4] + landmark.pos_.z_ * Rot[5] + m_pose.y_;
-      X.z_ = 0.;
-
-      // Search for a correspondence in the current cell first
-      float best_correspondence = std::numeric_limits<float>::max();
-      bool found = false;
-      for (const auto& m_landmark : (*grid_map)(X.x_, X.y_, 0).landmarks_)
+      // ------------------------------------------------------
+      // --- 2D semantic feature map fitting
+      // ------------------------------------------------------
+      std::vector<float> dlandmarkvec;
+      for (const auto& landmark : landmarks)
       {
-        float dist_min = X.distanceXY(m_landmark.second.pos_);
+        // Convert landmark to the maps's referential frame
+        Point X;
+        X.x_ = landmark.pos_.x_ * Rot[0] + landmark.pos_.y_ * Rot[1] + landmark.pos_.z_ * Rot[2] + m_pose.x_;
+        X.y_ = landmark.pos_.x_ * Rot[3] + landmark.pos_.y_ * Rot[4] + landmark.pos_.z_ * Rot[5] + m_pose.y_;
+        X.z_ = 0.;
 
-        if (dist_min < best_correspondence)
+        // Search for a correspondence in the current cell first
+        float best_correspondence = std::numeric_limits<float>::max();
+        bool found = false;
+        for (const auto& m_landmark : (*grid_map)(X.x_, X.y_, 0).landmarks_)
         {
-          best_correspondence = dist_min;
-          found = true;
-        }
-      }
+          float dist_min = X.distanceXY(m_landmark.second.pos_);
 
-      // Only search in the adjacent cells if we do not find in the source cell
-      if (!found)
-      {
-        std::vector<Cell> adjacents;
-        grid_map->getAdjacent(X.x_, X.y_, 0, 2, adjacents);
-        for (const auto& m_cell : adjacents)
-        {
-          for (const auto& m_landmark : m_cell.landmarks_)
+          if (dist_min < best_correspondence)
           {
-            float dist_min = X.distanceXY(m_landmark.second.pos_);
-            if (dist_min < best_correspondence)
+            best_correspondence = dist_min;
+            found = true;
+          }
+        }
+
+        // Only search in the adjacent cells if we do not find in the source cell
+        if (!found)
+        {
+          std::vector<Cell> adjacents;
+          grid_map->getAdjacent(X.x_, X.y_, 0, 2, adjacents);
+          for (const auto& m_cell : adjacents)
+          {
+            for (const auto& m_landmark : m_cell.landmarks_)
             {
-              best_correspondence = dist_min;
-              found = true;
+              float dist_min = X.distanceXY(m_landmark.second.pos_);
+              if (dist_min < best_correspondence)
+              {
+                best_correspondence = dist_min;
+                found = true;
+              }
             }
           }
         }
+
+        // Save distance if a correspondence was found
+        if (!found)
+          continue;
+        else
+          dlandmarkvec.push_back(best_correspondence);
       }
 
-      // Save distance if a correspondence was found
-      if (!found)
-        continue;
+      // - Semantic landmark matching [x, y, yaw] weight
+      float w_landmarks = 1.;
+      if (dlandmarkvec.size() <= 1)
+      {
+        w_landmarks = 0.;
+      }
       else
-        dlandmarkvec.push_back(best_correspondence);
-    }
+      {
+        for (const auto& dist : dlandmarkvec)
+          w_landmarks += (normalizer_landmark * static_cast<float>(std::exp(-1. / sigma_landmark_matching_ * dist)));
+      }
 
-    // - Semantic landmark matching [x, y, yaw] weight
-    float w_landmarks = 1.;
-    if (dlandmarkvec.size() <= 1)
-    {
-      w_landmarks = 0.;
-    }
-    else
-    {
-      for (const auto& dist : dlandmarkvec)
-        w_landmarks += (normalizer_landmark * static_cast<float>(std::exp(-1. / sigma_landmark_matching_ * dist)));
-    }
+      ws[particles_[i].id_] = w_landmarks;
 
-    ws[particle.id_] = w_landmarks;
+#if NUM_THREADS > 1
+    });
+#endif
   }
+
+#if NUM_THREADS > 1
+  thread_pool_->wait();
+#endif
 }
 
 void PF::mediumLevelCorners(const std::vector<Corner>& corners, OccupancyMap* grid_map, std::vector<float>& ws)
@@ -290,8 +310,7 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners, OccupancyMap* gr
   float normalizer_corner = static_cast<float>(1.) / (sigma_corner_matching_ * std::sqrt(M_2PI));
 
   // Loop over all particles
-  //  for (const auto& particle : particles_)
-  for (uint32_t i = 0; i < particles_.size(); ++i)
+  for (uint32_t i = 0; i < particles_size_; ++i)
   {
 #if NUM_THREADS > 1
     thread_pool_->enqueue([this, corners, grid_map, normalizer_corner, &ws, i]() {
@@ -347,7 +366,7 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* gr
 
   // Loop over all particles
   //  for (const auto& particle : particles_)
-  for (uint32_t i = 0; i < particles_.size(); ++i)
+  for (uint32_t i = 0; i < particles_size_; ++i)
   {
 #if NUM_THREADS > 1
     thread_pool_->enqueue([this, planars, grid_map, normalizer_planar, &ws, i]() {
@@ -403,7 +422,7 @@ void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* g
 
   // Loop over all particles
   //  for (const auto& particle : particles_)
-  for (uint32_t i = 0; i < particles_.size(); ++i)
+  for (uint32_t i = 0; i < particles_size_; ++i)
   {
 #if NUM_THREADS > 1
     thread_pool_->enqueue([this, planes, grid_map, normalizer_plane_vector, normalizer_plane_centroid, &ws, i]() {
@@ -572,7 +591,7 @@ void PF::cluster(std::map<int, Gaussian<Pose, Pose>>& gauss_map)
   // -- Select first centroid randomly
   std::vector<Pose> centroids;
   std::vector<Pose> m_centroids;
-  int n = particles_.size();
+  int n = particles_size_;
   srand(time(nullptr));  // need to set the random seed
   centroids.push_back(particles_[rand() % n].p_);
   // -- Compute remaining k - 1 centroids
@@ -609,7 +628,7 @@ void PF::cluster(std::map<int, Gaussian<Pose, Pose>>& gauss_map)
     }
   }
   std::vector<int> num_per_cluster(number_clusters_, 0);
-  int max_num = static_cast<int>(static_cast<float>(params_.number_particles_) / static_cast<float>(number_clusters_));
+  int max_num = static_cast<int>(static_cast<float>(particles_size_) / static_cast<float>(number_clusters_));
   for (auto& particle : particles_)
   {
     float min_dist = std::numeric_limits<float>::max();
@@ -680,7 +699,7 @@ void PF::cluster(std::map<int, Gaussian<Pose, Pose>>& gauss_map)
       {
         auto it = swap.find(particle.which_cluster_);
         if (num_per_cluster[particle.which_cluster_] >
-            static_cast<float>(params_.number_particles_) / static_cast<float>(number_clusters_))
+            static_cast<float>(particles_size_) / static_cast<float>(number_clusters_))
         {
           num_per_cluster[which_cluster]++;
           num_per_cluster[particle.which_cluster_]--;
@@ -812,62 +831,63 @@ void PF::scanMatch(const std::vector<ImageFeature>& features, OccupancyMap* grid
   std::map<int, float> cluster_ws;
   for (auto& it : gauss_map)
   {
-    // Convert cluster pose to [R|t]
-    std::array<float, 3> trans = { it.second.mean_.x_, it.second.mean_.y_, it.second.mean_.z_ };
-    std::array<float, 9> Rot{};
-    it.second.mean_.toRotMatrix(Rot);
+      // Convert cluster pose to [R|t]
+      std::array<float, 3> trans = { it.second.mean_.x_, it.second.mean_.y_, it.second.mean_.z_ };
+      std::array<float, 9> Rot{};
+      it.second.mean_.toRotMatrix(Rot);
 
-    // --------------- Perform scan matching ---------------------
-    std::vector<ImageFeature> aligned;
-    float rms_error;
-    Tf m_tf;
-    Tf final_tf;
-    Tf original_tf(Rot, trans);
-    // - First guess: each particle drawn by odometry motion model
-    // - Only use scan match if it does no fail
-    if (icp_->align(original_tf, rms_error, aligned))
-    {
-      // ---------------------------------------------------------------------------
-      // ------------ Get homogeneous transformation result
-      // ---------------------------------------------------------------------------
-      icp_->getTransform(m_tf);
-
-      final_tf = original_tf.inverse() * m_tf;
-
-      // ---------------------------------------------------------------------------
-      // ----------- Compute scan match weights
-      // ---------------------------------------------------------------------------
-      // - Get the correspondences errors both spatial and for the descriptors
-      std::vector<float> serror;
-      icp_->getErrors(serror);
-
-      // - Prevent single correspondence - standard deviation = 0
-      if (serror.size() <= 1)
+      // --------------- Perform scan matching ---------------------
+      std::vector<ImageFeature> aligned;
+      float rms_error;
+      Tf m_tf;
+      Tf final_tf;
+      Tf original_tf(Rot, trans);
+      // - First guess: each particle drawn by odometry motion model
+      // - Only use scan match if it does no fail
+      if (icp_->align(original_tf, rms_error, aligned))
       {
-        final_tf.R_array_ = std::array<float, 9>{ 1., 0., 0., 0., 1., 0., 0., 0., 1. };
-        final_tf.t_array_ = std::array<float, 3>{ 0., 0., 0. };
+        // ---------------------------------------------------------------------------
+        // ------------ Get homogeneous transformation result
+        // ---------------------------------------------------------------------------
+        icp_->getTransform(m_tf);
+
+        final_tf = original_tf.inverse() * m_tf;
+
+        // ---------------------------------------------------------------------------
+        // ----------- Compute scan match weights
+        // ---------------------------------------------------------------------------
+        // - Get the correspondences errors both spatial and for the descriptors
+        std::vector<float> serror;
+        icp_->getErrors(serror);
+
+        // - Prevent single correspondence - standard deviation = 0
+        if (serror.size() <= 1)
+        {
+          final_tf.R_array_ = std::array<float, 9>{ 1., 0., 0., 0., 1., 0., 0., 0., 1. };
+          final_tf.t_array_ = std::array<float, 3>{ 0., 0., 0. };
+          ws[it.first] = 0.;
+        }
+        else
+        {
+          // - Compute weight
+          float w = 0.;
+          for (float i : serror)
+          {
+            w += static_cast<float>(normalizer_icp * exp(-1. / sigma_feature_matching_ * i));
+          }
+
+          cluster_ws[it.first] = w;
+          valid_it = true;
+        }
+      }
+      else
+      {
+        final_tf = Tf::unitary();
         ws[it.first] = 0.;
-        continue;
       }
 
-      // - Compute weight
-      float w = 0.;
-      for (float i : serror)
-      {
-        w += static_cast<float>(normalizer_icp * exp(-1. / sigma_feature_matching_ * i));
-      }
-
-      cluster_ws[it.first] = w;
-      valid_it = true;
-    }
-    else
-    {
-      final_tf = Tf::unitary();
-      ws[it.first] = 0.;
-    }
-
-    // Get delta transform
-    tfs[it.first] = final_tf;
+      // Get delta transform
+      tfs[it.first] = final_tf;
   }
 
   // -------------------------------------------------------------------------------
@@ -900,14 +920,14 @@ void PF::normalizeWeights()
   else
   {
     for (auto& particle : particles_)
-      particle.w_ = static_cast<float>(1.) / static_cast<float>(particles_.size());
+      particle.w_ = static_cast<float>(1.) / static_cast<float>(particles_size_);
   }
 }
 
 void PF::resample()
 {
   float cweight = 0.;
-  uint32_t n = particles_.size();
+  uint32_t n = particles_size_;
 
   // - Compute the cumulative weights
   for (const auto& p : particles_)

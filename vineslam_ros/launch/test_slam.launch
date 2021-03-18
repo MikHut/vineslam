@@ -6,7 +6,7 @@
     <arg name="image_topic" default="/image_raw" />
 
     <!-- static transformations -->
-    <node pkg="tf" type="static_transform_publisher" name="cam2base" args="0.343 0.079 0.820 -0.002 0.100 -0.004 0.995 base_link zed_camera_left_optical_frame 100" />
+    <node pkg="tf" type="static_transform_publisher" name="cam2base" args="0.343 0.079 1.820 -0.002 0.100 -0.004 0.995 base_link zed_camera_left_optical_frame 100" />
     <node pkg="tf" type="static_transform_publisher" name="vel2base" args="0.000 0.000 0.942 -0.000 0.000 -0.000 1.000 base_link velodyne 100" />
 
     <!-- republish -->
@@ -16,14 +16,14 @@
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find vineslam_ros)/config/config.rviz" required="false"/>
 
     <!-- agrob_map_transform gps node -->
-<!--    <node pkg="agrob_map_transform" type="agrob_gnss_transform_node" name="agrob_gnss_transform_node"-->
-<!--          clear_params="true" output="screen">-->
-<!--        <rosparam command="load" file="$(find agrob_map_transform)/params/vineslam_configs.yaml"/>-->
+    <node pkg="agrob_map_transform" type="agrob_gnss_transform_node" name="agrob_gnss_transform_node"
+          clear_params="true" output="screen">
+        <rosparam command="load" file="$(find agrob_map_transform)/params/vineslam_configs.yaml"/>
 
-<!--        <remap from="imu/data" to="/Dummy/IMU"/>-->
-<!--        <remap from="odometry/filtered" to="/vineslam/odom"/>-->
-<!--        <remap from="gps/fix" to="/fix"/>-->
-<!--    </node>-->
+        <remap from="imu/data" to="/Dummy/IMU"/>
+        <remap from="odometry/filtered" to="/vineslam/odom"/>
+        <remap from="gps/fix" to="/fix"/>
+    </node>
 
     <!-- slam node -->
     <node pkg="vineslam_ros" type="slam_node" name="slam_node" output="screen">
@@ -40,13 +40,13 @@
     <include file="$(find vfe)/launch/run.launch" pass_all_args="true"/>
 
     <!-- tpu object detection node -->
-<!--    <arg name="model" default="$(find object_detection)/models/mv1/edgetpu_cpp_model_output_tflite_graph_edgetpu.tflite"/>-->
-<!--    <arg name="label" default="$(find object_detection)/models/mv1/edgetpu_cpp_model_labels.txt"/>-->
-<!--    <node pkg="object_detection" type="run_inference.py" name="run_inference_model">-->
-<!--        <param name="model_file" value="$(arg model)"/>-->
-<!--        <param name="labels_file" value="$(arg label)"/>-->
-<!--        <param name="image_topic" value="$(arg image_topic)"/>-->
-<!--        <param name="depth_topic" value="$(arg depth_image_topic)"/>-->
-<!--    </node>-->
+    <arg name="model" default="$(find object_detection)/models/mv1/edgetpu_cpp_model_output_tflite_graph_edgetpu.tflite"/>
+    <arg name="label" default="$(find object_detection)/models/mv1/edgetpu_cpp_model_labels.txt"/>
+    <node pkg="object_detection" type="run_inference.py" name="run_inference_model">
+        <param name="model_file" value="$(arg model)"/>
+        <param name="labels_file" value="$(arg label)"/>
+        <param name="image_topic" value="$(arg image_topic)"/>
+        <param name="depth_topic" value="$(arg depth_image_topic)"/>
+    </node>
 
 </launch>

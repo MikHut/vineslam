@@ -2,8 +2,7 @@
 
 namespace vineslam
 {
-
-void VineSLAM_ros::publishDenseInfo()
+void VineSLAM_ros::publishDenseInfo() const
 {
   ros::Rate r(1);
   while (ros::ok())
@@ -19,79 +18,40 @@ void VineSLAM_ros::publishDenseInfo()
     // Publish 3D maps
     publish3DMap();
     publishElevationMap();
+    publishGridMapLimits();
 
     // Impose loop frequency
     r.sleep();
   }
 }
 
-void VineSLAM_ros::publishGridMap(const std_msgs::Header& header) const
+void VineSLAM_ros::publishGridMapLimits() const
 {
-  // -------------------------------------------------------------------------------
-  // -------------------------------------------------------------------------------
-  // ----
-  // ---- WARNING : This visualization function is very slow. Use only for debug (!)
-  // ----
-  // -------------------------------------------------------------------------------
-  // -------------------------------------------------------------------------------
+  visualization_msgs::MarkerArray marker_array;
 
-  // Define ROS occupancy grid map
-  visualization_msgs::MarkerArray occ_map;
+  visualization_msgs::Marker grid_map_cube;
+  grid_map_cube.header.frame_id = "map";
+  grid_map_cube.header.stamp = ros::Time::now();
+  grid_map_cube.id = 0;
+  grid_map_cube.type = visualization_msgs::Marker::CUBE;
+  grid_map_cube.action = visualization_msgs::Marker::ADD;
+  grid_map_cube.color.a = 0.7;
+  grid_map_cube.color.r = 0;
+  grid_map_cube.color.g = 1;
+  grid_map_cube.color.b = 0;
+  grid_map_cube.pose.position.x = grid_map_->origin_.x_ + grid_map_->width_ / 2;
+  grid_map_cube.pose.position.y = grid_map_->origin_.y_ + grid_map_->lenght_ / 2;
+  grid_map_cube.pose.position.z = grid_map_->origin_.z_ + grid_map_->height_ / 2;
+  grid_map_cube.pose.orientation.x = 0;
+  grid_map_cube.pose.orientation.y = 0;
+  grid_map_cube.pose.orientation.z = 0;
+  grid_map_cube.pose.orientation.w = 1;
+  grid_map_cube.scale.x = grid_map_->width_;
+  grid_map_cube.scale.y = grid_map_->lenght_;
+  grid_map_cube.scale.z = grid_map_->height_;
 
-  int idx = 0;
-  for (auto layer : *grid_map_)
-  {
-    // Compute map layer bounds
-    float xmin = layer.second.origin_.x_;
-    float xmax = xmin + layer.second.width_;
-    float ymin = layer.second.origin_.y_;
-    float ymax = xmin + layer.second.lenght_;
-    float zmin = static_cast<float>(layer.first) * grid_map_->resolution_z_ + grid_map_->origin_.z_;
-    for (float i = xmin; i < xmax - grid_map_->resolution_;)
-    {
-      for (float j = ymin; j < ymax - grid_map_->resolution_;)
-      {
-        int8_t number_objs = layer.second(i, j).landmarks_.size() + layer.second(i, j).surf_features_.size() +
-                             layer.second(i, j).corner_features_.size();
-
-        if (number_objs == 0)
-        {
-          j += grid_map_->resolution_;
-          continue;
-        }
-
-        visualization_msgs::Marker cube_cell;
-        cube_cell.header.frame_id = "map";
-        cube_cell.header.stamp = ros::Time::now();
-        cube_cell.id = idx;
-        cube_cell.type = visualization_msgs::Marker::CUBE;
-        cube_cell.action = visualization_msgs::Marker::ADD;
-        cube_cell.color.a = 0.7;
-        cube_cell.color.r = 0;
-        cube_cell.color.b = 1 - (static_cast<float>(1) / static_cast<float>(number_objs));
-        cube_cell.color.g = 0;
-        cube_cell.pose.position.x = i;
-        cube_cell.pose.position.y = j;
-        cube_cell.pose.position.z = zmin;
-        cube_cell.pose.orientation.x = 0;
-        cube_cell.pose.orientation.y = 0;
-        cube_cell.pose.orientation.z = 0;
-        cube_cell.pose.orientation.w = 1;
-        cube_cell.scale.x = grid_map_->resolution_;
-        cube_cell.scale.y = grid_map_->resolution_;
-        cube_cell.scale.z = grid_map_->resolution_z_;
-
-        occ_map.markers.push_back(cube_cell);
-
-        idx++;
-        j += grid_map_->resolution_;
-      }
-      i += grid_map_->resolution_;
-    }
-  }
-
-  // Publish the map
-  grid_map_publisher_.publish(occ_map);
+  marker_array.markers.push_back(grid_map_cube);
+  grid_map_publisher_.publish(marker_array);
 }
 
 void VineSLAM_ros::publish2DMap(const Pose& pose, const std::vector<float>& bearings,
@@ -233,7 +193,6 @@ void VineSLAM_ros::publishElevationMap() const
         j += elevation_map_->resolution_;
         continue;
       }
-
 
       float r, g, b;
       float h = (static_cast<float>(1) -

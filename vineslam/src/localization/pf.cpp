@@ -182,7 +182,6 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
 
     w_sum_ += particle.w_;
   }
-  std::cout << "\n";
 
   t_->getLog();
   t_->clearLog();
@@ -449,7 +448,7 @@ void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* g
         {
           point = point * particles_[i].tf_;  // Convert plane boundaries
         }
-        l_plane.centroid_ = l_plane.centroid_ * particles_[i].tf_;                             // Convert the centroid
+        l_plane.centroid_ = l_plane.centroid_ * particles_[i].tf_;                        // Convert the centroid
         estimateNormal(l_plane.points_, l_plane.a_, l_plane.b_, l_plane.c_, l_plane.d_);  // Convert plane normal
 
         bool found = false;

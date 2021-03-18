@@ -92,7 +92,7 @@ public:
   bool saveMap(vineslam_ros::save_map::Request&, vineslam_ros::save_map::Response&);
 
   // Global thread to publish maps and other info
-  void publishDenseInfo();
+  void publishDenseInfo() const;
   // Publish 2D semantic features map
   void publish2DMap(const Pose& pose, const std::vector<float>& bearings, const std::vector<float>& depths) const;
   // Publish the elevation map
@@ -111,8 +111,8 @@ public:
   // Publish a 3D PCL planar features map
   void publish3DMap(const std::vector<Planar>& planars, const ros::Publisher& pub);
   static void publish3DMap(const Pose& r_pose, const std::vector<Planar>& planars, const ros::Publisher& pub);
-  // Publish the grid map that contains all the maps
-  void publishGridMap(const std_msgs::Header& header) const;
+  // Publishes a box containing the grid map
+  void publishGridMapLimits() const;
   // Publishes a VineSLAM state report for debug purposes
   void publishReport() const;
 
@@ -173,11 +173,10 @@ public:
   Localizer* localizer_;
   ElevationMap* elevation_map_;
   OccupancyMap* grid_map_;
-  OccupancyMap* previous_map_;
   LandmarkMapper* land_mapper_;
   VisualMapper* vis_mapper_;
   LidarMapper* lid_mapper_;
-  Timer *timer_;
+  Timer* timer_;
   Observation obsv_;
 
   // Array of poses to store and publish the robot path

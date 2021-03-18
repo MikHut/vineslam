@@ -129,14 +129,6 @@ void VineSLAM_ros::init()
   if (params_.use_lidar_features_)
   {
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
-
-    // - Save local map for next iteration
-    previous_map_->clear();
-    for (const auto& planar : l_planars)
-      previous_map_->insert(planar);
-    for (const auto& corner : l_corners)
-      previous_map_->insert(corner);
-    previous_map_->downsamplePlanars();
   }
 
   // - 3D image feature map estimation
@@ -230,7 +222,7 @@ void VineSLAM_ros::process()
   timer_->tock();
 
   timer_->tick("localizer::process()");
-  localizer_->process(odom_inc, obsv_, previous_map_, grid_map_);
+  localizer_->process(odom_inc, obsv_, grid_map_);
   robot_pose_ = localizer_->getPose();
   timer_->tock();
 

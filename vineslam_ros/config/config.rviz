@@ -8,6 +8,7 @@ Panels:
         - /Global Maps1/Global Map 5 - Planes1/Namespaces1
         - /Local Maps1
         - /Local Maps1/Local Map 4 - Planes1/Status1
+        - /Debug1
         - /Sensors1/Odometry1/Status1
         - /Sensors1/Odometry1/Shape1
       Splitter Ratio: 0.6997792720794678
@@ -203,8 +204,8 @@ Visualization Manager:
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 7.115676403045654
-            Min Value: -0.3601950407028198
+            Max Value: 6.248697280883789
+            Min Value: -0.40192437171936035
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -271,13 +272,13 @@ Visualization Manager:
           Queue Size: 100
           Value: true
         - Class: rviz/MarkerArray
-          Enabled: true
+          Enabled: false
           Marker Topic: /vineslam/elevationMap
           Name: Global Map 6 - Elevation Map
           Namespaces:
-            /elevation_cube: true
+            {}
           Queue Size: 100
-          Value: true
+          Value: false
       Enabled: true
       Name: Global Maps
     - Class: rviz/Group
@@ -356,6 +357,18 @@ Visualization Manager:
       Name: Local Maps
     - Class: rviz/Group
       Displays:
+        - Class: rviz/MarkerArray
+          Enabled: true
+          Marker Topic: /vineslam/debug/grid_map_limits
+          Name: Grid Map Limits
+          Namespaces:
+            {}
+          Queue Size: 100
+          Value: true
+      Enabled: false
+      Name: Debug
+    - Class: rviz/Group
+      Displays:
         - Angle Tolerance: 0.10000000149011612
           Class: rviz/Odometry
           Covariance:
@@ -421,7 +434,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 44.190181732177734
+      Distance: 89.54924011230469
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -439,7 +452,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 2.8982577323913574
+      Yaw: 3.1432583332061768
     Saved: ~
 Window Geometry:
   Displays:

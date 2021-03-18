@@ -24,8 +24,6 @@
 #include <map>
 #include <cmath>
 
-#define NUM_THREADS 8
-
 namespace vineslam
 {
 // Struct that represents a single particle with

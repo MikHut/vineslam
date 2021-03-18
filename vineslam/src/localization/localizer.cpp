@@ -25,8 +25,7 @@ void Localizer::init(const Pose& initial_pose)
   init_flag_ = true;
 }
 
-void Localizer::process(const Pose& wheel_odom_inc, const Observation& obsv, OccupancyMap* previous_map,
-                        OccupancyMap* grid_map)
+void Localizer::process(const Pose& wheel_odom_inc, const Observation& obsv, OccupancyMap* grid_map)
 {
   auto before = std::chrono::high_resolution_clock::now();
   // Resets
@@ -116,37 +115,6 @@ void Localizer::changeObservationsToUse(const bool& use_semantic_features, const
   pf_->use_lidar_features_ = use_lidar_features;
   pf_->use_image_features_ = use_image_features;
   pf_->use_gps_ = use_gps;
-}
-
-void Localizer::predictMotion(const Tf& initial_guess, const std::vector<Planar>& planars, OccupancyMap* previous_map,
-                              Tf& result)
-{
-  // -------------------------------------------------------------------------------
-  // ----- Planar features ICP
-  // -------------------------------------------------------------------------------
-
-  // - Set ICP input parameters
-  ICP<Planar> planar_icp;
-  planar_icp.setInputSource(planars);
-  planar_icp.setInputTarget(previous_map);
-  planar_icp.setTolerance(1e-5);
-  planar_icp.setMaxIterations(50);
-  planar_icp.setRejectOutliersFlag(false);
-
-  // - Compute ICP
-  float rms_error;
-  std::vector<Planar> aligned;
-  if (planar_icp.align(rms_error, aligned))
-  {
-    planar_icp.getTransform(result);
-  }
-  else
-  {
-    result = initial_guess;
-  }
-
-  std::vector<float> errors;
-  planar_icp.getErrors(errors);
 }
 
 }  // namespace vineslam

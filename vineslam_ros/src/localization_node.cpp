@@ -43,19 +43,6 @@ LocalizationNode::LocalizationNode(int argc, char** argv)
   lid_mapper_ = new LidarMapper(params_);
 
   // ---------------------------------------------------------
-  // ----- Initialize local grid map that will be used for relative motion calculation
-  // ---------------------------------------------------------
-  Parameters local_map_params;
-  local_map_params.gridmap_origin_x_ = -30;
-  local_map_params.gridmap_origin_y_ = -30;
-  local_map_params.gridmap_origin_z_ = -0.5;
-  local_map_params.gridmap_resolution_ = 0.20;
-  local_map_params.gridmap_width_ = 60;
-  local_map_params.gridmap_lenght_ = 60;
-  local_map_params.gridmap_height_ = 2.5;
-  previous_map_ = new OccupancyMap(local_map_params, Pose(0, 0, 0, 0, 0, 0));
-
-  // ---------------------------------------------------------
   // ----- Services
   // ---------------------------------------------------------
   polar2pose_ = nh.serviceClient<agrob_map_transform::GetPose>("polar_to_pose");
@@ -80,7 +67,7 @@ LocalizationNode::LocalizationNode(int argc, char** argv)
   // ----- Publish maps and particle filter
   // ---------------------------------------------------------
   vineslam_report_publisher_ = nh.advertise<vineslam_msgs::report>("/vineslam/report", 1);
-  grid_map_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/occupancyMap", 1);
+  grid_map_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/debug/grid_map_limits", 1);
   map2D_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/map2D", 1);
   map3D_features_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZRGB>>("/vineslam/map3D/SURF", 1);
   map3D_corners_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners", 1);
@@ -204,14 +191,6 @@ void LocalizationNode::init()
   if (params_.use_lidar_features_)
   {
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
-
-    // - Save local map for next iteration
-    previous_map_->clear();
-    for (const auto& planar : l_planars)
-      previous_map_->insert(planar);
-    for (const auto& corner : l_corners)
-      previous_map_->insert(corner);
-    previous_map_->downsamplePlanars();
   }
 
   // - 3D image feature map estimation

@@ -32,7 +32,8 @@ add_library(vineslam
         src/localization/localizer.cpp
         src/localization/pf.cpp
         src/mapxml/map_writer.cpp
-        src/mapxml/map_parser.cpp)
+        src/mapxml/map_parser.cpp
+        include/vineslam/extern/thread_pool.cpp)
 
 target_link_libraries(vineslam
         ${catkin_LIBRARIES}

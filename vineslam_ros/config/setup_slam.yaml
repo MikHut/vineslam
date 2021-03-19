@@ -1,15 +1,13 @@
 # General system settings
+robot_model: agrob  # {agrob, rocha}
+world_frame_id: map_nn2
 use_semantic_features: False
 use_lidar_features: True
 use_image_features: False
-use_gps: False
+use_gps: True
 use_wheel_odometry: True
 
-# GPS datum
-gps_datum:
-  lat: 41.166805833333335
-  long: -7.5549815
-
+# Camera info
 camera_info:
   baseline: 0.12 # meters
   fx: 692.95849609375  # pixels
@@ -20,10 +18,10 @@ grid_map:
   origin:
     x: -75
     y: -75
-    z: -0.5
+    z: -2.0
   width: 150
   lenght: 150
-  height: 2.5
+  height: 4.0
   resolution: 0.25 # meters
   save_map: True
   output_folder: "/home/andresaguiar/Desktop/"
@@ -33,11 +31,11 @@ pf:
   n_particles: 500
 
   # Particles innovation
-  sigma_xx: 0.2 # meters
-  sigma_yy: 0.2 # meters
-  sigma_zz: 0.2 # meters
-  sigma_RR: 0.2 # radians
-  sigma_PP: 0.2 # radians
-  sigma_YY: 0.2 # radians
+  sigma_xx: 0.5 # meters
+  sigma_yy: 0.5 # meters
+  sigma_zz: 0.3 # meters
+  sigma_RR: 0.3 # radians
+  sigma_PP: 0.3 # radians
+  sigma_YY: 0.7 # radians
 
   k_clusters: 3

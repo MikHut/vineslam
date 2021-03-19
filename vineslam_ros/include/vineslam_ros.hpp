@@ -17,6 +17,7 @@
 #include <vineslam/mapxml/map_writer.hpp>
 #include <vineslam/mapxml/map_parser.hpp>
 #include <vineslam/utils/save_data.hpp>
+#include <vineslam/utils/Timer.hpp>
 // ----------------------------
 #include <vineslam_msgs/particle.h>
 #include <vineslam_msgs/report.h>
@@ -81,7 +82,7 @@ public:
   // Odometry callback function
   void odomListener(const nav_msgs::OdometryConstPtr& msg);
   // GPS callback function
-  void gpsListener(const sensor_msgs::NavSatFixConstPtr& msg);
+  void gpsListener(const geometry_msgs::PoseStampedConstPtr& msg);
   // Services callbacks
   bool startRegistration(vineslam_ros::start_map_registration::Request&,
                          vineslam_ros::start_map_registration::Response&);
@@ -90,6 +91,8 @@ public:
                              vineslam_ros::stop_gps_heading_estimation::Response&);
   bool saveMap(vineslam_ros::save_map::Request&, vineslam_ros::save_map::Response&);
 
+  // Global thread to publish maps and other info
+  void publishDenseInfo() const;
   // Publish 2D semantic features map
   void publish2DMap(const Pose& pose, const std::vector<float>& bearings, const std::vector<float>& depths) const;
   // Publish the elevation map
@@ -98,18 +101,18 @@ public:
   void publish3DMap() const;
   // Publish the 3D PCL planes
   void publish3DMap(const std::vector<Plane>& planes, const ros::Publisher& pub);
-  static void publish3DMap(const Pose& r_pose, const std::vector<Plane>& planes, const ros::Publisher& pub);
+  void publish3DMap(const Pose& r_pose, const std::vector<Plane>& planes, const ros::Publisher& pub) const;
   // Publish the 3D PCL semi planes
   void publish3DMap(const std::vector<SemiPlane>& planes, const ros::Publisher& pub);
-  static void publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>& planes, const ros::Publisher& pub);
+  void publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>& planes, const ros::Publisher& pub) const;
   // Publish a 3D PCL corners map
   void publish3DMap(const std::vector<Corner>& corners, const ros::Publisher& pub);
-  static void publish3DMap(const Pose& r_pose, const std::vector<Corner>& corners, const ros::Publisher& pub);
+  void publish3DMap(const Pose& r_pose, const std::vector<Corner>& corners, const ros::Publisher& pub);
   // Publish a 3D PCL planar features map
   void publish3DMap(const std::vector<Planar>& planars, const ros::Publisher& pub);
-  static void publish3DMap(const Pose& r_pose, const std::vector<Planar>& planars, const ros::Publisher& pub);
-  // Publish the grid map that contains all the maps
-  void publishGridMap(const std_msgs::Header& header) const;
+  void publish3DMap(const Pose& r_pose, const std::vector<Planar>& planars, const ros::Publisher& pub);
+  // Publishes a box containing the grid map
+  void publishGridMapLimits() const;
   // Publishes a VineSLAM state report for debug purposes
   void publishReport() const;
 
@@ -157,40 +160,27 @@ public:
   ros::Publisher odom_publisher_;
   ros::Publisher path_publisher_;
   ros::Publisher poses_publisher_;
-  ros::Publisher gps_path_publisher_;
-  ros::Publisher gps_pose_publisher_;
   ros::Publisher corners_local_publisher_;
   ros::Publisher planars_local_publisher_;
   ros::Publisher planes_local_publisher_;
-  ros::ServiceClient polar2pose_;
-  ros::ServiceClient set_datum_;
 
   // Classes object members
   Parameters params_;
   Localizer* localizer_;
   ElevationMap* elevation_map_;
   OccupancyMap* grid_map_;
-  OccupancyMap* previous_map_;
   LandmarkMapper* land_mapper_;
   VisualMapper* vis_mapper_;
   LidarMapper* lid_mapper_;
+  Timer* timer_;
   Observation obsv_;
 
   // Array of poses to store and publish the robot path
   std::vector<geometry_msgs::PoseStamped> path_;
-  std::vector<geometry_msgs::PoseStamped> gps_poses_;
 
   // Motion variables
   Pose init_odom_pose_;
   Pose robot_pose_;
-
-  // GNSS variables
-  int datum_autocorrection_stage_;
-  int32_t global_counter_;
-  float datum_orientation_[360][4]{};
-  bool has_converged_{};
-  bool estimate_heading_;
-  float heading_;
 
   // Initialization flags
   bool init_flag_;

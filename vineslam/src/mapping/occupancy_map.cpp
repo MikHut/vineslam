@@ -1364,7 +1364,9 @@ void OccupancyMap::downsampleCorners()
 void OccupancyMap::downsamplePlanars()
 {
   for (auto& mlayer : layers_map_)
+  {
     mlayer.second.downsamplePlanars();
+  }
 }
 
 bool OccupancyMap::getAdjacent(const float& x, const float& y, const float& z, const int& layers,

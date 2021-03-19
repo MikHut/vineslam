@@ -32,7 +32,6 @@ LocalizationNode::LocalizationNode(int argc, char** argv)
   init_gps_ = true;
   init_odom_ = true;
   register_map_ = false;
-  estimate_heading_ = true;
 
   // ---------------------------------------------------------
   // ----- Declare the Mappers and Localizer objects
@@ -41,25 +40,6 @@ LocalizationNode::LocalizationNode(int argc, char** argv)
   land_mapper_ = new LandmarkMapper(params_);
   vis_mapper_ = new VisualMapper(params_);
   lid_mapper_ = new LidarMapper(params_);
-
-  // ---------------------------------------------------------
-  // ----- Initialize local grid map that will be used for relative motion calculation
-  // ---------------------------------------------------------
-  Parameters local_map_params;
-  local_map_params.gridmap_origin_x_ = -30;
-  local_map_params.gridmap_origin_y_ = -30;
-  local_map_params.gridmap_origin_z_ = -0.5;
-  local_map_params.gridmap_resolution_ = 0.20;
-  local_map_params.gridmap_width_ = 60;
-  local_map_params.gridmap_lenght_ = 60;
-  local_map_params.gridmap_height_ = 2.5;
-  previous_map_ = new OccupancyMap(local_map_params, Pose(0, 0, 0, 0, 0, 0));
-
-  // ---------------------------------------------------------
-  // ----- Services
-  // ---------------------------------------------------------
-  polar2pose_ = nh.serviceClient<agrob_map_transform::GetPose>("polar_to_pose");
-  set_datum_ = nh.serviceClient<agrob_map_transform::SetDatum>("datum");
 
  // Landmark subscription
   ros::Subscriber feat_subscriber = nh.subscribe("/features_topic", 1, &VineSLAM_ros::imageFeatureListener,
@@ -80,7 +60,7 @@ LocalizationNode::LocalizationNode(int argc, char** argv)
   // ----- Publish maps and particle filter
   // ---------------------------------------------------------
   vineslam_report_publisher_ = nh.advertise<vineslam_msgs::report>("/vineslam/report", 1);
-  grid_map_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/occupancyMap", 1);
+  grid_map_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/debug/grid_map_limits", 1);
   map2D_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/map2D", 1);
   map3D_features_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZRGB>>("/vineslam/map3D/SURF", 1);
   map3D_corners_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners", 1);
@@ -91,8 +71,6 @@ LocalizationNode::LocalizationNode(int argc, char** argv)
   planars_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planars_local", 1);
   pose_publisher_ = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/pose", 1);
   odom_publisher_ = nh.advertise<nav_msgs::Odometry>("/vineslam/odom", 1);
-  gps_path_publisher_ = nh.advertise<nav_msgs::Path>("/vineslam/gps_path", 1);
-  gps_pose_publisher_ = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/gps_pose", 1);
   path_publisher_ = nh.advertise<nav_msgs::Path>("/vineslam/path", 1);
   poses_publisher_ = nh.advertise<geometry_msgs::PoseArray>("/vineslam/poses", 1);
 
@@ -103,18 +81,9 @@ LocalizationNode::LocalizationNode(int argc, char** argv)
       "stop_gps_heading_estimation", &VineSLAM_ros::stopHeadingEstimation, dynamic_cast<VineSLAM_ros*>(this));
 
   // ---------------------------------------------------------
-  // ----- GNSS varibales
-  // ---------------------------------------------------------
-  if (params_.use_gps_)
-  {
-    datum_autocorrection_stage_ = 0;
-    global_counter_ = 0;
-  }
-
-  ROS_INFO("Loading map from xml file...");
-  // ---------------------------------------------------------
   // ----- Load map dimensions and initialize it
   // ---------------------------------------------------------
+  ROS_INFO("Loading map from xml file...");
   MapParser parser(params_);
   parser.parseHeader(&params_);
   grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0));
@@ -204,14 +173,6 @@ void LocalizationNode::init()
   if (params_.use_lidar_features_)
   {
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
-
-    // - Save local map for next iteration
-    previous_map_->clear();
-    for (const auto& planar : l_planars)
-      previous_map_->insert(planar);
-    for (const auto& corner : l_corners)
-      previous_map_->insert(corner);
-    previous_map_->downsamplePlanars();
   }
 
   // - 3D image feature map estimation
@@ -257,14 +218,6 @@ void LocalizationNode::loadParameters(const ros::NodeHandle& nh, const std::stri
   if (!nh.getParam(prefix + "/use_wheel_odometry", params.use_wheel_odometry_))
   {
     ROS_WARN("%s/use_wheel_odometry parameter has not been set. Not using it...", prefix.c_str());
-  }
-  if (!nh.getParam(prefix + "/gps_datum/lat", params.latitude_))
-  {
-    ROS_WARN("%s/gps_datum/lat parameter not found. Shutting down...", prefix.c_str());
-  }
-  if (!nh.getParam(prefix + "/gps_datum/long", params.longitude_))
-  {
-    ROS_WARN("%s/gps_datum/long parameter not found. Shutting down...", prefix.c_str());
   }
  if (!nh.getParam(prefix + "/camera_info/baseline", params.baseline_))
   {

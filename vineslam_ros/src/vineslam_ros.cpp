@@ -26,7 +26,6 @@ bool VineSLAM_ros::stopHeadingEstimation(vineslam_ros::stop_gps_heading_estimati
                                          vineslam_ros::stop_gps_heading_estimation::Response&)
 {
   ROS_INFO("Deactivating gps heading estimation ...\n");
-  estimate_heading_ = false;
   return true;
 }
 
@@ -69,7 +68,6 @@ void VineSLAM_ros::loopOnce()
   bool can_continue = (input_data_.received_image_features_ || (!params_.use_image_features_)) &&
                       input_data_.received_scans_ &&
                       (input_data_.received_landmarks_ || !params_.use_semantic_features_);
-                      (input_data_.received_gnss_ || !params_.use_gps_);
 
   if (!can_continue)
     return;
@@ -83,7 +81,14 @@ void VineSLAM_ros::loopOnce()
     init_flag_ = false;
   }
   else
+  {
+    Timer l_timer("VineSLAM main loop");
+    l_timer.tick("vineslam_ros::process()");
     process();
+    l_timer.tock();
+    l_timer.getLog();
+    l_timer.clearLog();
+  }
 
   // Reset information flags
   input_data_.received_image_features_ = false;
@@ -91,6 +96,9 @@ void VineSLAM_ros::loopOnce()
   input_data_.received_landmarks_ = false;
   input_data_.received_odometry_ = false;
   input_data_.received_gnss_ = false;
+
+  timer_->getLog();
+  timer_->clearLog();
 }
 
 void VineSLAM_ros::init()
@@ -120,14 +128,6 @@ void VineSLAM_ros::init()
   if (params_.use_lidar_features_)
   {
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
-
-    // - Save local map for next iteration
-    previous_map_->clear();
-    for (const auto& planar : l_planars)
-      previous_map_->insert(planar);
-    for (const auto& corner : l_corners)
-      previous_map_->insert(corner);
-    previous_map_->downsamplePlanars();
   }
 
   // - 3D image feature map estimation
@@ -163,7 +163,9 @@ void VineSLAM_ros::process()
   std::vector<SemanticFeature> l_landmarks;
   if (params_.use_semantic_features_)
   {
+    timer_->tick("landmark_mapper::localMap()");
     land_mapper_->localMap(input_data_.land_bearings_, input_data_.land_depths_, l_landmarks);
+    timer_->tock();
   }
 
   // - Compute 3D PCL corners and ground plane on robot's referential frame
@@ -173,14 +175,18 @@ void VineSLAM_ros::process()
   SemiPlane l_ground_plane;
   if (params_.use_lidar_features_)
   {
+    timer_->tick("lidar_mapper::localMap()");
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+    timer_->tock();
   }
 
   // - Compute 3D image features on robot's referential frame
   std::vector<ImageFeature> l_surf_features;
   if (params_.use_image_features_)
   {
+    timer_->tick("visual_mapper::localMap()");
     vis_mapper_->localMap(input_data_.image_features_, l_surf_features);
+    timer_->tock();
   }
 
   // ---------------------------------------------------------
@@ -196,7 +202,7 @@ void VineSLAM_ros::process()
   obsv_.ground_plane = l_ground_plane;
   obsv_.planes = l_planes;
   obsv_.surf_features = l_surf_features;
-  if (has_converged_ && params_.use_gps_)
+  if (params_.use_gps_ && !init_gps_)
   {
     obsv_.gps_pose = input_data_.gnss_pose_;
   }
@@ -206,47 +212,63 @@ void VineSLAM_ros::process()
   // ---------------------------------------------------------
   // ----- Localization procedure
   // ---------------------------------------------------------
+  timer_->tick("odom2map");
   Tf p_odom_tf = input_data_.p_wheel_odom_pose_.toTf();
   Tf c_odom_tf = input_data_.wheel_odom_pose_.toTf();
   Tf odom_inc_tf = p_odom_tf.inverse() * c_odom_tf;
   Pose odom_inc(odom_inc_tf.R_array_, odom_inc_tf.t_array_);
-  std::cout << input_data_.p_wheel_odom_pose_;
-  std::cout << input_data_.wheel_odom_pose_;
-  std::cout << odom_inc << "\n";
-  input_data_.p_wheel_odom_pose_ = input_data_.wheel_odom_pose_;
   odom_inc.normalize();
-  localizer_->process(odom_inc, obsv_, previous_map_, grid_map_);
+  timer_->tock();
+
+  timer_->tick("localizer::process()");
+  localizer_->process(odom_inc, obsv_, grid_map_);
   robot_pose_ = localizer_->getPose();
+  timer_->tock();
+
+  input_data_.p_wheel_odom_pose_ = input_data_.wheel_odom_pose_;
 
   // ---------------------------------------------------------
   // ----- Register multi-layer map (if performing SLAM)
   // ---------------------------------------------------------
   if (register_map_)
   {
+    timer_->tick("landmark_mapper::process()");
     land_mapper_->process(robot_pose_, l_landmarks, input_data_.land_labels_, *grid_map_);
+    timer_->tock();
+
+    timer_->tick("visual_mapper::registerMaps()");
     vis_mapper_->registerMaps(robot_pose_, l_surf_features, *grid_map_);
+    timer_->tock();
+
+    timer_->tick("lidar_mapper::registerMaps()");
     lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, l_ground_plane, *grid_map_, *elevation_map_);
+    timer_->tock();
+
+    timer_->tick("grid_map::downsamplePlanars()");
     grid_map_->downsamplePlanars();
+    timer_->tock();
   }
 
   // ---------------------------------------------------------
   // ----- ROS publishers and tf broadcasting
   // ---------------------------------------------------------
+  timer_->tick("ros::publishers");
+
   static tf::TransformBroadcaster br;
   tf::Quaternion q;
 
   q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
   tf::Transform base2map(q, tf::Vector3(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_));
-  br.sendTransform(tf::StampedTransform(base2map, ros::Time::now(), "map", "/base_link"));
+  br.sendTransform(tf::StampedTransform(base2map, ros::Time::now(), params_.world_frame_id_, "/base_link"));
 
   q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
   tf::Transform odom2map(q, tf::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_));
-  br.sendTransform(tf::StampedTransform(odom2map, ros::Time::now(), "odom", "map"));
+  br.sendTransform(tf::StampedTransform(odom2map, ros::Time::now(), "odom", params_.world_frame_id_));
 
   // Convert vineslam pose to ROS pose and publish it
   geometry_msgs::PoseStamped pose_stamped;
   pose_stamped.header.stamp = ros::Time::now();
-  pose_stamped.header.frame_id = "map";
+  pose_stamped.header.frame_id = params_.world_frame_id_;
   pose_stamped.pose.position.x = robot_pose_.x_;
   pose_stamped.pose.position.y = robot_pose_.y_;
   pose_stamped.pose.position.z = robot_pose_.z_;
@@ -258,7 +280,7 @@ void VineSLAM_ros::process()
   // Convert vineslam pose to ROS odometry pose and publish it
   nav_msgs::Odometry vineslam_odom;
   vineslam_odom.header.stamp = ros::Time::now();
-  vineslam_odom.header.frame_id = "map";
+  vineslam_odom.header.frame_id = params_.world_frame_id_;
   vineslam_odom.pose.pose.position.x = robot_pose_.x_;
   vineslam_odom.pose.pose.position.y = robot_pose_.y_;
   vineslam_odom.pose.pose.position.z = robot_pose_.z_;
@@ -272,30 +294,17 @@ void VineSLAM_ros::process()
   path_.push_back(pose_stamped);
   nav_msgs::Path ros_path;
   ros_path.header.stamp = ros::Time::now();
-  ros_path.header.frame_id = "map";
+  ros_path.header.frame_id = params_.world_frame_id_;
   ros_path.poses = path_;
   path_publisher_.publish(ros_path);
 
-  // Publishes the VineSLAM report
-  publishReport();
-
-  // Publish the 2D map
-  publish2DMap(robot_pose_, input_data_.land_bearings_, input_data_.land_depths_);
-  // Publish 3D maps
-  publish3DMap();
-  publishElevationMap();
+  // Publish local maps
   publish3DMap(l_corners, corners_local_publisher_);
   publish3DMap(l_planars, planars_local_publisher_);
   l_planes.push_back(l_ground_plane);
   publish3DMap(l_planes, planes_local_publisher_);
 
-  // - Prepare next iteration
-  previous_map_->clear();
-  for (const auto& planar : l_planars)
-    previous_map_->insert(planar);
-  for (const auto& corner : l_corners)
-    previous_map_->insert(corner);
-  previous_map_->downsamplePlanars();
+  timer_->tock();
 }
 
 void VineSLAM_ros::imageFeatureListener(const vineslam_msgs::FeatureArrayConstPtr& features)
@@ -416,189 +425,58 @@ void VineSLAM_ros::odomListener(const nav_msgs::OdometryConstPtr& msg)
   input_data_.received_odometry_ = true;
 }
 
-void VineSLAM_ros::gpsListener(const sensor_msgs::NavSatFixConstPtr& msg)
+void VineSLAM_ros::gpsListener(const geometry_msgs::PoseStampedConstPtr& msg)
 {
   if (!params_.use_gps_)
     return;
 
-  if (init_gps_)
+  tf::TransformListener listener;
+  tf::StampedTransform transform;
+  try
   {
-    // Set initial datum
-    agrob_map_transform::SetDatum srv;
-    srv.request.geo_pose.position.latitude = params_.latitude_;
-    srv.request.geo_pose.position.longitude = params_.longitude_;
-    srv.request.geo_pose.position.altitude = 0.0;
-    tf::Quaternion quat;
-    quat.setRPY(0.0, 0.0, 0.0);
-    tf::quaternionTFToMsg(quat, srv.request.geo_pose.orientation);
-
-    ROS_INFO("Setting GNSS datum...");
-    set_datum_.call(srv);
-
-    init_gps_ = false;
+    ros::Time now = ros::Time::now();
+    listener.waitForTransform("/enu", params_.world_frame_id_, now, ros::Duration(3.0));
+    listener.lookupTransform("/enu", params_.world_frame_id_, now, transform);
   }
-
-  agrob_map_transform::GetPose srv;
-
-  // GNSS - odom service call
-  srv.request.geo_pose.latitude = msg->latitude;
-  srv.request.geo_pose.longitude = msg->longitude;
-
-  if (polar2pose_.call(srv))
+  catch (tf::TransformException ex)
   {
-    Pose gps_odom;
-    gps_odom.x_ = srv.response.local_pose.pose.pose.position.x;
-    gps_odom.y_ = srv.response.local_pose.pose.pose.position.y;
-
-    if (estimate_heading_)
-      has_converged_ = getGNSSHeading(gps_odom, msg->header);
-
-    // Compute the gnss to map transform
-    tf::Quaternion heading_quat;
-    heading_quat.setRPY(0., 0., heading_);
-    heading_quat.normalize();
-    tf::Transform ned2map(heading_quat, tf::Vector3(0., 0., 0.));
-
-    // Publish gnss to map tf::Transform
-    static tf::TransformBroadcaster br;
-    br.sendTransform(tf::StampedTransform(ned2map, ros::Time::now(), "enu", "map"));
-
-    // Publish gnss pose in the enu reference frame
-    geometry_msgs::PoseStamped gnss_pose;
-    gnss_pose.pose.position.x = gps_odom.x_;
-    gnss_pose.pose.position.y = gps_odom.y_;
-    gnss_pose.pose.position.z = gps_odom.z_;
-    gnss_pose.pose.orientation.x = 0.;
-    gnss_pose.pose.orientation.y = 0.;
-    gnss_pose.pose.orientation.z = 0.;
-    gnss_pose.pose.orientation.w = 1.;
-    gnss_pose.header.stamp = ros::Time::now();
-    gnss_pose.header.frame_id = "enu";
-    gps_pose_publisher_.publish(gnss_pose);
-
-    gps_poses_.push_back(gnss_pose);
-    nav_msgs::Path ros_path;
-    ros_path.header.stamp = ros::Time::now();
-    ros_path.header.frame_id = "enu";
-    ros_path.poses = gps_poses_;
-    gps_path_publisher_.publish(ros_path);
-
-    // Transform locally the gps pose from enu to map to use in localization
-    tf::Matrix3x3 Rot = ned2map.getBasis().inverse();
-
-    input_data_.gnss_pose_.x_ = static_cast<float>(Rot[0].getX()) * gps_odom.x_ +
-                                static_cast<float>(Rot[0].getY()) * gps_odom.y_ +
-                                static_cast<float>(Rot[0].getZ()) * gps_odom.z_;
-    input_data_.gnss_pose_.y_ = static_cast<float>(Rot[1].getX()) * gps_odom.x_ +
-                                static_cast<float>(Rot[1].getY()) * gps_odom.y_ +
-                                static_cast<float>(Rot[1].getZ()) * gps_odom.z_;
-    input_data_.gnss_pose_.z_ = 0.;
-    input_data_.gnss_pose_.R_ = 0.;
-    input_data_.gnss_pose_.P_ = 0.;
-    input_data_.gnss_pose_.Y_ = 0.;
-  }
-  else
-  {
-    ROS_ERROR("Failed to call service Polar2Pose\n");
+    ROS_ERROR("%s", ex.what());
     return;
   }
 
+  tf::Matrix3x3 Rot = transform.getBasis().inverse();
+
+  tf::Quaternion q;
+  q.setX(msg->pose.orientation.x);
+  q.setY(msg->pose.orientation.y);
+  q.setZ(msg->pose.orientation.z);
+  q.setW(msg->pose.orientation.w);
+
+  tfScalar r, p, y;
+  tf::Matrix3x3 m(q);
+  m.getRPY(r, p, y);
+
+  Pose raw_gps_pose;
+  raw_gps_pose.x_ = msg->pose.position.x;
+  raw_gps_pose.y_ = msg->pose.position.y;
+  raw_gps_pose.z_ = msg->pose.position.z;
+  raw_gps_pose.R_ = r;
+  raw_gps_pose.P_ = p;
+  raw_gps_pose.Y_ = y;
+
+  input_data_.gnss_pose_.x_ = static_cast<float>(Rot[0].getX()) * raw_gps_pose.x_ +
+                              static_cast<float>(Rot[0].getY()) * raw_gps_pose.y_ +
+                              static_cast<float>(Rot[0].getZ()) * raw_gps_pose.z_;
+  input_data_.gnss_pose_.y_ = static_cast<float>(Rot[1].getX()) * raw_gps_pose.x_ +
+                              static_cast<float>(Rot[1].getY()) * raw_gps_pose.y_ +
+                              static_cast<float>(Rot[1].getZ()) * raw_gps_pose.z_;
+  input_data_.gnss_pose_.z_ = 0.;
+  input_data_.gnss_pose_.R_ = 0.;
+  input_data_.gnss_pose_.P_ = 0.;
+  input_data_.gnss_pose_.Y_ = 0.;
+
   input_data_.received_gnss_ = true;
-}
-
-bool VineSLAM_ros::getGNSSHeading(const Pose& gps_odom, const std_msgs::Header& header)
-{
-  float weight_max = 0.;
-  if (datum_autocorrection_stage_ == 0)
-  {
-    ROS_DEBUG("Initialization of AGROB DATUM");
-    datum_autocorrection_stage_++;
-  }
-  else
-  {
-    float x, y;
-    x = robot_pose_.x_;
-    y = robot_pose_.y_;
-
-    float distance = std::sqrt((gps_odom.x_ - x) * (gps_odom.x_ - x) + (gps_odom.y_ - y) * (gps_odom.y_ - y));
-    float center_map = std::sqrt(gps_odom.x_ * gps_odom.x_ + gps_odom.y_ * gps_odom.y_);
-
-    if (datum_autocorrection_stage_ == 1)
-    {
-      if (center_map < 2.0)
-      {
-        if (distance < 5.0)
-        {
-          datum_autocorrection_stage_ = 2;
-        }
-        else
-        {
-          ROS_ERROR("Datum localization is bad. Error on heading location.");
-          datum_autocorrection_stage_ = -1;
-        }
-      }
-      else
-      {
-        ROS_ERROR("Error on heading location.");
-        datum_autocorrection_stage_ = -1;
-      }
-    }
-    else if (datum_autocorrection_stage_ == 2)
-    {
-      ROS_DEBUG("Initializing datum filter.");
-      for (int i = 0; i < 360; i++)
-      {
-        datum_orientation_[i][0] = static_cast<float>(i);
-        datum_orientation_[i][1] = 1.0;
-      }
-      datum_autocorrection_stage_ = 3;
-    }
-    else if (datum_autocorrection_stage_ == 3)
-    {
-      global_counter_++;
-
-      float dist_temp_max = 0.0;
-      for (auto& i : datum_orientation_)
-      {
-        float xtemp, ytemp, dist_temp;
-        xtemp = std::cos(i[0] * DEGREE_TO_RAD) * x - std::sin(i[0] * DEGREE_TO_RAD) * y;
-        ytemp = std::sin(i[0] * DEGREE_TO_RAD) * x + std::cos(i[0] * DEGREE_TO_RAD) * y;
-        dist_temp =
-            std::sqrt((gps_odom.x_ - xtemp) * (gps_odom.x_ - xtemp) + (gps_odom.y_ - ytemp) * (gps_odom.y_ - ytemp));
-        i[2] = dist_temp;
-        if (dist_temp_max < dist_temp)
-          dist_temp_max = dist_temp;
-      }
-
-      int indexT = 0, index = 0;
-      for (auto& i : datum_orientation_)
-      {
-        i[1] =
-            (i[1] * static_cast<float>(global_counter_) + static_cast<float>(1. - i[2] / dist_temp_max) * center_map) /
-            static_cast<float>(global_counter_ + center_map);
-
-        if (weight_max < i[1])
-        {
-          weight_max = i[1];
-          indexT = index;
-        }
-
-        index++;
-      }
-
-      if (weight_max > 0.)
-      {
-        heading_ = static_cast<float>(indexT) * DEGREE_TO_RAD;
-        ROS_DEBUG("Solution = %d.", indexT);
-      }
-      else
-        ROS_INFO("Did not find any solution for datum heading.");
-    }
-    else
-      ROS_ERROR("Datum localization is bad. Error on heading location.");
-  }
-
-  return weight_max > 0.6;
+  init_gps_ = false;
 }
 
 void VineSLAM_ros::publishReport() const
@@ -612,7 +490,7 @@ void VineSLAM_ros::publishReport() const
   vineslam_msgs::report report;
   geometry_msgs::PoseArray ros_poses;
   ros_poses.header.stamp = ros::Time::now();
-  ros_poses.header.frame_id = "map";
+  ros_poses.header.frame_id = params_.world_frame_id_;
   report.header.stamp = ros_poses.header.stamp;
   report.header.frame_id = ros_poses.header.frame_id;
   for (const auto& particle : b_particles)
@@ -668,7 +546,6 @@ void VineSLAM_ros::publishReport() const
   report.use_lidar_features.data = params_.use_lidar_features_;
   report.use_image_features.data = params_.use_image_features_;
   report.use_gps.data = params_.use_gps_;
-  report.gps_heading = heading_;
   vineslam_report_publisher_.publish(report);
 }
 

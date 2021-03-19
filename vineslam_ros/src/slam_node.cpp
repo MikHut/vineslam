@@ -26,28 +26,13 @@ SLAMNode::SLAMNode(int argc, char** argv)
   init_gps_ = true;
   init_odom_ = true;
   register_map_ = true;
-  estimate_heading_ = true;
 
   // Declare the Mappers and Localizer objects
   localizer_ = new Localizer(params_);
   land_mapper_ = new LandmarkMapper(params_);
   vis_mapper_ = new VisualMapper(params_);
   lid_mapper_ = new LidarMapper(params_);
-
-  // Initialize local grid map that will be used for relative motion calculation
-  Parameters local_map_params;
-  local_map_params.gridmap_origin_x_ = -30;
-  local_map_params.gridmap_origin_y_ = -30;
-  local_map_params.gridmap_origin_z_ = -0.5;
-  local_map_params.gridmap_resolution_ = 0.20;
-  local_map_params.gridmap_width_ = 60;
-  local_map_params.gridmap_lenght_ = 60;
-  local_map_params.gridmap_height_ = 2.5;
-  previous_map_ = new OccupancyMap(local_map_params, Pose(0, 0, 0, 0, 0, 0));
-
-  // Services
-  polar2pose_ = nh.serviceClient<agrob_map_transform::GetPose>("polar_to_pose");
-  set_datum_ = nh.serviceClient<agrob_map_transform::SetDatum>("datum");
+  timer_ = new Timer("VineSLAM subfunctions");
 
   // Landmark subscription
   ros::Subscriber feat_subscriber =
@@ -66,7 +51,7 @@ SLAMNode::SLAMNode(int argc, char** argv)
 
   // Publish maps and particle filter
   vineslam_report_publisher_ = nh.advertise<vineslam_msgs::report>("/vineslam/report", 1);
-  grid_map_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/occupancyMap", 1);
+  grid_map_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/debug/grid_map_limits", 1);
   elevation_map_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/elevationMap", 1);
   map2D_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/map2D", 1);
   map3D_features_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZRGB>>("/vineslam/map3D/SURF", 1);
@@ -78,8 +63,6 @@ SLAMNode::SLAMNode(int argc, char** argv)
   planars_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planars_local", 1);
   pose_publisher_ = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/pose", 1);
   odom_publisher_ = nh.advertise<nav_msgs::Odometry>("/vineslam/odom", 1);
-  gps_path_publisher_ = nh.advertise<nav_msgs::Path>("/vineslam/gps_path", 1);
-  gps_pose_publisher_ = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/gps_pose", 1);
   path_publisher_ = nh.advertise<nav_msgs::Path>("/vineslam/path", 1);
   poses_publisher_ = nh.advertise<geometry_msgs::PoseArray>("/vineslam/poses", 1);
 
@@ -90,13 +73,6 @@ SLAMNode::SLAMNode(int argc, char** argv)
       nh.advertiseService("stop_registration", &VineSLAM_ros::stopRegistration, dynamic_cast<VineSLAM_ros*>(this));
   ros::ServiceServer stop_hed_srv = nh.advertiseService(
       "stop_gps_heading_estimation", &VineSLAM_ros::stopHeadingEstimation, dynamic_cast<VineSLAM_ros*>(this));
-
-  // GNSS varibales
-  if (params_.use_gps_)
-  {
-    datum_autocorrection_stage_ = 0;
-    global_counter_ = 0;
-  }
 
   ROS_INFO("Allocating map memory...");
   grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0));
@@ -137,14 +113,22 @@ SLAMNode::SLAMNode(int argc, char** argv)
   ROS_INFO("Received!");
 
   // Save sensors to map transformation
-  tf::Vector3 t = vel2base_msg.getOrigin();
-  tfScalar roll, pitch, yaw;
-  vel2base_msg.getBasis().getRPY(roll, pitch, yaw);
-  lid_mapper_->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
+  // Cam
+  tf::Vector3 t_cam = cam2base_msg.getOrigin();
+  tfScalar roll_cam, pitch_cam, yaw_cam;
+  cam2base_msg.getBasis().getRPY(roll_cam, pitch_cam, yaw_cam);
+  vis_mapper_->setCam2Base(t_cam.getX(), t_cam.getY(), t_cam.getZ(), roll_cam, pitch_cam, yaw_cam);
+  // LiDAR
+  tf::Vector3 t_vel = vel2base_msg.getOrigin();
+  tfScalar roll_vel, pitch_vel, yaw_vel;
+  vel2base_msg.getBasis().getRPY(roll_vel, pitch_vel, yaw_vel);
+  lid_mapper_->setVel2Base(t_vel.getX(), t_vel.getY(), t_vel.getZ(), roll_vel, pitch_vel, yaw_vel);
 
   // Call execution thread
-  std::thread th(&VineSLAM_ros::loop, dynamic_cast<VineSLAM_ros*>(this));
-  th.detach();
+  std::thread th1(&VineSLAM_ros::loop, dynamic_cast<VineSLAM_ros*>(this));
+  std::thread th2(&VineSLAM_ros::publishDenseInfo, dynamic_cast<VineSLAM_ros*>(this));
+  th1.detach();
+  th2.detach();
 
   // ROS spin ...
   ROS_INFO("Done! Execution started.");
@@ -155,6 +139,14 @@ SLAMNode::SLAMNode(int argc, char** argv)
 void SLAMNode::loadParameters(const ros::NodeHandle& nh, const std::string& prefix, Parameters& params)
 {
   // Load params
+  if (!nh.getParam(prefix + "/robot_model", params.robot_model_))
+  {
+    ROS_WARN("%s/robot_model parameter not found. ", prefix.c_str());
+  }
+  if (!nh.getParam(prefix + "/world_frame_id", params.world_frame_id_))
+  {
+    ROS_WARN("%s/world_frame_id parameter not found. ", prefix.c_str());
+  }
   if (!nh.getParam(prefix + "/use_semantic_features", params.use_semantic_features_))
   {
     ROS_WARN("%s/semantic_features parameter not found. ", prefix.c_str());
@@ -175,15 +167,7 @@ void SLAMNode::loadParameters(const ros::NodeHandle& nh, const std::string& pref
   {
     ROS_WARN("%s/use_wheel_odometry parameter has not been set. Not using it...", prefix.c_str());
   }
-  if (!nh.getParam(prefix + "/gps_datum/lat", params.latitude_))
-  {
-    ROS_WARN("%s/gps_datum/lat parameter not found. ", prefix.c_str());
-  }
-  if (!nh.getParam(prefix + "/gps_datum/long", params.longitude_))
-  {
-    ROS_WARN("%s/gps_datum/long parameter not found. ", prefix.c_str());
-  }
- if (!nh.getParam(prefix + "/camera_info/baseline", params.baseline_))
+  if (!nh.getParam(prefix + "/camera_info/baseline", params.baseline_))
   {
     ROS_WARN("%s/camera_info/baseline parameter not found. ", prefix.c_str());
   }

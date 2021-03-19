@@ -234,13 +234,16 @@ public:
   // Delete all features in the map
   void clear()
   {
+    // ************************ WARNING ********************** //
+    // ************** This function is very slow ************* //
+    // ******************************************************* //
     for (auto& cell : cell_vec_)
     {
-      cell.corner_features_.clear();
-      cell.planar_features_.clear();
-      cell.surf_features_.clear();
+      cell.corner_features_.shrink_to_fit();
+      cell.planar_features_.shrink_to_fit();
+      cell.surf_features_.shrink_to_fit();
       cell.landmarks_.clear();
-      cell.points_.clear();
+      cell.points_.shrink_to_fit();
     }
 
     n_corner_features_ = 0;

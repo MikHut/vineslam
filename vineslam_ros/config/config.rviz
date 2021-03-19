@@ -4,13 +4,16 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
+        - /TF1/Frames1
         - /Global Maps1
         - /Global Maps1/Global Map 5 - Planes1/Namespaces1
         - /Local Maps1
         - /Local Maps1/Local Map 4 - Planes1/Status1
         - /Debug1
-        - /Sensors1/Odometry1/Status1
-        - /Sensors1/Odometry1/Shape1
+        - /Sensors1
+        - /Sensors1/Wheel Odometry1/Status1
+        - /Sensors1/Wheel Odometry1/Shape1
+        - /Sensors1/GPS Odometry1/Shape1
       Splitter Ratio: 0.6997792720794678
     Tree Height: 570
   - Class: rviz/Selection
@@ -76,12 +79,16 @@ Visualization Manager:
         All Enabled: false
         base_link:
           Value: true
+        enu:
+          Value: true
+        gps:
+          Value: false
         map:
           Value: true
         odom:
           Value: true
         velodyne:
-          Value: true
+          Value: false
         zed_camera_left_optical_frame:
           Value: false
       Marker Alpha: 1
@@ -91,9 +98,13 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
+        enu:
+          {}
         odom:
           map:
             base_link:
+              gps:
+                {}
               velodyne:
                 {}
               zed_camera_left_optical_frame:
@@ -172,8 +183,8 @@ Visualization Manager:
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 10.462973594665527
-            Min Value: -5.3661112785339355
+            Max Value: 6.904229164123535
+            Min Value: -6.084997177124023
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -356,7 +367,7 @@ Visualization Manager:
             Value: true
           Enabled: true
           Keep: 100000
-          Name: Odometry
+          Name: Wheel Odometry
           Position Tolerance: 0.10000000149011612
           Queue Size: 10
           Shape:
@@ -370,6 +381,57 @@ Visualization Manager:
             Shaft Radius: 0.10000000149011612
             Value: Arrow
           Topic: /husky_velocity_controller/odom
+          Unreliable: false
+          Value: true
+        - Angle Tolerance: 0.10000000149011612
+          Class: rviz/Odometry
+          Covariance:
+            Orientation:
+              Alpha: 0.5
+              Color: 255; 255; 127
+              Color Style: Unique
+              Frame: Local
+              Offset: 1
+              Scale: 1
+              Value: true
+            Position:
+              Alpha: 0.30000001192092896
+              Color: 204; 51; 204
+              Scale: 1
+              Value: true
+            Value: true
+          Enabled: true
+          Keep: 100
+          Name: GPS Odometry
+          Position Tolerance: 0.10000000149011612
+          Queue Size: 10
+          Shape:
+            Alpha: 1
+            Axes Length: 1
+            Axes Radius: 0.10000000149011612
+            Color: 237; 212; 0
+            Head Length: 0.30000001192092896
+            Head Radius: 0.10000000149011612
+            Shaft Length: 1
+            Shaft Radius: 0.05000000074505806
+            Value: Arrow
+          Topic: /agrob_map/gps_odometry
+          Unreliable: false
+          Value: true
+        - Alpha: 1
+          Axes Length: 1
+          Axes Radius: 0.10000000149011612
+          Class: rviz/Pose
+          Color: 255; 25; 0
+          Enabled: true
+          Head Length: 0.30000001192092896
+          Head Radius: 0.10000000149011612
+          Name: GPS Pose
+          Queue Size: 10
+          Shaft Length: 1
+          Shaft Radius: 0.05000000074505806
+          Shape: Arrow
+          Topic: /agrob_map/gps_pose
           Unreliable: false
           Value: true
       Enabled: true
@@ -402,7 +464,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 31.93183708190918
+      Distance: 50.837318420410156
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -410,17 +472,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -1.0552575588226318
-        Y: -7.874792098999023
-        Z: -1.1195492334081791e-05
+        X: 4.753430366516113
+        Y: 0.6543458700180054
+        Z: -1.9936323951696977e-05
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.2947959899902344
+      Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 4.313274383544922
+      Yaw: 2.965090751647949
     Saved: ~
 Window Geometry:
   Displays:

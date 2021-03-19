@@ -26,7 +26,6 @@ SLAMNode::SLAMNode(int argc, char** argv)
   init_gps_ = true;
   init_odom_ = true;
   register_map_ = true;
-  estimate_heading_ = true;
 
   // Declare the Mappers and Localizer objects
   localizer_ = new Localizer(params_);
@@ -34,10 +33,6 @@ SLAMNode::SLAMNode(int argc, char** argv)
   vis_mapper_ = new VisualMapper(params_);
   lid_mapper_ = new LidarMapper(params_);
   timer_ = new Timer("VineSLAM subfunctions");
-
-  // Services
-  polar2pose_ = nh.serviceClient<agrob_map_transform::GetPose>("polar_to_pose");
-  set_datum_ = nh.serviceClient<agrob_map_transform::SetDatum>("datum");
 
   // Landmark subscription
   ros::Subscriber feat_subscriber =
@@ -68,8 +63,6 @@ SLAMNode::SLAMNode(int argc, char** argv)
   planars_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planars_local", 1);
   pose_publisher_ = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/pose", 1);
   odom_publisher_ = nh.advertise<nav_msgs::Odometry>("/vineslam/odom", 1);
-  gps_path_publisher_ = nh.advertise<nav_msgs::Path>("/vineslam/gps_path", 1);
-  gps_pose_publisher_ = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/gps_pose", 1);
   path_publisher_ = nh.advertise<nav_msgs::Path>("/vineslam/path", 1);
   poses_publisher_ = nh.advertise<geometry_msgs::PoseArray>("/vineslam/poses", 1);
 
@@ -80,13 +73,6 @@ SLAMNode::SLAMNode(int argc, char** argv)
       nh.advertiseService("stop_registration", &VineSLAM_ros::stopRegistration, dynamic_cast<VineSLAM_ros*>(this));
   ros::ServiceServer stop_hed_srv = nh.advertiseService(
       "stop_gps_heading_estimation", &VineSLAM_ros::stopHeadingEstimation, dynamic_cast<VineSLAM_ros*>(this));
-
-  // GNSS varibales
-  if (params_.use_gps_)
-  {
-    datum_autocorrection_stage_ = 0;
-    global_counter_ = 0;
-  }
 
   ROS_INFO("Allocating map memory...");
   grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0));
@@ -153,6 +139,14 @@ SLAMNode::SLAMNode(int argc, char** argv)
 void SLAMNode::loadParameters(const ros::NodeHandle& nh, const std::string& prefix, Parameters& params)
 {
   // Load params
+  if (!nh.getParam(prefix + "/robot_model", params.robot_model_))
+  {
+    ROS_WARN("%s/robot_model parameter not found. ", prefix.c_str());
+  }
+  if (!nh.getParam(prefix + "/world_frame_id", params.world_frame_id_))
+  {
+    ROS_WARN("%s/world_frame_id parameter not found. ", prefix.c_str());
+  }
   if (!nh.getParam(prefix + "/use_semantic_features", params.use_semantic_features_))
   {
     ROS_WARN("%s/semantic_features parameter not found. ", prefix.c_str());
@@ -173,15 +167,7 @@ void SLAMNode::loadParameters(const ros::NodeHandle& nh, const std::string& pref
   {
     ROS_WARN("%s/use_wheel_odometry parameter has not been set. Not using it...", prefix.c_str());
   }
-  if (!nh.getParam(prefix + "/gps_datum/lat", params.latitude_))
-  {
-    ROS_WARN("%s/gps_datum/lat parameter not found. ", prefix.c_str());
-  }
-  if (!nh.getParam(prefix + "/gps_datum/long", params.longitude_))
-  {
-    ROS_WARN("%s/gps_datum/long parameter not found. ", prefix.c_str());
-  }
- if (!nh.getParam(prefix + "/camera_info/baseline", params.baseline_))
+  if (!nh.getParam(prefix + "/camera_info/baseline", params.baseline_))
   {
     ROS_WARN("%s/camera_info/baseline parameter not found. ", prefix.c_str());
   }

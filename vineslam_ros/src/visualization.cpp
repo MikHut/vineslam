@@ -30,7 +30,7 @@ void VineSLAM_ros::publishGridMapLimits() const
   visualization_msgs::MarkerArray marker_array;
 
   visualization_msgs::Marker grid_map_cube;
-  grid_map_cube.header.frame_id = "map";
+  grid_map_cube.header.frame_id = params_.world_frame_id_;
   grid_map_cube.header.stamp = ros::Time::now();
   grid_map_cube.id = 0;
   grid_map_cube.type = visualization_msgs::Marker::CUBE;
@@ -101,7 +101,7 @@ void VineSLAM_ros::publish2DMap(const Pose& pose, const std::vector<float>& bear
       // Draw sfeature mean
       marker.id = id;
       marker.header.stamp = ros::Time::now();
-      marker.header.frame_id = "map";
+      marker.header.frame_id = params_.world_frame_id_;
       marker.pose.position.x = l_sfeature.second.pos_.x_;
       marker.pose.position.y = l_sfeature.second.pos_.y_;
       marker.pose.position.z = l_sfeature.second.pos_.z_;
@@ -114,7 +114,7 @@ void VineSLAM_ros::publish2DMap(const Pose& pose, const std::vector<float>& bear
 
       ellipse.id = id;
       ellipse.header.stamp = ros::Time::now();
-      ellipse.header.frame_id = "map";
+      ellipse.header.frame_id = params_.world_frame_id_;
       ellipse.pose.position.x = l_sfeature.second.pos_.x_;
       ellipse.pose.position.y = l_sfeature.second.pos_.y_;
       ellipse.pose.position.z = l_sfeature.second.pos_.z_;
@@ -137,7 +137,7 @@ void VineSLAM_ros::publish2DMap(const Pose& pose, const std::vector<float>& bear
 
   ellipse.id = id;
   ellipse.header.stamp = ros::Time::now();
-  ellipse.header.frame_id = "map";
+  ellipse.header.frame_id = params_.world_frame_id_;
   ellipse.pose.position.x = pose.x_;
   ellipse.pose.position.y = pose.y_;
   ellipse.pose.position.z = pose.z_;
@@ -168,7 +168,7 @@ void VineSLAM_ros::publishElevationMap() const
   // Define marker layout
   cube.ns = "/elevation_cube";
   cube.header.stamp = ros::Time::now();
-  cube.header.frame_id = "map";
+  cube.header.frame_id = params_.world_frame_id_;
   cube.type = visualization_msgs::Marker::CUBE;
   cube.action = visualization_msgs::Marker::ADD;
   cube.pose.orientation.x = 0.0;
@@ -263,9 +263,9 @@ void VineSLAM_ros::publish3DMap() const
 
   publish3DMap(Pose(0, 0, 0, 0, 0, 0), grid_map_->planes_, map3D_planes_publisher_);
 
-  feature_cloud->header.frame_id = "map";
-  corner_cloud->header.frame_id = "map";
-  planar_cloud->header.frame_id = "map";
+  feature_cloud->header.frame_id = params_.world_frame_id_;
+  corner_cloud->header.frame_id = params_.world_frame_id_;
+  planar_cloud->header.frame_id = params_.world_frame_id_;
   map3D_features_publisher_.publish(feature_cloud);
   map3D_corners_publisher_.publish(corner_cloud);
   map3D_planars_publisher_.publish(planar_cloud);
@@ -283,7 +283,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<Plane>& planes, const ros::Pub
   viz_pts.scale.x = 0.1;
   viz_pts.scale.y = 0.1;
   viz_pts.lifetime = ros::Duration(0.2);
-  viz_pts.header.frame_id = "map";
+  viz_pts.header.frame_id = params_.world_frame_id_;
 
   std::array<float, 9> robot_R{};
   robot_pose_.toRotMatrix(robot_R);
@@ -314,7 +314,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<Plane>& planes, const ros::Pub
   pub.publish(marker_array);
 }
 
-void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<Plane>& planes, const ros::Publisher& pub)
+void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<Plane>& planes, const ros::Publisher& pub) const
 {
   visualization_msgs::MarkerArray marker_array;
   visualization_msgs::Marker viz_pts;
@@ -326,7 +326,7 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<Plane>& pl
   viz_pts.scale.x = 0.1;
   viz_pts.scale.y = 0.1;
   viz_pts.lifetime = ros::Duration(0.2);
-  viz_pts.header.frame_id = "map";
+  viz_pts.header.frame_id = params_.world_frame_id_;
 
   std::array<float, 9> robot_R{};
   r_pose.toRotMatrix(robot_R);
@@ -371,7 +371,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<SemiPlane>& planes, const ros:
   viz_pts.action = visualization_msgs::Marker::ADD;
   viz_pts.lifetime = ros::Duration(0.2);
   viz_pts.scale.x = 0.1;
-  viz_pts.header.frame_id = "map";
+  viz_pts.header.frame_id = params_.world_frame_id_;
 
   viz_line.ns = "/plane_extremas";
   viz_line.type = visualization_msgs::Marker::LINE_STRIP;
@@ -382,7 +382,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<SemiPlane>& planes, const ros:
   viz_line.color.b = 1.0;
   viz_line.color.a = 1.0;
   viz_line.lifetime = ros::Duration(0.2);
-  viz_line.header.frame_id = "map";
+  viz_line.header.frame_id = params_.world_frame_id_;
 
   viz_normal.ns = "/plane_normal";
   viz_normal.type = visualization_msgs::Marker::LINE_STRIP;
@@ -393,7 +393,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<SemiPlane>& planes, const ros:
   viz_normal.color.g = 0;
   viz_normal.scale.x = 0.1;
   viz_normal.lifetime = ros::Duration(0.2);
-  viz_normal.header.frame_id = "map";
+  viz_normal.header.frame_id = params_.world_frame_id_;
 
   std::array<float, 9> robot_R{};
   robot_pose_.toRotMatrix(robot_R);
@@ -496,7 +496,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<SemiPlane>& planes, const ros:
   pub.publish(marker_array);
 }
 
-void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>& planes, const ros::Publisher& pub)
+void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>& planes, const ros::Publisher& pub) const
 {
   visualization_msgs::MarkerArray marker_array;
   visualization_msgs::Marker viz_pts;
@@ -510,7 +510,7 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>
   viz_pts.action = visualization_msgs::Marker::ADD;
   viz_pts.lifetime = ros::Duration(0.2);
   viz_pts.scale.x = 0.1;
-  viz_pts.header.frame_id = "map";
+  viz_pts.header.frame_id = params_.world_frame_id_;
 
   viz_line.ns = "/plane_extremas";
   viz_line.type = visualization_msgs::Marker::LINE_STRIP;
@@ -522,7 +522,7 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>
   viz_line.scale.x = 0.1;
   viz_line.scale.y = 0.1;
   viz_line.lifetime = ros::Duration(0.2);
-  viz_line.header.frame_id = "map";
+  viz_line.header.frame_id = params_.world_frame_id_;
 
   viz_normal.ns = "/plane_normal";
   viz_normal.type = visualization_msgs::Marker::LINE_STRIP;
@@ -533,7 +533,7 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>
   viz_normal.color.g = 0;
   viz_normal.scale.x = 0.1;
   viz_normal.lifetime = ros::Duration(0.2);
-  viz_normal.header.frame_id = "map";
+  viz_normal.header.frame_id = params_.world_frame_id_;
 
   std::array<float, 9> robot_R{};
   r_pose.toRotMatrix(robot_R);
@@ -656,7 +656,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<Corner>& corners, const ros::P
     cloud_out->points.push_back(pcl_pt);
   }
 
-  cloud_out->header.frame_id = "map";
+  cloud_out->header.frame_id = params_.world_frame_id_;
   pub.publish(cloud_out);
 }
 
@@ -681,7 +681,7 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<Corner>& c
     cloud_out->points.push_back(pcl_pt);
   }
 
-  cloud_out->header.frame_id = "map";
+  cloud_out->header.frame_id = params_.world_frame_id_;
   pub.publish(cloud_out);
 }
 
@@ -706,7 +706,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<Planar>& planars, const ros::P
     cloud_out->points.push_back(pcl_pt);
   }
 
-  cloud_out->header.frame_id = "map";
+  cloud_out->header.frame_id = params_.world_frame_id_;
   pub.publish(cloud_out);
 }
 
@@ -731,7 +731,7 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<Planar>& p
     cloud_out->points.push_back(pcl_pt);
   }
 
-  cloud_out->header.frame_id = "map";
+  cloud_out->header.frame_id = params_.world_frame_id_;
   pub.publish(cloud_out);
 }
 

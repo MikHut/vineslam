@@ -1,15 +1,13 @@
 # General system settings
+robot_model: agrob  # {agrob, rocha}
+world_frame_id: map
 use_semantic_features: False
 use_lidar_features: True
 use_image_features: False
 use_gps: False
 use_wheel_odometry: True
 
-# GPS datum
-gps_datum:
-  lat: 41.205517
-  long: -8.3073515
-
+# Camera info
 camera_info:
   baseline: 0.12 # meters
   fx: 692.95849609375  # pixels

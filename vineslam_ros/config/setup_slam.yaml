@@ -16,7 +16,7 @@ camera_info:
 # Grid map definitions
 grid_map:
   origin:
-    x: -75
+    x: -40
     y: -75
     z: -2.0
   width: 150

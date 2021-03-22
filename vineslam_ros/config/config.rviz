@@ -83,7 +83,7 @@ Visualization Manager:
           Value: true
         gps:
           Value: false
-        map:
+        map_nn2:
           Value: true
         odom:
           Value: true
@@ -99,9 +99,7 @@ Visualization Manager:
       Show Names: true
       Tree:
         enu:
-          {}
-        odom:
-          map:
+          map_nn2:
             base_link:
               gps:
                 {}
@@ -109,6 +107,8 @@ Visualization Manager:
                 {}
               zed_camera_left_optical_frame:
                 {}
+        odom:
+          {}
       Update Interval: 0
       Value: true
     - Class: rviz/Group
@@ -183,8 +183,8 @@ Visualization Manager:
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 6.904229164123535
-            Min Value: -6.084997177124023
+            Max Value: 6.6425371170043945
+            Min Value: -5.612194061279297
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -440,7 +440,7 @@ Visualization Manager:
   Global Options:
     Background Color: 0; 0; 0
     Default Light: true
-    Fixed Frame: map
+    Fixed Frame: map_nn2
     Frame Rate: 30
   Name: root
   Tools:
@@ -464,7 +464,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 50.837318420410156
+      Distance: 25.31621551513672
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -472,8 +472,8 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 4.753430366516113
-        Y: 0.6543458700180054
+        X: 1.1529648303985596
+        Y: -3.917370319366455
         Z: -1.9936323951696977e-05
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
@@ -482,7 +482,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 2.965090751647949
+      Yaw: 4.5850958824157715
     Saved: ~
 Window Geometry:
   Displays:

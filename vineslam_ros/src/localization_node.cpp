@@ -199,6 +199,14 @@ void LocalizationNode::loadParameters(const ros::NodeHandle& nh, const std::stri
   const std::string& node_name = ros::this_node::getName();
 
   // Load params
+  if (!nh.getParam(prefix + "/robot_model", params.robot_model_))
+  {
+    ROS_WARN("%s/robot_model parameter not found. ", prefix.c_str());
+  }
+  if (!nh.getParam(prefix + "/world_frame_id", params.world_frame_id_))
+  {
+    ROS_WARN("%s/world_frame_id parameter not found. ", prefix.c_str());
+  }
   if (!nh.getParam(prefix + "/use_semantic_features", params.use_semantic_features_))
   {
     ROS_WARN("%s/semantic_features parameter not found. Shutting down...", prefix.c_str());

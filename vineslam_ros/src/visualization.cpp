@@ -179,13 +179,13 @@ void VineSLAM_ros::publishElevationMap() const
   cube.lifetime = ros::Duration();
 
   // Compute map layer bounds
-  float xmin = elevation_map_->origin_.x_;
+  float xmin = elevation_map_->origin_.x_ + elevation_map_->resolution_;
   float xmax = xmin + elevation_map_->width_;
-  float ymin = elevation_map_->origin_.y_;
-  float ymax = xmin + elevation_map_->lenght_;
-  for (float i = xmin; i < xmax - elevation_map_->resolution_;)
+  float ymin = elevation_map_->origin_.y_ + elevation_map_->resolution_;
+  float ymax = ymin + elevation_map_->lenght_;
+  for (float i = xmin; i < xmax - (2 * elevation_map_->resolution_);)
   {
-    for (float j = ymin; j < ymax - elevation_map_->resolution_;)
+    for (float j = ymin; j < ymax - (2 * elevation_map_->resolution_);)
     {
       float z = (*elevation_map_)(i, j);
       if (z == 0)
@@ -213,9 +213,9 @@ void VineSLAM_ros::publishElevationMap() const
 
       elevation_map_marker.markers.push_back(cube);
 
-      j += grid_map_->resolution_;
+      j += elevation_map_->resolution_;
     }
-    i += grid_map_->resolution_;
+    i += elevation_map_->resolution_;
   }
 
   elevation_map_publisher_.publish(elevation_map_marker);

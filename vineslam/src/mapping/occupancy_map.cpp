@@ -1144,7 +1144,7 @@ OccupancyMap::OccupancyMap(const Parameters& params, const Pose& origin_offset)
 {
   // Read input parameters
   origin_.x_ = params.gridmap_origin_x_ + origin_offset.x_;
-  origin_.y_ = params.gridmap_origin_y_ + origin_offset.x_;
+  origin_.y_ = params.gridmap_origin_y_ + origin_offset.y_;
   origin_.z_ = params.gridmap_origin_z_;
   resolution_ = params.gridmap_resolution_;
   resolution_z_ = resolution_ / 8;

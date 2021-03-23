@@ -1,7 +1,6 @@
 #pragma once
 
 // vineslam members
-//#include <params_loader.hpp>
 #include <vineslam/feature/semantic.hpp>
 #include <vineslam/feature/visual.hpp>
 #include <vineslam/feature/three_dimensional.hpp>
@@ -17,6 +16,7 @@
 #include <vineslam/mapxml/map_writer.hpp>
 #include <vineslam/mapxml/map_parser.hpp>
 #include <vineslam/utils/save_data.hpp>
+#include <vineslam/utils/Timer.hpp>
 // ----------------------------
 #include <vineslam_msgs/msg/particle.hpp>
 #include <vineslam_msgs/msg/report.hpp>
@@ -25,7 +25,6 @@
 // ----------------------------
 #include <vineslam_ros/srv/start_map_registration.hpp>
 #include <vineslam_ros/srv/stop_map_registration.hpp>
-#include <vineslam_ros/srv/stop_gps_heading_estimation.hpp>
 #include <vineslam_ros/srv/save_map.hpp>
 // ----------------------------
 
@@ -86,15 +85,13 @@ public:
   void odomListener(const nav_msgs::msg::Odometry::SharedPtr msg);
 
   // GPS callback function
-  void gpsListener(const sensor_msgs::msg::NavSatFix::SharedPtr msg);
+  void gpsListener(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
 
   // Services callbacks
   bool startRegistration(vineslam_ros::srv::StartMapRegistration::Request::SharedPtr,
                          vineslam_ros::srv::StartMapRegistration::Response::SharedPtr);
   bool stopRegistration(vineslam_ros::srv::StopMapRegistration::Request::SharedPtr,
                         vineslam_ros::srv::StopMapRegistration::Response::SharedPtr);
-  bool stopHeadingEstimation(vineslam_ros::srv::StopGpsHeadingEstimation::Request::SharedPtr,
-                             vineslam_ros::srv::StopGpsHeadingEstimation::Response::SharedPtr);
   bool saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr, vineslam_ros::srv::SaveMap::Response::SharedPtr);
 
   // Conversions
@@ -107,38 +104,38 @@ public:
   // Tf2 broadcaster
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
-
+  // Global thread to publish maps and other info
+  void publishDenseInfo();
   // Publish 2D semantic features map
   void publish2DMap(const Pose& pose, const std::vector<float>& bearings, const std::vector<float>& depths) const;
   // Publish the elevation map
   void publishElevationMap() const;
   // Publish the 3D maps
-  void publish3DMap() const;
+  void publish3DMap();
   // Publish the 3D PCL planes
   void publish3DMap(const std::vector<Plane>& planes,
                     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub);
-  static void publish3DMap(const Pose& r_pose, const std::vector<Plane>& planes,
+  void publish3DMap(const Pose& r_pose, const std::vector<Plane>& planes,
                            rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub);
   // Publish the 3D PCL semi planes
   void publish3DMap(const std::vector<SemiPlane>& planes,
                     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub);
-  static void publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>& planes,
+  void publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>& planes,
                            rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub);
   // Publish a 3D PCL corners map
-  void publish3DMap(const std::vector<Corner>& corners, const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub);
-  static void publish3DMap(const Pose& r_pose, const std::vector<Corner>& corners,
+  void publish3DMap(const std::vector<Corner>& corners,
+                    const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub);
+  void publish3DMap(const Pose& r_pose, const std::vector<Corner>& corners,
                            rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub);
   // Publish a 3D PCL planar features map
-  void publish3DMap(const std::vector<Planar>& planars, const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub);
-  static void publish3DMap(const Pose& r_pose, const std::vector<Planar>& planars,
+  void publish3DMap(const std::vector<Planar>& planars,
+                    const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub);
+  void publish3DMap(const Pose& r_pose, const std::vector<Planar>& planars,
                            rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub);
-  // Publish the grid map that contains all the maps
-  void publishGridMap(const std_msgs::msg::Header& header) const;
+  // Publishes a box containing the grid map
+  void publishGridMapLimits() const;
   // Publishes a VineSLAM state report for debug purposes
   void publishReport() const;
-
-  // GNSS heading estimator
-  bool getGNSSHeading(const Pose& gps_odom, const std_msgs::msg::Header header);
 
   // VineSLAM input data
   struct InputData
@@ -180,8 +177,6 @@ public:
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_publisher_;
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr poses_publisher_;
-  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr gps_path_publisher_;
-  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr gps_pose_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr corners_local_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr planars_local_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr planes_local_publisher_;
@@ -191,27 +186,18 @@ public:
   Localizer* localizer_;
   ElevationMap* elevation_map_;
   OccupancyMap* grid_map_;
-  OccupancyMap* previous_map_;
   LandmarkMapper* land_mapper_;
   VisualMapper* vis_mapper_;
   LidarMapper* lid_mapper_;
+  Timer* timer_;
   Observation obsv_;
 
   // Array of poses to store and publish the robot path
   std::vector<geometry_msgs::msg::PoseStamped> path_;
-  std::vector<geometry_msgs::msg::PoseStamped> gps_poses_;
 
   // Motion variables
   Pose init_odom_pose_;
   Pose robot_pose_;
-
-  // GNSS variables
-  int datum_autocorrection_stage_;
-  int32_t global_counter_;
-  float datum_orientation_[360][4]{};
-  bool has_converged_{};
-  bool estimate_heading_;
-  float heading_;
 
   // Initialization flags
   bool init_flag_;

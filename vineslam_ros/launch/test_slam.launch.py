@@ -58,12 +58,16 @@ def generate_launch_description():
         name='slam_node',
         parameters=[config],
         remappings=[
-            ('/odom_topic', '/husky_velocity_controller/odom'),
+            ('/odom_topic', '/white/husky_velocity_controller/odom'),
             ('/gps_topic', '/fix'),
             ('/features_topic', '/image_feature_array'),
             ('/detections_topic', '/tpu/detections'),
-            ('/scan_topic', '/velodyne_points'),
-        ]
+            ('/scan_topic', '/white/velodyne_points'),
+        ],
+        output={
+            'stdout': 'screen',
+            'stderr': 'screen',
+        }
     )
     ld.add_action(vineslam)
 
@@ -81,7 +85,7 @@ def generate_launch_description():
         )
         ld.add_action(republish)
 
-    if config['slam_node']['use_semantic_features'] == True:
+    if config['slam_node']['use_semantic_features']:
         # Detector node
 
         detector = Node(
@@ -99,7 +103,7 @@ def generate_launch_description():
         )
         ld.add_action(detector)
 
-    if config['slam_node']['use_semantic_features'] == True:
+    if config['slam_node']['use_semantic_features']:
         vfe_config_path = os.path.join(
             get_package_share_directory('vfe'),
             'config',
@@ -127,7 +131,7 @@ def generate_launch_description():
         package='rviz2',
         executable='rviz2',
         name='rviz2',
-        arguments=['-d', rviz_path],
+        arguments=['-d', rviz_path, '--ros-args', '--log-level', 'INFO'],
     )
     ld.add_action(rviz)
 

@@ -22,14 +22,6 @@ bool VineSLAM_ros::stopRegistration(vineslam_ros::srv::StopMapRegistration::Requ
   return true;
 }
 
-bool VineSLAM_ros::stopHeadingEstimation(vineslam_ros::srv::StopGpsHeadingEstimation::Request::SharedPtr,
-                                         vineslam_ros::srv::StopGpsHeadingEstimation::Response::SharedPtr)
-{
-  RCLCPP_INFO(this->get_logger(), "Deactivating gps heading estimation ...\n");
-  estimate_heading_ = false;
-  return true;
-}
-
 bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
                            vineslam_ros::srv::SaveMap::Response::SharedPtr)
 {
@@ -96,7 +88,14 @@ void VineSLAM_ros::loopOnce()
     init_flag_ = false;
   }
   else
+  {
+    Timer l_timer("VineSLAM main loop");
+    l_timer.tick("vineslam_ros::process()");
     process();
+    l_timer.tock();
+    l_timer.getLog();
+    l_timer.clearLog();
+  }
 
   // Reset information flags
   input_data_.received_image_features_ = false;
@@ -104,6 +103,9 @@ void VineSLAM_ros::loopOnce()
   input_data_.received_landmarks_ = false;
   input_data_.received_odometry_ = false;
   input_data_.received_gnss_ = false;
+
+  timer_->getLog();
+  timer_->clearLog();
 }
 
 void VineSLAM_ros::init()
@@ -133,14 +135,6 @@ void VineSLAM_ros::init()
   if (params_.use_lidar_features_)
   {
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
-
-    // - Save local map for next iteration
-    previous_map_->clear();
-    for (const auto& planar : l_planars)
-      previous_map_->insert(planar);
-    for (const auto& corner : l_corners)
-      previous_map_->insert(corner);
-    previous_map_->downsamplePlanars();
   }
 
   // - 3D image feature map estimation
@@ -176,7 +170,9 @@ void VineSLAM_ros::process()
   std::vector<SemanticFeature> l_landmarks;
   if (params_.use_semantic_features_)
   {
+    timer_->tick("landmark_mapper::localMap()");
     land_mapper_->localMap(input_data_.land_bearings_, input_data_.land_depths_, l_landmarks);
+    timer_->tock();
   }
 
   // - Compute 3D PCL corners and ground plane on robot's referential frame
@@ -186,14 +182,18 @@ void VineSLAM_ros::process()
   SemiPlane l_ground_plane;
   if (params_.use_lidar_features_)
   {
+    timer_->tick("lidar_mapper::localMap()");
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+    timer_->tock();
   }
 
   // - Compute 3D image features on robot's referential frame
   std::vector<ImageFeature> l_surf_features;
   if (params_.use_image_features_)
   {
+    timer_->tick("visual_mapper::localMap()");
     vis_mapper_->localMap(input_data_.image_features_, l_surf_features);
+    timer_->tock();
   }
 
   // ---------------------------------------------------------
@@ -209,7 +209,7 @@ void VineSLAM_ros::process()
   obsv_.ground_plane = l_ground_plane;
   obsv_.planes = l_planes;
   obsv_.surf_features = l_surf_features;
-  if (has_converged_ && params_.use_gps_)
+  if (params_.use_gps_ && !init_gps_)
   {
     obsv_.gps_pose = input_data_.gnss_pose_;
   }
@@ -225,18 +225,32 @@ void VineSLAM_ros::process()
   Pose odom_inc(odom_inc_tf.R_array_, odom_inc_tf.t_array_);
   input_data_.p_wheel_odom_pose_ = input_data_.wheel_odom_pose_;
   odom_inc.normalize();
-  localizer_->process(odom_inc, obsv_, previous_map_, grid_map_);
+
+  timer_->tick("localizer::process()");
+  localizer_->process(odom_inc, obsv_, grid_map_);
   robot_pose_ = localizer_->getPose();
+  timer_->tock();
 
   // ---------------------------------------------------------
   // ----- Register multi-layer map (if performing SLAM)
   // ---------------------------------------------------------
   if (register_map_)
   {
+    timer_->tick("landmark_mapper::process()");
     land_mapper_->process(robot_pose_, l_landmarks, input_data_.land_labels_, *grid_map_);
+    timer_->tock();
+
+    timer_->tick("visual_mapper::registerMaps()");
     vis_mapper_->registerMaps(robot_pose_, l_surf_features, *grid_map_);
+    timer_->tock();
+
+    timer_->tick("lidar_mapper::registerMaps()");
     lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, l_ground_plane, *grid_map_, *elevation_map_);
+    timer_->tock();
+
+    timer_->tick("grid_map::downsamplePlanars()");
     grid_map_->downsamplePlanars();
+    timer_->tock();
   }
 
   // ---------------------------------------------------------
@@ -250,7 +264,7 @@ void VineSLAM_ros::process()
   // ---- base2map
   geometry_msgs::msg::TransformStamped base2map_tf;
   base2map_tf.header.stamp = rclcpp::Time();
-  base2map_tf.header.frame_id = "/map";
+  base2map_tf.header.frame_id = params_.world_frame_id_;
   base2map_tf.child_frame_id = "/base_link";
   q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
   q.normalize();
@@ -261,7 +275,7 @@ void VineSLAM_ros::process()
   geometry_msgs::msg::TransformStamped map2odom_tf;
   map2odom_tf.header.stamp = rclcpp::Time();
   map2odom_tf.header.frame_id = "/odom";
-  map2odom_tf.child_frame_id = "/map";
+  map2odom_tf.child_frame_id = params_.world_frame_id_;
   q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
   q.normalize();
   pose2TransformStamped(q, tf2::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_), map2odom_tf);
@@ -271,7 +285,7 @@ void VineSLAM_ros::process()
   // Convert vineslam pose to ROS pose and publish it
   geometry_msgs::msg::PoseStamped pose_stamped;
   pose_stamped.header.stamp = rclcpp::Time();
-  pose_stamped.header.frame_id = "map";
+  pose_stamped.header.frame_id = params_.world_frame_id_;
   pose_stamped.pose.position.x = robot_pose_.x_;
   pose_stamped.pose.position.y = robot_pose_.y_;
   pose_stamped.pose.position.z = robot_pose_.z_;
@@ -285,30 +299,15 @@ void VineSLAM_ros::process()
   path_.push_back(pose_stamped);
   nav_msgs::msg::Path ros_path;
   ros_path.header.stamp = rclcpp::Time();
-  ros_path.header.frame_id = "map";
+  ros_path.header.frame_id = params_.world_frame_id_;
   ros_path.poses = path_;
   path_publisher_->publish(ros_path);
 
-  // Publishes the VineSLAM report
-  publishReport();
-
-  // Publish the 2D map
-  publish2DMap(robot_pose_, input_data_.land_bearings_, input_data_.land_depths_);
-  // Publish 3D maps
-  publish3DMap();
-  publishElevationMap();
+  // Local map publishers
   publish3DMap(l_corners, corners_local_publisher_);
   publish3DMap(l_planars, planars_local_publisher_);
   l_planes.push_back(l_ground_plane);
   publish3DMap(l_planes, planes_local_publisher_);
-
-  // - Prepare next iteration
-  previous_map_->clear();
-  for (const auto& planar : l_planars)
-    previous_map_->insert(planar);
-  for (const auto& corner : l_corners)
-    previous_map_->insert(corner);
-  previous_map_->downsamplePlanars();
 }
 
 void VineSLAM_ros::imageFeatureListener(const vineslam_msgs::msg::FeatureArray::SharedPtr features)
@@ -432,103 +431,8 @@ void VineSLAM_ros::odomListener(const nav_msgs::msg::Odometry::SharedPtr msg)
   input_data_.received_odometry_ = true;
 }
 
-void VineSLAM_ros::gpsListener(const sensor_msgs::msg::NavSatFix::SharedPtr msg)
+void VineSLAM_ros::gpsListener(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
 {
-}
-
-bool VineSLAM_ros::getGNSSHeading(const Pose& gps_odom, const std_msgs::msg::Header header)
-{
-  float weight_max = 0.;
-  if (datum_autocorrection_stage_ == 0)
-  {
-    RCLCPP_DEBUG(this->get_logger(), "Initialization of AGROB DATUM");
-    datum_autocorrection_stage_++;
-  }
-  else
-  {
-    float x, y;
-    x = robot_pose_.x_;
-    y = robot_pose_.y_;
-
-    float distance = std::sqrt((gps_odom.x_ - x) * (gps_odom.x_ - x) + (gps_odom.y_ - y) * (gps_odom.y_ - y));
-    float center_map = std::sqrt(gps_odom.x_ * gps_odom.x_ + gps_odom.y_ * gps_odom.y_);
-
-    if (datum_autocorrection_stage_ == 1)
-    {
-      if (center_map < 2.0)
-      {
-        if (distance < 5.0)
-        {
-          datum_autocorrection_stage_ = 2;
-        }
-        else
-        {
-          RCLCPP_ERROR(this->get_logger(), "Datum localization is bad. Error on heading location.");
-          datum_autocorrection_stage_ = -1;
-        }
-      }
-      else
-      {
-        RCLCPP_ERROR(this->get_logger(), "Error on heading location.");
-        datum_autocorrection_stage_ = -1;
-      }
-    }
-    else if (datum_autocorrection_stage_ == 2)
-    {
-      RCLCPP_DEBUG(this->get_logger(), "Initializing datum filter.");
-      for (int i = 0; i < 360; i++)
-      {
-        datum_orientation_[i][0] = static_cast<float>(i);
-        datum_orientation_[i][1] = 1.0;
-      }
-      datum_autocorrection_stage_ = 3;
-    }
-    else if (datum_autocorrection_stage_ == 3)
-    {
-      global_counter_++;
-
-      float dist_temp_max = 0.0;
-      for (auto& i : datum_orientation_)
-      {
-        float xtemp, ytemp, dist_temp;
-        xtemp = std::cos(i[0] * DEGREE_TO_RAD) * x - std::sin(i[0] * DEGREE_TO_RAD) * y;
-        ytemp = std::sin(i[0] * DEGREE_TO_RAD) * x + std::cos(i[0] * DEGREE_TO_RAD) * y;
-        dist_temp =
-            std::sqrt((gps_odom.x_ - xtemp) * (gps_odom.x_ - xtemp) + (gps_odom.y_ - ytemp) * (gps_odom.y_ - ytemp));
-        i[2] = dist_temp;
-        if (dist_temp_max < dist_temp)
-          dist_temp_max = dist_temp;
-      }
-
-      int indexT = 0, index = 0;
-      for (auto& i : datum_orientation_)
-      {
-        i[1] =
-            (i[1] * static_cast<float>(global_counter_) + static_cast<float>(1. - i[2] / dist_temp_max) * center_map) /
-            static_cast<float>(global_counter_ + center_map);
-
-        if (weight_max < i[1])
-        {
-          weight_max = i[1];
-          indexT = index;
-        }
-
-        index++;
-      }
-
-      if (weight_max > 0.)
-      {
-        heading_ = static_cast<float>(indexT) * DEGREE_TO_RAD;
-        RCLCPP_DEBUG(this->get_logger(), "Solution = %d.", indexT);
-      }
-      else
-        RCLCPP_INFO(this->get_logger(), "Did not find any solution for datum heading.");
-    }
-    else
-      RCLCPP_ERROR(this->get_logger(), "Datum localization is bad. Error on heading location.");
-  }
-
-  return weight_max > 0.6;
 }
 
 void VineSLAM_ros::publishReport() const
@@ -542,7 +446,7 @@ void VineSLAM_ros::publishReport() const
   vineslam_msgs::msg::Report report;
   geometry_msgs::msg::PoseArray ros_poses;
   ros_poses.header.stamp = rclcpp::Time();
-  ros_poses.header.frame_id = "map";
+  ros_poses.header.frame_id = params_.world_frame_id_;
   report.header.stamp = ros_poses.header.stamp;
   report.header.frame_id = ros_poses.header.frame_id;
   for (const auto& particle : b_particles)
@@ -598,7 +502,6 @@ void VineSLAM_ros::publishReport() const
   report.use_lidar_features.data = params_.use_lidar_features_;
   report.use_image_features.data = params_.use_image_features_;
   report.use_gps.data = params_.use_gps_;
-  report.gps_heading = heading_;
   vineslam_report_publisher_->publish(report);
 }
 

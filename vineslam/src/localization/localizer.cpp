@@ -25,29 +25,16 @@ void Localizer::init(const Pose& initial_pose)
   init_flag_ = true;
 }
 
-void Localizer::process(const Pose& wheel_odom_inc, const Observation& obsv, OccupancyMap* previous_map, OccupancyMap* grid_map)
+void Localizer::process(const Pose& wheel_odom_inc, const Observation& obsv, OccupancyMap* grid_map)
 {
   auto before = std::chrono::high_resolution_clock::now();
   // Resets
   pf_->w_sum_ = 0.;
 
   // ------------------------------------------------------------------------------
-  // ---------------- Compute LiDAR odometry to predict the robot motion
+  // ---------------- Predict the robot motion
   // ------------------------------------------------------------------------------
-  Tf tf;
-  if (params_.use_wheel_odometry_)
-  {
-    Tf initial_guess;
-    wheel_odom_inc.toRotMatrix(initial_guess.R_array_);
-    initial_guess.t_array_ = { wheel_odom_inc.x_, wheel_odom_inc.y_, wheel_odom_inc.z_ };
-    predictMotion(initial_guess, obsv.planars, previous_map, tf);
-  }
-  else
-  {
-    Tf initial_guess = Tf::unitary();
-    predictMotion(initial_guess, obsv.planars, previous_map, tf);
-  }
-  Pose odom_inc(tf.R_array_, tf.t_array_);
+  Pose odom_inc = wheel_odom_inc;
   odom_inc.normalize();
 
   // ------------------------------------------------------------------------------
@@ -59,12 +46,12 @@ void Localizer::process(const Pose& wheel_odom_inc, const Observation& obsv, Occ
   for (const auto& particle : pf_->particles_)
     m_particles_.push_back(particle);
 
-  Pose icp_odom = p_odom_ + odom_inc;
-  Pose delta_pose = icp_odom - last_update_pose_;
+  Pose odom = p_odom_ + odom_inc;
+  Pose delta_pose = odom - last_update_pose_;
   delta_pose.normalize();
 
-  if (std::fabs(delta_pose.x_) > 0.1 || std::fabs(delta_pose.y_) > 0.1 ||
-      std::fabs(delta_pose.Y_) > 2 * DEGREE_TO_RAD || init_flag_)
+  if (std::fabs(delta_pose.x_) > 0.05 || std::fabs(delta_pose.y_) > 0.05 ||
+      std::fabs(delta_pose.Y_) > 1 * DEGREE_TO_RAD || init_flag_)
   {
     // ------------------------------------------------------------------------------
     // ---------------- Update particles weights using multi-layer map
@@ -82,7 +69,7 @@ void Localizer::process(const Pose& wheel_odom_inc, const Observation& obsv, Occ
     // ------------------------------------------------------------------------------
     pf_->resample();
 
-    last_update_pose_ = icp_odom;
+    last_update_pose_ = odom;
     init_flag_ = false;
   }
 
@@ -93,7 +80,7 @@ void Localizer::process(const Pose& wheel_odom_inc, const Observation& obsv, Occ
   average_pose_ = Pose(poses);
 
   // - Save current control to use in the next iteration
-  p_odom_ = icp_odom;
+  p_odom_ = odom;
 
   // - Save pf logs
   auto after = std::chrono::high_resolution_clock::now();
@@ -128,37 +115,6 @@ void Localizer::changeObservationsToUse(const bool& use_semantic_features, const
   pf_->use_lidar_features_ = use_lidar_features;
   pf_->use_image_features_ = use_image_features;
   pf_->use_gps_ = use_gps;
-}
-
-void Localizer::predictMotion(const Tf& initial_guess, const std::vector<Planar>& planars, OccupancyMap* previous_map,
-                              Tf& result)
-{
-  // -------------------------------------------------------------------------------
-  // ----- Planar features ICP
-  // -------------------------------------------------------------------------------
-
-  // - Set ICP input parameters
-  ICP<Planar> planar_icp;
-  planar_icp.setInputSource(planars);
-  planar_icp.setInputTarget(previous_map);
-  planar_icp.setTolerance(1e-5);
-  planar_icp.setMaxIterations(50);
-  planar_icp.setRejectOutliersFlag(false);
-
-  // - Compute ICP
-  float rms_error;
-  std::vector<Planar> aligned;
-  if (planar_icp.align(rms_error, aligned))
-  {
-    planar_icp.getTransform(result);
-  }
-  else
-  {
-    result = initial_guess;
-  }
-
-  std::vector<float> errors;
-  planar_icp.getErrors(errors);
 }
 
 }  // namespace vineslam

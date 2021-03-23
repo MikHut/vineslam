@@ -1,15 +1,11 @@
 slam_node:
-  # - System inputs
-  use_semantic_features: True
+  robot_model: agrob  # {agrob, rocha}
+  world_frame_id: map_nn2
+  use_semantic_features: False
   use_lidar_features: True
   use_image_features: False
   use_gps: False
   use_wheel_odometry: True
-
-  # GPS datum
-  gps_datum:
-    lat: 41.205517
-    long: -8.3073515
 
   camera_info:
     baseline: 0.12 # meters
@@ -34,9 +30,9 @@ slam_node:
     n_particles: 500
 
     # Particles innovation
-    sigma_xx: 0.1 # meters
-    sigma_yy: 0.2 # meters
-    sigma_zz: 0.2 # meters
-    sigma_RR: 0.2 # radians
-    sigma_PP: 0.2 # radians
-    sigma_YY: 0.8 # radians
+    sigma_xx: 0.5 # meters
+    sigma_yy: 0.5 # meters
+    sigma_zz: 0.3 # meters
+    sigma_RR: 0.3 # radians
+    sigma_PP: 0.3 # radians
+    sigma_YY: 0.7 # radians

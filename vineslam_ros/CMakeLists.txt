@@ -24,7 +24,6 @@ rosidl_generate_interfaces(${PROJECT_NAME}
         "srv/StartMapRegistration.srv"
         "srv/StopMapRegistration.srv"
         "srv/SaveMap.srv"
-        "srv/StopGpsHeadingEstimation.srv"
         DEPENDENCIES std_msgs)
 
 include_directories(

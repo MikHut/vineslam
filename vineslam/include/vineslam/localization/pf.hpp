@@ -13,6 +13,8 @@
 #include <vineslam/math/stat.hpp>
 #include <vineslam/filters/convex_hull.hpp>
 #include <vineslam/filters/ransac.hpp>
+#include <vineslam/utils/Timer.hpp>
+#include <vineslam/extern/thread_pool.h>
 
 // Include std members
 #include <cstdlib>
@@ -83,6 +85,12 @@ public:
   // Particles
   std::vector<Particle> particles_;
 
+  // Thread pool
+  lama::ThreadPool* thread_pool_;
+
+  // Profiler
+  Timer *t_;
+
   // Logs
   std::string logs_;
 
@@ -124,6 +132,9 @@ private:
 
   // Iterative closest point member
   ICP<ImageFeature>* icp_;
+
+  // Number of particles
+  uint32_t particles_size_;
 
   // Ground plane observed on the previous frame
   Plane prev_ground_plane_;

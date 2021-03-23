@@ -18,7 +18,6 @@ namespace vineslam
 SLAMNode::SLAMNode(int argc, char** argv) : VineSLAM_ros("SLAMNode")
 {
   // Load params
-  //  loadParameters(shared_from_this(), "/slam_node", params_);
   loadParameters(params_);
 
   // Set initialization flags default values
@@ -26,28 +25,13 @@ SLAMNode::SLAMNode(int argc, char** argv) : VineSLAM_ros("SLAMNode")
   init_gps_ = true;
   init_odom_ = true;
   register_map_ = true;
-  estimate_heading_ = true;
 
   // Declare the Mappers and Localizer objects
   localizer_ = new Localizer(params_);
   land_mapper_ = new LandmarkMapper(params_);
   vis_mapper_ = new VisualMapper(params_);
   lid_mapper_ = new LidarMapper(params_);
-
-  // Initialize local grid map that will be used for relative motion calculation
-  Parameters local_map_params;
-  local_map_params.gridmap_origin_x_ = -30;
-  local_map_params.gridmap_origin_y_ = -30;
-  local_map_params.gridmap_origin_z_ = -0.5;
-  local_map_params.gridmap_resolution_ = 0.20;
-  local_map_params.gridmap_width_ = 60;
-  local_map_params.gridmap_lenght_ = 60;
-  local_map_params.gridmap_height_ = 2.5;
-  previous_map_ = new OccupancyMap(local_map_params, Pose(0, 0, 0, 0, 0, 0));
-
-  // Services
-  //  polar2pose_ = nh.serviceClient<agrob_map_transform::GetPose>("polar_to_pose");
-  //  set_datum_ = nh.serviceClient<agrob_map_transform::SetDatum>("datum");
+  timer_ = new Timer("VineSLAM subfunctions");
 
   // Image feature subscription
   feature_subscriber_ = this->create_subscription<vineslam_msgs::msg::FeatureArray>(
@@ -66,13 +50,13 @@ SLAMNode::SLAMNode(int argc, char** argv) : VineSLAM_ros("SLAMNode")
       "/odom_topic", 10,
       std::bind(&VineSLAM_ros::odomListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
   // GPS subscription
-  gps_subscriber_ = this->create_subscription<sensor_msgs::msg::NavSatFix>(
+  gps_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
       "/gps_topic", 10,
       std::bind(&VineSLAM_ros::gpsListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
 
   // Publish maps and particle filter
   vineslam_report_publisher_ = this->create_publisher<vineslam_msgs::msg::Report>("/vineslam/report", 10);
-  grid_map_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/occupancyMap", 10);
+  grid_map_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/debug/grid_map_limits", 10);
   elevation_map_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/elevationMap", 10);
   map2D_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/map2D", 10);
   map3D_features_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/SURF", 10);
@@ -84,8 +68,6 @@ SLAMNode::SLAMNode(int argc, char** argv) : VineSLAM_ros("SLAMNode")
   corners_local_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/corners_local", 10);
   planars_local_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/planars_local", 10);
   pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/vineslam/pose", 10);
-  gps_path_publisher_ = this->create_publisher<nav_msgs::msg::Path>("/vineslam/gps_path", 10);
-  gps_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/vineslam/gps_pose", 10);
   path_publisher_ = this->create_publisher<nav_msgs::msg::Path>("/vineslam/path", 10);
   poses_publisher_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/vineslam/poses", 10);
 
@@ -98,19 +80,8 @@ SLAMNode::SLAMNode(int argc, char** argv) : VineSLAM_ros("SLAMNode")
       this->create_service<vineslam_ros::srv::StopMapRegistration>(
           "stop_registration", std::bind(&VineSLAM_ros::stopRegistration, dynamic_cast<VineSLAM_ros*>(this),
                                          std::placeholders::_1, std::placeholders::_2));
-  rclcpp::Service<vineslam_ros::srv::StopGpsHeadingEstimation>::SharedPtr stop_head_srv =
-      this->create_service<vineslam_ros::srv::StopGpsHeadingEstimation>(
-          "stop_gps_heading_estimation",
-          std::bind(&VineSLAM_ros::stopHeadingEstimation, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1,
-                    std::placeholders::_2));
 
-  // GNSS varibales
-  if (params_.use_gps_)
-  {
-    datum_autocorrection_stage_ = 0;
-    global_counter_ = 0;
-  }
-
+  // Static transforms
   RCLCPP_INFO(this->get_logger(), "Waiting for static transforms...");
   tf2_ros::Buffer tf_buffer(this->get_clock());
   tf2_ros::TransformListener tfListener(tf_buffer);
@@ -150,7 +121,7 @@ SLAMNode::SLAMNode(int argc, char** argv) : VineSLAM_ros("SLAMNode")
   tf2::Stamped<tf2::Transform> cam2base_stamped;
   tf2::fromMsg(cam2base_msg, cam2base_stamped);
 
-  tf2::Transform cam2base = cam2base_stamped;//.inverse();
+  tf2::Transform cam2base = cam2base_stamped;  //.inverse();
   tf2::Vector3 t = cam2base.getOrigin();
   tf2Scalar roll, pitch, yaw;
   cam2base.getBasis().getRPY(roll, pitch, yaw);
@@ -160,7 +131,7 @@ SLAMNode::SLAMNode(int argc, char** argv) : VineSLAM_ros("SLAMNode")
   tf2::Stamped<tf2::Transform> vel2base_stamped;
   tf2::fromMsg(vel2base_msg, vel2base_stamped);
 
-  tf2::Transform vel2base = vel2base_stamped;//.inverse();
+  tf2::Transform vel2base = vel2base_stamped;  //.inverse();
   t = vel2base.getOrigin();
   vel2base.getBasis().getRPY(roll, pitch, yaw);
   lid_mapper_->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
@@ -172,8 +143,10 @@ SLAMNode::SLAMNode(int argc, char** argv) : VineSLAM_ros("SLAMNode")
   RCLCPP_INFO(this->get_logger(), "Done!");
 
   // Call execution thread
-  std::thread th(&VineSLAM_ros::loop, dynamic_cast<VineSLAM_ros*>(this));
-  th.detach();
+  std::thread th1(&VineSLAM_ros::loop, dynamic_cast<VineSLAM_ros*>(this));
+  std::thread th2(&VineSLAM_ros::publishDenseInfo, dynamic_cast<VineSLAM_ros*>(this));
+  th1.detach();
+  th2.detach();
 }
 
 void SLAMNode::loadParameters(Parameters& params)
@@ -182,6 +155,18 @@ void SLAMNode::loadParameters(Parameters& params)
   std::string param;
 
   // Load params
+  param = prefix + ".robot_model";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.robot_model_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".world_frame_id";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.world_frame_id_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
   param = prefix + ".use_semantic_features";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.use_semantic_features_))
@@ -209,18 +194,6 @@ void SLAMNode::loadParameters(Parameters& params)
   param = prefix + ".use_wheel_odometry";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.use_wheel_odometry_))
-  {
-    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
-  }
-  param = prefix + ".gps_datum.lat";
-  this->declare_parameter(param);
-  if (!this->get_parameter(param, params.latitude_))
-  {
-    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
-  }
-  param = prefix + ".gps_datum.long";
-  this->declare_parameter(param);
-  if (!this->get_parameter(param, params.longitude_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }

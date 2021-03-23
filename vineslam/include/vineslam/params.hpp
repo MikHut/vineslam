@@ -8,6 +8,12 @@ namespace vineslam
 struct Parameters
 {
   // -----------------------------------
+  // ------ System settings
+  // -----------------------------------
+  std::string robot_model_;
+  std::string world_frame_id_;
+
+  // -----------------------------------
   // ------ System flags
   // -----------------------------------
   bool use_semantic_features_{};
@@ -15,18 +21,6 @@ struct Parameters
   bool use_image_features_{};
   bool use_gps_{};
   bool use_wheel_odometry_{};
-
-  // -----------------------------------
-  // ------ GPS datum
-  // -----------------------------------
-  float latitude_{};
-  float longitude_{};
-
-  // -----------------------------------
-  // ------ On-board sensors transformations to base link
-  // -----------------------------------
-  std::vector<double> cam2base_;
-  std::vector<double> vel2base_;
 
   // -----------------------------------
   // ------ Camera info parameters

@@ -16,7 +16,8 @@ add_library(vineslam
         src/localization/localizer.cpp
         src/localization/pf.cpp
         src/mapxml/map_writer.cpp
-        src/mapxml/map_parser.cpp)
+        src/mapxml/map_parser.cpp
+        include/vineslam/extern/thread_pool.cpp)
 
 ament_export_targets(export_vineslam HAS_LIBRARY_TARGET)
 

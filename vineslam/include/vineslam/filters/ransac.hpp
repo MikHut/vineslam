@@ -5,6 +5,8 @@
 
 #include <vineslam/feature/three_dimensional.hpp>
 #include <vineslam/math/Point.hpp>
+#include <vineslam/math/const.hpp>
+#include <vineslam/extern/thread_pool.h>
 
 namespace vineslam
 {

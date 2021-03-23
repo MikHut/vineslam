@@ -5,10 +5,9 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
-        - /TF1/Frames1
         - /Local Maps1
         - /Global maps1
-      Splitter Ratio: 0.5972222089767456
+      Splitter Ratio: 0.5740740895271301
     Tree Height: 814
   - Class: rviz_common/Selection
     Name: Selection
@@ -48,170 +47,172 @@ Visualization Manager:
       Enabled: true
       Frame Timeout: 15
       Frames:
-        All Enabled: false
+        All Enabled: true
         Vertex/1000:
-          Value: false
+          Value: true
         Vertex/10000:
-          Value: false
+          Value: true
         Vertex/1005:
-          Value: false
+          Value: true
         Vertex/1006:
-          Value: false
+          Value: true
         Vertex/1007:
-          Value: false
+          Value: true
         Vertex/1008:
-          Value: false
+          Value: true
         Vertex/1009:
-          Value: false
+          Value: true
         Vertex/1010:
-          Value: false
+          Value: true
         Vertex/1011:
-          Value: false
+          Value: true
         Vertex/1012:
-          Value: false
+          Value: true
         Vertex/1013:
-          Value: false
+          Value: true
         Vertex/1014:
-          Value: false
+          Value: true
         Vertex/1015:
-          Value: false
+          Value: true
         Vertex/1016:
-          Value: false
+          Value: true
         Vertex/1028:
-          Value: false
+          Value: true
         Vertex/1030:
-          Value: false
+          Value: true
         Vertex/1031:
-          Value: false
+          Value: true
         Vertex/1032:
-          Value: false
+          Value: true
         Vertex/1033:
-          Value: false
+          Value: true
         Vertex/1034:
-          Value: false
+          Value: true
         Vertex/1035:
-          Value: false
+          Value: true
         Vertex/1036:
-          Value: false
+          Value: true
         Vertex/1037:
-          Value: false
+          Value: true
         Vertex/1038:
-          Value: false
+          Value: true
         Vertex/1039:
-          Value: false
+          Value: true
         Vertex/1040:
-          Value: false
+          Value: true
         Vertex/1041:
-          Value: false
+          Value: true
         Vertex/1042:
-          Value: false
+          Value: true
         Vertex/1043:
-          Value: false
+          Value: true
         Vertex/1044:
-          Value: false
+          Value: true
         Vertex/1045:
-          Value: false
+          Value: true
         Vertex/1046:
-          Value: false
+          Value: true
         Vertex/1047:
-          Value: false
+          Value: true
         Vertex/1048:
-          Value: false
+          Value: true
         Vertex/1049:
-          Value: false
+          Value: true
         Vertex/1050:
-          Value: false
+          Value: true
         Vertex/1051:
-          Value: false
+          Value: true
         Vertex/1052:
-          Value: false
+          Value: true
         Vertex/1053:
-          Value: false
+          Value: true
         Vertex/1054:
-          Value: false
+          Value: true
         Vertex/1055:
-          Value: false
+          Value: true
         Vertex/1056:
-          Value: false
+          Value: true
         Vertex/1058:
-          Value: false
+          Value: true
         Vertex/1059:
-          Value: false
+          Value: true
         Vertex/1060:
-          Value: false
+          Value: true
         Vertex/1061:
-          Value: false
+          Value: true
         Vertex/1062:
-          Value: false
+          Value: true
         Vertex/1063:
-          Value: false
+          Value: true
         Vertex/1064:
-          Value: false
+          Value: true
         Vertex/1065:
-          Value: false
+          Value: true
         Vertex/1066:
-          Value: false
+          Value: true
         Vertex/1067:
-          Value: false
+          Value: true
         Vertex/1068:
-          Value: false
+          Value: true
         Vertex/1069:
-          Value: false
+          Value: true
         Vertex/1070:
-          Value: false
+          Value: true
         Vertex/1071:
-          Value: false
+          Value: true
         Vertex/1072:
-          Value: false
+          Value: true
         Vertex/1073:
-          Value: false
+          Value: true
         Vertex/1074:
-          Value: false
+          Value: true
         Vertex/1075:
-          Value: false
+          Value: true
         Vertex/1076:
-          Value: false
+          Value: true
         Vertex/1078:
-          Value: false
+          Value: true
         Vertex/1079:
-          Value: false
+          Value: true
         Vertex/1081:
-          Value: false
+          Value: true
         Vertex/1082:
-          Value: false
+          Value: true
         Vertex/1083:
-          Value: false
+          Value: true
         Vertex/1130:
-          Value: false
+          Value: true
         base_link:
           Value: true
         front_left_wheel_link:
-          Value: false
+          Value: true
         front_right_wheel_link:
-          Value: false
-        map:
-          Value: false
+          Value: true
         map_nn1:
-          Value: false
+          Value: true
+        map_nn2:
+          Value: true
         map_sn0:
-          Value: false
+          Value: true
         odom:
           Value: true
         rear_left_wheel_link:
-          Value: false
+          Value: true
         rear_right_wheel_link:
-          Value: false
+          Value: true
         velodyne:
-          Value: false
+          Value: true
         zed_camera_left_optical_frame:
-          Value: false
+          Value: true
       Marker Scale: 5
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: false
       Tree:
-        {}
+        odom:
+          map_nn2:
+            {}
       Update Interval: 0
       Value: true
     - Class: rviz_common/Group
@@ -298,10 +299,10 @@ Visualization Manager:
           Color: 255; 255; 255
           Color Transformer: Intensity
           Decay Time: 0
-          Enabled: false
+          Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 740
+          Max Intensity: 570
           Min Color: 0; 0; 0
           Min Intensity: 10
           Name: Corners Map
@@ -318,7 +319,7 @@ Visualization Manager:
             Value: /vineslam/map3D/corners_local
           Use Fixed Frame: true
           Use rainbow: true
-          Value: false
+          Value: true
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
@@ -329,16 +330,16 @@ Visualization Manager:
           Channel Name: intensity
           Class: rviz_default_plugins/PointCloud2
           Color: 255; 255; 255
-          Color Transformer: Intensity
+          Color Transformer: ""
           Decay Time: 0
-          Enabled: true
+          Enabled: false
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 1150
+          Max Intensity: 4096
           Min Color: 0; 0; 0
-          Min Intensity: -10
+          Min Intensity: 0
           Name: Planars Map
-          Position Transformer: XYZ
+          Position Transformer: ""
           Selectable: true
           Size (Pixels): 3
           Size (m): 0.009999999776482582
@@ -351,7 +352,7 @@ Visualization Manager:
             Value: /vineslam/map3D/planars_local
           Use Fixed Frame: true
           Use rainbow: true
-          Value: true
+          Value: false
         - Class: rviz_default_plugins/MarkerArray
           Enabled: false
           Name: Planes Map
@@ -418,7 +419,7 @@ Visualization Manager:
           Color: 255; 255; 255
           Color Transformer: RGB8
           Decay Time: 0
-          Enabled: false
+          Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
           Max Intensity: 4096
@@ -438,7 +439,7 @@ Visualization Manager:
             Value: /vineslam/map3D/SURF
           Use Fixed Frame: true
           Use rainbow: true
-          Value: false
+          Value: true
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
@@ -451,10 +452,10 @@ Visualization Manager:
           Color: 255; 255; 255
           Color Transformer: Intensity
           Decay Time: 0
-          Enabled: false
+          Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 100
+          Max Intensity: 72
           Min Color: 0; 0; 0
           Min Intensity: 1
           Name: Corners Map
@@ -471,7 +472,7 @@ Visualization Manager:
             Value: /vineslam/map3D/corners
           Use Fixed Frame: true
           Use rainbow: true
-          Value: false
+          Value: true
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
@@ -484,12 +485,12 @@ Visualization Manager:
           Color: 255; 255; 255
           Color Transformer: Intensity
           Decay Time: 0
-          Enabled: true
+          Enabled: false
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 114
+          Max Intensity: 0
           Min Color: 0; 0; 0
-          Min Intensity: -1
+          Min Intensity: 0
           Name: Planars Map
           Position Transformer: XYZ
           Selectable: true
@@ -504,7 +505,7 @@ Visualization Manager:
             Value: /vineslam/map3D/planars
           Use Fixed Frame: true
           Use rainbow: true
-          Value: true
+          Value: false
       Enabled: true
       Name: Global maps
     - Class: rviz_common/Group
@@ -630,7 +631,7 @@ Visualization Manager:
       Name: Sensors
   Enabled: true
   Global Options:
-    Background Color: 255; 255; 255
+    Background Color: 0; 0; 0
     Fixed Frame: map_nn2
     Frame Rate: 30
   Name: root
@@ -671,25 +672,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 30.283573150634766
+      Distance: 25.65338706970215
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 4.287538528442383
-        Y: -0.10676959156990051
-        Z: 6.538445472717285
+        X: 3.887700080871582
+        Y: -3.584317922592163
+        Z: 4.37980318069458
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.26539844274520874
+      Pitch: 0.3803981840610504
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.740413665771484
+      Yaw: 4.080399990081787
     Saved: ~
 Window Geometry:
   Displays:

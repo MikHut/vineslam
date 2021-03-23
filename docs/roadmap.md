@@ -9,7 +9,7 @@
 - [ ] 3.0 Partition of the map into a graph-like structure considering **topological** concepts
 - [ ] 4.0 Code optimization and real-time validation in the field
 - [ ] 5.0 Approved by the ROSIN team
-- [ ] 6.0 Move to ROS2
+- [x] 6.0 Move to ROS2
 
 # Versions/Tags
 

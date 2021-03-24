@@ -168,6 +168,11 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
     pt = pt * tf.inverse();
   }
   out_groundplane.centroid_ = out_groundplane.centroid_ * tf.inverse();
+  // E - Check plane consistency (set to null if not consistent)
+  if (out_groundplane.area_ < 4.)
+  {
+    out_groundplane = SemiPlane();
+  }
   t.tock();
 
   // -------------------------------------------------------------------------------
@@ -813,14 +818,16 @@ void LidarMapper::extractHighLevelPlanes(const std::vector<Point>& in_pts, const
   }
 
   // - Remove outliers using RANSAC
-  std::vector<Plane> planes;
+  std::vector<Plane> planes = {};
   Plane side_plane_a_filtered, side_plane_b_filtered;
-  if(ransac(side_plane_a.points_, side_plane_a_filtered, 300, 0.02, true))
+  if (ransac(side_plane_a.points_, side_plane_a_filtered, 300, 0.01, true) &&
+      side_plane_a_filtered.points_.size() < 7000)  // prevent dense planes and slow convex hulls
   {
     side_plane_a_filtered.id_ = 0;
     planes.push_back(side_plane_a_filtered);
   }
-  if(ransac(side_plane_b.points_, side_plane_b_filtered, 300, 0.02, true))
+  if (ransac(side_plane_b.points_, side_plane_b_filtered, 300, 0.01, true) &&
+      side_plane_b_filtered.points_.size() < 7000)  // prevent dense planes and slow convex hulls
   {
     side_plane_b_filtered.id_ = 1;
     planes.push_back(side_plane_b_filtered);
@@ -842,10 +849,13 @@ void LidarMapper::extractHighLevelPlanes(const std::vector<Point>& in_pts, const
 
     SemiPlane l_semi_plane;
     float dot = Vec(plane.a_, plane.b_, plane.c_).dot(Vec(ground_plane.a_, ground_plane.b_, ground_plane.c_));
-    if (convexHull(plane, l_semi_plane) && l_semi_plane.area_ > 2 && std::fabs(dot) < 0.15)  // && plane.points_.size() > 500)
-      {
-        out_planes.push_back(l_semi_plane);
-      }
+
+    bool ch = convexHull(plane, l_semi_plane);
+    if (ch && l_semi_plane.area_ > 4 && std::fabs(dot) < 0.15)  // && plane.points_.size()
+                                                                // > 500)
+    {
+      out_planes.push_back(l_semi_plane);
+    }
   }
 }
 

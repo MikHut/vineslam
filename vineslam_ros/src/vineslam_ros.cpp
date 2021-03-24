@@ -293,7 +293,7 @@ void VineSLAM_ros::process()
 
     try
     {
-      odom2base_msg = tf_buffer.lookupTransform("odom", "base_link", rclcpp::Time(0), rclcpp::Duration(300000000));
+      odom2base_msg = tf_buffer.lookupTransform("odom", "base_link", header_.stamp, rclcpp::Duration(300000000));
     }
     catch (tf2::TransformException& ex)
     {
@@ -314,8 +314,6 @@ void VineSLAM_ros::process()
     odom2map_msg.header.frame_id = "odom";
     odom2map_msg.child_frame_id = params_.world_frame_id_;
     odom2base_msg.header.stamp = header_.stamp;
-
-    std::cout << this->now().seconds() << ", " << this->now().nanoseconds() << "\n";
 
     tf_broadcaster_->sendTransform(odom2map_msg);
   }

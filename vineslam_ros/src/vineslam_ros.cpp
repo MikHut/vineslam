@@ -257,30 +257,74 @@ void VineSLAM_ros::process()
   // ----- ROS publishers and tf broadcasting
   // ---------------------------------------------------------
 
-  // Publish tf::Trasforms
+  // Publish tf::Transforms
   tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
   tf2::Quaternion q;
 
   // ---- base2map
-  geometry_msgs::msg::TransformStamped base2map_tf;
-  base2map_tf.header.stamp = rclcpp::Time();
-  base2map_tf.header.frame_id = params_.world_frame_id_;
-  base2map_tf.child_frame_id = "/base_link";
+  geometry_msgs::msg::TransformStamped base2map_msg;
+  base2map_msg.header.stamp = rclcpp::Time();
+  base2map_msg.header.frame_id = params_.world_frame_id_;
+  base2map_msg.child_frame_id = "base_link";
   q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
   q.normalize();
-  pose2TransformStamped(q, tf2::Vector3(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_), base2map_tf);
-  tf_broadcaster_->sendTransform(base2map_tf);
+  pose2TransformStamped(q, tf2::Vector3(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_), base2map_msg);
 
-  // ---- odom2map
-  geometry_msgs::msg::TransformStamped map2odom_tf;
-  map2odom_tf.header.stamp = rclcpp::Time();
-  map2odom_tf.header.frame_id = "/odom";
-  map2odom_tf.child_frame_id = params_.world_frame_id_;
-  q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
-  q.normalize();
-  pose2TransformStamped(q, tf2::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_), map2odom_tf);
-  tf_broadcaster_->sendTransform(map2odom_tf);
-  // ----
+  if (params_.robot_model_ == "agrob") // in this configuration we broadcast a map->base_link tf
+  {
+    tf_broadcaster_->sendTransform(base2map_msg);
+
+    // ---- odom2map
+    geometry_msgs::msg::TransformStamped map2odom_msg;
+    map2odom_msg.header.stamp = rclcpp::Time();
+    map2odom_msg.header.frame_id = "odom";
+    map2odom_msg.child_frame_id = params_.world_frame_id_;
+    q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
+    q.normalize();
+    pose2TransformStamped(q, tf2::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_), map2odom_msg);
+    tf_broadcaster_->sendTransform(map2odom_msg);
+    // ----
+  }
+  else // in this configuration we broadcast a odom->map tf
+  {
+    geometry_msgs::msg::TransformStamped odom2base_msg;
+    tf2_ros::Buffer tf_buffer(this->get_clock());
+    tf2_ros::TransformListener tfListener(tf_buffer);
+
+    try
+    {
+      odom2base_msg = tf_buffer.lookupTransform("odom", "base_link", rclcpp::Time(0), rclcpp::Duration(300000000));
+    }
+    catch (tf2::TransformException& ex)
+    {
+      RCLCPP_WARN(this->get_logger(), "%s", ex.what());
+    }
+
+    std::cout << odom2base_msg.transform.rotation.x << ", ";
+    std::cout << odom2base_msg.transform.rotation.y << ", ";
+    std::cout << odom2base_msg.transform.rotation.z << ", ";
+    std::cout << odom2base_msg.transform.rotation.w << ", ";
+    std::cout << odom2base_msg.transform.translation.x << ", ";
+    std::cout << odom2base_msg.transform.translation.y << ", ";
+    std::cout << odom2base_msg.transform.translation.z << "\n";
+
+    tf2::Stamped<tf2::Transform> odom2base_tf, base2map_tf, odom2map_tf;
+    tf2::fromMsg(odom2base_msg, odom2base_tf);
+    tf2::fromMsg(base2map_msg, base2map_tf);
+
+    geometry_msgs::msg::TransformStamped odom2map_msg;
+
+    tf2::Transform t = odom2base_tf * base2map_tf.inverse();
+    odom2map_tf.setRotation(t.getRotation());
+    odom2map_tf.setOrigin(t.getOrigin());
+    pose2TransformStamped(odom2base_tf.getRotation(), odom2base_tf.getOrigin(), odom2base_msg);
+
+    odom2map_msg.header.frame_id = "odom";
+    odom2map_msg.child_frame_id = params_.world_frame_id_;
+    odom2base_msg.header.stamp = this->now();
+
+    tf_broadcaster_->sendTransform(odom2map_msg);
+  }
 
   // Convert vineslam pose to ROS pose and publish it
   geometry_msgs::msg::PoseStamped pose_stamped;
@@ -402,7 +446,7 @@ void VineSLAM_ros::odomListener(const nav_msgs::msg::Odometry::SharedPtr msg)
       yaw = 0;
 
     init_odom_pose_ = Pose(msg->pose.pose.position.x, msg->pose.pose.position.y, 0, 0, 0, yaw);
-    input_data_.p_wheel_odom_pose_ = init_odom_pose_;
+    input_data_.p_wheel_odom_pose_ = Pose(0, 0, 0, 0, 0, 0);
 
     init_odom_ = false;
     return;

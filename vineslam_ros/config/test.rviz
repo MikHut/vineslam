@@ -48,157 +48,29 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
-        Vertex/1000:
-          Value: true
-        Vertex/10000:
-          Value: true
-        Vertex/1005:
-          Value: true
-        Vertex/1006:
-          Value: true
-        Vertex/1007:
-          Value: true
-        Vertex/1008:
-          Value: true
-        Vertex/1009:
-          Value: true
-        Vertex/1010:
-          Value: true
-        Vertex/1011:
-          Value: true
-        Vertex/1012:
-          Value: true
-        Vertex/1013:
-          Value: true
-        Vertex/1014:
-          Value: true
-        Vertex/1015:
-          Value: true
-        Vertex/1016:
-          Value: true
-        Vertex/1028:
-          Value: true
-        Vertex/1030:
-          Value: true
-        Vertex/1031:
-          Value: true
-        Vertex/1032:
-          Value: true
-        Vertex/1033:
-          Value: true
-        Vertex/1034:
-          Value: true
-        Vertex/1035:
-          Value: true
-        Vertex/1036:
-          Value: true
-        Vertex/1037:
-          Value: true
-        Vertex/1038:
-          Value: true
-        Vertex/1039:
-          Value: true
-        Vertex/1040:
-          Value: true
-        Vertex/1041:
-          Value: true
-        Vertex/1042:
-          Value: true
-        Vertex/1043:
-          Value: true
-        Vertex/1044:
-          Value: true
-        Vertex/1045:
-          Value: true
-        Vertex/1046:
-          Value: true
-        Vertex/1047:
-          Value: true
-        Vertex/1048:
-          Value: true
-        Vertex/1049:
-          Value: true
-        Vertex/1050:
-          Value: true
-        Vertex/1051:
-          Value: true
-        Vertex/1052:
-          Value: true
-        Vertex/1053:
-          Value: true
-        Vertex/1054:
-          Value: true
-        Vertex/1055:
-          Value: true
-        Vertex/1056:
-          Value: true
-        Vertex/1058:
-          Value: true
-        Vertex/1059:
-          Value: true
-        Vertex/1060:
-          Value: true
-        Vertex/1061:
-          Value: true
-        Vertex/1062:
-          Value: true
-        Vertex/1063:
-          Value: true
-        Vertex/1064:
-          Value: true
-        Vertex/1065:
-          Value: true
-        Vertex/1066:
-          Value: true
-        Vertex/1067:
-          Value: true
-        Vertex/1068:
-          Value: true
-        Vertex/1069:
-          Value: true
-        Vertex/1070:
-          Value: true
-        Vertex/1071:
-          Value: true
-        Vertex/1072:
-          Value: true
-        Vertex/1073:
-          Value: true
-        Vertex/1074:
-          Value: true
-        Vertex/1075:
-          Value: true
-        Vertex/1076:
-          Value: true
-        Vertex/1078:
-          Value: true
-        Vertex/1079:
-          Value: true
-        Vertex/1081:
-          Value: true
-        Vertex/1082:
-          Value: true
-        Vertex/1083:
-          Value: true
-        Vertex/1130:
-          Value: true
         base_link:
+          Value: true
+        camerat265_odom_frame:
           Value: true
         front_left_wheel_link:
           Value: true
         front_right_wheel_link:
           Value: true
-        map_nn1:
+        hokuyo_link:
+          Value: true
+        imu_link:
+          Value: true
+        map:
           Value: true
         map_nn2:
-          Value: true
-        map_sn0:
           Value: true
         odom:
           Value: true
         rear_left_wheel_link:
           Value: true
         rear_right_wheel_link:
+          Value: true
+        tower_base:
           Value: true
         velodyne:
           Value: true
@@ -212,7 +84,9 @@ Visualization Manager:
       Tree:
         odom:
           map_nn2:
-            {}
+            base_link:
+              zed_camera_left_optical_frame:
+                {}
       Update Interval: 0
       Value: true
     - Class: rviz_common/Group
@@ -488,9 +362,9 @@ Visualization Manager:
           Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 26.799884796142578
+          Max Intensity: 34.628662109375
           Min Color: 0; 0; 0
-          Min Intensity: -24.691038131713867
+          Min Intensity: -15.688488006591797
           Name: Planars Map
           Position Transformer: XYZ
           Selectable: true
@@ -508,6 +382,22 @@ Visualization Manager:
           Value: true
       Enabled: true
       Name: Global maps
+    - Class: rviz_common/Group
+      Displays:
+        - Class: rviz_default_plugins/MarkerArray
+          Enabled: true
+          Name: Global Map Limits
+          Namespaces:
+            {}
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /vineslam/debug/grid_map_limits
+          Value: true
+      Enabled: false
+      Name: Debug
     - Class: rviz_common/Group
       Displays:
         - Alpha: 1
@@ -672,7 +562,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 22.10126495361328
+      Distance: 53.15727615356445
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -687,10 +577,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5003984570503235
+      Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.330425262451172
+      Yaw: 5.385432720184326
     Saved: ~
 Window Geometry:
   Displays:

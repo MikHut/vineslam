@@ -10,18 +10,18 @@
 
 ### Subscribed topics
 
-* **"/left_img_topic"** ([sensor_msgs::Image](http://docs.ros.org/api/sensor_msgs/html/msg/Image.html)) - the RGB left image
-* **"/depth_img_topic"** ([sensor_msgs::Image](http://docs.ros.org/api/sensor_msgs/html/msg/Image.html)) - the disparity map
 * **"/detections_topic"**
   ([vision_msgs::Detection2DArray](http://docs.ros.org/api/vision_msgs/html/msg/Detection2DArray.html)) - the object detections
-* **"/pcl_topic"**
+* **"/features_topic"**
+  ([vineslam_msgs::FeatureArray](https://gitlab.inesctec.pt/agrob/vineslam_stack/vineslam/-/blob/master/vineslam_msgs/msg/FeatureArray.msg)) - the object detections
+* **"/scan_topic"**
   ([sensor_msgs::PointCloud2](http://docs.ros.org/en/melodic/api/sensor_msgs/html/msg/PointCloud2.html)) - the object detections
 * **"/odom_topic"**
   ([nav_msgs::Odometry](http://docs.ros.org/melodic/api/nav_msgs/html/msg/Odometry.html)) - the robot wheel Odometry
-* **"/fix_topic"**
+* **"/gps_topic"**
   ([sensor_msgs::NavSatFix](http://docs.ros.org/melodic/api/sensor_msgs/html/msg/NavSatFix.html)) - the GPS topic (optional)
 
-### Published topics
+### Published topics (main)
 
 * **/vineslam/pose**
   ([geometry_msgs::PoseStamped](http://docs.ros.org/melodic/api/geometry_msgs/html/msg/PoseStamped.html)) - the 6-DoF robot pose
@@ -41,27 +41,23 @@
   ([visualization_msgs::MarkerArray](http://docs.ros.org/en/api/visualization_msgs/html/msg/MarkerArray.html)) - the ground elevation map
 
 
-### Transforms
+### Transform broadcast
 
-* **"base2map"**: "/map" to "/vineslam/base_link" transform
-* **"map2odom"**: "/odom" to "/map" transform
-* **"enu2map"**: "/enu" to "/map" transform (only if using GPS)
+* "/odom" to **world_frame_id** (map).
 
 ### Parameters
 
-To tune the system parameters, you can change them in `./vineslam_ros/param/setup.yaml`.
+To tune the system parameters, you can change them in `./vineslam_ros/config/setup_slam.yaml`.
 
 All the parameters are set to their **default values**, so you can run the system witouth changing them.
 
 * **system**:
+    * **robot_model** - [agrob/rocha] robot model to use (will have impact in the tf broadcasting).
+    * **world_frame_id** - name of the world reference frame.
     * **use_semantic_features** - [True/False] whether to use or not the 2D semantic feature map
     * **use_lidar_features** - [True/False] whether to use or not the 3D LiDAR features
     * **use_image_features** - [True/False] whether to use or not the 3D image features
     * **use_gps** - [True/False] whether to use or not the GPS on 6-DoF Localization
-    * **use_wheel_odometry** - [True/False] whether to use or not the wheel odometry as input
-    * **gps_datum**:
-        * **lat** - GPS latitude datum (degrees)
-        * **long** - GPS latitude datum (degrees)
 * **camera_info**:
    * **fx** - horizontal focal length (pixels)
     * **cx** - x coordinate of image principal point (pixels)

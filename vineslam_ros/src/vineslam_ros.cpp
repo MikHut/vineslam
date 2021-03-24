@@ -263,7 +263,7 @@ void VineSLAM_ros::process()
 
   // ---- base2map
   geometry_msgs::msg::TransformStamped base2map_msg;
-  base2map_msg.header.stamp = rclcpp::Time();
+  base2map_msg.header.stamp = header_.stamp;
   base2map_msg.header.frame_id = params_.world_frame_id_;
   base2map_msg.child_frame_id = "base_link";
   q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
@@ -276,7 +276,7 @@ void VineSLAM_ros::process()
 
     // ---- odom2map
     geometry_msgs::msg::TransformStamped map2odom_msg;
-    map2odom_msg.header.stamp = rclcpp::Time();
+    map2odom_msg.header.stamp = header_.stamp;
     map2odom_msg.header.frame_id = "odom";
     map2odom_msg.child_frame_id = params_.world_frame_id_;
     q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
@@ -300,14 +300,6 @@ void VineSLAM_ros::process()
       RCLCPP_WARN(this->get_logger(), "%s", ex.what());
     }
 
-    std::cout << odom2base_msg.transform.rotation.x << ", ";
-    std::cout << odom2base_msg.transform.rotation.y << ", ";
-    std::cout << odom2base_msg.transform.rotation.z << ", ";
-    std::cout << odom2base_msg.transform.rotation.w << ", ";
-    std::cout << odom2base_msg.transform.translation.x << ", ";
-    std::cout << odom2base_msg.transform.translation.y << ", ";
-    std::cout << odom2base_msg.transform.translation.z << "\n";
-
     tf2::Stamped<tf2::Transform> odom2base_tf, base2map_tf, odom2map_tf;
     tf2::fromMsg(odom2base_msg, odom2base_tf);
     tf2::fromMsg(base2map_msg, base2map_tf);
@@ -321,7 +313,9 @@ void VineSLAM_ros::process()
 
     odom2map_msg.header.frame_id = "odom";
     odom2map_msg.child_frame_id = params_.world_frame_id_;
-    odom2base_msg.header.stamp = this->now();
+    odom2base_msg.header.stamp = header_.stamp;
+
+    std::cout << this->now().seconds() << ", " << this->now().nanoseconds() << "\n";
 
     tf_broadcaster_->sendTransform(odom2map_msg);
   }
@@ -411,6 +405,8 @@ void VineSLAM_ros::landmarkListener(const vision_msgs::msg::Detection3DArray::Sh
 
 void VineSLAM_ros::scanListener(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
 {
+  header_ = msg->header;
+
   pcl::PointCloud<pcl::PointXYZI>::Ptr velodyne_pcl(new pcl::PointCloud<pcl::PointXYZI>);
   pcl::fromROSMsg(*msg, *velodyne_pcl);
   // Remove Nan points
@@ -429,6 +425,8 @@ void VineSLAM_ros::scanListener(const sensor_msgs::msg::PointCloud2::SharedPtr m
 
 void VineSLAM_ros::odomListener(const nav_msgs::msg::Odometry::SharedPtr msg)
 {
+  header_ = msg->header;
+
   // If it is the first iteration - initialize odometry origin
   if (init_odom_)
   {
@@ -477,6 +475,7 @@ void VineSLAM_ros::odomListener(const nav_msgs::msg::Odometry::SharedPtr msg)
 
 void VineSLAM_ros::gpsListener(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
 {
+  header_ = msg->header;
 }
 
 void VineSLAM_ros::publishReport() const

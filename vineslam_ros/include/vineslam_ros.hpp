@@ -101,6 +101,9 @@ public:
   // ROS node
   rclcpp::Node::SharedPtr nh_;
 
+  // Most recent message header received
+  std_msgs::msg::Header header_;
+
   // Tf2 broadcaster
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 

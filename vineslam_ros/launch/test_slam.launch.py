@@ -58,11 +58,11 @@ def generate_launch_description():
         name='slam_node',
         parameters=[config],
         remappings=[
-            ('/odom_topic', '/husky_velocity_controller/odom'),
+            ('/odom_topic', '/white/husky_velocity_controller/odom'),
             ('/gps_topic', '/fix'),
             ('/features_topic', '/image_feature_array'),
             ('/detections_topic', '/tpu/detections'),
-            ('/scan_topic', '/velodyne_points'),
+            ('/scan_topic', '/white/velodyne_points'),
         ],
         output={
             'stdout': 'screen',

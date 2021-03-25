@@ -19,6 +19,8 @@ LidarMapper::LidarMapper(const Parameters& params)
   ang_res_x_ = static_cast<float>(0.2) * DEGREE_TO_RAD;
   ang_res_y_ = static_cast<float>(2.) * DEGREE_TO_RAD;
   lidar_height = 1.20;
+  filter_frequency_ = 30;
+  it_ = 0;
 
   prev_robot_pose_ = Pose(0, 0, 0, 0, 0, 0);
 }
@@ -39,6 +41,9 @@ void LidarMapper::registerMaps(const Pose& robot_pose, const std::vector<Corner>
 
   // Store robot pose to use in the next iteration
   prev_robot_pose_ = robot_pose;
+
+  // Increment mapper iterator
+  it_++;
 }
 
 void LidarMapper::registerMaps(const Pose& robot_pose, const std::vector<Corner>& corners,
@@ -55,6 +60,9 @@ void LidarMapper::registerMaps(const Pose& robot_pose, const std::vector<Corner>
 
   // Store robot pose to use in the next iteration
   prev_robot_pose_ = robot_pose;
+
+  // Increment mapper iterator
+  it_++;
 }
 
 // -------------------------------------------------------------------------------
@@ -360,6 +368,22 @@ void LidarMapper::globalPlanarMap(const Pose& robot_pose, const std::vector<Plan
 void LidarMapper::globalPlaneMap(const Pose& robot_pose, const std::vector<SemiPlane>& planes, OccupancyMap& grid_map)
 {
   // ----------------------------------------------------------------------------
+  // ------ First, we remove semiplane outliers in the global map checking their
+  // ------        number of correspondences at a well defined frequency
+  // ----------------------------------------------------------------------------
+  if (it_ % filter_frequency_ == 0)
+  {
+    for (uint32_t i = 0; i < grid_map.planes_.size(); i++)
+    {
+      std::cout << grid_map.planes_.size() << ", " << grid_map.planes_[i].n_correspondences_ << " ...\n";
+      if (grid_map.planes_[i].n_occurences_ > filter_frequency_ && grid_map.planes_[i].n_correspondences_ < 10)
+      {
+        grid_map.planes_.erase(grid_map.planes_.begin() + i);
+      }
+    }
+  }
+
+  // ----------------------------------------------------------------------------
   // ------ Search for correspondences between local planes and global planes
   // ------ Two stage process:
   // ------  * (A) Check semi-plane overlap
@@ -413,6 +437,9 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, const std::vector<SemiP
     bool found = false;
     for (auto& g_plane : grid_map.planes_)
     {
+      // Increment the number of visits to the plane (used to filter planes with low correspondences)
+      g_plane.n_occurences_++;
+
       if (g_plane.points_.empty())
       {
         continue;
@@ -470,6 +497,9 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, const std::vector<SemiP
             vec_disp = D;
             point2plane = l_point2plane;
             ov_area = isct.area_;
+
+            // Update number of correspondences
+            g_plane.n_correspondences_++;
 
             // Save the correspondence semi-plane
             correspondence = &g_plane;
@@ -848,15 +878,69 @@ void LidarMapper::extractHighLevelPlanes(const std::vector<Point>& in_pts, const
     plane.setLocalRefFrame();
 
     SemiPlane l_semi_plane;
-    float dot = Vec(plane.a_, plane.b_, plane.c_).dot(Vec(ground_plane.a_, ground_plane.b_, ground_plane.c_));
-
     bool ch = convexHull(plane, l_semi_plane);
-    if (ch && l_semi_plane.area_ > 4 && std::fabs(dot) < 0.15)  // && plane.points_.size()
-                                                                // > 500)
+    if (ch && checkPlaneConsistency(l_semi_plane, ground_plane))
     {
       out_planes.push_back(l_semi_plane);
     }
   }
+}
+
+bool LidarMapper::checkPlaneConsistency(const SemiPlane& plane, const SemiPlane& ground_plane)
+{
+  // A - Check semiplane area
+  bool A = plane.area_ > 4;
+  if (!A)
+  {
+    return false;
+  }
+
+  // B - Check if the points belonging to the semiplane are continuous
+  Point p0;
+  if (plane.points_.empty())
+  {
+    return false;
+  }
+  else
+  {
+    p0 = plane.points_[0];
+  }
+  std::vector<Point> pts = plane.points_;
+  float d0 = 0;
+  while (pts.size() >= 2)  // Find nearest neighbor of p0, pop it from the vector, compare distances computed between
+                           // iterations, find holes by large variations on the distance measured
+  {
+    float d1, min_dist = std::numeric_limits<float>::max();
+    uint32_t idx = 0;
+    for (uint32_t i = 0; i < pts.size(); ++i)
+    {
+      d1 = p0.distance(pts[i]);
+      if (d1 != 0 && d1 < min_dist)
+      {
+        min_dist = d1;
+        idx = i;
+      }
+    }
+    d1 = min_dist;
+    if (std::fabs(d1 - d0) > 0.5 && d0 != 0)  // We found a hole in this case ...
+    {
+      return false;
+    }
+    else
+    {
+      pts.erase(pts.begin() + idx);
+      d0 = d1;
+    }
+  }
+
+  // C - Make sure that the plane is not horizontal
+  float dot = Vec(plane.a_, plane.b_, plane.c_).dot(Vec(ground_plane.a_, ground_plane.b_, ground_plane.c_));
+  if (std::fabs(dot) > 0.5)
+  {
+    return false;
+  }
+
+  return true;
 }
 
 void LidarMapper::extractFeatures(const std::vector<PlanePoint>& in_plane_pts, std::vector<Corner>& out_corners,

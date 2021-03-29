@@ -209,7 +209,7 @@ void VineSLAM_ros::process()
   obsv_.ground_plane = l_ground_plane;
   obsv_.planes = l_planes;
   obsv_.surf_features = l_surf_features;
-  if (params_.use_gps_ && !init_gps_)
+  if (params_.use_gps_)
   {
     obsv_.gps_pose = input_data_.gnss_pose_;
   }
@@ -435,7 +435,7 @@ void VineSLAM_ros::odomListener(const nav_msgs::msg::Odometry::SharedPtr msg)
     q.normalize();
 
     // Check if yaw is NaN
-    auto yaw = static_cast<float>(tf2::getYaw(q));
+    float yaw = static_cast<float>(tf2::getYaw(q));
     if (!std::isfinite(yaw))
       yaw = 0;
 
@@ -473,33 +473,38 @@ void VineSLAM_ros::gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamp
 {
   header_ = msg->header;
 
-  // If it is the first iteration - initialize odometry origin
-  if (init_gps_)
-  {
-    init_gps_pose_ = Pose(msg->pose.pose.position.x, msg->pose.pose.position.y, 0, 0, 0, 0);
+  geometry_msgs::msg::TransformStamped odom2satellite_msg;
+  tf2_ros::Buffer tf_buffer(this->get_clock());
+  tf2_ros::TransformListener tfListener(tf_buffer);
 
-    init_gps_ = false;
-    return;
+  // Get odom -> sn0 transformation
+  try
+  {
+    odom2satellite_msg = tf_buffer.lookupTransform("map_sn0", "odom", rclcpp::Time(0), rclcpp::Duration(300000000));
+  }
+  catch (tf2::TransformException& ex)
+  {
+    RCLCPP_WARN(this->get_logger(), "%s", ex.what());
   }
 
-  // Transform odometry msg to maps' referential frame
-  tf2::Quaternion g2m_q;
-  g2m_q.setRPY(init_gps_pose_.R_, init_gps_pose_.P_, init_gps_pose_.Y_);
-  tf2::Transform gps2map(g2m_q, tf2::Vector3(init_gps_pose_.x_, init_gps_pose_.y_, init_gps_pose_.z_));
+  // Compute the rtk pose in sn0's reference frame
+  tf2::Stamped<tf2::Transform> odom2satellite_tf;
+  tf2::fromMsg(odom2satellite_msg, odom2satellite_tf);
 
-  tf2::Quaternion gps_q;
-  gps_q.setX(0);
-  gps_q.setY(0);
-  gps_q.setZ(0);
-  gps_q.setW(1);
-  tf2::Transform gps_tf(gps_q, tf2::Vector3(msg->pose.pose.position.x, msg->pose.pose.position.y, 0));
+  tf2::Quaternion q;
+  q.setX(msg->pose.pose.orientation.x);
+  q.setY(msg->pose.pose.orientation.y);
+  q.setZ(msg->pose.pose.orientation.z);
+  q.setW(msg->pose.pose.orientation.w);
 
-  gps_tf = gps2map.inverseTimes(gps_tf);
+  tf2::Transform gps_raw_pose(q, tf2::Vector3(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z));
+  tf2::Transform gps_pose = odom2satellite_tf.inverse() * gps_raw_pose;
 
-  tf2::Vector3 trans = gps_tf.getOrigin();
+  // Save pose
+  input_data_.gnss_pose_.x_ = gps_pose.getOrigin().x();
+  input_data_.gnss_pose_.y_ = gps_pose.getOrigin().y();
 
-//  input_data_.gnss_pose_ = Pose(trans.x(), trans.y(), 0, 0, 0, 0);
-
+  // Set received flag to true
   input_data_.received_gnss_ = true;
 }
 

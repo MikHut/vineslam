@@ -266,7 +266,7 @@ void LidarMapper::globalCornerMap(const Pose& robot_pose, const std::vector<Corn
 
     // - Then, look for correspondences in the local map
     Corner correspondence{};
-    float best_correspondence = 0.02;
+    float best_correspondence = 0.20;
     bool found = false;
     std::vector<Corner> l_corners = grid_map(l_pt.x_, l_pt.y_, l_pt.z_).corner_features_;
     for (const auto& l_corner : l_corners)

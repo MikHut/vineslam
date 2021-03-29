@@ -1,5 +1,5 @@
 slam_node:
-  robot_model: agrob  # {agrob, rocha}
+  robot_model: rocha  # {agrob, rocha}
   world_frame_id: map_nn2
   use_semantic_features: False
   use_lidar_features: True

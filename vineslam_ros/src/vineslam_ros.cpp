@@ -270,7 +270,7 @@ void VineSLAM_ros::process()
   q.normalize();
   pose2TransformStamped(q, tf2::Vector3(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_), base2map_msg);
 
-  if (params_.robot_model_ == "agrob") // in this configuration we broadcast a map->base_link tf
+  if (params_.robot_model_ == "agrob")  // in this configuration we broadcast a map->base_link tf
   {
     tf_broadcaster_->sendTransform(base2map_msg);
 
@@ -285,7 +285,7 @@ void VineSLAM_ros::process()
     tf_broadcaster_->sendTransform(map2odom_msg);
     // ----
   }
-  else // in this configuration we broadcast a odom->map tf
+  else  // in this configuration we broadcast a odom->map tf
   {
     geometry_msgs::msg::TransformStamped odom2base_msg;
     tf2_ros::Buffer tf_buffer(this->get_clock());
@@ -293,7 +293,7 @@ void VineSLAM_ros::process()
 
     try
     {
-      odom2base_msg = tf_buffer.lookupTransform("odom", "base_link", header_.stamp, rclcpp::Duration(300000000));
+      odom2base_msg = tf_buffer.lookupTransform("odom", "base_link", rclcpp::Time(0), rclcpp::Duration(300000000));
     }
     catch (tf2::TransformException& ex)
     {
@@ -309,11 +309,11 @@ void VineSLAM_ros::process()
     tf2::Transform t = odom2base_tf * base2map_tf.inverse();
     odom2map_tf.setRotation(t.getRotation());
     odom2map_tf.setOrigin(t.getOrigin());
-    pose2TransformStamped(odom2base_tf.getRotation(), odom2base_tf.getOrigin(), odom2base_msg);
+    pose2TransformStamped(odom2map_tf.getRotation(), odom2map_tf.getOrigin(), odom2map_msg);
 
+    odom2map_msg.header.stamp = header_.stamp;
     odom2map_msg.header.frame_id = "odom";
     odom2map_msg.child_frame_id = params_.world_frame_id_;
-    odom2base_msg.header.stamp = header_.stamp;
 
     tf_broadcaster_->sendTransform(odom2map_msg);
   }
@@ -403,8 +403,6 @@ void VineSLAM_ros::landmarkListener(const vision_msgs::msg::Detection3DArray::Sh
 
 void VineSLAM_ros::scanListener(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
 {
-  header_ = msg->header;
-
   pcl::PointCloud<pcl::PointXYZI>::Ptr velodyne_pcl(new pcl::PointCloud<pcl::PointXYZI>);
   pcl::fromROSMsg(*msg, *velodyne_pcl);
   // Remove Nan points
@@ -437,7 +435,7 @@ void VineSLAM_ros::odomListener(const nav_msgs::msg::Odometry::SharedPtr msg)
     q.normalize();
 
     // Check if yaw is NaN
-    float yaw = static_cast<float>(tf2::getYaw(q));
+    auto yaw = static_cast<float>(tf2::getYaw(q));
     if (!std::isfinite(yaw))
       yaw = 0;
 
@@ -471,9 +469,38 @@ void VineSLAM_ros::odomListener(const nav_msgs::msg::Odometry::SharedPtr msg)
   input_data_.received_odometry_ = true;
 }
 
-void VineSLAM_ros::gpsListener(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
+void VineSLAM_ros::gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
 {
   header_ = msg->header;
+
+  // If it is the first iteration - initialize odometry origin
+  if (init_gps_)
+  {
+    init_gps_pose_ = Pose(msg->pose.pose.position.x, msg->pose.pose.position.y, 0, 0, 0, 0);
+
+    init_gps_ = false;
+    return;
+  }
+
+  // Transform odometry msg to maps' referential frame
+  tf2::Quaternion g2m_q;
+  g2m_q.setRPY(init_gps_pose_.R_, init_gps_pose_.P_, init_gps_pose_.Y_);
+  tf2::Transform gps2map(g2m_q, tf2::Vector3(init_gps_pose_.x_, init_gps_pose_.y_, init_gps_pose_.z_));
+
+  tf2::Quaternion gps_q;
+  gps_q.setX(0);
+  gps_q.setY(0);
+  gps_q.setZ(0);
+  gps_q.setW(1);
+  tf2::Transform gps_tf(gps_q, tf2::Vector3(msg->pose.pose.position.x, msg->pose.pose.position.y, 0));
+
+  gps_tf = gps2map.inverseTimes(gps_tf);
+
+  tf2::Vector3 trans = gps_tf.getOrigin();
+
+//  input_data_.gnss_pose_ = Pose(trans.x(), trans.y(), 0, 0, 0, 0);
+
+  input_data_.received_gnss_ = true;
 }
 
 void VineSLAM_ros::publishReport() const

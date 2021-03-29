@@ -53,42 +53,6 @@ Visualization Manager:
           Value: false
         Vertex/10000:
           Value: false
-        Vertex/10001:
-          Value: true
-        Vertex/10002:
-          Value: true
-        Vertex/10003:
-          Value: true
-        Vertex/10004:
-          Value: true
-        Vertex/10005:
-          Value: true
-        Vertex/10006:
-          Value: true
-        Vertex/10007:
-          Value: true
-        Vertex/10008:
-          Value: true
-        Vertex/10009:
-          Value: true
-        Vertex/10010:
-          Value: true
-        Vertex/10011:
-          Value: true
-        Vertex/10012:
-          Value: true
-        Vertex/10013:
-          Value: true
-        Vertex/10014:
-          Value: true
-        Vertex/10015:
-          Value: true
-        Vertex/10016:
-          Value: true
-        Vertex/10017:
-          Value: true
-        Vertex/10018:
-          Value: true
         Vertex/1005:
           Value: false
         Vertex/1006:
@@ -397,42 +361,6 @@ Visualization Manager:
           map_nn1:
             Vertex/10000:
               {}
-            Vertex/10001:
-              {}
-            Vertex/10002:
-              {}
-            Vertex/10003:
-              {}
-            Vertex/10004:
-              {}
-            Vertex/10005:
-              {}
-            Vertex/10006:
-              {}
-            Vertex/10007:
-              {}
-            Vertex/10008:
-              {}
-            Vertex/10009:
-              {}
-            Vertex/10010:
-              {}
-            Vertex/10011:
-              {}
-            Vertex/10012:
-              {}
-            Vertex/10013:
-              {}
-            Vertex/10014:
-              {}
-            Vertex/10015:
-              {}
-            Vertex/10016:
-              {}
-            Vertex/10017:
-              {}
-            Vertex/10018:
-              {}
           map_nn2:
             {}
       Update Interval: 0
@@ -576,17 +504,19 @@ Visualization Manager:
           Use rainbow: true
           Value: true
         - Class: rviz_default_plugins/MarkerArray
-          Enabled: false
+          Enabled: true
           Name: Planes Map
           Namespaces:
-            {}
+            /plane_extremas: true
+            /plane_normal: true
+            /plane_pts: true
           Topic:
             Depth: 5
             Durability Policy: Volatile
             History Policy: Keep Last
             Reliability Policy: Reliable
             Value: /vineslam/map3D/planes_local
-          Value: false
+          Value: true
       Enabled: true
       Name: Local Maps
     - Class: rviz_common/Group
@@ -705,12 +635,12 @@ Visualization Manager:
           Color: 255; 255; 255
           Color Transformer: Intensity
           Decay Time: 0
-          Enabled: false
+          Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 26.797029495239258
+          Max Intensity: 25.904064178466797
           Min Color: 0; 0; 0
-          Min Intensity: -27.962427139282227
+          Min Intensity: -9.278693199157715
           Name: Planars Map
           Position Transformer: XYZ
           Selectable: true
@@ -725,7 +655,7 @@ Visualization Manager:
             Value: /vineslam/map3D/planars
           Use Fixed Frame: true
           Use rainbow: true
-          Value: false
+          Value: true
       Enabled: true
       Name: Global maps
     - Class: rviz_common/Group
@@ -758,10 +688,10 @@ Visualization Manager:
           Color: 255; 255; 255
           Color Transformer: Intensity
           Decay Time: 0
-          Enabled: true
+          Enabled: false
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 190
+          Max Intensity: 186
           Min Color: 0; 0; 0
           Min Intensity: 0
           Name: Velodyne
@@ -778,7 +708,7 @@ Visualization Manager:
             Value: /white/velodyne_points
           Use Fixed Frame: true
           Use rainbow: true
-          Value: true
+          Value: false
         - Angle Tolerance: 0.10000000149011612
           Class: rviz_default_plugins/Odometry
           Covariance:
@@ -815,17 +745,32 @@ Visualization Manager:
             Durability Policy: Volatile
             History Policy: Keep Last
             Reliability Policy: Reliable
-            Value: /husky_velocity_controller/odom
+            Value: /white/husky_velocity_controller/odom
           Value: false
         - Alpha: 1
           Axes Length: 1
           Axes Radius: 0.10000000149011612
-          Class: rviz_default_plugins/Pose
+          Class: rviz_default_plugins/PoseWithCovariance
           Color: 255; 25; 0
-          Enabled: false
+          Covariance:
+            Orientation:
+              Alpha: 0.5
+              Color: 255; 255; 127
+              Color Style: Unique
+              Frame: Local
+              Offset: 1
+              Scale: 1
+              Value: true
+            Position:
+              Alpha: 0.30000001192092896
+              Color: 204; 51; 204
+              Scale: 1
+              Value: true
+            Value: true
+          Enabled: true
           Head Length: 0.30000001192092896
           Head Radius: 0.10000000149011612
-          Name: GPS Pose
+          Name: RTK Pose
           Shaft Length: 1
           Shaft Radius: 0.05000000074505806
           Shape: Arrow
@@ -834,35 +779,8 @@ Visualization Manager:
             Durability Policy: Volatile
             History Policy: Keep Last
             Reliability Policy: Reliable
-            Value: /vineslam/gps_pose
-          Value: false
-        - Alpha: 1
-          Buffer Length: 1
-          Class: rviz_default_plugins/Path
-          Color: 25; 255; 0
-          Enabled: false
-          Head Diameter: 0.30000001192092896
-          Head Length: 0.20000000298023224
-          Length: 0.30000001192092896
-          Line Style: Lines
-          Line Width: 0.029999999329447746
-          Name: GPS Path
-          Offset:
-            X: 0
-            Y: 0
-            Z: 0
-          Pose Color: 255; 85; 255
-          Pose Style: None
-          Radius: 0.029999999329447746
-          Shaft Diameter: 0.10000000149011612
-          Shaft Length: 0.10000000149011612
-          Topic:
-            Depth: 5
-            Durability Policy: Volatile
-            History Policy: Keep Last
-            Reliability Policy: Reliable
-            Value: /vineslam/gps_path
-          Value: false
+            Value: /white/piksi/enu_pose_best_fix
+          Value: true
       Enabled: true
       Name: Sensors
   Enabled: true

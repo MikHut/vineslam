@@ -58,16 +58,16 @@ def generate_launch_description():
         name='slam_node',
         parameters=[config],
         remappings=[
-            ('/odom_topic', '/white/husky_velocity_controller/odom'),
-            ('/gps_topic', '/fix'),
+            ('/odom_topic', '/husky_velocity_controller/odom'),
+            ('/gps_topic', '/white/piksi/enu_pose_best_fix'),
             ('/features_topic', '/image_feature_array'),
             ('/detections_topic', '/tpu/detections'),
-            ('/scan_topic', '/white/velodyne_points'),
+            ('/scan_topic', '/velodyne_points'),
         ],
         output={
             'stdout': 'screen',
             'stderr': 'screen',
-        }
+        },
     )
     ld.add_action(vineslam)
 

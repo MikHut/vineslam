@@ -581,6 +581,12 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>
       {
         Point l_pt = plane.extremas_[k] * robot_tf;
 
+        std_msgs::msg::ColorRGBA color;
+        color.r = static_cast<int>(i + 1) % 2;
+        color.g = static_cast<int>(i + 1) % 3;
+        color.b = static_cast<int>(i + 1) % 4;
+        color.a = 1.0;
+
         geometry_msgs::msg::Point viz_pt;
         viz_pt.x = p_pt.x_;
         viz_pt.y = p_pt.y_;
@@ -590,13 +596,9 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>
         viz_pt.y = l_pt.y_;
         viz_pt.z = l_pt.z_;
         viz_line.points.push_back(viz_pt);
+        viz_line.color = color;
         viz_line.id = l;
 
-        std_msgs::msg::ColorRGBA color;
-        color.r = 1;
-        color.g = 0;
-        color.b = 0;
-        color.a = 1.0;
         viz_pts.points.push_back(viz_pt);
         viz_pts.colors.push_back(color);
         marker_array.markers.push_back(viz_line);

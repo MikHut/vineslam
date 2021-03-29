@@ -56,6 +56,10 @@ public:
   std::vector<Planar> planar_features_;
   std::vector<Point> points_;
 
+  // List of candidate landmarks, features, and points at each cell
+  std::vector<Corner> candidate_corner_features_;
+  std::vector<Planar> candidate_planar_features_;
+
   // Number of observations for each type of feature
   uint32_t n_corners_{0};
   uint32_t n_planars_{0};
@@ -263,6 +267,9 @@ public:
   int n_planar_features_{};
   int n_landmarks_{};
   int n_points_{};
+
+  // Minimum number of observations to add a corners or planar feature to the map
+  uint32_t min_obsvs_;
 
   // Grid map dimensions
   Point origin_;

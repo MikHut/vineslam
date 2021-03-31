@@ -4,7 +4,7 @@ slam_node:
   use_semantic_features: False
   use_lidar_features: True
   use_image_features: False
-  use_gps: False
+  use_gps: True
   use_wheel_odometry: True
 
   camera_info:
@@ -16,12 +16,12 @@ slam_node:
     # Grid map definitions
     grid_map:
       origin:
-        x: -75.0
+        x: -110.0
         y: -75.0
-        z: -0.5
+        z: -2.0
       width: 150.0
       lenght: 150.0
-      height: 2.5
+      height: 4.0
       resolution: 0.25 # meters
       save_map: True
       output_folder: "/home/andresaguiar/Desktop/"

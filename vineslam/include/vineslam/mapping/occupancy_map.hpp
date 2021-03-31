@@ -61,8 +61,8 @@ public:
   std::vector<Planar> candidate_planar_features_;
 
   // Number of observations for each type of feature
-  uint32_t n_corners_{0};
-  uint32_t n_planars_{0};
+  uint32_t n_candidate_corners_{0};
+  uint32_t n_candidate_planars_{0};
 
 private:
 };
@@ -269,7 +269,8 @@ public:
   int n_points_{};
 
   // Minimum number of observations to add a corners or planar feature to the map
-  uint32_t min_obsvs_;
+  uint32_t min_planar_obsvs_;
+  uint32_t min_corner_obsvs_;
 
   // Grid map dimensions
   Point origin_;

@@ -320,7 +320,7 @@ void VineSLAM_ros::process()
 
   // Convert vineslam pose to ROS pose and publish it
   geometry_msgs::msg::PoseStamped pose_stamped;
-  pose_stamped.header.stamp = rclcpp::Time();
+  pose_stamped.header.stamp = header_.stamp;
   pose_stamped.header.frame_id = params_.world_frame_id_;
   pose_stamped.pose.position.x = robot_pose_.x_;
   pose_stamped.pose.position.y = robot_pose_.y_;
@@ -435,7 +435,7 @@ void VineSLAM_ros::odomListener(const nav_msgs::msg::Odometry::SharedPtr msg)
     q.normalize();
 
     // Check if yaw is NaN
-    float yaw = static_cast<float>(tf2::getYaw(q));
+    auto yaw = static_cast<float>(tf2::getYaw(q));
     if (!std::isfinite(yaw))
       yaw = 0;
 
@@ -506,6 +506,19 @@ void VineSLAM_ros::gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamp
 
   // Set received flag to true
   input_data_.received_gnss_ = true;
+
+  // Publish gps pose
+  geometry_msgs::msg::PoseStamped pose_stamped;
+  pose_stamped.header.stamp = header_.stamp;
+  pose_stamped.header.frame_id = params_.world_frame_id_;
+  pose_stamped.pose.position.x = input_data_.gnss_pose_.x_;
+  pose_stamped.pose.position.y = input_data_.gnss_pose_.y_;
+  pose_stamped.pose.position.z = 0;
+  pose_stamped.pose.orientation.x = 0;
+  pose_stamped.pose.orientation.y = 0;
+  pose_stamped.pose.orientation.z = 0;
+  pose_stamped.pose.orientation.w = 1;
+  gps_pose_publisher_->publish(pose_stamped);
 }
 
 void VineSLAM_ros::publishReport() const

@@ -49,7 +49,7 @@ PF::PF(const Parameters& params, const Pose& initial_pose) : params_(params)
   sigma_planar_matching_ = 0.1;
   sigma_plane_matching_vector_ = 0.02;
   sigma_plane_matching_centroid_ = 0.10;
-  sigma_gps_ = 0.15;
+  sigma_gps_ = 0.05;
   number_clusters_ = 3;
 }
 

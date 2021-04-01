@@ -5,7 +5,6 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
-        - /TF1/Frames1
         - /Local Maps1
         - /Global maps1
         - /Global maps1/Planes Map1/Topic1
@@ -52,21 +51,151 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: false
+        Vertex/1000:
+          Value: false
+        Vertex/10000:
+          Value: false
+        Vertex/1005:
+          Value: false
+        Vertex/1006:
+          Value: false
+        Vertex/1007:
+          Value: false
+        Vertex/1008:
+          Value: false
+        Vertex/1009:
+          Value: false
+        Vertex/1010:
+          Value: false
+        Vertex/1011:
+          Value: false
+        Vertex/1012:
+          Value: false
+        Vertex/1013:
+          Value: false
+        Vertex/1014:
+          Value: false
+        Vertex/1015:
+          Value: false
+        Vertex/1016:
+          Value: false
+        Vertex/1028:
+          Value: false
+        Vertex/1030:
+          Value: false
+        Vertex/1031:
+          Value: false
+        Vertex/1032:
+          Value: false
+        Vertex/1033:
+          Value: false
+        Vertex/1034:
+          Value: false
+        Vertex/1035:
+          Value: false
+        Vertex/1036:
+          Value: false
+        Vertex/1037:
+          Value: false
+        Vertex/1038:
+          Value: false
+        Vertex/1039:
+          Value: false
+        Vertex/1040:
+          Value: false
+        Vertex/1041:
+          Value: false
+        Vertex/1042:
+          Value: false
+        Vertex/1043:
+          Value: false
+        Vertex/1044:
+          Value: false
+        Vertex/1045:
+          Value: false
+        Vertex/1046:
+          Value: false
+        Vertex/1047:
+          Value: false
+        Vertex/1048:
+          Value: false
+        Vertex/1049:
+          Value: false
+        Vertex/1050:
+          Value: false
+        Vertex/1051:
+          Value: false
+        Vertex/1052:
+          Value: false
+        Vertex/1053:
+          Value: false
+        Vertex/1054:
+          Value: false
+        Vertex/1055:
+          Value: false
+        Vertex/1056:
+          Value: false
+        Vertex/1058:
+          Value: false
+        Vertex/1059:
+          Value: false
+        Vertex/1060:
+          Value: false
+        Vertex/1061:
+          Value: false
+        Vertex/1062:
+          Value: false
+        Vertex/1063:
+          Value: false
+        Vertex/1064:
+          Value: false
+        Vertex/1065:
+          Value: false
+        Vertex/1066:
+          Value: false
+        Vertex/1067:
+          Value: false
+        Vertex/1068:
+          Value: false
+        Vertex/1069:
+          Value: false
+        Vertex/1070:
+          Value: false
+        Vertex/1071:
+          Value: false
+        Vertex/1072:
+          Value: false
+        Vertex/1073:
+          Value: false
+        Vertex/1074:
+          Value: false
+        Vertex/1075:
+          Value: false
+        Vertex/1076:
+          Value: false
+        Vertex/1078:
+          Value: false
+        Vertex/1079:
+          Value: false
+        Vertex/1081:
+          Value: false
+        Vertex/1082:
+          Value: false
+        Vertex/1083:
+          Value: false
+        Vertex/1130:
+          Value: false
         base_link:
-          Value: true
-        camerat265_odom_frame:
           Value: true
         front_left_wheel_link:
           Value: false
         front_right_wheel_link:
           Value: false
-        hokuyo_link:
-          Value: true
-        imu_link:
-          Value: true
-        map:
-          Value: true
+        map_nn1:
+          Value: false
         map_nn2:
+          Value: true
+        map_sn0:
           Value: true
         odom:
           Value: true
@@ -74,8 +203,6 @@ Visualization Manager:
           Value: false
         rear_right_wheel_link:
           Value: false
-        tower_base:
-          Value: true
         velodyne:
           Value: true
         zed_camera_left_optical_frame:
@@ -84,28 +211,160 @@ Visualization Manager:
       Name: TF
       Show Arrows: false
       Show Axes: true
-      Show Names: false
+      Show Names: true
       Tree:
         odom:
+          base_link:
+            front_left_wheel_link:
+              {}
+            front_right_wheel_link:
+              {}
+            map_sn0:
+              Vertex/1000:
+                {}
+              Vertex/1005:
+                {}
+              Vertex/1006:
+                {}
+              Vertex/1007:
+                {}
+              Vertex/1008:
+                {}
+              Vertex/1009:
+                {}
+              Vertex/1010:
+                {}
+              Vertex/1011:
+                {}
+              Vertex/1012:
+                {}
+              Vertex/1013:
+                {}
+              Vertex/1014:
+                {}
+              Vertex/1015:
+                {}
+              Vertex/1016:
+                {}
+              Vertex/1028:
+                {}
+              Vertex/1030:
+                {}
+              Vertex/1031:
+                {}
+              Vertex/1032:
+                {}
+              Vertex/1033:
+                {}
+              Vertex/1034:
+                {}
+              Vertex/1035:
+                {}
+              Vertex/1036:
+                {}
+              Vertex/1037:
+                {}
+              Vertex/1038:
+                {}
+              Vertex/1039:
+                {}
+              Vertex/1040:
+                {}
+              Vertex/1041:
+                {}
+              Vertex/1042:
+                {}
+              Vertex/1043:
+                {}
+              Vertex/1044:
+                {}
+              Vertex/1045:
+                {}
+              Vertex/1046:
+                {}
+              Vertex/1047:
+                {}
+              Vertex/1048:
+                {}
+              Vertex/1049:
+                {}
+              Vertex/1050:
+                {}
+              Vertex/1051:
+                {}
+              Vertex/1052:
+                {}
+              Vertex/1053:
+                {}
+              Vertex/1054:
+                {}
+              Vertex/1055:
+                {}
+              Vertex/1056:
+                {}
+              Vertex/1058:
+                {}
+              Vertex/1059:
+                {}
+              Vertex/1060:
+                {}
+              Vertex/1061:
+                {}
+              Vertex/1062:
+                {}
+              Vertex/1063:
+                {}
+              Vertex/1064:
+                {}
+              Vertex/1065:
+                {}
+              Vertex/1066:
+                {}
+              Vertex/1067:
+                {}
+              Vertex/1068:
+                {}
+              Vertex/1069:
+                {}
+              Vertex/1070:
+                {}
+              Vertex/1071:
+                {}
+              Vertex/1072:
+                {}
+              Vertex/1073:
+                {}
+              Vertex/1074:
+                {}
+              Vertex/1075:
+                {}
+              Vertex/1076:
+                {}
+              Vertex/1078:
+                {}
+              Vertex/1079:
+                {}
+              Vertex/1081:
+                {}
+              Vertex/1082:
+                {}
+              Vertex/1083:
+                {}
+              Vertex/1130:
+                {}
+            rear_left_wheel_link:
+              {}
+            rear_right_wheel_link:
+              {}
+            velodyne:
+              {}
+            zed_camera_left_optical_frame:
+              {}
+          map_nn1:
+            Vertex/10000:
+              {}
           map_nn2:
-            base_link:
-              front_left_wheel_link:
-                {}
-              front_right_wheel_link:
-                {}
-              hokuyo_link:
-                {}
-              rear_left_wheel_link:
-                {}
-              rear_right_wheel_link:
-                {}
-              tower_base:
-                imu_link:
-                  {}
-                velodyne:
-                  {}
-              zed_camera_left_optical_frame:
-                {}
+            {}
       Update Interval: 0
       Value: true
     - Class: rviz_common/Group
@@ -379,9 +638,9 @@ Visualization Manager:
           Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 38.86228942871094
+          Max Intensity: 33.319156646728516
           Min Color: 0; 0; 0
-          Min Intensity: -7.90580940246582
+          Min Intensity: -16.8673152923584
           Name: Planars Map
           Position Transformer: XYZ
           Selectable: true
@@ -586,25 +845,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 100.13417053222656
+      Distance: 22.618921279907227
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 13.59825325012207
-        Y: 0.4829849600791931
-        Z: 4.436095237731934
+        X: 6.015923023223877
+        Y: -6.266355037689209
+        Z: 4.428191661834717
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: 0.474796861410141
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.190464973449707
+      Yaw: 4.665466785430908
     Saved: ~
 Window Geometry:
   Displays:

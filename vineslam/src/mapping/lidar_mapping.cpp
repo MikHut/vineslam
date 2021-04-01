@@ -29,29 +29,15 @@ void LidarMapper::registerMaps(const Pose& robot_pose, const std::vector<Corner>
                                const std::vector<Planar>& planars, const std::vector<SemiPlane>& planes,
                                const SemiPlane& ground, OccupancyMap& grid_map, ElevationMap& elevation_map)
 {
-  Timer t("registerMaps()");
   // - 3D PCL corner map estimation
-  t.tick("::corners()");
   globalCornerMap(robot_pose, corners, grid_map);
-  t.tock();
   // - 3D PCL planar map estimation
-  t.tick("::planars()");
   globalPlanarMap(robot_pose, planars, grid_map);
-  t.tock();
   // - 3D PCL plane map estimation
-  t.tick("::planes()");
   globalPlaneMap(robot_pose, planes, grid_map);
-  t.tock();
-  t.tick("::ground()");
   globalPlaneMap(robot_pose, { ground }, grid_map);
-  t.tock();
   // - Elevation map estimation
-  t.tick("::elevation()");
   globalElevationMap(robot_pose, ground, elevation_map);
-  t.tock();
-
-  t.getLog();
-  t.clearLog();
 
   // Store robot pose to use in the next iteration
   prev_robot_pose_ = robot_pose;
@@ -411,7 +397,7 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, const std::vector<SemiP
   Tf tf(Rot, trans);
 
   // Define correspondence thresholds
-  float v_dist = 0.4;   // max vector displacement for all the components
+  float v_dist = 0.2;   // max vector displacement for all the components
   float sp_dist = 0.3;  // max distance from source plane centroid to target plane
   float area_th = 1.0;  // minimum overlapping area between semiplanes
 
@@ -923,43 +909,42 @@ bool LidarMapper::checkPlaneConsistency(const SemiPlane& plane, const SemiPlane&
   }
 
   // B - Check if the points belonging to the semiplane are continuous
-  //  Point p0;
-  //  if (plane.points_.empty())
-  //  {
-  //    return false;
-  //  }
-  //  else
-  //  {
-  //    p0 = plane.points_[0];
-  //  }
-  //  std::vector<Point> pts = plane.points_;
-  //  float d0 = 0;
-  //  while (pts.size() >= 2)  // Find nearest neighbor of p0, pop it from the vector, compare distances computed
-  //  between
-  //                           // iterations, find holes by large variations on the distance measured
-  //  {
-  //    float d1, min_dist = std::numeric_limits<float>::max();
-  //    uint32_t idx = 0;
-  //    for (uint32_t i = 0; i < pts.size(); ++i)
-  //    {
-  //      d1 = p0.distance(pts[i]);
-  //      if (d1 != 0 && d1 < min_dist)
-  //      {
-  //        min_dist = d1;
-  //        idx = i;
-  //      }
-  //    }
-  //    d1 = min_dist;
-  //    if (std::fabs(d1 - d0) > 0.5 && d0 != 0)  // We found a hole in this case ...
-  //    {
-  //      return false;
-  //    }
-  //    else
-  //    {
-  //      pts.erase(pts.begin() + idx);
-  //      d0 = d1;
-  //    }
-  //  }
+  Point p0;
+  if (plane.points_.empty())
+  {
+    return false;
+  }
+  else
+  {
+    p0 = plane.points_[0];
+  }
+  std::vector<Point> pts = plane.points_;
+  float d0 = 0;
+  while (pts.size() >= 2)  // Find nearest neighbor of p0, pop it from the vector, compare distances computed
+                           // between iterations, find holes by large variations on the distance measured
+  {
+    float d1, min_dist = std::numeric_limits<float>::max();
+    uint32_t idx = 0;
+    for (uint32_t i = 0; i < pts.size(); ++i)
+    {
+      d1 = p0.distance(pts[i]);
+      if (d1 != 0 && d1 < min_dist)
+      {
+        min_dist = d1;
+        idx = i;
+      }
+    }
+    d1 = min_dist;
+    if (std::fabs(d1 - d0) > 0.2 && d0 != 0)  // We found a hole in this case ...
+    {
+      return false;
+    }
+    else
+    {
+      pts.erase(pts.begin() + idx);
+      d0 = d1;
+    }
+  }
 
   // C - Make sure that the plane is not horizontal
   float dot = Vec(plane.a_, plane.b_, plane.c_).dot(Vec(ground_plane.a_, ground_plane.b_, ground_plane.c_));

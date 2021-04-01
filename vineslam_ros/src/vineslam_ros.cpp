@@ -135,6 +135,7 @@ void VineSLAM_ros::init()
   if (params_.use_lidar_features_)
   {
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+    l_planes = {};
   }
 
   // - 3D image feature map estimation
@@ -184,6 +185,7 @@ void VineSLAM_ros::process()
   {
     timer_->tick("lidar_mapper::localMap()");
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+    l_planes = {};
     timer_->tock();
   }
 

@@ -183,7 +183,7 @@ void VineSLAM_ros::publishElevationMap() const
   float xmin = elevation_map_->origin_.x_;
   float xmax = xmin + elevation_map_->width_;
   float ymin = elevation_map_->origin_.y_;
-  float ymax = xmin + elevation_map_->lenght_;
+  float ymax = ymin + elevation_map_->lenght_;
   for (float i = xmin; i < xmax - elevation_map_->resolution_;)
   {
     for (float j = ymin; j < ymax - elevation_map_->resolution_;)

@@ -303,7 +303,8 @@ public:
   // Access map layer
   MapLayer& operator()(float z)
   {
-    int layer_num = getLayerNumber(z);
+    int layer_num;
+    getLayerNumber(z, layer_num);
     layer_num = (layer_num < zmin_) ? zmin_ : layer_num;
     layer_num = (layer_num > zmax_) ? zmax_ : layer_num;
 
@@ -313,7 +314,8 @@ public:
   // 3D grid map access to cell coordinates
   Cell& operator()(float x, float y, float z)
   {
-    int layer_num = getLayerNumber(z);
+    int layer_num;
+    getLayerNumber(z, layer_num);
     layer_num = (layer_num < zmin_) ? zmin_ : layer_num;
     layer_num = (layer_num > zmax_) ? zmax_ : layer_num;
 
@@ -382,7 +384,7 @@ public:
   // Find nearest neighbor of a feature on its cell
   bool findNearestOnCell(const ImageFeature& input, ImageFeature& nearest);
   // Recover the layer number from the feature z component
-  int getLayerNumber(const float& z) const;
+  bool getLayerNumber(const float& z, int& layer_num) const;
 
   // Getter functions
   std::vector<Corner> getCorners()

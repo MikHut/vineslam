@@ -61,8 +61,8 @@ public:
   std::vector<Planar> candidate_planar_features_;
 
   // Number of observations for each type of feature
-  uint32_t n_corners_{0};
-  uint32_t n_planars_{0};
+  uint32_t n_candidate_corners_{0};
+  uint32_t n_candidate_planars_{0};
 
 private:
 };
@@ -269,7 +269,8 @@ public:
   int n_points_{};
 
   // Minimum number of observations to add a corners or planar feature to the map
-  uint32_t min_obsvs_;
+  uint32_t min_planar_obsvs_;
+  uint32_t min_corner_obsvs_;
 
   // Grid map dimensions
   Point origin_;
@@ -302,7 +303,8 @@ public:
   // Access map layer
   MapLayer& operator()(float z)
   {
-    int layer_num = getLayerNumber(z);
+    int layer_num;
+    getLayerNumber(z, layer_num);
     layer_num = (layer_num < zmin_) ? zmin_ : layer_num;
     layer_num = (layer_num > zmax_) ? zmax_ : layer_num;
 
@@ -312,7 +314,8 @@ public:
   // 3D grid map access to cell coordinates
   Cell& operator()(float x, float y, float z)
   {
-    int layer_num = getLayerNumber(z);
+    int layer_num;
+    getLayerNumber(z, layer_num);
     layer_num = (layer_num < zmin_) ? zmin_ : layer_num;
     layer_num = (layer_num > zmax_) ? zmax_ : layer_num;
 
@@ -381,7 +384,7 @@ public:
   // Find nearest neighbor of a feature on its cell
   bool findNearestOnCell(const ImageFeature& input, ImageFeature& nearest);
   // Recover the layer number from the feature z component
-  int getLayerNumber(const float& z) const;
+  bool getLayerNumber(const float& z, int& layer_num) const;
 
   // Getter functions
   std::vector<Corner> getCorners()

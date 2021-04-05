@@ -85,7 +85,7 @@ public:
   void odomListener(const nav_msgs::msg::Odometry::SharedPtr msg);
 
   // GPS callback function
-  void gpsListener(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
+  void gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
 
   // Services callbacks
   bool startRegistration(vineslam_ros::srv::StartMapRegistration::Request::SharedPtr,
@@ -183,6 +183,7 @@ public:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr corners_local_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr planars_local_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr planes_local_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr gps_pose_publisher_;
 
   // Classes object members
   Parameters params_;
@@ -200,6 +201,7 @@ public:
 
   // Motion variables
   Pose init_odom_pose_;
+  Pose init_gps_pose_;
   Pose robot_pose_;
 
   // Initialization flags

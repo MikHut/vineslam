@@ -76,6 +76,11 @@ static bool ransac(const std::vector<Point>& in_pts, Plane& out_plane, int max_i
     pts = in_pts;
   }
 
+  if (pts.empty())
+  {
+    return false;
+  }
+
   int max_idx = static_cast<int>(pts.size()) - 1;
   int min_idx = 0;
   int max_tries = 1000;

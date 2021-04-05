@@ -209,7 +209,7 @@ void VineSLAM_ros::process()
   obsv_.ground_plane = l_ground_plane;
   obsv_.planes = l_planes;
   obsv_.surf_features = l_surf_features;
-  if (params_.use_gps_ && !init_gps_)
+  if (params_.use_gps_)
   {
     obsv_.gps_pose = input_data_.gnss_pose_;
   }
@@ -270,7 +270,7 @@ void VineSLAM_ros::process()
   q.normalize();
   pose2TransformStamped(q, tf2::Vector3(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_), base2map_msg);
 
-  if (params_.robot_model_ == "agrob") // in this configuration we broadcast a map->base_link tf
+  if (params_.robot_model_ == "agrob")  // in this configuration we broadcast a map->base_link tf
   {
     tf_broadcaster_->sendTransform(base2map_msg);
 
@@ -285,7 +285,7 @@ void VineSLAM_ros::process()
     tf_broadcaster_->sendTransform(map2odom_msg);
     // ----
   }
-  else // in this configuration we broadcast a odom->map tf
+  else  // in this configuration we broadcast a odom->map tf
   {
     geometry_msgs::msg::TransformStamped odom2base_msg;
     tf2_ros::Buffer tf_buffer(this->get_clock());
@@ -309,20 +309,18 @@ void VineSLAM_ros::process()
     tf2::Transform t = odom2base_tf * base2map_tf.inverse();
     odom2map_tf.setRotation(t.getRotation());
     odom2map_tf.setOrigin(t.getOrigin());
-    pose2TransformStamped(odom2base_tf.getRotation(), odom2base_tf.getOrigin(), odom2base_msg);
+    pose2TransformStamped(odom2map_tf.getRotation(), odom2map_tf.getOrigin(), odom2map_msg);
 
+    odom2map_msg.header.stamp = header_.stamp;
     odom2map_msg.header.frame_id = "odom";
     odom2map_msg.child_frame_id = params_.world_frame_id_;
-    odom2base_msg.header.stamp = header_.stamp;
-
-    std::cout << this->now().seconds() << ", " << this->now().nanoseconds() << "\n";
 
     tf_broadcaster_->sendTransform(odom2map_msg);
   }
 
   // Convert vineslam pose to ROS pose and publish it
   geometry_msgs::msg::PoseStamped pose_stamped;
-  pose_stamped.header.stamp = rclcpp::Time();
+  pose_stamped.header.stamp = header_.stamp;
   pose_stamped.header.frame_id = params_.world_frame_id_;
   pose_stamped.pose.position.x = robot_pose_.x_;
   pose_stamped.pose.position.y = robot_pose_.y_;
@@ -405,8 +403,6 @@ void VineSLAM_ros::landmarkListener(const vision_msgs::msg::Detection3DArray::Sh
 
 void VineSLAM_ros::scanListener(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
 {
-  header_ = msg->header;
-
   pcl::PointCloud<pcl::PointXYZI>::Ptr velodyne_pcl(new pcl::PointCloud<pcl::PointXYZI>);
   pcl::fromROSMsg(*msg, *velodyne_pcl);
   // Remove Nan points
@@ -439,7 +435,7 @@ void VineSLAM_ros::odomListener(const nav_msgs::msg::Odometry::SharedPtr msg)
     q.normalize();
 
     // Check if yaw is NaN
-    float yaw = static_cast<float>(tf2::getYaw(q));
+    auto yaw = static_cast<float>(tf2::getYaw(q));
     if (!std::isfinite(yaw))
       yaw = 0;
 
@@ -473,9 +469,56 @@ void VineSLAM_ros::odomListener(const nav_msgs::msg::Odometry::SharedPtr msg)
   input_data_.received_odometry_ = true;
 }
 
-void VineSLAM_ros::gpsListener(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
+void VineSLAM_ros::gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
 {
   header_ = msg->header;
+
+  geometry_msgs::msg::TransformStamped odom2satellite_msg;
+  tf2_ros::Buffer tf_buffer(this->get_clock());
+  tf2_ros::TransformListener tfListener(tf_buffer);
+
+  // Get odom -> sn0 transformation
+  try
+  {
+    odom2satellite_msg = tf_buffer.lookupTransform("map_sn0", "odom", rclcpp::Time(0), rclcpp::Duration(300000000));
+  }
+  catch (tf2::TransformException& ex)
+  {
+    RCLCPP_WARN(this->get_logger(), "%s", ex.what());
+  }
+
+  // Compute the rtk pose in sn0's reference frame
+  tf2::Stamped<tf2::Transform> odom2satellite_tf;
+  tf2::fromMsg(odom2satellite_msg, odom2satellite_tf);
+
+  tf2::Quaternion q;
+  q.setX(msg->pose.pose.orientation.x);
+  q.setY(msg->pose.pose.orientation.y);
+  q.setZ(msg->pose.pose.orientation.z);
+  q.setW(msg->pose.pose.orientation.w);
+
+  tf2::Transform gps_raw_pose(q, tf2::Vector3(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z));
+  tf2::Transform gps_pose = odom2satellite_tf.inverse() * gps_raw_pose;
+
+  // Save pose
+  input_data_.gnss_pose_.x_ = gps_pose.getOrigin().x();
+  input_data_.gnss_pose_.y_ = gps_pose.getOrigin().y();
+
+  // Set received flag to true
+  input_data_.received_gnss_ = true;
+
+  // Publish gps pose
+  geometry_msgs::msg::PoseStamped pose_stamped;
+  pose_stamped.header.stamp = header_.stamp;
+  pose_stamped.header.frame_id = params_.world_frame_id_;
+  pose_stamped.pose.position.x = input_data_.gnss_pose_.x_;
+  pose_stamped.pose.position.y = input_data_.gnss_pose_.y_;
+  pose_stamped.pose.position.z = 0;
+  pose_stamped.pose.orientation.x = 0;
+  pose_stamped.pose.orientation.y = 0;
+  pose_stamped.pose.orientation.z = 0;
+  pose_stamped.pose.orientation.w = 1;
+  gps_pose_publisher_->publish(pose_stamped);
 }
 
 void VineSLAM_ros::publishReport() const

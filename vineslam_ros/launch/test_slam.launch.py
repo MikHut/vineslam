@@ -59,7 +59,7 @@ def generate_launch_description():
         parameters=[config],
         remappings=[
             ('/odom_topic', '/white/husky_velocity_controller/odom'),
-            ('/gps_topic', '/fix'),
+            ('/gps_topic', '/white/piksi/enu_pose_best_fix'),
             ('/features_topic', '/image_feature_array'),
             ('/detections_topic', '/tpu/detections'),
             ('/scan_topic', '/white/velodyne_points'),
@@ -67,7 +67,7 @@ def generate_launch_description():
         output={
             'stdout': 'screen',
             'stderr': 'screen',
-        }
+        },
     )
     ld.add_action(vineslam)
 

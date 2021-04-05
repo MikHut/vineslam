@@ -22,7 +22,8 @@ MapLayer::MapLayer(const Parameters& params, const Pose& origin_offset)
   n_points_ = 0;
 
   // Set the minimum number of corners and planar feature observations to add them to the map
-  min_obsvs_ = 1;
+  min_planar_obsvs_ = 15;
+  min_corner_obsvs_ = 5;
 }
 
 MapLayer::MapLayer(const MapLayer& grid_map)
@@ -37,7 +38,8 @@ MapLayer::MapLayer(const MapLayer& grid_map)
   this->origin_ = grid_map.origin_;
   this->lenght_ = grid_map.lenght_;
   this->width_ = grid_map.width_;
-  this->min_obsvs_ = grid_map.min_obsvs_;
+  this->min_planar_obsvs_ = grid_map.min_planar_obsvs_;
+  this->min_corner_obsvs_ = grid_map.min_corner_obsvs_;
 }
 
 bool MapLayer::insert(const SemanticFeature& l_landmark, const int& id, const int& i, const int& j)
@@ -120,8 +122,45 @@ bool MapLayer::insert(const Corner& l_feature, const int& i, const int& j)
     return false;
   }
 
-  (*this)(i, j).corner_features_.push_back(l_feature);
-  n_corner_features_++;
+  if ((*this)(i, j).n_candidate_corners_ < min_corner_obsvs_ - 1)  // insert a candidate (not enough observations yet)
+  {
+    (*this)(i, j).candidate_corner_features_.push_back(l_feature);
+    (*this)(i, j).n_candidate_corners_++;
+
+    return true;
+  }
+  else if ((*this)(i, j).n_candidate_corners_ == min_corner_obsvs_ - 1)  // we reached the minimum number of
+                                                                         // observations
+  {
+    (*this)(i, j).candidate_corner_features_.push_back(l_feature);
+    (*this)(i, j).n_candidate_corners_++;
+
+    // Compute the mean of the candidates
+    uint32_t n_candidates = (*this)(i, j).candidate_corner_features_.size();
+    Point l_pt(0, 0, 0);
+    for (uint32_t k = 0; k < n_candidates; ++k)
+    {
+      Corner c1 = (*this)(i, j).candidate_corner_features_[k];
+
+      l_pt.x_ += c1.pos_.x_;
+      l_pt.y_ += c1.pos_.y_;
+      l_pt.z_ += c1.pos_.z_;
+    }
+    l_pt.x_ /= n_candidates;
+    l_pt.y_ /= n_candidates;
+    l_pt.z_ /= n_candidates;
+
+    // Insert it in the map
+    Corner c(l_pt, 0);
+    (*this)(i, j).corner_features_.push_back(c);
+    n_corner_features_++;
+  }
+  else if ((*this)(i, j).n_candidate_corners_ >= min_corner_obsvs_)  // normal insertion after reaching the minimum
+                                                                     // number of observations
+  {
+    (*this)(i, j).corner_features_.push_back(l_feature);
+    n_corner_features_++;
+  }
 
   // Mark cell as occupied in pointer array
   int l_i = i - static_cast<int>(std::round(origin_.x_ / resolution_ + .49));
@@ -154,64 +193,41 @@ bool MapLayer::insert(const Planar& l_feature, const int& i, const int& j)
     return false;
   }
 
-  if ((*this)(i, j).n_planars_ < min_obsvs_ - 1)  // insert a candidate (not enough observations yet)
+  if ((*this)(i, j).n_candidate_planars_ < min_planar_obsvs_ - 1)  // insert a candidate (not enough observations yet)
   {
     (*this)(i, j).candidate_planar_features_.push_back(l_feature);
-    (*this)(i, j).n_planars_++;
+    (*this)(i, j).n_candidate_planars_++;
 
     return true;
   }
-  else if ((*this)(i, j).n_planars_ == min_obsvs_ - 1)  // we reached the minimum number of observations
+  else if ((*this)(i, j).n_candidate_planars_ == min_planar_obsvs_ - 1)  // we reached the minimum number of
+                                                                         // observations
   {
     (*this)(i, j).candidate_planar_features_.push_back(l_feature);
-    (*this)(i, j).n_planars_++;
+    (*this)(i, j).n_candidate_planars_++;
 
-    // Insert the first candidate in the map
-    (*this)(i, j).planar_features_.push_back((*this)(i, j).candidate_planar_features_[0]);
-    n_planar_features_++;
-
-    for (uint32_t k = 1; k < (*this)(i, j).candidate_planar_features_.size(); ++k)
+    // Compute the mean of the candidates
+    uint32_t n_candidates = (*this)(i, j).candidate_planar_features_.size();
+    Point l_pt(0, 0, 0);
+    for (uint32_t k = 0; k < n_candidates; ++k)
     {
-      float best_correspondence = 0.20;
       Planar p1 = (*this)(i, j).candidate_planar_features_[k];
 
-      (*this)(i, j).planar_features_.push_back((*this)(i, j).candidate_planar_features_[k]);
-      n_planar_features_++;
-
-//      for (uint32_t l = 0; l < (*this)(i, j).planar_features_.size(); ++l)
-//      {
-//        bool found = false;
-//        Planar correspondence{};
-//        Planar p2 = (*this)(i, j).planar_features_[l];
-//        float dist_min = p1.pos_.distance(p2.pos_);
-//
-//        if (dist_min < best_correspondence)
-//        {
-//          correspondence = p2;
-//          best_correspondence = dist_min;
-//          found = true;
-//        }
-//
-//        // - Then, insert the planar into the grid map
-//        if (found)
-//        {
-//          Point new_pt = ((correspondence.pos_ * static_cast<float>(correspondence.n_observations_)) + p1.pos_) /
-//                         static_cast<float>(correspondence.n_observations_ + 1);
-//          Planar new_planar(new_pt, p2.which_plane_);
-//          new_planar.n_observations_ = correspondence.n_observations_ + 1;
-//          update(correspondence, new_planar);
-//        }
-//        else
-//        {
-//          (*this)(i, j).planar_features_.push_back(p1);
-//        }
-//
-//        n_planar_features_++;
-//      }
+      l_pt.x_ += p1.pos_.x_;
+      l_pt.y_ += p1.pos_.y_;
+      l_pt.z_ += p1.pos_.z_;
     }
+    l_pt.x_ /= n_candidates;
+    l_pt.y_ /= n_candidates;
+    l_pt.z_ /= n_candidates;
+
+    // Insert it in the map
+    Planar p(l_pt, 0);
+    (*this)(i, j).planar_features_.push_back(p);
+    n_planar_features_++;
   }
-  else if ((*this)(i, j).n_planars_ >= min_obsvs_)  // normal insertion after reaching the minimum number of
-                                                    // observations
+  else if ((*this)(i, j).n_candidate_planars_ >= min_planar_obsvs_)  // normal insertion after reaching the minimum
+                                                                     // number of observations
   {
     (*this)(i, j).planar_features_.push_back(l_feature);
     n_planar_features_++;
@@ -1223,7 +1239,8 @@ OccupancyMap::OccupancyMap(const Parameters& params, const Pose& origin_offset)
   float i = origin_.z_;
   while (i < origin_.z_ + height_)
   {
-    int layer_num = getLayerNumber(i);
+    int layer_num;
+    getLayerNumber(i, layer_num);
     layers_map_[layer_num] = MapLayer(params, origin_offset);
     i += resolution_z_;
   }
@@ -1243,50 +1260,84 @@ OccupancyMap::OccupancyMap(const OccupancyMap& grid_map)
   this->planes_ = grid_map.planes_;
 }
 
-int OccupancyMap::getLayerNumber(const float& z) const
+bool OccupancyMap::getLayerNumber(const float& z, int& layer_num) const
 {
-  int layer_num = static_cast<int>(std::round((z - origin_.z_) / resolution_z_));
-
-  layer_num = (layer_num < zmin_) ? zmin_ : layer_num;
-  layer_num = (layer_num > zmax_) ? zmax_ : layer_num;
-
-  return layer_num;
+  layer_num = static_cast<int>(std::round((z - origin_.z_) / resolution_z_));
+  return !(layer_num < zmin_ || layer_num > zmax_);
 }
 
 bool OccupancyMap::insert(const SemanticFeature& l_landmark, const int& id)
 {
-  return layers_map_[getLayerNumber(0)].insert(l_landmark, id);
+  int layer_num;
+  getLayerNumber(0, layer_num);
+  return layers_map_[layer_num].insert(l_landmark, id);
 }
 
 bool OccupancyMap::insert(const ImageFeature& l_feature)
 {
-  return layers_map_[getLayerNumber(l_feature.pos_.z_)].insert(l_feature);
+  int layer_num;
+  if (getLayerNumber(l_feature.pos_.z_, layer_num))
+  {
+    return layers_map_[layer_num].insert(l_feature);
+  }
+  else
+  {
+    return false;
+  }
 }
 
 bool OccupancyMap::insert(const Corner& l_feature)
 {
-  return layers_map_[getLayerNumber(l_feature.pos_.z_)].insert(l_feature);
+  int layer_num;
+  if (getLayerNumber(l_feature.pos_.z_, layer_num))
+  {
+    return layers_map_[layer_num].insert(l_feature);
+  }
+  else
+  {
+    return false;
+  }
 }
 
 bool OccupancyMap::insert(const Planar& l_feature)
 {
-  return layers_map_[getLayerNumber(l_feature.pos_.z_)].insert(l_feature);
+  int layer_num;
+  if (getLayerNumber(l_feature.pos_.z_, layer_num))
+  {
+    return layers_map_[layer_num].insert(l_feature);
+  }
+  else
+  {
+    return false;
+  }
 }
 
 bool OccupancyMap::insert(const Point& l_point)
 {
-  return layers_map_[getLayerNumber(l_point.z_)].insert(l_point);
+  int layer_num;
+  if (getLayerNumber(l_point.z_, layer_num))
+  {
+    return layers_map_[layer_num].insert(l_point);
+  }
+  else
+  {
+    return false;
+  }
 }
 
 bool OccupancyMap::update(const SemanticFeature& new_landmark, const int& id, const float& i, const float& j)
 {
-  return layers_map_[getLayerNumber(0)].update(new_landmark, id, i, j);
+  int layer_num;
+  getLayerNumber(0, layer_num);
+  return layers_map_[layer_num].update(new_landmark, id, i, j);
 }
 
 bool OccupancyMap::update(const Corner& old_corner, const Corner& new_corner)
 {
-  int old_layer_num = getLayerNumber(old_corner.pos_.z_);
-  int new_layer_num = getLayerNumber(new_corner.pos_.z_);
+  int old_layer_num;
+  int new_layer_num;
+  getLayerNumber(old_corner.pos_.z_, old_layer_num);
+  getLayerNumber(new_corner.pos_.z_, new_layer_num);
 
   if (old_layer_num == new_layer_num)
   {
@@ -1330,8 +1381,16 @@ bool OccupancyMap::update(const Corner& old_corner, const Corner& new_corner)
 
 bool OccupancyMap::update(const Planar& old_planar, const Planar& new_planar)
 {
-  int old_layer_num = getLayerNumber(old_planar.pos_.z_);
-  int new_layer_num = getLayerNumber(new_planar.pos_.z_);
+  int old_layer_num;
+  int new_layer_num;
+  if (!getLayerNumber(old_planar.pos_.z_, old_layer_num))
+  {
+    return false;
+  }
+  if (!getLayerNumber(new_planar.pos_.z_, new_layer_num))
+  {
+    return false;
+  }
 
   if (old_layer_num == new_layer_num)
   {
@@ -1375,8 +1434,16 @@ bool OccupancyMap::update(const Planar& old_planar, const Planar& new_planar)
 
 bool OccupancyMap::update(const ImageFeature& old_image_feature, const ImageFeature& new_image_feature)
 {
-  int old_layer_num = getLayerNumber(old_image_feature.pos_.z_);
-  int new_layer_num = getLayerNumber(new_image_feature.pos_.z_);
+  int old_layer_num;
+  int new_layer_num;
+  if (!getLayerNumber(old_image_feature.pos_.z_, old_layer_num))
+  {
+    return false;
+  }
+  if (!getLayerNumber(new_image_feature.pos_.z_, new_layer_num))
+  {
+    return false;
+  }
 
   if (old_layer_num == new_layer_num)
   {
@@ -1440,7 +1507,11 @@ bool OccupancyMap::getAdjacent(const float& x, const float& y, const float& z, c
   std::vector<Cell> layer_cells;
   std::vector<Cell> down_cells;
 
-  int layer_num = getLayerNumber(z);
+  int layer_num;
+  if (!getLayerNumber(z, layer_num))
+  {
+    return false;
+  }
 
   // Find the adjacent cells from the layer, and the upward and downward layers
   if (layer_num - 1 > zmin_)
@@ -1464,7 +1535,11 @@ bool OccupancyMap::findNearest(const ImageFeature& input, ImageFeature& nearest,
   ImageFeature nearest_down, nearest_up, nearest_layer;
   float sdist_down = 1e6, sdist_up = 1e6, sdist_layer = 1e6;
 
-  int layer_num = getLayerNumber(input.pos_.z_);
+  int layer_num;
+  if (!getLayerNumber(input.pos_.z_, layer_num))
+  {
+    return false;
+  }
 
   // Find the nearest feature in each layer
   bool c1 = layers_map_[layer_num - 1].findNearest(input, nearest_down, sdist_down);
@@ -1496,7 +1571,11 @@ bool OccupancyMap::findNearest(const Corner& input, Corner& nearest, float& sdis
   Corner nearest_down, nearest_up, nearest_layer;
   float sdist_down = 1e6, sdist_up = 1e6, sdist_layer = 1e6;
 
-  int layer_num = getLayerNumber(input.pos_.z_);
+  int layer_num;
+  if (!getLayerNumber(input.pos_.z_, layer_num))
+  {
+    return false;
+  }
 
   // Find the nearest feature in each layer
   bool c1 = layers_map_[layer_num - 1].findNearest(input, nearest_down, sdist_down);
@@ -1528,7 +1607,11 @@ bool OccupancyMap::findNearest(const Planar& input, Planar& nearest, float& sdis
   Planar nearest_down, nearest_up, nearest_layer;
   float sdist_down = 1e6, sdist_up = 1e6, sdist_layer = 1e6;
 
-  int layer_num = getLayerNumber(input.pos_.z_);
+  int layer_num;
+  if (!getLayerNumber(input.pos_.z_, layer_num))
+  {
+    return false;
+  }
 
   // Find the nearest feature in each layer
   bool c1 = layers_map_[layer_num - 1].findNearest(input, nearest_down, sdist_down);
@@ -1556,7 +1639,15 @@ bool OccupancyMap::findNearest(const Planar& input, Planar& nearest, float& sdis
 
 bool OccupancyMap::findNearestOnCell(const ImageFeature& input, ImageFeature& nearest)
 {
-  return layers_map_[getLayerNumber(input.pos_.z_)].findNearestOnCell(input, nearest);
+  int layer_num;
+  if (!getLayerNumber(input.pos_.z_, layer_num))
+  {
+    return false;
+  }
+  else
+  {
+    return layers_map_[layer_num].findNearestOnCell(input, nearest);
+  }
 }
 
 }  // namespace vineslam

@@ -7,7 +7,10 @@ Panels:
         - /Global Options1
         - /Local Maps1
         - /Global maps1
-      Splitter Ratio: 0.5740740895271301
+        - /Global maps1/Planes Map1/Topic1
+        - /Global maps1/Planes Map1/Namespaces1
+        - /Sensors1
+      Splitter Ratio: 0.8148148059844971
     Tree Height: 814
   - Class: rviz_common/Selection
     Name: Selection
@@ -193,7 +196,7 @@ Visualization Manager:
         map_nn2:
           Value: true
         map_sn0:
-          Value: false
+          Value: true
         odom:
           Value: true
         rear_left_wheel_link:
@@ -208,7 +211,7 @@ Visualization Manager:
       Name: TF
       Show Arrows: false
       Show Axes: true
-      Show Names: false
+      Show Names: true
       Tree:
         odom:
           base_link:
@@ -566,7 +569,7 @@ Visualization Manager:
           Color: 255; 255; 255
           Color Transformer: RGB8
           Decay Time: 0
-          Enabled: true
+          Enabled: false
           Invert Rainbow: false
           Max Color: 255; 255; 255
           Max Intensity: 4096
@@ -586,7 +589,7 @@ Visualization Manager:
             Value: /vineslam/map3D/SURF
           Use Fixed Frame: true
           Use rainbow: true
-          Value: true
+          Value: false
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
@@ -635,9 +638,9 @@ Visualization Manager:
           Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 26.317371368408203
+          Max Intensity: 33.319156646728516
           Min Color: 0; 0; 0
-          Min Intensity: -24.84224510192871
+          Min Intensity: -16.8673152923584
           Name: Planars Map
           Position Transformer: XYZ
           Selectable: true
@@ -683,26 +686,26 @@ Visualization Manager:
           Channel Name: intensity
           Class: rviz_default_plugins/PointCloud2
           Color: 255; 255; 255
-          Color Transformer: ""
+          Color Transformer: Intensity
           Decay Time: 0
           Enabled: false
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 4096
+          Max Intensity: 186
           Min Color: 0; 0; 0
           Min Intensity: 0
           Name: Velodyne
-          Position Transformer: ""
+          Position Transformer: XYZ
           Selectable: true
           Size (Pixels): 3
-          Size (m): 0.009999999776482582
+          Size (m): 0.05000000074505806
           Style: Flat Squares
           Topic:
             Depth: 5
             Durability Policy: Volatile
             History Policy: Keep Last
             Reliability Policy: Reliable
-            Value: /velodyne_points
+            Value: /white/velodyne_points
           Use Fixed Frame: true
           Use rainbow: true
           Value: false
@@ -742,17 +745,51 @@ Visualization Manager:
             Durability Policy: Volatile
             History Policy: Keep Last
             Reliability Policy: Reliable
-            Value: /husky_velocity_controller/odom
+            Value: /white/husky_velocity_controller/odom
+          Value: false
+        - Alpha: 1
+          Axes Length: 1
+          Axes Radius: 0.10000000149011612
+          Class: rviz_default_plugins/PoseWithCovariance
+          Color: 255; 25; 0
+          Covariance:
+            Orientation:
+              Alpha: 0.5
+              Color: 255; 255; 127
+              Color Style: Unique
+              Frame: Local
+              Offset: 1
+              Scale: 1
+              Value: true
+            Position:
+              Alpha: 0.30000001192092896
+              Color: 204; 51; 204
+              Scale: 1
+              Value: true
+            Value: true
+          Enabled: false
+          Head Length: 0.30000001192092896
+          Head Radius: 0.10000000149011612
+          Name: RTK Pose
+          Shaft Length: 1
+          Shaft Radius: 0.05000000074505806
+          Shape: Arrow
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /white/piksi/enu_pose_best_fix
           Value: false
         - Alpha: 1
           Axes Length: 1
           Axes Radius: 0.10000000149011612
           Class: rviz_default_plugins/Pose
-          Color: 255; 25; 0
-          Enabled: false
+          Color: 196; 160; 0
+          Enabled: true
           Head Length: 0.30000001192092896
           Head Radius: 0.10000000149011612
-          Name: GPS Pose
+          Name: RTK Pose (processed by VineSLAM)
           Shaft Length: 1
           Shaft Radius: 0.05000000074505806
           Shape: Arrow
@@ -762,34 +799,7 @@ Visualization Manager:
             History Policy: Keep Last
             Reliability Policy: Reliable
             Value: /vineslam/gps_pose
-          Value: false
-        - Alpha: 1
-          Buffer Length: 1
-          Class: rviz_default_plugins/Path
-          Color: 25; 255; 0
-          Enabled: false
-          Head Diameter: 0.30000001192092896
-          Head Length: 0.20000000298023224
-          Length: 0.30000001192092896
-          Line Style: Lines
-          Line Width: 0.029999999329447746
-          Name: GPS Path
-          Offset:
-            X: 0
-            Y: 0
-            Z: 0
-          Pose Color: 255; 85; 255
-          Pose Style: None
-          Radius: 0.029999999329447746
-          Shaft Diameter: 0.10000000149011612
-          Shaft Length: 0.10000000149011612
-          Topic:
-            Depth: 5
-            Durability Policy: Volatile
-            History Policy: Keep Last
-            Reliability Policy: Reliable
-            Value: /vineslam/gps_path
-          Value: false
+          Value: true
       Enabled: true
       Name: Sensors
   Enabled: true
@@ -835,25 +845,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 29.52191162109375
+      Distance: 22.618921279907227
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 4.842665195465088
-        Y: -2.981787919998169
-        Z: 4.30709981918335
+        X: 6.015923023223877
+        Y: -6.266355037689209
+        Z: 4.428191661834717
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.659796953201294
+      Pitch: 0.474796861410141
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.47543478012085
+      Yaw: 4.665466785430908
     Saved: ~
 Window Geometry:
   Displays:

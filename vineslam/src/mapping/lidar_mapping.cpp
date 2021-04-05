@@ -7,7 +7,7 @@ LidarMapper::LidarMapper(const Parameters& params)
   // Set velodyne configuration parameters
   picked_num_ = 2;
   planes_th_ = static_cast<float>(60.) * DEGREE_TO_RAD;
-  ground_th_ = static_cast<float>(5.) * DEGREE_TO_RAD;
+  ground_th_ = static_cast<float>(3.) * DEGREE_TO_RAD;
   edge_threshold_ = 0.1;
   planar_threshold_ = 0.1;
   vertical_scans_ = 16;
@@ -19,6 +19,8 @@ LidarMapper::LidarMapper(const Parameters& params)
   ang_res_x_ = static_cast<float>(0.2) * DEGREE_TO_RAD;
   ang_res_y_ = static_cast<float>(2.) * DEGREE_TO_RAD;
   lidar_height = 1.20;
+  filter_frequency_ = 30;
+  it_ = 0;
 
   prev_robot_pose_ = Pose(0, 0, 0, 0, 0, 0);
 }
@@ -39,6 +41,9 @@ void LidarMapper::registerMaps(const Pose& robot_pose, const std::vector<Corner>
 
   // Store robot pose to use in the next iteration
   prev_robot_pose_ = robot_pose;
+
+  // Increment mapper iterator
+  it_++;
 }
 
 void LidarMapper::registerMaps(const Pose& robot_pose, const std::vector<Corner>& corners,
@@ -55,6 +60,9 @@ void LidarMapper::registerMaps(const Pose& robot_pose, const std::vector<Corner>
 
   // Store robot pose to use in the next iteration
   prev_robot_pose_ = robot_pose;
+
+  // Increment mapper iterator
+  it_++;
 }
 
 // -------------------------------------------------------------------------------
@@ -132,7 +140,7 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
       continue;
     }
 
-    if (/*range < 1.0 &&*/ range > 30.0)
+    if (/*range < 1.0 &&*/ range > 50.0)
     {
       continue;
     }
@@ -150,7 +158,7 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
   // A - Extraction
   flatGroundRemoval(transformed_pcl, unfiltered_gplane);
   // B - Filtering
-  ransac(unfiltered_gplane.points_, filtered_gplane, 100, 0.03, true);
+  ransac(unfiltered_gplane.points_, filtered_gplane, 100, 0.01, true);
   // C - Centroid calculation
   for (const auto& pt : filtered_gplane.points_)
   {
@@ -168,6 +176,11 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
     pt = pt * tf.inverse();
   }
   out_groundplane.centroid_ = out_groundplane.centroid_ * tf.inverse();
+  // E - Check plane consistency (set to null if not consistent)
+  if (out_groundplane.area_ < 4.)
+  {
+    out_groundplane = SemiPlane();
+  }
   t.tock();
 
   // -------------------------------------------------------------------------------
@@ -253,7 +266,7 @@ void LidarMapper::globalCornerMap(const Pose& robot_pose, const std::vector<Corn
 
     // - Then, look for correspondences in the local map
     Corner correspondence{};
-    float best_correspondence = 0.02;
+    float best_correspondence = 0.20;
     bool found = false;
     std::vector<Corner> l_corners = grid_map(l_pt.x_, l_pt.y_, l_pt.z_).corner_features_;
     for (const auto& l_corner : l_corners)
@@ -355,6 +368,21 @@ void LidarMapper::globalPlanarMap(const Pose& robot_pose, const std::vector<Plan
 void LidarMapper::globalPlaneMap(const Pose& robot_pose, const std::vector<SemiPlane>& planes, OccupancyMap& grid_map)
 {
   // ----------------------------------------------------------------------------
+  // ------ First, we remove semiplane outliers in the global map checking their
+  // ------        number of correspondences at a well defined frequency
+  // ----------------------------------------------------------------------------
+  if (it_ % filter_frequency_ == 0)
+  {
+    for (uint32_t i = 0; i < grid_map.planes_.size(); i++)
+    {
+      if (grid_map.planes_[i].n_occurences_ > filter_frequency_ && grid_map.planes_[i].n_correspondences_ < 10)
+      {
+        grid_map.planes_.erase(grid_map.planes_.begin() + i);
+      }
+    }
+  }
+
+  // ----------------------------------------------------------------------------
   // ------ Search for correspondences between local planes and global planes
   // ------ Two stage process:
   // ------  * (A) Check semi-plane overlap
@@ -369,7 +397,7 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, const std::vector<SemiP
   Tf tf(Rot, trans);
 
   // Define correspondence thresholds
-  float v_dist = 0.4;   // max vector displacement for all the components
+  float v_dist = 0.2;   // max vector displacement for all the components
   float sp_dist = 0.3;  // max distance from source plane centroid to target plane
   float area_th = 1.0;  // minimum overlapping area between semiplanes
 
@@ -408,6 +436,9 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, const std::vector<SemiP
     bool found = false;
     for (auto& g_plane : grid_map.planes_)
     {
+      // Increment the number of visits to the plane (used to filter planes with low correspondences)
+      g_plane.n_occurences_++;
+
       if (g_plane.points_.empty())
       {
         continue;
@@ -466,6 +497,9 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, const std::vector<SemiP
             point2plane = l_point2plane;
             ov_area = isct.area_;
 
+            // Update number of correspondences
+            g_plane.n_correspondences_++;
+
             // Save the correspondence semi-plane
             correspondence = &g_plane;
 
@@ -507,6 +541,10 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, const std::vector<SemiP
       convexHull(filter_plane, filter_semiplane);
       correspondence->extremas_ = filter_semiplane.extremas_;
       correspondence->setArea();
+
+      correspondence->points_ =
+          correspondence->extremas_;  // This is a trick to improve performance: to update a semiplane, we only need the
+                                      // previously calculated extremas and the newly observed points :)
     }
     else
     {
@@ -653,7 +691,8 @@ void LidarMapper::cloudSegmentation(const std::vector<Point>& in_pts, std::vecto
         // The majority of ground points are skipped
         if (ground_mat_(i, j) == 1)
         {
-          if (j % 20 != 0 && j > 20 && j < horizontal_scans_ - 20)
+          //          if (j % 20 != 0 && j > 20 && j < horizontal_scans_ - 20)
+          if (j % 5 != 0 && j > 5 && j < horizontal_scans_ - 5)
           {
             continue;
           }
@@ -783,18 +822,28 @@ void LidarMapper::extractHighLevelPlanes(const std::vector<Point>& in_pts, const
   prev_robot_pose_.toRotMatrix(tf_rot);
   tf = Tf(tf_rot, std::array<float, 3>{ 0, 0, 0 });
 
+  // Remove ground and null points from the set of input points
+  std::vector<Point> non_ground{};
+  for (const auto& pt : in_pts)
+  {
+    if (ground_plane.point2Plane(pt) > 0.2 && pt != Point(0, 0, 0))
+    {
+      non_ground.push_back(pt);
+    }
+  }
+
   // -------------------------------------------------------------------------------
   // ----- Segment plane points in two different sets
   // -------------------------------------------------------------------------------
   // - Start by computing the average of the y component of all points
   float y_mean = 0.;
-  for (auto const& plane_pt : in_pts)
+  for (auto const& plane_pt : non_ground)
     y_mean += plane_pt.y_;
-  y_mean /= static_cast<float>(in_pts.size());
+  y_mean /= static_cast<float>(non_ground.size());
 
   // - Cluster points using the y mean threshold
   Plane side_plane_a, side_plane_b;
-  for (auto const& plane_pt : in_pts)
+  for (auto const& plane_pt : non_ground)
   {
     Point rotated_to_map_pt = plane_pt * tf;
     PlanePoint m_plane_pt;
@@ -813,14 +862,18 @@ void LidarMapper::extractHighLevelPlanes(const std::vector<Point>& in_pts, const
   }
 
   // - Remove outliers using RANSAC
-  std::vector<Plane> planes;
+  std::vector<Plane> planes = {};
   Plane side_plane_a_filtered, side_plane_b_filtered;
-  if(ransac(side_plane_a.points_, side_plane_a_filtered, 300, 0.02, true))
+  if (ransac(side_plane_a.points_, side_plane_a_filtered, 300, 0.10, true) &&
+      side_plane_a_filtered.points_.size() < 7000 &&
+      side_plane_a_filtered.points_.size() > 75)  // prevent dense planes and slow convex hulls
   {
     side_plane_a_filtered.id_ = 0;
     planes.push_back(side_plane_a_filtered);
   }
-  if(ransac(side_plane_b.points_, side_plane_b_filtered, 300, 0.02, true))
+  if (ransac(side_plane_b.points_, side_plane_b_filtered, 300, 0.10, true) &&
+      side_plane_b_filtered.points_.size() < 7000 &&
+      side_plane_b_filtered.points_.size() > 75)  // prevent dense planes and slow convex hulls
   {
     side_plane_b_filtered.id_ = 1;
     planes.push_back(side_plane_b_filtered);
@@ -841,12 +894,68 @@ void LidarMapper::extractHighLevelPlanes(const std::vector<Point>& in_pts, const
     plane.setLocalRefFrame();
 
     SemiPlane l_semi_plane;
-    float dot = Vec(plane.a_, plane.b_, plane.c_).dot(Vec(ground_plane.a_, ground_plane.b_, ground_plane.c_));
-    if (convexHull(plane, l_semi_plane) && l_semi_plane.area_ > 2 && std::fabs(dot) < 0.15)  // && plane.points_.size() > 500)
-      {
-        out_planes.push_back(l_semi_plane);
-      }
+    bool ch = convexHull(plane, l_semi_plane);
+    if (ch && checkPlaneConsistency(l_semi_plane, ground_plane))
+    {
+      out_planes.push_back(l_semi_plane);
+    }
   }
+}
+
+bool LidarMapper::checkPlaneConsistency(const SemiPlane& plane, const SemiPlane& ground_plane)
+{
+  // A - Check semiplane area
+  if (plane.area_ < 4)
+  {
+    return false;
+  }
+
+  // B - Check if the points belonging to the semiplane are continuous
+  Point p0;
+  if (plane.points_.empty())
+  {
+    return false;
+  }
+  else
+  {
+    p0 = plane.points_[0];
+  }
+  std::vector<Point> pts = plane.points_;
+  float d0 = 0;
+  while (pts.size() >= 2)  // Find nearest neighbor of p0, pop it from the vector, compare distances computed
+                           // between iterations, find holes by large variations on the distance measured
+  {
+    float d1, min_dist = std::numeric_limits<float>::max();
+    uint32_t idx = 0;
+    for (uint32_t i = 0; i < pts.size(); ++i)
+    {
+      d1 = p0.distance(pts[i]);
+      if (d1 != 0 && d1 < min_dist)
+      {
+        min_dist = d1;
+        idx = i;
+      }
+    }
+    d1 = min_dist;
+    if (std::fabs(d1 - d0) > 0.2 && d0 != 0)  // We found a hole in this case ...
+    {
+      return false;
+    }
+    else
+    {
+      pts.erase(pts.begin() + idx);
+      d0 = d1;
+    }
+  }
+
+  // C - Make sure that the plane is not horizontal
+  float dot = Vec(plane.a_, plane.b_, plane.c_).dot(Vec(ground_plane.a_, ground_plane.b_, ground_plane.c_));
+  if (std::fabs(dot) > 1.0)
+  {
+    return false;
+  }
+
+  return true;
 }
 
 void LidarMapper::extractFeatures(const std::vector<PlanePoint>& in_plane_pts, std::vector<Corner>& out_corners,

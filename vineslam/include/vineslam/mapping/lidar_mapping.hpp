@@ -86,7 +86,7 @@ private:
   // Adds the planar features to the global map
   static void globalPlanarMap(const Pose& robot_pose, const std::vector<Planar>& planars, OccupancyMap& grid_map);
   // Adds the plane features to the global map
-  static void globalPlaneMap(const Pose& robot_pose, const std::vector<SemiPlane>& planes, OccupancyMap& grid_map);
+  void globalPlaneMap(const Pose& robot_pose, const std::vector<SemiPlane>& planes, OccupancyMap& grid_map);
   // Adds new altemetry measures to the elevation map
   static void globalElevationMap(const Pose& robot_pose, const Plane& ground_plane, ElevationMap& elevation_map);
 
@@ -104,9 +104,10 @@ private:
   // Label a segment of a 3D point cloud
   void labelComponents(const int& row, const int& col, const std::vector<Point>& in_pts, int& label);
 
-  // Extract the couple of vegetation side planes
+  // Extract a couple of semiplanes
   void extractHighLevelPlanes(const std::vector<Point>& in_plane_pts, const SemiPlane& ground_plane,
                               std::vector<SemiPlane>& out_planes);
+  bool checkPlaneConsistency(const SemiPlane& plane, const SemiPlane& ground_plane);
 
   // 3D feature extraction from a point cloud
   void extractFeatures(const std::vector<PlanePoint>& in_plane_pts, std::vector<Corner>& out_corners,
@@ -130,6 +131,10 @@ private:
   float vertical_angle_bottom_{};
   float ang_res_x_{};
   float ang_res_y_{};
+  int filter_frequency_{};
+
+  // Mapper iterator
+  int it_{};
 
   // Transformation parameters
   float vel2base_x_{}, vel2base_y_{}, vel2base_z_{}, vel2base_roll_{}, vel2base_pitch_{}, vel2base_yaw_{};

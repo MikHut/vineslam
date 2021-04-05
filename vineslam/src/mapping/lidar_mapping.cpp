@@ -865,13 +865,15 @@ void LidarMapper::extractHighLevelPlanes(const std::vector<Point>& in_pts, const
   std::vector<Plane> planes = {};
   Plane side_plane_a_filtered, side_plane_b_filtered;
   if (ransac(side_plane_a.points_, side_plane_a_filtered, 300, 0.10, true) &&
-      side_plane_a_filtered.points_.size() < 7000)  // prevent dense planes and slow convex hulls
+      side_plane_a_filtered.points_.size() < 7000 &&
+      side_plane_a_filtered.points_.size() > 75)  // prevent dense planes and slow convex hulls
   {
     side_plane_a_filtered.id_ = 0;
     planes.push_back(side_plane_a_filtered);
   }
   if (ransac(side_plane_b.points_, side_plane_b_filtered, 300, 0.10, true) &&
-      side_plane_b_filtered.points_.size() < 7000)  // prevent dense planes and slow convex hulls
+      side_plane_b_filtered.points_.size() < 7000 &&
+      side_plane_b_filtered.points_.size() > 75)  // prevent dense planes and slow convex hulls
   {
     side_plane_b_filtered.id_ = 1;
     planes.push_back(side_plane_b_filtered);

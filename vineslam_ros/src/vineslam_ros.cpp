@@ -205,18 +205,14 @@ void VineSLAM_ros::process()
   // * Point cloud corners and planars
   // * SURF 3D image features
   // * GPS (if we're using it)
-  obsv_.landmarks = l_landmarks;
-  obsv_.corners = l_corners;
-  obsv_.planars = l_planars;
-  obsv_.ground_plane = l_ground_plane;
-  obsv_.planes = l_planes;
-  obsv_.surf_features = l_surf_features;
-  if (params_.use_gps_)
-  {
-    obsv_.gps_pose = input_data_.gnss_pose_;
-  }
-  else
-    obsv_.gps_pose = Pose(0., 0., 0., 0., 0., 0.);
+  obsv_.landmarks_ = l_landmarks;
+  obsv_.corners_ = l_corners;
+  obsv_.planars_ = l_planars;
+  obsv_.ground_plane_ = l_ground_plane;
+  obsv_.planes_ = l_planes;
+  obsv_.surf_features_ = l_surf_features;
+  obsv_.gps_pose_ = input_data_.gnss_pose_;
+  obsv_.imu_pose_ = input_data_.imu_pose_;
 
   // ---------------------------------------------------------
   // ----- Localization procedure
@@ -483,7 +479,8 @@ void VineSLAM_ros::gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamp
     try
     {
       // Get odom -> sn0 transformation
-      satellite2base_msg_ = tf_buffer.lookupTransform("map_sn0", "base_link", rclcpp::Time(0), rclcpp::Duration(300000000));
+      satellite2base_msg_ =
+          tf_buffer.lookupTransform("map_sn0", "base_link", rclcpp::Time(0), rclcpp::Duration(300000000));
 
       // Get rtk z offset
       tf2::Stamped<tf2::Transform> odom2satellite_tf;

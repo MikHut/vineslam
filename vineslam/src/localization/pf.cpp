@@ -9,6 +9,7 @@ PF::PF(const Parameters& params, const Pose& initial_pose) : params_(params)
   use_lidar_features_ = params.use_lidar_features_;
   use_image_features_ = params.use_image_features_;
   use_gps_ = params.use_gps_;
+  use_imu_ = params.use_imu_;
   particles_size_ = params.number_particles_;
 
   // Initialize and set ICP parameters
@@ -50,6 +51,7 @@ PF::PF(const Parameters& params, const Pose& initial_pose) : params_(params)
   sigma_plane_matching_vector_ = 0.02;
   sigma_plane_matching_centroid_ = 0.10;
   sigma_gps_ = 0.10;
+  sigma_imu_ = 5 * DEGREE_TO_RAD;
   number_clusters_ = 3;
 }
 
@@ -99,7 +101,8 @@ void PF::motionModel(const Pose& odom_inc, const Pose& p_odom)
 
 void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector<Corner>& corners,
                 const std::vector<Planar>& planars, const std::vector<SemiPlane>& planes, const SemiPlane& ground_plane,
-                const std::vector<ImageFeature>& surf_features, const Pose& gps_pose, OccupancyMap* grid_map)
+                const std::vector<ImageFeature>& surf_features, const Pose& gps_pose, const Pose& imu_pose,
+                OccupancyMap* grid_map)
 {
   std::vector<float> semantic_weights(particles_size_, 0.);
   std::vector<float> corner_weights(particles_size_, 0.);
@@ -108,6 +111,7 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
   std::vector<float> ground_weights(particles_size_, 0.);
   std::vector<float> surf_weights(particles_size_, 0.);
   std::vector<float> gps_weights(particles_size_, 0.);
+  std::vector<float> imu_weights(particles_size_, 0.);
 
   logs_ = "\n";
 
@@ -162,12 +166,24 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
   after = std::chrono::high_resolution_clock::now();
   duration = after - before;
   logs_ += "Time elapsed on PF - icp (msecs): " + std::to_string(duration.count()) + "\n";
+
   before = std::chrono::high_resolution_clock::now();
   if (use_gps_)
+  {
     gps(gps_pose, gps_weights);
+  }
   after = std::chrono::high_resolution_clock::now();
   duration = after - before;
   logs_ += "Time elapsed on PF - gps (msecs): " + std::to_string(duration.count()) + "\n";
+
+  before = std::chrono::high_resolution_clock::now();
+  if (use_imu_)
+  {
+    imu(imu_pose, imu_weights);
+  }
+  after = std::chrono::high_resolution_clock::now();
+  duration = after - before;
+  logs_ += "Time elapsed on PF - imu (msecs): " + std::to_string(duration.count()) + "\n";
 
   // Multi-modal weights normalization
   float semantic_max = *std::max_element(semantic_weights.begin(), semantic_weights.end());
@@ -177,6 +193,7 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
   float ground_max = *std::max_element(ground_weights.begin(), ground_weights.end());
   float surf_max = *std::max_element(surf_weights.begin(), surf_weights.end());
   float gps_max = *std::max_element(gps_weights.begin(), gps_weights.end());
+  float imu_max = *std::max_element(imu_weights.begin(), imu_weights.end());
   for (auto& particle : particles_)
   {
     float m_lw = (semantic_max > 0.) ? semantic_weights[particle.id_] : static_cast<float>(1.);
@@ -186,8 +203,9 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
     float m_gw = (ground_max > 0.) ? ground_weights[particle.id_] : static_cast<float>(1.);
     float m_sw = (surf_max > 0.) ? surf_weights[particle.id_] : static_cast<float>(1.);
     float m_gpsw = (gps_max > 0.) ? gps_weights[particle.id_] : static_cast<float>(1.);
+    float m_iw = (imu_max > 0.) ? imu_weights[particle.id_] : static_cast<float>(1.);
 
-    particle.w_ = m_lw * m_cw * m_rw * m_pw * m_gw * m_sw * m_gpsw;
+    particle.w_ = m_lw * m_cw * m_rw * m_pw * m_gw * m_sw * m_gpsw * m_iw;
 
     w_sum_ += particle.w_;
   }
@@ -208,6 +226,24 @@ void PF::gps(const Pose& gps_pose, std::vector<float>& ws)
     w_gps = (normalizer_gps * static_cast<float>(std::exp(-1. / sigma_gps_ * dist)));
 
     ws[particle.id_] = w_gps;
+  }
+}
+
+void PF::imu(const Pose& imu_pose, std::vector<float>& ws)
+{
+  float normalizer_imu = static_cast<float>(1.) / (sigma_imu_ * std::sqrt(M_2PI));
+
+  for (const auto& particle : particles_)
+  {
+    // - IMU [roll, pitch] weight
+    float w_imu;
+    float delta_R = std::fabs(normalizeAngle(particle.p_.R_ - imu_pose.R_));
+    float delta_P = std::fabs(normalizeAngle(particle.p_.P_ - imu_pose.P_));
+
+    w_imu = (normalizer_imu * static_cast<float>(std::exp(-1. / sigma_imu_ * delta_R))) *
+            (normalizer_imu * static_cast<float>(std::exp(-1. / sigma_imu_ * delta_P)));
+
+    ws[particle.id_] = w_imu;
   }
 }
 
@@ -831,63 +867,63 @@ void PF::scanMatch(const std::vector<ImageFeature>& features, OccupancyMap* grid
   std::map<int, float> cluster_ws;
   for (auto& it : gauss_map)
   {
-      // Convert cluster pose to [R|t]
-      std::array<float, 3> trans = { it.second.mean_.x_, it.second.mean_.y_, it.second.mean_.z_ };
-      std::array<float, 9> Rot{};
-      it.second.mean_.toRotMatrix(Rot);
+    // Convert cluster pose to [R|t]
+    std::array<float, 3> trans = { it.second.mean_.x_, it.second.mean_.y_, it.second.mean_.z_ };
+    std::array<float, 9> Rot{};
+    it.second.mean_.toRotMatrix(Rot);
 
-      // --------------- Perform scan matching ---------------------
-      std::vector<ImageFeature> aligned;
-      float rms_error;
-      Tf m_tf;
-      Tf final_tf;
-      Tf original_tf(Rot, trans);
-      // - First guess: each particle drawn by odometry motion model
-      // - Only use scan match if it does no fail
-      if (icp_->align(original_tf, rms_error, aligned))
+    // --------------- Perform scan matching ---------------------
+    std::vector<ImageFeature> aligned;
+    float rms_error;
+    Tf m_tf;
+    Tf final_tf;
+    Tf original_tf(Rot, trans);
+    // - First guess: each particle drawn by odometry motion model
+    // - Only use scan match if it does no fail
+    if (icp_->align(original_tf, rms_error, aligned))
+    {
+      // ---------------------------------------------------------------------------
+      // ------------ Get homogeneous transformation result
+      // ---------------------------------------------------------------------------
+      icp_->getTransform(m_tf);
+
+      final_tf = original_tf.inverse() * m_tf;
+
+      // ---------------------------------------------------------------------------
+      // ----------- Compute scan match weights
+      // ---------------------------------------------------------------------------
+      // - Get the correspondences errors both spatial and for the descriptors
+      std::vector<float> serror;
+      icp_->getErrors(serror);
+
+      // - Prevent single correspondence - standard deviation = 0
+      if (serror.size() <= 1)
       {
-        // ---------------------------------------------------------------------------
-        // ------------ Get homogeneous transformation result
-        // ---------------------------------------------------------------------------
-        icp_->getTransform(m_tf);
-
-        final_tf = original_tf.inverse() * m_tf;
-
-        // ---------------------------------------------------------------------------
-        // ----------- Compute scan match weights
-        // ---------------------------------------------------------------------------
-        // - Get the correspondences errors both spatial and for the descriptors
-        std::vector<float> serror;
-        icp_->getErrors(serror);
-
-        // - Prevent single correspondence - standard deviation = 0
-        if (serror.size() <= 1)
-        {
-          final_tf.R_array_ = std::array<float, 9>{ 1., 0., 0., 0., 1., 0., 0., 0., 1. };
-          final_tf.t_array_ = std::array<float, 3>{ 0., 0., 0. };
-          ws[it.first] = 0.;
-        }
-        else
-        {
-          // - Compute weight
-          float w = 0.;
-          for (float i : serror)
-          {
-            w += static_cast<float>(normalizer_icp * exp(-1. / sigma_feature_matching_ * i));
-          }
-
-          cluster_ws[it.first] = w;
-          valid_it = true;
-        }
+        final_tf.R_array_ = std::array<float, 9>{ 1., 0., 0., 0., 1., 0., 0., 0., 1. };
+        final_tf.t_array_ = std::array<float, 3>{ 0., 0., 0. };
+        ws[it.first] = 0.;
       }
       else
       {
-        final_tf = Tf::unitary();
-        ws[it.first] = 0.;
-      }
+        // - Compute weight
+        float w = 0.;
+        for (float i : serror)
+        {
+          w += static_cast<float>(normalizer_icp * exp(-1. / sigma_feature_matching_ * i));
+        }
 
-      // Get delta transform
-      tfs[it.first] = final_tf;
+        cluster_ws[it.first] = w;
+        valid_it = true;
+      }
+    }
+    else
+    {
+      final_tf = Tf::unitary();
+      ws[it.first] = 0.;
+    }
+
+    // Get delta transform
+    tfs[it.first] = final_tf;
   }
 
   // -------------------------------------------------------------------------------

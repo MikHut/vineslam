@@ -56,8 +56,8 @@ void Localizer::process(const Pose& wheel_odom_inc, const Observation& obsv, Occ
     // ------------------------------------------------------------------------------
     // ---------------- Update particles weights using multi-layer map
     // ------------------------------------------------------------------------------
-    pf_->update(obsv.landmarks, obsv.corners, obsv.planars, obsv.planes, obsv.ground_plane, obsv.surf_features,
-                obsv.gps_pose, grid_map);
+    pf_->update(obsv.landmarks_, obsv.corners_, obsv.planars_, obsv.planes_, obsv.ground_plane_, obsv.surf_features_,
+                obsv.gps_pose_, obsv.imu_pose_, grid_map);
 
     // ------------------------------------------------------------------------------
     // ---------------- Normalize particle weights

@@ -160,6 +160,9 @@ public:
     Pose p_wheel_odom_pose_;
     // GNSS pose
     Pose gnss_pose_;
+    // IMU pose
+    Pose imu_pose_;
+
     // LiDAR scan points
     std::vector<Point> scan_pts_;
 

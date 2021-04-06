@@ -546,6 +546,12 @@ void VineSLAM_ros::gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamp
 
 void VineSLAM_ros::imuListener(const geometry_msgs::msg::Vector3Stamped::SharedPtr msg)
 {
+  input_data_.imu_pose_.x_ = 0;
+  input_data_.imu_pose_.y_ = 0;
+  input_data_.imu_pose_.z_ = 0;
+  input_data_.imu_pose_.R_ = msg->vector.x;
+  input_data_.imu_pose_.P_ = msg->vector.y;
+  input_data_.imu_pose_.Y_ = 0;
 }
 
 void VineSLAM_ros::publishReport() const

@@ -60,6 +60,7 @@ def generate_launch_description():
         remappings=[
             ('/odom_topic', '/white/husky_velocity_controller/odom'),
             ('/gps_topic', '/white/piksi/enu_pose_best_fix'),
+            ('/imu_topic', '/white/imu_7/rpy'),
             ('/features_topic', '/image_feature_array'),
             ('/detections_topic', '/tpu/detections'),
             ('/scan_topic', '/white/velodyne_points'),

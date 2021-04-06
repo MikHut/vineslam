@@ -20,7 +20,7 @@ struct Parameters
   bool use_lidar_features_{};
   bool use_image_features_{};
   bool use_gps_{};
-  bool use_wheel_odometry_{};
+  bool use_imu_{};
 
   // -----------------------------------
   // ------ Camera info parameters

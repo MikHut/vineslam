@@ -5,7 +5,7 @@ slam_node:
   use_lidar_features: True
   use_image_features: False
   use_gps: True
-  use_wheel_odometry: True
+  use_imu: True
 
   camera_info:
     baseline: 0.12 # meters

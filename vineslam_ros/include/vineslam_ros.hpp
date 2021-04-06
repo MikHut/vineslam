@@ -87,6 +87,9 @@ public:
   // GPS callback function
   void gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
 
+  // IMU callback function
+  void imuListener(const geometry_msgs::msg::Vector3Stamped::SharedPtr msg);
+
   // Services callbacks
   bool startRegistration(vineslam_ros::srv::StartMapRegistration::Request::SharedPtr,
                          vineslam_ros::srv::StartMapRegistration::Response::SharedPtr);
@@ -205,7 +208,7 @@ public:
   Pose robot_pose_;
 
   // odom -> satellite pose variables
-  geometry_msgs::msg::TransformStamped odom2satellite_msg_;
+  geometry_msgs::msg::TransformStamped satellite2base_msg_;
   float rtk_z_offset_;
 
   // Initialization flags

@@ -483,11 +483,11 @@ void VineSLAM_ros::gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamp
     try
     {
       // Get odom -> sn0 transformation
-      odom2satellite_msg_ = tf_buffer.lookupTransform("map_sn0", "base_link", rclcpp::Time(0), rclcpp::Duration(300000000));
+      satellite2base_msg_ = tf_buffer.lookupTransform("map_sn0", "base_link", rclcpp::Time(0), rclcpp::Duration(300000000));
 
       // Get rtk z offset
       tf2::Stamped<tf2::Transform> odom2satellite_tf;
-      tf2::fromMsg(odom2satellite_msg_, odom2satellite_tf);
+      tf2::fromMsg(satellite2base_msg_, odom2satellite_tf);
 
       tf2::Quaternion q;
       q.setX(msg->pose.pose.orientation.x);
@@ -512,7 +512,7 @@ void VineSLAM_ros::gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamp
   {
     // Compute the rtk pose in sn0's reference frame
     tf2::Stamped<tf2::Transform> odom2satellite_tf;
-    tf2::fromMsg(odom2satellite_msg_, odom2satellite_tf);
+    tf2::fromMsg(satellite2base_msg_, odom2satellite_tf);
 
     tf2::Quaternion q;
     q.setX(msg->pose.pose.orientation.x);
@@ -545,6 +545,10 @@ void VineSLAM_ros::gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamp
     pose_stamped.pose.orientation.w = 1;
     gps_pose_publisher_->publish(pose_stamped);
   }
+}
+
+void VineSLAM_ros::imuListener(const geometry_msgs::msg::Vector3Stamped::SharedPtr msg)
+{
 }
 
 void VineSLAM_ros::publishReport() const

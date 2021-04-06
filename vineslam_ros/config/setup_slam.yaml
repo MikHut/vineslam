@@ -12,6 +12,11 @@ slam_node:
     fx: 692.95849609375  # pixels
     cx: 692.95849609375  # pixels
 
+  robot_dimensions:
+    x: 1.00 # meters
+    y: 0.68 # meters
+    z: 0.90 # meters
+
   multilayer_mapping:
     # Grid map definitions
     grid_map:

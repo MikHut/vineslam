@@ -41,18 +41,6 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
   return true;
 }
 
-void VineSLAM_ros::pose2TransformStamped(const tf2::Quaternion& q, const tf2::Vector3& t,
-                                         geometry_msgs::msg::TransformStamped& tf)
-{
-  tf.transform.rotation.x = q.x();
-  tf.transform.rotation.y = q.y();
-  tf.transform.rotation.z = q.z();
-  tf.transform.rotation.w = q.w();
-  tf.transform.translation.x = t.x();
-  tf.transform.translation.y = t.y();
-  tf.transform.translation.z = t.z();
-}
-
 void VineSLAM_ros::loop()
 {
   // Reset information flags
@@ -337,11 +325,12 @@ void VineSLAM_ros::process()
   ros_path.poses = path_;
   path_publisher_->publish(ros_path);
 
-  // Local map publishers
+  // Non-dense publishers
   publish3DMap(l_corners, corners_local_publisher_);
   publish3DMap(l_planars, planars_local_publisher_);
   l_planes.push_back(l_ground_plane);
   publish3DMap(l_planes, planes_local_publisher_);
+  publishRobotBox(robot_pose_);
 }
 
 void VineSLAM_ros::imageFeatureListener(const vineslam_msgs::msg::FeatureArray::SharedPtr features)

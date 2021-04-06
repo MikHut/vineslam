@@ -30,6 +30,13 @@ struct Parameters
   float cx_{};
 
   // -----------------------------------
+  // ------ Robot dimensions
+  // -----------------------------------
+  float robot_dim_x_;
+  float robot_dim_y_;
+  float robot_dim_z_;
+
+  // -----------------------------------
   // ------ Multi-layer mapping parameters
   // -----------------------------------
   // - Grid map

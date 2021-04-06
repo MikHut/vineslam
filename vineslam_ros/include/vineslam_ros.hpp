@@ -27,6 +27,8 @@
 #include <vineslam_ros/srv/stop_map_registration.hpp>
 #include <vineslam_ros/srv/save_map.hpp>
 // ----------------------------
+#include "convertions.hpp"
+// ----------------------------
 
 // std
 #include <iostream>
@@ -97,10 +99,6 @@ public:
                         vineslam_ros::srv::StopMapRegistration::Response::SharedPtr);
   bool saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr, vineslam_ros::srv::SaveMap::Response::SharedPtr);
 
-  // Conversions
-  static void pose2TransformStamped(const tf2::Quaternion& q, const tf2::Vector3& t,
-                                    geometry_msgs::msg::TransformStamped& tf);
-
   // ROS node
   rclcpp::Node::SharedPtr nh_;
 
@@ -140,6 +138,8 @@ public:
                            rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub);
   // Publishes a box containing the grid map
   void publishGridMapLimits() const;
+  // Publishes a box containing the zone occupied by the robot
+  void publishRobotBox(const Pose& robot_pose) const;
   // Publishes a VineSLAM state report for debug purposes
   void publishReport() const;
 
@@ -179,6 +179,7 @@ public:
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr grid_map_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr elevation_map_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr map2D_publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr robot_box_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map3D_features_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map3D_corners_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map3D_planars_publisher_;

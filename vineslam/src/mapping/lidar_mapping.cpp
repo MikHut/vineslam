@@ -22,6 +22,12 @@ LidarMapper::LidarMapper(const Parameters& params)
   filter_frequency_ = 30;
   it_ = 0;
 
+  // Set robot dimensions for elevation map computation
+  robot_dim_x_ = params.robot_dim_x_;
+  robot_dim_y_ = params.robot_dim_y_;
+  robot_dim_z_ = params.robot_dim_z_;
+
+  // Set previous robot pose handler
   prev_robot_pose_ = Pose(0, 0, 0, 0, 0, 0);
 }
 
@@ -571,12 +577,31 @@ void LidarMapper::globalElevationMap(const Pose& robot_pose, const Plane& ground
   Tf tf(Rot, trans);
 
   // ----------------------------------------------------------------------------
-  // ------ Add new altemetry measures to the elevation map
+  // ------ Add new altemetry measures from ground plane to the elevation map
   // ----------------------------------------------------------------------------
   for (const auto& pt : ground_plane.points_)
   {
     Point l_pt = pt * tf;
     elevation_map.update(l_pt.z_, l_pt.x_, l_pt.y_);
+  }
+
+  // ----------------------------------------------------------------------------
+  // ------ Add new altemetry measures from robot pose to the elevation map
+  // ----------------------------------------------------------------------------
+
+  // Discretize robot box using the elevation map resolution
+  for (float i = 0; i < robot_dim_x_;)
+  {
+    for (float j = 0; j < robot_dim_y_;)
+    {
+      Point pt(i - robot_dim_x_ / 2, j - robot_dim_y_ / 2, 0);
+      Point pt_transformed = pt * tf;
+
+      elevation_map.update(pt_transformed.z_, pt_transformed.x_, pt_transformed.y_);
+
+      j += elevation_map.resolution_;
+    }
+    i +=elevation_map.resolution_;
   }
 }
 

@@ -60,8 +60,6 @@ SLAMNode::SLAMNode(int argc, char** argv) : VineSLAM_ros("SLAMNode")
 
   // Publish maps and particle filter
   vineslam_report_publisher_ = this->create_publisher<vineslam_msgs::msg::Report>("/vineslam/report", 10);
-  grid_map_publisher_ =
-      this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/debug/grid_map_limits", 10);
   elevation_map_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/elevationMap", 10);
   map2D_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/map2D", 10);
   map3D_features_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/SURF", 10);
@@ -76,6 +74,11 @@ SLAMNode::SLAMNode(int argc, char** argv) : VineSLAM_ros("SLAMNode")
   path_publisher_ = this->create_publisher<nav_msgs::msg::Path>("/vineslam/path", 10);
   poses_publisher_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/vineslam/poses", 10);
   gps_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/vineslam/gps_pose", 10);
+  // Debug publishers
+  grid_map_publisher_ =
+      this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/debug/grid_map_limits", 10);
+  robot_box_publisher_ =
+      this->create_publisher<visualization_msgs::msg::Marker>("/vineslam/debug/robot_box", 10);
 
   // ROS services
   rclcpp::Service<vineslam_ros::srv::StartMapRegistration>::SharedPtr start_reg_srv =
@@ -212,6 +215,24 @@ void SLAMNode::loadParameters(Parameters& params)
   param = prefix + ".camera_info.fx";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.fx_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".robot_dimensions.x";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.robot_dim_x_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".robot_dimensions.y";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.robot_dim_y_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".robot_dimensions.z";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.robot_dim_z_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }

@@ -397,7 +397,7 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, const std::vector<SemiP
   Tf tf(Rot, trans);
 
   // Define correspondence thresholds
-  float v_dist = 0.2;   // max vector displacement for all the components
+  float v_dist = 0.4;   // max vector displacement for all the components
   float sp_dist = 0.3;  // max distance from source plane centroid to target plane
   float area_th = 1.0;  // minimum overlapping area between semiplanes
 

@@ -435,7 +435,7 @@ Visualization Manager:
             Reliability Policy: Reliable
             Value: /vineslam/poses
           Value: true
-      Enabled: true
+      Enabled: false
       Name: Poses
     - Class: rviz_common/Group
       Displays:
@@ -506,17 +506,19 @@ Visualization Manager:
           Use rainbow: true
           Value: true
         - Class: rviz_default_plugins/MarkerArray
-          Enabled: false
+          Enabled: true
           Name: Planes Map
           Namespaces:
-            {}
+            /plane_extremas: true
+            /plane_normal: false
+            /plane_pts: false
           Topic:
             Depth: 5
             Durability Policy: Volatile
             History Policy: Keep Last
             Reliability Policy: Reliable
             Value: /vineslam/map3D/planes_local
-          Value: false
+          Value: true
       Enabled: true
       Name: Local Maps
     - Class: rviz_common/Group
@@ -546,17 +548,19 @@ Visualization Manager:
             Value: /vineslam/map2D
           Value: false
         - Class: rviz_default_plugins/MarkerArray
-          Enabled: false
+          Enabled: true
           Name: Planes Map
           Namespaces:
-            {}
+            /plane_extremas: true
+            /plane_normal: false
+            /plane_pts: false
           Topic:
             Depth: 5
             Durability Policy: Volatile
             History Policy: Keep Last
             Reliability Policy: Reliable
             Value: /vineslam/map3D/planes
-          Value: false
+          Value: true
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
@@ -638,9 +642,9 @@ Visualization Manager:
           Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 33.319156646728516
+          Max Intensity: 24.62747573852539
           Min Color: 0; 0; 0
-          Min Intensity: -16.8673152923584
+          Min Intensity: -13.90697956085205
           Name: Planars Map
           Position Transformer: XYZ
           Selectable: true
@@ -852,18 +856,18 @@ Visualization Manager:
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 6.015923023223877
-        Y: -6.266355037689209
-        Z: 4.428191661834717
+        X: 2.6938674449920654
+        Y: -3.5838165283203125
+        Z: 7.475257873535156
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.474796861410141
+      Pitch: 0.7297966480255127
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.665466785430908
+      Yaw: 4.725467205047607
     Saved: ~
 Window Geometry:
   Displays:

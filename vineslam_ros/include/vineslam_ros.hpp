@@ -204,6 +204,10 @@ public:
   Pose init_gps_pose_;
   Pose robot_pose_;
 
+  // odom -> satellite pose variables
+  geometry_msgs::msg::TransformStamped odom2satellite_msg_;
+  float rtk_z_offset_;
+
   // Initialization flags
   bool init_flag_;
   bool init_gps_;

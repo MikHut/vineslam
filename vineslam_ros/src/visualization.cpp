@@ -18,7 +18,7 @@ void VineSLAM_ros::publishDenseInfo()
     // Publish 3D maps
     publish3DMap();
     publishElevationMap();
-    publishGridMapLimits();
+    //    publishGridMapLimits();
 
     // Impose loop frequency
     r.sleep();
@@ -758,6 +758,82 @@ void VineSLAM_ros::publish3DMap(const std::vector<Planar>& planars,
     pcl_pt.intensity = static_cast<float>(planar_feature.which_plane_) * 10.0f;
     cloud_out->points.push_back(pcl_pt);
   }
+
+//  Timer t("ray_tracing");
+//  t.tick("transverse...()");
+//  visualization_msgs::msg::MarkerArray marker_array;
+//  for (uint32_t k = 0; k < 5; k++)
+//  {
+//    Point p1(0, 0, 0.942);
+//    Point p2(planars[k].pos_.x_, planars[k].pos_.y_, planars[k].pos_.z_);
+//    std::vector<Point> v = voxel_traversal(p1, p2);
+//
+//    // Publish the map
+//    visualization_msgs::msg::Marker grid_map_cube;
+//    grid_map_cube.header.frame_id = params_.world_frame_id_;
+//    grid_map_cube.header.stamp = rclcpp::Time();
+//    grid_map_cube.ns = "End_Point";
+//    grid_map_cube.id = 0;
+//    grid_map_cube.type = visualization_msgs::msg::Marker::CUBE;
+//    grid_map_cube.action = visualization_msgs::msg::Marker::ADD;
+//    grid_map_cube.color.a = 1.0;
+//    grid_map_cube.color.r = 1;
+//    grid_map_cube.color.g = 0;
+//    grid_map_cube.color.b = 0;
+//    grid_map_cube.pose.position.x = p2.x_;
+//    grid_map_cube.pose.position.y = p2.y_;
+//    grid_map_cube.pose.position.z = p2.z_;
+//    grid_map_cube.pose.orientation.x = 0;
+//    grid_map_cube.pose.orientation.y = 0;
+//    grid_map_cube.pose.orientation.z = 0;
+//    grid_map_cube.pose.orientation.w = 1;
+//    grid_map_cube.scale.x = 0.5;
+//    grid_map_cube.scale.y = 0.5;
+//    grid_map_cube.scale.z = 0.5;
+//    grid_map_cube.lifetime = rclcpp::Duration(970000000);
+//
+//    marker_array.markers.push_back(grid_map_cube);
+//
+//
+//    std::string ns = "ray_" + std::to_string(k);
+//
+//    int ii = 0;
+//    for (auto& i : v)
+//    {
+//      Point p_origin(i.x_ * grid_map_->resolution_, i.y_ * grid_map_->resolution_, i.z_ * grid_map_->resolution_z_);
+//      Point p_transformd = p_origin * robot_tf;
+//
+//      grid_map_cube.header.frame_id = params_.world_frame_id_;
+//      grid_map_cube.header.stamp = rclcpp::Time();
+//      grid_map_cube.ns = ns;
+//      grid_map_cube.id = ii;
+//      grid_map_cube.type = visualization_msgs::msg::Marker::CUBE;
+//      grid_map_cube.action = visualization_msgs::msg::Marker::ADD;
+//      grid_map_cube.color.a = 1.0;
+//      grid_map_cube.color.r = 0;
+//      grid_map_cube.color.g = 1;
+//      grid_map_cube.color.b = 0;
+//      grid_map_cube.pose.position.x = p_transformd.x_;
+//      grid_map_cube.pose.position.y = p_transformd.y_;
+//      grid_map_cube.pose.position.z = p_transformd.z_;
+//      grid_map_cube.pose.orientation.x = 0;
+//      grid_map_cube.pose.orientation.y = 0;
+//      grid_map_cube.pose.orientation.z = 0;
+//      grid_map_cube.pose.orientation.w = 1;
+//      grid_map_cube.scale.x = grid_map_->resolution_;
+//      grid_map_cube.scale.y = grid_map_->resolution_;
+//      grid_map_cube.scale.z = grid_map_->resolution_;
+//      grid_map_cube.lifetime = rclcpp::Duration(970000000);
+//
+//      marker_array.markers.push_back(grid_map_cube);
+//      ii++;
+//    }
+//  }
+//  t.tock();
+//  t.getLog();
+//  t.clearLog();
+//
+//  grid_map_publisher_->publish(marker_array);
 
   cloud_out->header.frame_id = params_.world_frame_id_;
   sensor_msgs::msg::PointCloud2 cloud_out2;

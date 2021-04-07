@@ -233,6 +233,7 @@ void VineSLAM_ros::process()
     timer_->tick("lidar_mapper::registerMaps()");
     lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, l_ground_plane, *grid_map_, *elevation_map_);
     timer_->tock();
+    lid_mapper_->performRayTrace(robot_pose_, input_data_.scan_pts_, *grid_map_);
 
     timer_->tick("grid_map::downsamplePlanars()");
     grid_map_->downsamplePlanars();

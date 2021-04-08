@@ -1,11 +1,11 @@
 slam_node:
-  robot_model: rocha  # {agrob, rocha}
+  robot_model: agrob  # {agrob, rocha}
   world_frame_id: map_nn2
   use_semantic_features: False
   use_lidar_features: True
   use_image_features: False
-  use_gps: True
-  use_imu: True
+  use_gps: False
+  use_imu: False
 
   camera_info:
     baseline: 0.12 # meters

@@ -64,6 +64,10 @@ public:
   uint32_t n_candidate_corners_{0};
   uint32_t n_candidate_planars_{0};
 
+  // Number of hits and ray traverses
+  uint32_t hits_planars{0};
+  uint32_t traverses_planars{0};
+
 private:
 };
 
@@ -126,6 +130,29 @@ public:
     // Trough exception if out of bounds indexing
     if (index >= cell_vec_.size() - 1 || index < 0)
       throw "Exception: Access to grid map out of bounds\n";
+  }
+
+  // Check if a point if inside the map
+  bool isInside(const float& i, const float& j)
+  {
+    // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+    int l_i = static_cast<int>(std::round(i / resolution_ + .49));
+    int l_j = static_cast<int>(std::round(j / resolution_ + .49));
+
+    // Compute indexes having into account that grid map considers negative values
+    // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+    int ll_i = l_i - static_cast<int>(std::round(origin_.x_ / resolution_ + .49));
+    int ll_j = l_j - static_cast<int>(std::round(origin_.y_ / resolution_ + .49));
+    int index = ll_i + (ll_j * static_cast<int>(std::round(width_ / resolution_ + .49)));
+
+    if (index >= cell_vec_.size() - 1 || index < 0)
+    {
+      return false;
+    }
+    else
+    {
+      return true;
+    }
   }
 
   // Define iterator to provide access to the cells array
@@ -322,6 +349,28 @@ public:
     return layers_map_[layer_num](x, y);
   }
 
+  // Check if a point is inside the map
+  bool isInside(const float& x, const float& y, const float& z)
+  {
+    int layer_num;
+    getLayerNumber(z, layer_num);
+    if (layer_num > zmax_ || layer_num < zmin_)
+    {
+      return false;
+    }
+    else
+    {
+      if (!layers_map_[layer_num].isInside(x, y))
+      {
+        return false;
+      }
+      else
+      {
+        return true;
+      }
+    }
+  }
+
   // Define iterator to provide access to the layers array
   typedef std::map<int, MapLayer>::iterator iterator;
   // Return members to provide access to the cells array
@@ -385,6 +434,10 @@ public:
   bool findNearestOnCell(const ImageFeature& input, ImageFeature& nearest);
   // Recover the layer number from the feature z component
   bool getLayerNumber(const float& z, int& layer_num) const;
+  // Returns all the grid map cells transversed by a ray
+  std::vector<Point> voxelTraversal(const Point& ray_start, const Point& ray_end);
+  // Performs ray trace for a specific set of points
+  bool rayTrace(const std::vector<Point>& pts, const Point& sensor_origin);
 
   // Getter functions
   std::vector<Corner> getCorners()

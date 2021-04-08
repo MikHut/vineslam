@@ -57,6 +57,9 @@ public:
   void registerMaps(const Pose& robot_pose, const std::vector<Corner>& corners, const std::vector<Planar>& planars,
                     const std::vector<SemiPlane>& planes, const SemiPlane& ground, OccupancyMap& grid_map);
 
+  // Call the ray trace routine
+  void performRayTrace(const Pose& robot_pose, const std::vector<Point>& scan_pts, OccupancyMap& grid_map);
+
   // -------------------------------------------------------------------------------
   // ---- 3D pointcloud feature map
   // -------------------------------------------------------------------------------

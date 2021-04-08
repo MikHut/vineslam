@@ -56,6 +56,10 @@ Visualization Manager:
           Value: false
         Vertex/10000:
           Value: false
+        Vertex/10001:
+          Value: true
+        Vertex/10002:
+          Value: true
         Vertex/1005:
           Value: false
         Vertex/1006:
@@ -364,6 +368,10 @@ Visualization Manager:
           map_nn1:
             Vertex/10000:
               {}
+            Vertex/10001:
+              {}
+            Vertex/10002:
+              {}
           map_nn2:
             {}
       Update Interval: 0
@@ -485,7 +493,7 @@ Visualization Manager:
           Color: 255; 255; 255
           Color Transformer: FlatColor
           Decay Time: 0
-          Enabled: true
+          Enabled: false
           Invert Rainbow: false
           Max Color: 255; 255; 255
           Max Intensity: 830
@@ -505,7 +513,7 @@ Visualization Manager:
             Value: /vineslam/map3D/planars_local
           Use Fixed Frame: true
           Use rainbow: true
-          Value: true
+          Value: false
         - Class: rviz_default_plugins/MarkerArray
           Enabled: true
           Name: Planes Map
@@ -643,14 +651,14 @@ Visualization Manager:
           Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 24.713266372680664
+          Max Intensity: 30.979171752929688
           Min Color: 0; 0; 0
-          Min Intensity: -13.879826545715332
+          Min Intensity: -13.563911437988281
           Name: Planars Map
           Position Transformer: XYZ
           Selectable: true
           Size (Pixels): 3
-          Size (m): 0.05000000074505806
+          Size (m): 0.10000000149011612
           Style: Boxes
           Topic:
             Depth: 5
@@ -708,7 +716,7 @@ Visualization Manager:
           Enabled: false
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 186
+          Max Intensity: 185
           Min Color: 0; 0; 0
           Min Intensity: 0
           Name: Velodyne
@@ -862,7 +870,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 11.714763641357422
+      Distance: 70.59049224853516
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -877,10 +885,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.7297966480255127
+      Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.725467205047607
+      Yaw: 5.100477695465088
     Saved: ~
 Window Geometry:
   Displays:

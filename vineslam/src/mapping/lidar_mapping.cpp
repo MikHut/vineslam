@@ -97,23 +97,16 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
                            std::vector<Planar>& out_planars, std::vector<SemiPlane>& out_planes,
                            SemiPlane& out_groundplane)
 {
-  Timer t("lidar_mapper::localMap subfunctions");
-
-  t.tick("vel2base");
   // Build velodyne to base_link transformation matrix
   Pose tf_pose(vel2base_x_, vel2base_y_, vel2base_z_, vel2base_roll_, vel2base_pitch_, vel2base_yaw_);
   Tf tf;
   std::array<float, 9> tf_rot{};
   tf_pose.toRotMatrix(tf_rot);
   tf = Tf(tf_rot, std::array<float, 3>{ tf_pose.x_, tf_pose.y_, tf_pose.z_ });
-  t.tock();
 
   // Reset global variables and members
-  t.tick("reset()");
   reset();
-  t.tock();
 
-  t.tick("for()");
   // Range image projection
   const size_t cloud_size = pcl.size();
   std::vector<Point> transformed_pcl(vertical_scans_ * horizontal_scans_);
@@ -156,10 +149,8 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
     size_t idx = column_idx + row_idx * horizontal_scans_;
     transformed_pcl[idx] = l_pt;
   }
-  t.tock();
 
   // - Ground plane processing
-  t.tick("flat ground removal");
   Plane unfiltered_gplane, filtered_gplane;
   // A - Extraction
   flatGroundRemoval(transformed_pcl, unfiltered_gplane);
@@ -187,12 +178,10 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
   {
     out_groundplane = SemiPlane();
   }
-  t.tock();
 
   // -------------------------------------------------------------------------------
   // ----- Mark raw ground points
   // -------------------------------------------------------------------------------
-  t.tick("non flat ground removal");
   Plane non_flat_ground;
   groundRemoval(transformed_pcl, non_flat_ground);
   for (const auto& index : non_flat_ground.indexes_)
@@ -203,26 +192,18 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
     ground_mat_(i, j) = 1;
     label_mat_(i, j) = -1;
   }
-  t.tock();
 
   // - Planes that are not the ground
-  t.tick("cloudSegmentation()");
   std::vector<PlanePoint> cloud_seg, cloud_seg_pure;
   cloudSegmentation(transformed_pcl, cloud_seg, cloud_seg_pure);
-  t.tock();
 
   // - Extract high level planes, and then convert them to semi-planes
-  t.tick("extractHighLevelPlanes()");
   extractHighLevelPlanes(transformed_pcl, out_groundplane, out_planes);
-  t.tock();
 
   //- Corners feature extraction
-  t.tick("extractFeatures");
   extractFeatures(cloud_seg, out_corners, out_planars);
-  t.tock();
 
   // - Convert local maps to base link
-  t.tick("conversions ...");
   for (auto& corner : out_corners)
   {
     corner.pos_ = corner.pos_ * tf.inverse();
@@ -243,10 +224,6 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
     }
     plane.centroid_ = plane.centroid_ * tf.inverse();
   }
-  t.tock();
-
-  //  t.getLog();
-  //  t.clearLog();
 }
 
 void LidarMapper::globalCornerMap(const Pose& robot_pose, const std::vector<Corner>& corners, OccupancyMap& grid_map)
@@ -601,7 +578,7 @@ void LidarMapper::globalElevationMap(const Pose& robot_pose, const Plane& ground
 
       j += elevation_map.resolution_;
     }
-    i +=elevation_map.resolution_;
+    i += elevation_map.resolution_;
   }
 }
 
@@ -936,42 +913,42 @@ bool LidarMapper::checkPlaneConsistency(const SemiPlane& plane, const SemiPlane&
   }
 
   // B - Check if the points belonging to the semiplane are continuous
-  Point p0;
-  if (plane.points_.empty())
-  {
-    return false;
-  }
-  else
-  {
-    p0 = plane.points_[0];
-  }
-  std::vector<Point> pts = plane.points_;
-  float d0 = 0;
-  while (pts.size() >= 2)  // Find nearest neighbor of p0, pop it from the vector, compare distances computed
-                           // between iterations, find holes by large variations on the distance measured
-  {
-    float d1, min_dist = std::numeric_limits<float>::max();
-    uint32_t idx = 0;
-    for (uint32_t i = 0; i < pts.size(); ++i)
-    {
-      d1 = p0.distance(pts[i]);
-      if (d1 != 0 && d1 < min_dist)
-      {
-        min_dist = d1;
-        idx = i;
-      }
-    }
-    d1 = min_dist;
-    if (std::fabs(d1 - d0) > 0.2 && d0 != 0)  // We found a hole in this case ...
-    {
-      return false;
-    }
-    else
-    {
-      pts.erase(pts.begin() + idx);
-      d0 = d1;
-    }
-  }
+//  Point p0;
+//  if (plane.points_.empty())
+//  {
+//    return false;
+//  }
+//  else
+//  {
+//    p0 = plane.points_[0];
+//  }
+//  std::vector<Point> pts = plane.points_;
+//  float d0 = 0;
+//  while (pts.size() >= 2)  // Find nearest neighbor of p0, pop it from the vector, compare distances computed
+//                           // between iterations, find holes by large variations on the distance measured
+//  {
+//    float d1, min_dist = std::numeric_limits<float>::max();
+//    uint32_t idx = 0;
+//    for (uint32_t i = 0; i < pts.size(); ++i)
+//    {
+//      d1 = p0.distance(pts[i]);
+//      if (d1 != 0 && d1 < min_dist)
+//      {
+//        min_dist = d1;
+//        idx = i;
+//      }
+//    }
+//    d1 = min_dist;
+//    if (std::fabs(d1 - d0) > 0.2 && d0 != 0)  // We found a hole in this case ...
+//    {
+//      return false;
+//    }
+//    else
+//    {
+//      pts.erase(pts.begin() + idx);
+//      d0 = d1;
+//    }
+//  }
 
   // C - Make sure that the plane is not horizontal
   float dot = Vec(plane.a_, plane.b_, plane.c_).dot(Vec(ground_plane.a_, ground_plane.b_, ground_plane.c_));
@@ -1171,6 +1148,51 @@ void LidarMapper::extractFeatures(const std::vector<PlanePoint>& in_plane_pts, s
 
     out_planars.insert(out_planars.end(), planar_points_less_flat.begin(), planar_points_less_flat.end());
   }
+}
+
+void LidarMapper::performRayTrace(const Pose& robot_pose, const std::vector<Point>& scan_pts, OccupancyMap& grid_map)
+{
+  // ---------------------------------------------------------------
+  // ---- Convert sensor points to the world
+  // ---------------------------------------------------------------
+
+  // Build velodyne to base_link transformation matrix
+  Pose vel_pose(vel2base_x_, vel2base_y_, vel2base_z_, vel2base_roll_, vel2base_pitch_, vel2base_yaw_);
+  std::array<float, 9> vel_rot{};
+  vel_pose.toRotMatrix(vel_rot);
+  Tf vel_tf(vel_rot, std::array<float, 3>{ vel_pose.x_, vel_pose.y_, vel_pose.z_ });
+
+  // Build world to base_link transformation matrix
+  std::array<float, 9> robot_rot{};
+  robot_pose.toRotMatrix(robot_rot);
+  std::array<float, 3> robot_trans = { robot_pose.x_, robot_pose.y_, robot_pose.z_ };
+  Tf robot_tf(robot_rot, robot_trans);
+
+  std::vector<Point> transformed_pts;
+  for (const auto& pt : scan_pts)
+  {
+    Point vel_pt = pt * vel_tf.inverse();  // converts the sensor point to base link
+    Point wrl_pt = vel_pt * robot_tf;      // converts the base link point into the world
+
+    transformed_pts.push_back(wrl_pt);
+  }
+
+  // ---------------------------------------------------------------
+  // ---- Convert sensor origin to the world
+  // ---------------------------------------------------------------
+  Point sensor_origin(-vel2base_x_, -vel2base_y_, -vel2base_z_);
+  Point vel_origin_pt = sensor_origin * vel_tf.inverse();  // converts the sensor point to base link
+  Point wrl_origin_pt = vel_origin_pt * robot_tf;      // converts the base link point into the world
+
+  // ---------------------------------------------------------------
+  // ---- Call ray trace
+  // ---------------------------------------------------------------
+  Timer t("Ray Trace");
+  t.tick("rayTrace()");
+  grid_map.rayTrace(transformed_pts, wrl_origin_pt);
+  t.tock();
+  t.getLog();
+  t.clearLog();
 }
 
 }  // namespace vineslam

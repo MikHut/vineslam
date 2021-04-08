@@ -64,6 +64,10 @@ public:
   uint32_t n_candidate_corners_{0};
   uint32_t n_candidate_planars_{0};
 
+  // Number of hits and ray traverses
+  uint32_t hits_planars{0};
+  uint32_t traverses_planars{0};
+
 private:
 };
 

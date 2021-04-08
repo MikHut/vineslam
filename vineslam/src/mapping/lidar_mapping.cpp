@@ -913,42 +913,42 @@ bool LidarMapper::checkPlaneConsistency(const SemiPlane& plane, const SemiPlane&
   }
 
   // B - Check if the points belonging to the semiplane are continuous
-  Point p0;
-  if (plane.points_.empty())
-  {
-    return false;
-  }
-  else
-  {
-    p0 = plane.points_[0];
-  }
-  std::vector<Point> pts = plane.points_;
-  float d0 = 0;
-  while (pts.size() >= 2)  // Find nearest neighbor of p0, pop it from the vector, compare distances computed
-                           // between iterations, find holes by large variations on the distance measured
-  {
-    float d1, min_dist = std::numeric_limits<float>::max();
-    uint32_t idx = 0;
-    for (uint32_t i = 0; i < pts.size(); ++i)
-    {
-      d1 = p0.distance(pts[i]);
-      if (d1 != 0 && d1 < min_dist)
-      {
-        min_dist = d1;
-        idx = i;
-      }
-    }
-    d1 = min_dist;
-    if (std::fabs(d1 - d0) > 0.2 && d0 != 0)  // We found a hole in this case ...
-    {
-      return false;
-    }
-    else
-    {
-      pts.erase(pts.begin() + idx);
-      d0 = d1;
-    }
-  }
+//  Point p0;
+//  if (plane.points_.empty())
+//  {
+//    return false;
+//  }
+//  else
+//  {
+//    p0 = plane.points_[0];
+//  }
+//  std::vector<Point> pts = plane.points_;
+//  float d0 = 0;
+//  while (pts.size() >= 2)  // Find nearest neighbor of p0, pop it from the vector, compare distances computed
+//                           // between iterations, find holes by large variations on the distance measured
+//  {
+//    float d1, min_dist = std::numeric_limits<float>::max();
+//    uint32_t idx = 0;
+//    for (uint32_t i = 0; i < pts.size(); ++i)
+//    {
+//      d1 = p0.distance(pts[i]);
+//      if (d1 != 0 && d1 < min_dist)
+//      {
+//        min_dist = d1;
+//        idx = i;
+//      }
+//    }
+//    d1 = min_dist;
+//    if (std::fabs(d1 - d0) > 0.2 && d0 != 0)  // We found a hole in this case ...
+//    {
+//      return false;
+//    }
+//    else
+//    {
+//      pts.erase(pts.begin() + idx);
+//      d0 = d1;
+//    }
+//  }
 
   // C - Make sure that the plane is not horizontal
   float dot = Vec(plane.a_, plane.b_, plane.c_).dot(Vec(ground_plane.a_, ground_plane.b_, ground_plane.c_));
@@ -1178,12 +1178,18 @@ void LidarMapper::performRayTrace(const Pose& robot_pose, const std::vector<Poin
   }
 
   // ---------------------------------------------------------------
+  // ---- Convert sensor origin to the world
+  // ---------------------------------------------------------------
+  Point sensor_origin(-vel2base_x_, -vel2base_y_, -vel2base_z_);
+  Point vel_origin_pt = sensor_origin * vel_tf.inverse();  // converts the sensor point to base link
+  Point wrl_origin_pt = vel_origin_pt * robot_tf;      // converts the base link point into the world
+
+  // ---------------------------------------------------------------
   // ---- Call ray trace
   // ---------------------------------------------------------------
   Timer t("Ray Trace");
   t.tick("rayTrace()");
-  Point sensor_origin(-vel2base_x_, -vel2base_y_, -vel2base_z_);
-  grid_map.rayTrace(transformed_pts, sensor_origin);
+  grid_map.rayTrace(transformed_pts, wrl_origin_pt);
   t.tock();
   t.getLog();
   t.clearLog();

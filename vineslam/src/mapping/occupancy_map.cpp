@@ -193,6 +193,9 @@ bool MapLayer::insert(const Planar& l_feature, const int& i, const int& j)
     return false;
   }
 
+  // Increment the number of hits
+  (*this)(i, j).hits_planars++;
+
   if ((*this)(i, j).n_candidate_planars_ < min_planar_obsvs_ - 1)  // insert a candidate (not enough observations yet)
   {
     (*this)(i, j).candidate_planar_features_.push_back(l_feature);
@@ -1660,19 +1663,29 @@ bool OccupancyMap::rayTrace(const std::vector<Point>& pts, const Point& sensor_o
       continue;
     }
 
-    // Voxel tranverse - get grid map points tranversed by the ray
+    // Voxel traverse - get grid map points traversed by the ray
     std::vector<Point> voxels = voxelTraversal(sensor_origin, pt);
 
-    // Delete the tranversed occupied cell points
+    // Delete the traversed occupied cell points
     uint32_t num_pts =
         (voxels.size() > 10) ? voxels.size() - 10 : 0;  // we do not want to remove the last points of the ray
     for (uint32_t i = 0; i < num_pts; i++)
     {
       Point f_pt(voxels[i].x_ * resolution_, voxels[i].y_ * resolution_, voxels[i].z_ * resolution_z_);
+      Cell *c = &(*this)(f_pt.x_, f_pt.y_, f_pt.z_);
 
-      if (!(*this)(f_pt.x_, f_pt.y_, f_pt.z_).planar_features_.empty())
+      // Increment the number of rays that have traversed this cell
+      c->traverses_planars++;
+
+      // If the cell is not empty and the number of traverses if higher than the number of hits, we will erase all the
+      // planar information from it
+      if (!c->planar_features_.empty() && (c->traverses_planars >= c->hits_planars))
       {
-        (*this)(f_pt.x_, f_pt.y_, f_pt.z_).planar_features_ = {};
+        c->planar_features_ = {};
+        c->candidate_planar_features_ = {};
+        c->hits_planars = 0;
+        c->traverses_planars = 0;
+        c->n_candidate_planars_ = 0;
       }
     }
   }

@@ -22,7 +22,7 @@ MapLayer::MapLayer(const Parameters& params, const Pose& origin_offset)
   n_points_ = 0;
 
   // Set the minimum number of corners and planar feature observations to add them to the map
-  min_planar_obsvs_ = 5;
+  min_planar_obsvs_ = 20;
   min_corner_obsvs_ = 5;
 }
 

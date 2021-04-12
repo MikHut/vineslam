@@ -604,13 +604,8 @@ void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* g
           }
         }
 
-        float vv = 0, cc = 0;
         if (found)
         {
-          vv = ((normalizer_plane_vector *
-                 static_cast<float>(std::exp((-1. / sigma_plane_matching_vector_) * correspondence_vec))));
-          cc = ((normalizer_plane_centroid *
-                 static_cast<float>(std::exp((-1. / sigma_plane_matching_centroid_) * correspondence_centroid))));
           w_planes +=
               ((normalizer_plane_vector *
                 static_cast<float>(std::exp((-1. / sigma_plane_matching_vector_) * correspondence_vec))) *

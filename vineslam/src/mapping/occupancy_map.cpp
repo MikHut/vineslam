@@ -138,22 +138,19 @@ bool MapLayer::insert(const Corner& l_feature, const int& i, const int& j)
   {
     (*this)(i, j).corner_features_ = new std::vector<Corner>();
     (*this)(i, j).candidate_corner_features_ = new std::vector<Corner>();
-    (*this)(i, j).n_candidate_corners_ = new uint32_t(0);
   }
 
-  if ((*(*this)(i, j).n_candidate_corners_) < min_corner_obsvs_ - 1)  // insert a candidate (not enough observations
-                                                                      // yet)
+  if ((*this)(i, j).candidate_corner_features_->size() < min_corner_obsvs_ - 1)  // insert a candidate (not enough
+                                                                                 // observations yet)
   {
     (*this)(i, j).candidate_corner_features_->push_back(l_feature);
-    (*(*this)(i, j).n_candidate_corners_)++;
 
     return true;
   }
-  else if ((*(*this)(i, j).n_candidate_corners_) == min_corner_obsvs_ - 1)  // we reached the minimum number of
-                                                                            // observations
+  else if ((*this)(i, j).candidate_corner_features_->size() == min_corner_obsvs_ - 1)  // we reached the minimum
+                                                                                       // number of observations
   {
     (*this)(i, j).candidate_corner_features_->push_back(l_feature);
-    (*(*this)(i, j).n_candidate_corners_)++;
 
     // Compute the mean of the candidates
     uint32_t n_candidates = (*this)(i, j).candidate_corner_features_->size();
@@ -175,8 +172,9 @@ bool MapLayer::insert(const Corner& l_feature, const int& i, const int& j)
     (*this)(i, j).corner_features_->push_back(c);
     n_corner_features_++;
   }
-  else if ((*(*this)(i, j).n_candidate_corners_) >= min_corner_obsvs_)  // normal insertion after reaching the minimum
-                                                                        // number of observations
+  else if ((*this)(i, j).candidate_corner_features_->size() >= min_corner_obsvs_)  // normal insertion after reaching
+                                                                                   // the minimum number of
+                                                                                   // observations
   {
     (*this)(i, j).corner_features_->push_back(l_feature);
     n_corner_features_++;
@@ -218,27 +216,19 @@ bool MapLayer::insert(const Planar& l_feature, const int& i, const int& j)
   {
     (*this)(i, j).planar_features_ = new std::vector<Planar>();
     (*this)(i, j).candidate_planar_features_ = new std::vector<Planar>();
-    (*this)(i, j).n_candidate_planars_ = new uint32_t(0);
-    (*this)(i, j).hits_planars = new uint32_t(0);
-    (*this)(i, j).traverses_planars = new uint32_t(0);
   }
 
-  // Increment the number of hits
-  (*(*this)(i, j).hits_planars)++;
-
-  if ((*(*this)(i, j).n_candidate_planars_) < min_planar_obsvs_ - 1)  // insert a candidate (not enough observations
-                                                                      // yet)
+  if ((*this)(i, j).candidate_planar_features_->size() < min_planar_obsvs_ - 1)  // insert a candidate (not enough
+                                                                                 // observations yet)
   {
     (*this)(i, j).candidate_planar_features_->push_back(l_feature);
-    (*(*this)(i, j).n_candidate_planars_)++;
 
     return true;
   }
-  else if ((*(*this)(i, j).n_candidate_planars_) == min_planar_obsvs_ - 1)  // we reached the minimum number of
-                                                                            // observations
+  else if ((*this)(i, j).candidate_planar_features_->size() == min_planar_obsvs_ - 1)  // we reached the minimum
+                                                                                       // number of observations
   {
     (*this)(i, j).candidate_planar_features_->push_back(l_feature);
-    (*(*this)(i, j).n_candidate_planars_)++;
 
     // Compute the mean of the candidates
     uint32_t n_candidates = (*this)(i, j).candidate_planar_features_->size();
@@ -260,8 +250,9 @@ bool MapLayer::insert(const Planar& l_feature, const int& i, const int& j)
     (*this)(i, j).planar_features_->push_back(p);
     n_planar_features_++;
   }
-  else if ((*(*this)(i, j).n_candidate_planars_) >= min_planar_obsvs_)  // normal insertion after reaching the minimum
-                                                                        // number of observations
+  else if ((*this)(i, j).candidate_planar_features_->size() >= min_planar_obsvs_)  // normal insertion after reaching
+                                                                                   // the minimum number of
+                                                                                   // observations
   {
     (*this)(i, j).planar_features_->push_back(l_feature);
     n_planar_features_++;
@@ -1290,7 +1281,7 @@ OccupancyMap::OccupancyMap(const Parameters& params, const Pose& origin_offset)
   origin_.y_ = params.gridmap_origin_y_ + origin_offset.y_;
   origin_.z_ = params.gridmap_origin_z_;
   resolution_ = params.gridmap_resolution_;
-  resolution_z_ = resolution_ / 8;
+  resolution_z_ = resolution_ / 4;
   width_ = params.gridmap_width_;
   lenght_ = params.gridmap_lenght_;
   height_ = params.gridmap_height_;
@@ -1721,40 +1712,39 @@ bool OccupancyMap::findNearestOnCell(const ImageFeature& input, ImageFeature& ne
 
 bool OccupancyMap::rayTrace(const std::vector<Point>& pts, const Point& sensor_origin)
 {
-  for (const auto& pt : pts)
-  {
-    // Check if point lies inside the map
-    if (!isInside(pt.x_, pt.y_, pt.z_))
-    {
-      continue;
-    }
-
-    // Voxel traverse - get grid map points traversed by the ray
-    std::vector<Point> voxels = voxelTraversal(sensor_origin, pt);
-
-    // Delete the traversed occupied cell points
-    uint32_t num_pts =
-        (voxels.size() > 10) ? voxels.size() - 10 : 0;  // we do not want to remove the last points of the ray
-    for (uint32_t i = 0; i < num_pts; i++)
-    {
-      Point f_pt(voxels[i].x_ * resolution_, voxels[i].y_ * resolution_, voxels[i].z_ * resolution_z_);
-      Cell* c = &(*this)(f_pt.x_, f_pt.y_, f_pt.z_);
-
-      // Increment the number of rays that have traversed this cell
-      c->traverses_planars++;
-
-      // If the cell is not empty and the number of traverses if higher than the number of hits, we will erase all the
-      // planar information from it
-      if (!c->planar_features_->empty() && (c->traverses_planars >= c->hits_planars))
-      {
-        *c->planar_features_ = {};
-        *c->candidate_planar_features_ = {};
-        *c->hits_planars = 0;
-        *c->traverses_planars = 0;
-        *c->n_candidate_planars_ = 0;
-      }
-    }
-  }
+  //  for (const auto& pt : pts)
+  //  {
+  //    // Check if point lies inside the map
+  //    if (!isInside(pt.x_, pt.y_, pt.z_))
+  //    {
+  //      continue;
+  //    }
+  //
+  //    // Voxel traverse - get grid map points traversed by the ray
+  //    std::vector<Point> voxels = voxelTraversal(sensor_origin, pt);
+  //
+  //    // Delete the traversed occupied cell points
+  //    uint32_t num_pts =
+  //        (voxels.size() > 10) ? voxels.size() - 10 : 0;  // we do not want to remove the last points of the ray
+  //    for (uint32_t i = 0; i < num_pts; i++)
+  //    {
+  //      Point f_pt(voxels[i].x_ * resolution_, voxels[i].y_ * resolution_, voxels[i].z_ * resolution_z_);
+  //      Cell* c = &(*this)(f_pt.x_, f_pt.y_, f_pt.z_);
+  //
+  //      // Increment the number of rays that have traversed this cell
+  //      c->traverses_planars++;
+  //
+  //      // If the cell is not empty and the number of traverses if higher than the number of hits, we will erase all
+  //      the
+  //      // planar information from it
+  //      if (!c->planar_features_->empty() && (c->traverses_planars >= c->hits_planars))
+  //      {
+  //        *c->planar_features_ = {};
+  //        *c->candidate_planar_features_ = {};
+  //        *c->n_candidate_planars_ = 0;
+  //      }
+  //    }
+  //  }
 
   return true;
 }

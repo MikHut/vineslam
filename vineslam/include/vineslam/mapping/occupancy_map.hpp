@@ -25,14 +25,6 @@ struct Cell
   // List of candidate landmarks, features, and points at each cell
   std::vector<Corner>* candidate_corner_features_{ nullptr };
   std::vector<Planar>* candidate_planar_features_{ nullptr };
-
-  // Number of observations for each type of feature
-  uint32_t* n_candidate_corners_{ nullptr };
-  uint32_t* n_candidate_planars_{ nullptr };
-
-  // Number of hits and ray traverses
-  uint32_t* hits_planars{ nullptr };
-  uint32_t* traverses_planars{ nullptr };
 };
 
 class MapLayer

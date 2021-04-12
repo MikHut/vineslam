@@ -59,7 +59,7 @@ bool MapLayer::insert(const SemanticFeature& l_landmark, const int& id, const in
     (*this)(i, j).landmarks_ = new std::map<int, SemanticFeature>();
   }
 
-  (*this)(i, j).insert(id, l_landmark);
+  cellInsert(id, l_landmark, (*this)(i, j).landmarks_);
   n_landmarks_++;
 
   // Mark cell as occupied in pointer array

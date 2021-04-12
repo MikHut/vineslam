@@ -1,10 +1,11 @@
 #pragma once
 
-#include "../feature/semantic.hpp"
-#include "../feature/visual.hpp"
-#include "../feature/three_dimensional.hpp"
-#include "../params.hpp"
-#include "../math/Point.hpp"
+#include <vineslam/feature/semantic.hpp>
+#include <vineslam/feature/visual.hpp>
+#include <vineslam/feature/three_dimensional.hpp>
+#include <vineslam/params.hpp>
+#include <vineslam/math/Point.hpp>
+#include <vineslam/mapping/static/occupancy_map_static.hpp>
 
 #include <iostream>
 #include <vector>
@@ -13,36 +14,8 @@
 
 namespace vineslam
 {
-class Cell
+struct Cell
 {
-public:
-  // Default constructor
-  Cell() = default;
-
-  // Inserts a landmark with a given id
-  void insert(const int& id, const SemanticFeature& l_landmark) const
-  {
-    (*landmarks_)[id] = l_landmark;
-  }
-
-  // Inserts a image feature in the features array
-  void insert(const ImageFeature& l_feature) const
-  {
-    surf_features_->push_back(l_feature);
-  }
-
-  // Inserts a corner feature in the features array
-  void insert(const Corner& l_feature) const
-  {
-    corner_features_->push_back(l_feature);
-  }
-
-  // Inserts a planar feature in the features array
-  void insert(const Planar& l_feature) const
-  {
-    planar_features_->push_back(l_feature);
-  }
-
   // List of landmarks, features, and points at each cell
   std::map<int, SemanticFeature>* landmarks_{ nullptr };
   std::vector<ImageFeature>* surf_features_{ nullptr };
@@ -60,8 +33,6 @@ public:
   // Number of hits and ray traverses
   uint32_t* hits_planars{ nullptr };
   uint32_t* traverses_planars{ nullptr };
-
-private:
 };
 
 class MapLayer

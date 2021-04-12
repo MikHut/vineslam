@@ -20,53 +20,46 @@ public:
   Cell() = default;
 
   // Inserts a landmark with a given id
-  void insert(const int& id, const SemanticFeature& l_landmark)
+  void insert(const int& id, const SemanticFeature& l_landmark) const
   {
-    landmarks_[id] = l_landmark;
+    (*landmarks_)[id] = l_landmark;
   }
 
   // Inserts a image feature in the features array
-  void insert(const ImageFeature& l_feature)
+  void insert(const ImageFeature& l_feature) const
   {
-    surf_features_.push_back(l_feature);
+    surf_features_->push_back(l_feature);
   }
 
   // Inserts a corner feature in the features array
-  void insert(const Corner& l_feature)
+  void insert(const Corner& l_feature) const
   {
-    corner_features_.push_back(l_feature);
+    corner_features_->push_back(l_feature);
   }
 
   // Inserts a planar feature in the features array
-  void insert(const Planar& l_feature)
+  void insert(const Planar& l_feature) const
   {
-    planar_features_.push_back(l_feature);
-  }
-
-  // Inserts a point in the points array
-  void insert(const Point& l_point)
-  {
-    points_.push_back(l_point);
+    planar_features_->push_back(l_feature);
   }
 
   // List of landmarks, features, and points at each cell
-  std::map<int, SemanticFeature> landmarks_;
-  std::vector<ImageFeature> surf_features_;
-  std::vector<Corner> corner_features_;
-  std::vector<Planar> planar_features_;
-  std::vector<Point> points_;
+  std::map<int, SemanticFeature>* landmarks_{ nullptr };
+  std::vector<ImageFeature>* surf_features_{ nullptr };
+  std::vector<Corner>* corner_features_{ nullptr };
+  std::vector<Planar>* planar_features_{ nullptr };
 
   // List of candidate landmarks, features, and points at each cell
-  std::vector<Corner> candidate_corner_features_;
-  std::vector<Planar> candidate_planar_features_;
+  std::vector<Corner>* candidate_corner_features_{ nullptr };
+  std::vector<Planar>* candidate_planar_features_{ nullptr };
 
   // Number of observations for each type of feature
-  uint32_t n_candidate_corners_{0};
-  uint32_t n_candidate_planars_{0};
+  uint32_t* n_candidate_corners_{ nullptr };
+  uint32_t* n_candidate_planars_{ nullptr };
 
   // Number of hits and ray traverses
-  uint32_t hits_planars{0};
-  uint32_t traverses_planars{0};
+  uint32_t* hits_planars{ nullptr };
+  uint32_t* traverses_planars{ nullptr };
 
 private:
 };
@@ -188,11 +181,6 @@ public:
   // Insert a Image Feature given a Feature/Landmark location
   bool insert(const Planar& l_feature);
 
-  // Insert a point using the direct grid coordinates
-  bool insert(const Point& l_point, const int& i, const int& j);
-  // Insert a point given a its location
-  bool insert(const Point& l_point);
-
   // Since Landmark map is built with a KF, Landmarks position change in each
   // iteration. This routine updates the position of a given Landmark
   bool update(const SemanticFeature& new_landmark, const int& id, const float& i, const float& j);
@@ -235,7 +223,7 @@ public:
   {
     std::vector<Corner> out_corners;
     for (const auto& i : corner_set_)
-      for (const auto& corner : cell_vec_[i].corner_features_)
+      for (const auto& corner : *cell_vec_[i].corner_features_)
         out_corners.push_back(corner);
 
     return out_corners;
@@ -244,7 +232,7 @@ public:
   {
     std::vector<Planar> out_planars;
     for (const auto& i : planar_set_)
-      for (const auto& planar : cell_vec_[i].planar_features_)
+      for (const auto& planar : *cell_vec_[i].planar_features_)
         out_planars.push_back(planar);
 
     return out_planars;
@@ -253,7 +241,7 @@ public:
   {
     std::vector<ImageFeature> out_surf_features;
     for (const auto& i : surf_set_)
-      for (const auto& img_feature : cell_vec_[i].surf_features_)
+      for (const auto& img_feature : *cell_vec_[i].surf_features_)
         out_surf_features.push_back(img_feature);
 
     return out_surf_features;
@@ -262,8 +250,7 @@ public:
   // Returns true if the map has no features or landmarks
   bool empty() const
   {
-    return (n_surf_features_ == 0 && n_landmarks_ == 0 && n_corner_features_ == 0 && n_planar_features_ == 0 &&
-            n_points_ == 0);
+    return (n_surf_features_ == 0 && n_landmarks_ == 0 && n_corner_features_ == 0 && n_planar_features_ == 0);
   }
 
   // Delete all features in the map
@@ -274,18 +261,16 @@ public:
     // ******************************************************* //
     for (auto& cell : cell_vec_)
     {
-      cell.corner_features_.shrink_to_fit();
-      cell.planar_features_.shrink_to_fit();
-      cell.surf_features_.shrink_to_fit();
-      cell.landmarks_.clear();
-      cell.points_.shrink_to_fit();
+      cell.corner_features_->shrink_to_fit();
+      cell.planar_features_->shrink_to_fit();
+      cell.surf_features_->shrink_to_fit();
+      cell.landmarks_->clear();
     }
 
     n_corner_features_ = 0;
     n_planar_features_ = 0;
     n_surf_features_ = 0;
     n_landmarks_ = 0;
-    n_points_ = 0;
   }
 
   // Number of features, landmarks, and points in the map
@@ -293,7 +278,6 @@ public:
   int n_corner_features_{};
   int n_planar_features_{};
   int n_landmarks_{};
-  int n_points_{};
 
   // Minimum number of observations to add a corners or planar feature to the map
   uint32_t min_planar_obsvs_;
@@ -314,7 +298,6 @@ private:
   std::set<int> corner_set_;
   std::set<int> planar_set_;
   std::set<int> landmark_set_;
-  std::set<int> point_set_;
 };
 
 class OccupancyMap
@@ -394,9 +377,6 @@ public:
 
   // Insert a planar feature given a Feature/Landmark location
   bool insert(const Planar& l_feature);
-
-  // Insert a point given a its location
-  bool insert(const Point& l_point);
 
   // Downsamples the corner map
   void downsampleCorners();

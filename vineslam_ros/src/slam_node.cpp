@@ -6,6 +6,7 @@ int main(int argc, char** argv)
   rclcpp::init(argc, argv);
   rclcpp::spin(std::make_shared<vineslam::SLAMNode>(argc, argv));
   rclcpp::shutdown();
+
   return 0;
 }
 
@@ -77,18 +78,18 @@ SLAMNode::SLAMNode(int argc, char** argv) : VineSLAM_ros("SLAMNode")
   // Debug publishers
   grid_map_publisher_ =
       this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/debug/grid_map_limits", 10);
-  robot_box_publisher_ =
-      this->create_publisher<visualization_msgs::msg::Marker>("/vineslam/debug/robot_box", 10);
+  robot_box_publisher_ = this->create_publisher<visualization_msgs::msg::Marker>("/vineslam/debug/robot_box", 10);
 
   // ROS services
-  rclcpp::Service<vineslam_ros::srv::StartMapRegistration>::SharedPtr start_reg_srv =
-      this->create_service<vineslam_ros::srv::StartMapRegistration>(
-          "start_registration", std::bind(&VineSLAM_ros::startRegistration, dynamic_cast<VineSLAM_ros*>(this),
-                                          std::placeholders::_1, std::placeholders::_2));
-  rclcpp::Service<vineslam_ros::srv::StopMapRegistration>::SharedPtr stop_reg_srv =
-      this->create_service<vineslam_ros::srv::StopMapRegistration>(
-          "stop_registration", std::bind(&VineSLAM_ros::stopRegistration, dynamic_cast<VineSLAM_ros*>(this),
-                                         std::placeholders::_1, std::placeholders::_2));
+  start_reg_srv_ = this->create_service<vineslam_ros::srv::StartMapRegistration>(
+      "/vineslam/start_registration", std::bind(&VineSLAM_ros::startRegistration, dynamic_cast<VineSLAM_ros*>(this),
+                                      std::placeholders::_1, std::placeholders::_2));
+  stop_reg_srv_ = this->create_service<vineslam_ros::srv::StopMapRegistration>(
+      "/vineslam/stop_registration", std::bind(&VineSLAM_ros::stopRegistration, dynamic_cast<VineSLAM_ros*>(this),
+                                     std::placeholders::_1, std::placeholders::_2));
+  save_map_srv_ = this->create_service<vineslam_ros::srv::SaveMap>(
+      "/vineslam/save_map", std::bind(&VineSLAM_ros::saveMap, dynamic_cast<VineSLAM_ros*>(this),
+                                     std::placeholders::_1, std::placeholders::_2));
 
   // Static transforms
   RCLCPP_INFO(this->get_logger(), "Waiting for static transforms...");

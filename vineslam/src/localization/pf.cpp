@@ -280,9 +280,17 @@ void PF::highLevel(const std::vector<SemanticFeature>& landmarks, OccupancyMap* 
         // Search for a correspondence in the current cell first
         float best_correspondence = std::numeric_limits<float>::max();
         bool found = false;
-        for (const auto& m_landmark : (*grid_map)(X.x_, X.y_, 0).landmarks_)
+
+        std::map<int, SemanticFeature> *l_landmarks = (*grid_map)(X.x_, X.y_, 0).landmarks_;
+
+        if (l_landmarks == nullptr)
         {
-          float dist_min = X.distanceXY(m_landmark.second.pos_);
+          continue;
+        }
+
+        for (const auto& l_landmark : *l_landmarks)
+        {
+          float dist_min = X.distanceXY(l_landmark.second.pos_);
 
           if (dist_min < best_correspondence)
           {
@@ -296,11 +304,19 @@ void PF::highLevel(const std::vector<SemanticFeature>& landmarks, OccupancyMap* 
         {
           std::vector<Cell> adjacents;
           grid_map->getAdjacent(X.x_, X.y_, 0, 2, adjacents);
-          for (const auto& m_cell : adjacents)
+
+          for (const auto& l_cell : adjacents)
           {
-            for (const auto& m_landmark : m_cell.landmarks_)
+            std::map<int, SemanticFeature> *ll_landmarks = l_cell.landmarks_;
+
+            if (ll_landmarks == nullptr)
             {
-              float dist_min = X.distanceXY(m_landmark.second.pos_);
+              continue;
+            }
+
+            for (const auto& l_landmark : *ll_landmarks)
+            {
+              float dist_min = X.distanceXY(l_landmark.second.pos_);
               if (dist_min < best_correspondence)
               {
                 best_correspondence = dist_min;
@@ -361,16 +377,21 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners, OccupancyMap* gr
         // Convert feature to the map's referential frame
         Point X = corner.pos_ * particles_[i].tf_;
 
-        std::vector<Corner> m_corners = (*grid_map)(X.x_, X.y_, X.z_).corner_features_;
+        std::vector<Corner> *l_corners = (*grid_map)(X.x_, X.y_, X.z_).corner_features_;
+
+        if (l_corners == nullptr)
+        {
+          continue;
+        }
 
         // Search for a correspondence in the current cell first
         float best_correspondence = 0.5;
         bool found = false;
-        for (const auto& m_corner : m_corners)
+        for (const auto& l_corner : *l_corners)
         {
-          float dist_sq = ((X.x_ - m_corner.pos_.x_) * (X.x_ - m_corner.pos_.x_) +
-                           (X.y_ - m_corner.pos_.y_) * (X.y_ - m_corner.pos_.y_) +
-                           (X.z_ - m_corner.pos_.z_) * (X.z_ - m_corner.pos_.z_));
+          float dist_sq = ((X.x_ - l_corner.pos_.x_) * (X.x_ - l_corner.pos_.x_) +
+                           (X.y_ - l_corner.pos_.y_) * (X.y_ - l_corner.pos_.y_) +
+                           (X.z_ - l_corner.pos_.z_) * (X.z_ - l_corner.pos_.z_));
 
           if (dist_sq < best_correspondence)
           {
@@ -416,16 +437,21 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* gr
         // Convert feature to the map's referential frame
         Point X = planar.pos_ * particles_[i].tf_;
 
-        std::vector<Planar> m_planars = (*grid_map)(X.x_, X.y_, X.z_).planar_features_;
+        std::vector<Planar> *l_planars = (*grid_map)(X.x_, X.y_, X.z_).planar_features_;
+
+        if (l_planars == nullptr)
+        {
+          continue;
+        }
 
         // Search for a correspondence in the current cell first
         float best_correspondence = 0.5;
         bool found = false;
-        for (const auto& m_planar : m_planars)
+        for (const auto& l_planar : *l_planars)
         {
-          float dist_sq = ((X.x_ - m_planar.pos_.x_) * (X.x_ - m_planar.pos_.x_) +
-                           (X.y_ - m_planar.pos_.y_) * (X.y_ - m_planar.pos_.y_) +
-                           (X.z_ - m_planar.pos_.z_) * (X.z_ - m_planar.pos_.z_));
+          float dist_sq = ((X.x_ - l_planar.pos_.x_) * (X.x_ - l_planar.pos_.x_) +
+                           (X.y_ - l_planar.pos_.y_) * (X.y_ - l_planar.pos_.y_) +
+                           (X.z_ - l_planar.pos_.z_) * (X.z_ - l_planar.pos_.z_));
 
           if (dist_sq < best_correspondence)
           {

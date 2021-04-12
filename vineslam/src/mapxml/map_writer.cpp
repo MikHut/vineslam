@@ -50,9 +50,56 @@ void MapWriter::writeToFile(OccupancyMap* grid_map)
     {
       for (float j = ymin; j < ymax - grid_map->resolution_;)
       {
+        std::map<int, SemanticFeature>* l_landmarks = layer.second(i, j).landmarks_;
+        std::vector<ImageFeature>* l_image_features = layer.second(i, j).surf_features_;
+        std::vector<Corner>* l_corners = layer.second(i, j).corner_features_;
+        std::vector<Planar>* l_planars = layer.second(i, j).planar_features_;
+
+        // Check if cell is empty: we have to check first is the pointers to the arrays are valid :-)
+        bool is_empty = true;
+        if (l_landmarks == nullptr)
+        {
+        }
+        else
+        {
+          if (!l_landmarks->empty())
+          {
+            is_empty = false;
+          }
+        }
+        if (l_image_features == nullptr)
+        {
+        }
+        else
+        {
+          if (!l_image_features->empty())
+          {
+            is_empty = false;
+          }
+        }
+        if (l_corners == nullptr)
+        {
+        }
+        else
+        {
+          if (!l_corners->empty())
+          {
+            is_empty = false;
+          }
+        }
+        if (l_planars == nullptr)
+        {
+        }
+        else
+        {
+          if (!l_planars->empty())
+          {
+            is_empty = false;
+          }
+        }
+
         // Check if there is any feature in the current cell
-        if (layer.second(i, j).landmarks_.empty() && layer.second(i, j).corner_features_.empty() &&
-            layer.second(i, j).planar_features_.empty() && layer.second(i, j).surf_features_.empty())
+        if (is_empty)
         {
           j += grid_map->resolution_;
           continue;
@@ -65,73 +112,100 @@ void MapWriter::writeToFile(OccupancyMap* grid_map)
 
         // High level semantic features
         xmlfile << TAB << TAB << open(SEMANTICF) << ENDL;
-        for (const auto& landmark : layer.second(i, j).landmarks_)
+        if (l_landmarks == nullptr)
         {
-          xmlfile << TAB << TAB << TAB << open(LTAG) << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(ID_) << landmark.first << close(ID_) << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(X_COORDINATE) << landmark.second.pos_.x_ << close(X_COORDINATE)
-                  << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(Y_COORDINATE) << landmark.second.pos_.y_ << close(Y_COORDINATE)
-                  << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(STDX) << landmark.second.gauss_.stdev_.x_ << close(STDX) << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(STDY) << landmark.second.gauss_.stdev_.y_ << close(STDY) << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(ANGLE) << landmark.second.gauss_.theta_ << close(ANGLE) << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(LABEL) << landmark.second.info_.character_ << close(LABEL)
-                  << ENDL;
-          xmlfile << TAB << TAB << TAB << close(LTAG) << ENDL;
+        }
+        else
+        {
+          for (const auto& landmark : *l_landmarks)
+          {
+            xmlfile << TAB << TAB << TAB << open(LTAG) << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(ID_) << landmark.first << close(ID_) << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(X_COORDINATE) << landmark.second.pos_.x_ << close(X_COORDINATE)
+                    << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(Y_COORDINATE) << landmark.second.pos_.y_ << close(Y_COORDINATE)
+                    << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(STDX) << landmark.second.gauss_.stdev_.x_ << close(STDX)
+                    << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(STDY) << landmark.second.gauss_.stdev_.y_ << close(STDY)
+                    << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(ANGLE) << landmark.second.gauss_.theta_ << close(ANGLE) << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(LABEL) << landmark.second.info_.character_ << close(LABEL)
+                    << ENDL;
+            xmlfile << TAB << TAB << TAB << close(LTAG) << ENDL;
+          }
         }
         xmlfile << TAB << TAB << close(SEMANTICF) << ENDL;
 
         // Medium level corner features
         xmlfile << TAB << TAB << open(CORNERF) << ENDL;
-        for (const auto& corner : layer.second(i, j).corner_features_)
+        if (l_corners == nullptr)
         {
-          xmlfile << TAB << TAB << TAB << open(CTAG) << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(X_COORDINATE) << corner.pos_.x_ << close(X_COORDINATE) << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(Y_COORDINATE) << corner.pos_.y_ << close(Y_COORDINATE) << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(Z_COORDINATE) << corner.pos_.z_ << close(Z_COORDINATE) << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(PLANE) << corner.which_plane_ << close(PLANE) << ENDL;
-          xmlfile << TAB << TAB << TAB << close(CTAG) << ENDL;
+        }
+        else
+        {
+          for (const auto& corner : *l_corners)
+          {
+            xmlfile << TAB << TAB << TAB << open(CTAG) << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(X_COORDINATE) << corner.pos_.x_ << close(X_COORDINATE) << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(Y_COORDINATE) << corner.pos_.y_ << close(Y_COORDINATE) << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(Z_COORDINATE) << corner.pos_.z_ << close(Z_COORDINATE) << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(PLANE) << corner.which_plane_ << close(PLANE) << ENDL;
+            xmlfile << TAB << TAB << TAB << close(CTAG) << ENDL;
+          }
         }
         xmlfile << TAB << TAB << close(CORNERF) << ENDL;
 
         // Medium level planar features
         xmlfile << TAB << TAB << open(PLANARF) << ENDL;
-        for (const auto& planar : layer.second(i, j).planar_features_)
+        if (l_planars == nullptr)
         {
-          xmlfile << TAB << TAB << TAB << open(PTAG) << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(X_COORDINATE) << planar.pos_.x_ << close(X_COORDINATE) << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(Y_COORDINATE) << planar.pos_.y_ << close(Y_COORDINATE) << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(Z_COORDINATE) << planar.pos_.z_ << close(Z_COORDINATE) << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(PLANE) << planar.which_plane_ << close(PLANE) << ENDL;
-          xmlfile << TAB << TAB << TAB << close(PTAG) << ENDL;
+        }
+        else
+        {
+          for (const auto& planar : *l_planars)
+          {
+            xmlfile << TAB << TAB << TAB << open(PTAG) << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(X_COORDINATE) << planar.pos_.x_ << close(X_COORDINATE) << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(Y_COORDINATE) << planar.pos_.y_ << close(Y_COORDINATE) << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(Z_COORDINATE) << planar.pos_.z_ << close(Z_COORDINATE) << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(PLANE) << planar.which_plane_ << close(PLANE) << ENDL;
+            xmlfile << TAB << TAB << TAB << close(PTAG) << ENDL;
+          }
         }
         xmlfile << TAB << TAB << close(PLANARF) << ENDL;
 
         // Low level image features
         xmlfile << TAB << TAB << open(SURFF) << ENDL;
-        for (const auto& surf_feature : layer.second(i, j).surf_features_)
+        if (l_image_features == nullptr)
         {
-          xmlfile << TAB << TAB << TAB << open(STAG) << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(X_COORDINATE) << surf_feature.pos_.x_ << close(X_COORDINATE)
-                  << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(Y_COORDINATE) << surf_feature.pos_.y_ << close(Y_COORDINATE)
-                  << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(Z_COORDINATE) << surf_feature.pos_.z_ << close(Z_COORDINATE)
-                  << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(U_) << surf_feature.u_ << close(U_) << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(V_) << surf_feature.v_ << close(V_) << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(RED) << surf_feature.r_ << close(RED) << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(GREEN) << surf_feature.g_ << close(GREEN) << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(BLUE) << surf_feature.b_ << close(BLUE) << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(LAPLACIAN) << surf_feature.laplacian_ << close(LAPLACIAN) << ENDL;
-          xmlfile << TAB << TAB << TAB << TAB << open(SIGNATURE) << ENDL;
-          for (float m_signature : surf_feature.signature_)
+        }
+        else
+        {
+          for (const auto& surf_feature : *l_image_features)
           {
-            xmlfile << TAB << TAB << TAB << TAB << TAB << open(VALUE) << m_signature << close(VALUE) << ENDL;
+            xmlfile << TAB << TAB << TAB << open(STAG) << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(X_COORDINATE) << surf_feature.pos_.x_ << close(X_COORDINATE)
+                    << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(Y_COORDINATE) << surf_feature.pos_.y_ << close(Y_COORDINATE)
+                    << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(Z_COORDINATE) << surf_feature.pos_.z_ << close(Z_COORDINATE)
+                    << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(U_) << surf_feature.u_ << close(U_) << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(V_) << surf_feature.v_ << close(V_) << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(RED) << surf_feature.r_ << close(RED) << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(GREEN) << surf_feature.g_ << close(GREEN) << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(BLUE) << surf_feature.b_ << close(BLUE) << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(LAPLACIAN) << surf_feature.laplacian_ << close(LAPLACIAN)
+                    << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(SIGNATURE) << ENDL;
+            for (float m_signature : surf_feature.signature_)
+            {
+              xmlfile << TAB << TAB << TAB << TAB << TAB << open(VALUE) << m_signature << close(VALUE) << ENDL;
+            }
+            xmlfile << TAB << TAB << TAB << TAB << close(SIGNATURE) << ENDL;
+            xmlfile << TAB << TAB << TAB << close(STAG) << ENDL;
           }
-          xmlfile << TAB << TAB << TAB << TAB << close(SIGNATURE) << ENDL;
-          xmlfile << TAB << TAB << TAB << close(STAG) << ENDL;
         }
         xmlfile << TAB << TAB << close(SURFF) << ENDL;
 

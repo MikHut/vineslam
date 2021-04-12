@@ -58,12 +58,12 @@ def generate_launch_description():
         name='slam_node',
         parameters=[config],
         remappings=[
-            ('/odom_topic', 'husky_velocity_controller/odom'),
+            ('/odom_topic', '/white/husky_velocity_controller/odom'),
             ('/gps_topic', '/white/piksi/enu_pose_best_fix'),
             ('/imu_topic', '/white/imu_7/rpy'),
             ('/features_topic', '/image_feature_array'),
             ('/detections_topic', '/tpu/detections'),
-            ('/scan_topic', 'velodyne_points'),
+            ('/scan_topic', '/white/velodyne_points'),
         ],
         output={
             'stdout': 'screen',
@@ -104,7 +104,7 @@ def generate_launch_description():
         )
         ld.add_action(detector)
 
-    if config['slam_node']['use_semantic_features']:
+    if config['slam_node']['use_image_features']:
         vfe_config_path = os.path.join(
             get_package_share_directory('vfe'),
             'config',

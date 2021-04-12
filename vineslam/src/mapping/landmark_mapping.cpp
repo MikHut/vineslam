@@ -177,16 +177,24 @@ std::pair<int, Point> LandmarkMapper::findCorr(const Point& pos, OccupancyMap& g
 
   Point correspondence;
 
-  // Search on current cell first
-  for (const auto& m_landmark : grid_map(pos.x_, pos.y_, 0).landmarks_)
-  {
-    float dist = pos.distanceXY(m_landmark.second.pos_);
+  std::map<int, SemanticFeature>* l_landmarks = grid_map(pos.x_, pos.y_, 0).landmarks_;
 
-    if (dist < best_aprox)
+  if (l_landmarks == nullptr)
+  {
+  }
+  else
+  {
+    // Search on current cell first
+    for (const auto& l_landmark : *l_landmarks)
     {
-      correspondence = m_landmark.second.pos_;
-      best_correspondence = m_landmark.first;
-      best_aprox = dist;
+      float dist = pos.distanceXY(l_landmark.second.pos_);
+
+      if (dist < best_aprox)
+      {
+        correspondence = l_landmark.second.pos_;
+        best_correspondence = l_landmark.first;
+        best_aprox = dist;
+      }
     }
   }
 
@@ -194,16 +202,24 @@ std::pair<int, Point> LandmarkMapper::findCorr(const Point& pos, OccupancyMap& g
   int number_layers = (best_correspondence == -1) ? 2 : 1;
   std::vector<Cell> adjacents;
   grid_map.getAdjacent(pos.x_, pos.y_, 0., number_layers, adjacents);
-  for (const auto& m_cell : adjacents)
+  for (const auto& l_cell : adjacents)
   {
-    for (const auto& m_landmark : m_cell.landmarks_)
+    std::map<int, SemanticFeature>* ll_landmarks = l_cell.landmarks_;
+
+    if (ll_landmarks == nullptr)
     {
-      float dist = pos.distanceXY(m_landmark.second.pos_);
-      if (dist < best_aprox)
+    }
+    else
+    {
+      for (const auto& l_landmark : *ll_landmarks)
       {
-        correspondence = m_landmark.second.pos_;
-        best_correspondence = m_landmark.first;
-        best_aprox = dist;
+        float dist = pos.distanceXY(l_landmark.second.pos_);
+        if (dist < best_aprox)
+        {
+          correspondence = l_landmark.second.pos_;
+          best_correspondence = l_landmark.first;
+          best_aprox = dist;
+        }
       }
     }
   }
@@ -243,15 +259,23 @@ void LandmarkMapper::filter(OccupancyMap& grid_map) const
 
   for (auto& cell : grid_map(0))
   {
-    std::map<int, SemanticFeature> m_landmarks = cell.landmarks_;
-    for (const auto& m_landmark : m_landmarks)
+    std::map<int, SemanticFeature>* l_landmarks = cell.landmarks_;
+
+    if (l_landmarks == nullptr)
     {
-      if (m_landmark.first < old_limit && (m_landmark.second.gauss_.stdev_.x_ > stdev_threshold_ ||
-                                           m_landmark.second.gauss_.stdev_.y_ > stdev_threshold_))
+    }
+    else
+    {
+      for (const auto& l_landmark : *l_landmarks)
       {
-        cell.landmarks_.erase(m_landmark.first);
+        if (l_landmark.first < old_limit && (l_landmark.second.gauss_.stdev_.x_ > stdev_threshold_ ||
+                                             l_landmark.second.gauss_.stdev_.y_ > stdev_threshold_))
+        {
+          cell.landmarks_->erase(l_landmark.first);
+        }
       }
     }
+
   }
 }
 

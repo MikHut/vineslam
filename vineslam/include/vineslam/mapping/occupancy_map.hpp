@@ -1,10 +1,11 @@
 #pragma once
 
-#include "../feature/semantic.hpp"
-#include "../feature/visual.hpp"
-#include "../feature/three_dimensional.hpp"
-#include "../params.hpp"
-#include "../math/Point.hpp"
+#include <vineslam/feature/semantic.hpp>
+#include <vineslam/feature/visual.hpp>
+#include <vineslam/feature/three_dimensional.hpp>
+#include <vineslam/params.hpp>
+#include <vineslam/math/Point.hpp>
+#include <vineslam/mapping/static/occupancy_map_static.hpp>
 
 #include <iostream>
 #include <vector>
@@ -13,58 +14,24 @@
 
 namespace vineslam
 {
-class Cell
+struct CellData
 {
-public:
-  // Default constructor
-  Cell() = default;
-
-  // Inserts a landmark with a given id
-  void insert(const int& id, const SemanticFeature& l_landmark)
-  {
-    landmarks_[id] = l_landmark;
-  }
-
-  // Inserts a image feature in the features array
-  void insert(const ImageFeature& l_feature)
-  {
-    surf_features_.push_back(l_feature);
-  }
-
-  // Inserts a corner feature in the features array
-  void insert(const Corner& l_feature)
-  {
-    corner_features_.push_back(l_feature);
-  }
-
-  // Inserts a planar feature in the features array
-  void insert(const Planar& l_feature)
-  {
-    planar_features_.push_back(l_feature);
-  }
-
-  // Inserts a point in the points array
-  void insert(const Point& l_point)
-  {
-    points_.push_back(l_point);
-  }
-
   // List of landmarks, features, and points at each cell
-  std::map<int, SemanticFeature> landmarks_;
-  std::vector<ImageFeature> surf_features_;
-  std::vector<Corner> corner_features_;
-  std::vector<Planar> planar_features_;
-  std::vector<Point> points_;
+  std::map<int, SemanticFeature>* landmarks_{ nullptr };
+  std::vector<ImageFeature>* surf_features_{ nullptr };
+  std::vector<Corner>* corner_features_{ nullptr };
+  std::vector<Planar>* planar_features_{ nullptr };
 
   // List of candidate landmarks, features, and points at each cell
-  std::vector<Corner> candidate_corner_features_;
-  std::vector<Planar> candidate_planar_features_;
+  std::vector<Corner>* candidate_corner_features_{ nullptr };
+  std::vector<Planar>* candidate_planar_features_{ nullptr };
+};
 
-  // Number of observations for each type of feature
-  uint32_t n_candidate_corners_{0};
-  uint32_t n_candidate_planars_{0};
-
-private:
+struct Cell
+{
+  CellData* data{ nullptr };  // this is a trick: a pointer occupies 64-bit of memory. thus, for the cells not occupied,
+                              // we only have 64 bits of memory. if the struct Cell contained all the members present in
+                              // Data, we would have 6 * 64 bits of memory per non-occupied cell.
 };
 
 class MapLayer
@@ -128,6 +95,29 @@ public:
       throw "Exception: Access to grid map out of bounds\n";
   }
 
+  // Check if a point if inside the map
+  bool isInside(const float& i, const float& j)
+  {
+    // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+    int l_i = static_cast<int>(std::round(i / resolution_ + .49));
+    int l_j = static_cast<int>(std::round(j / resolution_ + .49));
+
+    // Compute indexes having into account that grid map considers negative values
+    // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+    int ll_i = l_i - static_cast<int>(std::round(origin_.x_ / resolution_ + .49));
+    int ll_j = l_j - static_cast<int>(std::round(origin_.y_ / resolution_ + .49));
+    int index = ll_i + (ll_j * static_cast<int>(std::round(width_ / resolution_ + .49)));
+
+    if (index >= cell_vec_.size() - 1 || index < 0)
+    {
+      return false;
+    }
+    else
+    {
+      return true;
+    }
+  }
+
   // Define iterator to provide access to the cells array
   typedef std::vector<Cell>::iterator iterator;
   // Return members to provide access to the cells array
@@ -160,11 +150,6 @@ public:
   bool insert(const Planar& l_feature, const int& i, const int& j);
   // Insert a Image Feature given a Feature/Landmark location
   bool insert(const Planar& l_feature);
-
-  // Insert a point using the direct grid coordinates
-  bool insert(const Point& l_point, const int& i, const int& j);
-  // Insert a point given a its location
-  bool insert(const Point& l_point);
 
   // Since Landmark map is built with a KF, Landmarks position change in each
   // iteration. This routine updates the position of a given Landmark
@@ -204,11 +189,20 @@ public:
   bool findNearestOnCell(const ImageFeature& input, ImageFeature& nearest);
 
   // Getter functions
+  std::map<int, SemanticFeature> getLandmarks() const
+  {
+    std::map<int, SemanticFeature> out_landmarks;
+    for (const auto& i : landmark_set_)
+      for (const auto& landmark : *cell_vec_[i].data->landmarks_)
+        cellInsert(landmark.first, landmark.second, &out_landmarks);
+
+    return out_landmarks;
+  }
   std::vector<Corner> getCorners() const
   {
     std::vector<Corner> out_corners;
     for (const auto& i : corner_set_)
-      for (const auto& corner : cell_vec_[i].corner_features_)
+      for (const auto& corner : *cell_vec_[i].data->corner_features_)
         out_corners.push_back(corner);
 
     return out_corners;
@@ -217,7 +211,7 @@ public:
   {
     std::vector<Planar> out_planars;
     for (const auto& i : planar_set_)
-      for (const auto& planar : cell_vec_[i].planar_features_)
+      for (const auto& planar : *cell_vec_[i].data->planar_features_)
         out_planars.push_back(planar);
 
     return out_planars;
@@ -226,7 +220,7 @@ public:
   {
     std::vector<ImageFeature> out_surf_features;
     for (const auto& i : surf_set_)
-      for (const auto& img_feature : cell_vec_[i].surf_features_)
+      for (const auto& img_feature : *cell_vec_[i].data->surf_features_)
         out_surf_features.push_back(img_feature);
 
     return out_surf_features;
@@ -235,8 +229,7 @@ public:
   // Returns true if the map has no features or landmarks
   bool empty() const
   {
-    return (n_surf_features_ == 0 && n_landmarks_ == 0 && n_corner_features_ == 0 && n_planar_features_ == 0 &&
-            n_points_ == 0);
+    return (n_surf_features_ == 0 && n_landmarks_ == 0 && n_corner_features_ == 0 && n_planar_features_ == 0);
   }
 
   // Delete all features in the map
@@ -247,18 +240,16 @@ public:
     // ******************************************************* //
     for (auto& cell : cell_vec_)
     {
-      cell.corner_features_.shrink_to_fit();
-      cell.planar_features_.shrink_to_fit();
-      cell.surf_features_.shrink_to_fit();
-      cell.landmarks_.clear();
-      cell.points_.shrink_to_fit();
+      cell.data->corner_features_->shrink_to_fit();
+      cell.data->planar_features_->shrink_to_fit();
+      cell.data->surf_features_->shrink_to_fit();
+      cell.data->landmarks_->clear();
     }
 
     n_corner_features_ = 0;
     n_planar_features_ = 0;
     n_surf_features_ = 0;
     n_landmarks_ = 0;
-    n_points_ = 0;
   }
 
   // Number of features, landmarks, and points in the map
@@ -266,7 +257,6 @@ public:
   int n_corner_features_{};
   int n_planar_features_{};
   int n_landmarks_{};
-  int n_points_{};
 
   // Minimum number of observations to add a corners or planar feature to the map
   uint32_t min_planar_obsvs_;
@@ -287,7 +277,6 @@ private:
   std::set<int> corner_set_;
   std::set<int> planar_set_;
   std::set<int> landmark_set_;
-  std::set<int> point_set_;
 };
 
 class OccupancyMap
@@ -322,6 +311,28 @@ public:
     return layers_map_[layer_num](x, y);
   }
 
+  // Check if a point is inside the map
+  bool isInside(const float& x, const float& y, const float& z)
+  {
+    int layer_num;
+    getLayerNumber(z, layer_num);
+    if (layer_num > zmax_ || layer_num < zmin_)
+    {
+      return false;
+    }
+    else
+    {
+      if (!layers_map_[layer_num].isInside(x, y))
+      {
+        return false;
+      }
+      else
+      {
+        return true;
+      }
+    }
+  }
+
   // Define iterator to provide access to the layers array
   typedef std::map<int, MapLayer>::iterator iterator;
   // Return members to provide access to the cells array
@@ -345,9 +356,6 @@ public:
 
   // Insert a planar feature given a Feature/Landmark location
   bool insert(const Planar& l_feature);
-
-  // Insert a point given a its location
-  bool insert(const Point& l_point);
 
   // Downsamples the corner map
   void downsampleCorners();
@@ -385,6 +393,10 @@ public:
   bool findNearestOnCell(const ImageFeature& input, ImageFeature& nearest);
   // Recover the layer number from the feature z component
   bool getLayerNumber(const float& z, int& layer_num) const;
+  // Returns all the grid map cells transversed by a ray
+  std::vector<Point> voxelTraversal(const Point& ray_start, const Point& ray_end);
+  // Performs ray trace for a specific set of points
+  bool rayTrace(const std::vector<Point>& pts, const Point& sensor_origin);
 
   // Getter functions
   std::vector<Corner> getCorners()

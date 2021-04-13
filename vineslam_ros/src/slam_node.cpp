@@ -6,6 +6,7 @@ int main(int argc, char** argv)
   rclcpp::init(argc, argv);
   rclcpp::spin(std::make_shared<vineslam::SLAMNode>(argc, argv));
   rclcpp::shutdown();
+
   return 0;
 }
 
@@ -53,10 +54,13 @@ SLAMNode::SLAMNode(int argc, char** argv) : VineSLAM_ros("SLAMNode")
   gps_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
       "/gps_topic", 10,
       std::bind(&VineSLAM_ros::gpsListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
+  // IMU subscription
+  imu_subscriber_ = this->create_subscription<geometry_msgs::msg::Vector3Stamped>(
+      "/imu_topic", 10,
+      std::bind(&VineSLAM_ros::imuListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
 
   // Publish maps and particle filter
   vineslam_report_publisher_ = this->create_publisher<vineslam_msgs::msg::Report>("/vineslam/report", 10);
-  grid_map_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/debug/grid_map_limits", 10);
   elevation_map_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/elevationMap", 10);
   map2D_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/map2D", 10);
   map3D_features_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/SURF", 10);
@@ -71,16 +75,21 @@ SLAMNode::SLAMNode(int argc, char** argv) : VineSLAM_ros("SLAMNode")
   path_publisher_ = this->create_publisher<nav_msgs::msg::Path>("/vineslam/path", 10);
   poses_publisher_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/vineslam/poses", 10);
   gps_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/vineslam/gps_pose", 10);
+  // Debug publishers
+  grid_map_publisher_ =
+      this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/debug/grid_map_limits", 10);
+  robot_box_publisher_ = this->create_publisher<visualization_msgs::msg::Marker>("/vineslam/debug/robot_box", 10);
 
   // ROS services
-  rclcpp::Service<vineslam_ros::srv::StartMapRegistration>::SharedPtr start_reg_srv =
-      this->create_service<vineslam_ros::srv::StartMapRegistration>(
-          "start_registration", std::bind(&VineSLAM_ros::startRegistration, dynamic_cast<VineSLAM_ros*>(this),
-                                          std::placeholders::_1, std::placeholders::_2));
-  rclcpp::Service<vineslam_ros::srv::StopMapRegistration>::SharedPtr stop_reg_srv =
-      this->create_service<vineslam_ros::srv::StopMapRegistration>(
-          "stop_registration", std::bind(&VineSLAM_ros::stopRegistration, dynamic_cast<VineSLAM_ros*>(this),
-                                         std::placeholders::_1, std::placeholders::_2));
+  start_reg_srv_ = this->create_service<vineslam_ros::srv::StartMapRegistration>(
+      "/vineslam/start_registration", std::bind(&VineSLAM_ros::startRegistration, dynamic_cast<VineSLAM_ros*>(this),
+                                      std::placeholders::_1, std::placeholders::_2));
+  stop_reg_srv_ = this->create_service<vineslam_ros::srv::StopMapRegistration>(
+      "/vineslam/stop_registration", std::bind(&VineSLAM_ros::stopRegistration, dynamic_cast<VineSLAM_ros*>(this),
+                                     std::placeholders::_1, std::placeholders::_2));
+  save_map_srv_ = this->create_service<vineslam_ros::srv::SaveMap>(
+      "/vineslam/save_map", std::bind(&VineSLAM_ros::saveMap, dynamic_cast<VineSLAM_ros*>(this),
+                                     std::placeholders::_1, std::placeholders::_2));
 
   // Static transforms
   RCLCPP_INFO(this->get_logger(), "Waiting for static transforms...");
@@ -192,9 +201,9 @@ void SLAMNode::loadParameters(Parameters& params)
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
-  param = prefix + ".use_wheel_odometry";
+  param = prefix + ".use_imu";
   this->declare_parameter(param);
-  if (!this->get_parameter(param, params.use_wheel_odometry_))
+  if (!this->get_parameter(param, params.use_imu_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
@@ -207,6 +216,24 @@ void SLAMNode::loadParameters(Parameters& params)
   param = prefix + ".camera_info.fx";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.fx_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".robot_dimensions.x";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.robot_dim_x_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".robot_dimensions.y";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.robot_dim_y_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".robot_dimensions.z";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.robot_dim_z_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }

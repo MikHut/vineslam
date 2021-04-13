@@ -73,7 +73,8 @@ public:
   // Update particles weights using the multi-layer map
   void update(const std::vector<SemanticFeature>& landmarks, const std::vector<Corner>& corners,
               const std::vector<Planar>& planars, const std::vector<SemiPlane>& planes, const SemiPlane& ground_plane,
-              const std::vector<ImageFeature>& surf_features, const Pose& gps_pose, OccupancyMap* grid_map);
+              const std::vector<ImageFeature>& surf_features, const Pose& gps_pose, const Pose& imu_pose,
+              OccupancyMap* grid_map);
   // Normalize particles weights
   void normalizeWeights();
   // Resample particles
@@ -89,7 +90,7 @@ public:
   lama::ThreadPool* thread_pool_;
 
   // Profiler
-  Timer *t_;
+  Timer* t_;
 
   // Logs
   std::string logs_;
@@ -99,6 +100,7 @@ public:
   bool use_lidar_features_;
   bool use_image_features_;
   bool use_gps_;
+  bool use_imu_;
 
   // Filter settings
   float sigma_landmark_matching_;
@@ -108,6 +110,7 @@ public:
   float sigma_plane_matching_vector_;
   float sigma_plane_matching_centroid_;
   float sigma_gps_;
+  float sigma_imu_;
   int number_clusters_;
 
 private:
@@ -129,6 +132,8 @@ private:
                  std::map<int, Gaussian<Pose, Pose>>& gauss_map, std::vector<float>& ws);
   // - GPS
   void gps(const Pose& gps_pose, std::vector<float>& ws);
+  // - IMU
+  void imu(const Pose& imu_pose, std::vector<float>& ws);
 
   // Iterative closest point member
   ICP<ImageFeature>* icp_;

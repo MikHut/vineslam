@@ -60,6 +60,7 @@ def generate_launch_description():
         remappings=[
             ('/odom_topic', '/white/husky_velocity_controller/odom'),
             ('/gps_topic', '/white/piksi/enu_pose_best_fix'),
+            ('/imu_topic', '/white/imu_7/rpy'),
             ('/features_topic', '/image_feature_array'),
             ('/detections_topic', '/tpu/detections'),
             ('/scan_topic', '/white/velodyne_points'),
@@ -93,8 +94,8 @@ def generate_launch_description():
             executable='run_detection_model',
             name='run_detection_model',
             parameters=[
-                {'model_file': '/home/andresaguiar/ROS/catkin_ws_ros2/src/tpu-object-detection/object_detection/models/mv1/edgetpu_cpp_model_output_tflite_graph_edgetpu.tflite'},
-                {'labels_file': '/home/andresaguiar/ROS/catkin_ws_ros2/src/tpu-object-detection/object_detection/models/mv1/edgetpu_cpp_model_labels.txt'}
+                {'model_file': '/home/andresaguiar/ROS/ros2_ws/src/tpu-object-detection/object_detection/models/mv1/edgetpu_cpp_model_output_tflite_graph_edgetpu.tflite'},
+                {'labels_file': '/home/andresaguiar/ROS/ros2_ws/src/tpu-object-detection/object_detection/models/mv1/edgetpu_cpp_model_labels.txt'}
             ],
             remappings=[
                 ('/input_rgb_image', image_topic),
@@ -103,7 +104,7 @@ def generate_launch_description():
         )
         ld.add_action(detector)
 
-    if config['slam_node']['use_semantic_features']:
+    if config['slam_node']['use_image_features']:
         vfe_config_path = os.path.join(
             get_package_share_directory('vfe'),
             'config',

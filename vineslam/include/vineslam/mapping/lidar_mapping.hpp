@@ -57,6 +57,9 @@ public:
   void registerMaps(const Pose& robot_pose, const std::vector<Corner>& corners, const std::vector<Planar>& planars,
                     const std::vector<SemiPlane>& planes, const SemiPlane& ground, OccupancyMap& grid_map);
 
+  // Call the ray trace routine
+  void performRayTrace(const Pose& robot_pose, const std::vector<Point>& scan_pts, OccupancyMap& grid_map);
+
   // -------------------------------------------------------------------------------
   // ---- 3D pointcloud feature map
   // -------------------------------------------------------------------------------
@@ -88,7 +91,7 @@ private:
   // Adds the plane features to the global map
   void globalPlaneMap(const Pose& robot_pose, const std::vector<SemiPlane>& planes, OccupancyMap& grid_map);
   // Adds new altemetry measures to the elevation map
-  static void globalElevationMap(const Pose& robot_pose, const Plane& ground_plane, ElevationMap& elevation_map);
+  void globalElevationMap(const Pose& robot_pose, const Plane& ground_plane, ElevationMap& elevation_map);
 
   // Method to reset all the global variables and members
   void reset();
@@ -115,6 +118,11 @@ private:
 
   // Previous robot pose
   Pose prev_robot_pose_;
+
+  // Robot dimensions vars
+  float robot_dim_x_;
+  float robot_dim_y_;
+  float robot_dim_z_;
 
   // 3D cloud feature parameters
   float planes_th_{};

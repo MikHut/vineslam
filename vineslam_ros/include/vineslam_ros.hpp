@@ -27,6 +27,8 @@
 #include <vineslam_ros/srv/stop_map_registration.hpp>
 #include <vineslam_ros/srv/save_map.hpp>
 // ----------------------------
+#include "convertions.hpp"
+// ----------------------------
 
 // std
 #include <iostream>
@@ -87,16 +89,15 @@ public:
   // GPS callback function
   void gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
 
+  // IMU callback function
+  void imuListener(const geometry_msgs::msg::Vector3Stamped::SharedPtr msg);
+
   // Services callbacks
   bool startRegistration(vineslam_ros::srv::StartMapRegistration::Request::SharedPtr,
                          vineslam_ros::srv::StartMapRegistration::Response::SharedPtr);
   bool stopRegistration(vineslam_ros::srv::StopMapRegistration::Request::SharedPtr,
                         vineslam_ros::srv::StopMapRegistration::Response::SharedPtr);
   bool saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr, vineslam_ros::srv::SaveMap::Response::SharedPtr);
-
-  // Conversions
-  static void pose2TransformStamped(const tf2::Quaternion& q, const tf2::Vector3& t,
-                                    geometry_msgs::msg::TransformStamped& tf);
 
   // ROS node
   rclcpp::Node::SharedPtr nh_;
@@ -137,6 +138,8 @@ public:
                            rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub);
   // Publishes a box containing the grid map
   void publishGridMapLimits() const;
+  // Publishes a box containing the zone occupied by the robot
+  void publishRobotBox(const Pose& robot_pose) const;
   // Publishes a VineSLAM state report for debug purposes
   void publishReport() const;
 
@@ -157,6 +160,9 @@ public:
     Pose p_wheel_odom_pose_;
     // GNSS pose
     Pose gnss_pose_;
+    // IMU pose
+    Pose imu_pose_;
+
     // LiDAR scan points
     std::vector<Point> scan_pts_;
 
@@ -173,6 +179,7 @@ public:
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr grid_map_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr elevation_map_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr map2D_publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr robot_box_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map3D_features_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map3D_corners_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map3D_planars_publisher_;
@@ -203,6 +210,10 @@ public:
   Pose init_odom_pose_;
   Pose init_gps_pose_;
   Pose robot_pose_;
+
+  // odom -> satellite pose variables
+  geometry_msgs::msg::TransformStamped satellite2base_msg_;
+  float rtk_z_offset_;
 
   // Initialization flags
   bool init_flag_;

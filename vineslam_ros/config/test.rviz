@@ -9,9 +9,10 @@ Panels:
         - /Global maps1
         - /Global maps1/Planes Map1/Topic1
         - /Global maps1/Planes Map1/Namespaces1
+        - /Debug1
         - /Sensors1
       Splitter Ratio: 0.8148148059844971
-    Tree Height: 814
+    Tree Height: 787
   - Class: rviz_common/Selection
     Name: Selection
   - Class: rviz_common/Tool Properties
@@ -435,7 +436,7 @@ Visualization Manager:
             Reliability Policy: Reliable
             Value: /vineslam/poses
           Value: true
-      Enabled: true
+      Enabled: false
       Name: Poses
     - Class: rviz_common/Group
       Displays:
@@ -546,17 +547,19 @@ Visualization Manager:
             Value: /vineslam/map2D
           Value: false
         - Class: rviz_default_plugins/MarkerArray
-          Enabled: false
+          Enabled: true
           Name: Planes Map
           Namespaces:
-            {}
+            /plane_extremas: true
+            /plane_normal: false
+            /plane_pts: false
           Topic:
             Depth: 5
             Durability Policy: Volatile
             History Policy: Keep Last
             Reliability Policy: Reliable
             Value: /vineslam/map3D/planes
-          Value: false
+          Value: true
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
@@ -602,17 +605,17 @@ Visualization Manager:
           Color: 255; 255; 255
           Color Transformer: Intensity
           Decay Time: 0
-          Enabled: false
+          Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 72
+          Max Intensity: 150
           Min Color: 0; 0; 0
-          Min Intensity: 1
+          Min Intensity: 0
           Name: Corners Map
           Position Transformer: XYZ
           Selectable: true
           Size (Pixels): 3
-          Size (m): 0.05000000074505806
+          Size (m): 0.15000000596046448
           Style: Boxes
           Topic:
             Depth: 5
@@ -622,7 +625,7 @@ Visualization Manager:
             Value: /vineslam/map3D/corners
           Use Fixed Frame: true
           Use rainbow: true
-          Value: false
+          Value: true
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
@@ -635,17 +638,17 @@ Visualization Manager:
           Color: 255; 255; 255
           Color Transformer: Intensity
           Decay Time: 0
-          Enabled: true
+          Enabled: false
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 33.319156646728516
+          Max Intensity: 28.36250114440918
           Min Color: 0; 0; 0
-          Min Intensity: -16.8673152923584
+          Min Intensity: -24.42336654663086
           Name: Planars Map
           Position Transformer: XYZ
           Selectable: true
           Size (Pixels): 3
-          Size (m): 0.05000000074505806
+          Size (m): 0.10000000149011612
           Style: Boxes
           Topic:
             Depth: 5
@@ -655,13 +658,13 @@ Visualization Manager:
             Value: /vineslam/map3D/planars
           Use Fixed Frame: true
           Use rainbow: true
-          Value: true
+          Value: false
       Enabled: true
       Name: Global maps
     - Class: rviz_common/Group
       Displays:
         - Class: rviz_default_plugins/MarkerArray
-          Enabled: true
+          Enabled: false
           Name: Global Map Limits
           Namespaces:
             {}
@@ -671,8 +674,20 @@ Visualization Manager:
             History Policy: Keep Last
             Reliability Policy: Reliable
             Value: /vineslam/debug/grid_map_limits
+          Value: false
+        - Class: rviz_default_plugins/Marker
+          Enabled: true
+          Name: Robot box
+          Namespaces:
+            "": true
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /vineslam/debug/robot_box
           Value: true
-      Enabled: false
+      Enabled: true
       Name: Debug
     - Class: rviz_common/Group
       Displays:
@@ -691,7 +706,7 @@ Visualization Manager:
           Enabled: false
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 186
+          Max Intensity: 185
           Min Color: 0; 0; 0
           Min Intensity: 0
           Name: Velodyne
@@ -845,39 +860,39 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 22.618921279907227
+      Distance: 58.873165130615234
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 6.015923023223877
-        Y: -6.266355037689209
-        Z: 4.428191661834717
+        X: 5.166930198669434
+        Y: 3.137328624725342
+        Z: 7.482106685638428
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.474796861410141
+      Pitch: 1.4897964000701904
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.665466785430908
+      Yaw: 4.730472564697266
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 1043
+  Height: 1016
   Hide Left Dock: false
   Hide Right Dock: true
-  QMainWindow State: 000000ff00000000fd0000000400000000000001b2000003b9fc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d000003b9000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000010f0000039efc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d0000039e000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000004420000003efc0100000002fb0000000800540069006d00650100000000000004420000000000000000fb0000000800540069006d00650100000000000004500000000000000000000005c8000003b900000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000400000000000001b20000039efc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d0000039e000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000010f0000039efc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d0000039e000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000004420000003efc0100000002fb0000000800540069006d00650100000000000004420000000000000000fb0000000800540069006d00650100000000000004500000000000000000000005800000039e00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Tool Properties:
     collapsed: false
   Views:
     collapsed: true
-  Width: 1920
-  X: 0
-  Y: 0
+  Width: 1848
+  X: 72
+  Y: 27

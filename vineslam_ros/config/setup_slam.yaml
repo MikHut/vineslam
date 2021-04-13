@@ -5,12 +5,17 @@ slam_node:
   use_lidar_features: True
   use_image_features: False
   use_gps: True
-  use_wheel_odometry: True
+  use_imu: True
 
   camera_info:
     baseline: 0.12 # meters
     fx: 692.95849609375  # pixels
     cx: 692.95849609375  # pixels
+
+  robot_dimensions:
+    x: 1.00 # meters
+    y: 0.68 # meters
+    z: 0.90 # meters
 
   multilayer_mapping:
     # Grid map definitions
@@ -18,10 +23,10 @@ slam_node:
       origin:
         x: -110.0
         y: -75.0
-        z: -3.0
+        z: -18.0
       width: 150.0
       lenght: 150.0
-      height: 6.0
+      height: 25.0
       resolution: 0.25 # meters
       save_map: True
       output_folder: "/home/andresaguiar/Desktop/"

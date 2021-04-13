@@ -20,7 +20,7 @@ struct Parameters
   bool use_lidar_features_{};
   bool use_image_features_{};
   bool use_gps_{};
-  bool use_wheel_odometry_{};
+  bool use_imu_{};
 
   // -----------------------------------
   // ------ Camera info parameters
@@ -28,6 +28,13 @@ struct Parameters
   float baseline_{};
   float fx_{};
   float cx_{};
+
+  // -----------------------------------
+  // ------ Robot dimensions
+  // -----------------------------------
+  float robot_dim_x_;
+  float robot_dim_y_;
+  float robot_dim_z_;
 
   // -----------------------------------
   // ------ Multi-layer mapping parameters

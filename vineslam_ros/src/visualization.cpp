@@ -55,12 +55,42 @@ void VineSLAM_ros::publishGridMapLimits() const
   grid_map_publisher_->publish(marker_array);
 }
 
+void VineSLAM_ros::publishRobotBox(const Pose& robot_pose) const
+{
+  // Robot pose orientation to quaternion
+  tf2::Quaternion q;
+  q.setRPY(robot_pose.R_, robot_pose.P_, robot_pose.Y_);
+
+  // Set robot original box corners
+  visualization_msgs::msg::Marker robot_cube;
+  robot_cube.header.frame_id = params_.world_frame_id_;
+  robot_cube.header.stamp = rclcpp::Time();
+  robot_cube.id = 0;
+  robot_cube.type = visualization_msgs::msg::Marker::CUBE;
+  robot_cube.action = visualization_msgs::msg::Marker::ADD;
+  robot_cube.color.a = 0.7;
+  robot_cube.color.r = 0;
+  robot_cube.color.g = 0;
+  robot_cube.color.b = 1;
+  robot_cube.scale.x = params_.robot_dim_x_;
+  robot_cube.scale.y = params_.robot_dim_y_;
+  robot_cube.scale.z = params_.robot_dim_z_;
+  robot_cube.pose.position.x = robot_pose.x_;
+  robot_cube.pose.position.y = robot_pose.y_;
+  robot_cube.pose.position.z = robot_pose.z_ + params_.robot_dim_z_ / 2;
+  robot_cube.pose.orientation.x = q.getX();
+  robot_cube.pose.orientation.y = q.getY();
+  robot_cube.pose.orientation.z = q.getZ();
+  robot_cube.pose.orientation.w = q.getW();
+
+  robot_box_publisher_->publish(robot_cube);
+}
+
 void VineSLAM_ros::publish2DMap(const Pose& pose, const std::vector<float>& bearings,
                                 const std::vector<float>& depths) const
 {
   visualization_msgs::msg::MarkerArray marker_array;
   visualization_msgs::msg::Marker marker;
-  visualization_msgs::msg::MarkerArray ellipse_array;
   visualization_msgs::msg::Marker ellipse;
 
   // Define marker layout
@@ -93,69 +123,47 @@ void VineSLAM_ros::publish2DMap(const Pose& pose, const std::vector<float>& bear
   ellipse.color.a = 1.0f;
   ellipse.lifetime = rclcpp::Duration(970000000);
 
+  std::map<int, SemanticFeature> l_landmarks = (*grid_map_)(0).getLandmarks();
+
   // Publish markers
   int id = 1;
-  for (auto& it : (*grid_map_)(0))
+  for (const auto& l_sfeature : l_landmarks)
   {
-    for (const auto& l_sfeature : it.landmarks_)
-    {
-      // Draw sfeature mean
-      marker.id = id;
-      marker.header.stamp = rclcpp::Time();
-      marker.header.frame_id = params_.world_frame_id_;
-      marker.pose.position.x = l_sfeature.second.pos_.x_;
-      marker.pose.position.y = l_sfeature.second.pos_.y_;
-      marker.pose.position.z = l_sfeature.second.pos_.z_;
+    // Draw sfeature mean
+    marker.ns = "/marker";
+    marker.id = id;
+    marker.header.stamp = rclcpp::Time();
+    marker.header.frame_id = params_.world_frame_id_;
+    marker.pose.position.x = l_sfeature.second.pos_.x_;
+    marker.pose.position.y = l_sfeature.second.pos_.y_;
+    marker.pose.position.z = l_sfeature.second.pos_.z_;
 
-      marker_array.markers.push_back(marker);
+    marker_array.markers.push_back(marker);
 
-      // Draw sfeature standard deviation
-      tf2::Quaternion q;
-      q.setRPY(0, 0, l_sfeature.second.gauss_.theta_);
+    // Draw sfeature standard deviation
+    tf2::Quaternion q;
+    q.setRPY(0, 0, l_sfeature.second.gauss_.theta_);
 
-      ellipse.id = id;
-      ellipse.header.stamp = rclcpp::Time();
-      ellipse.header.frame_id = params_.world_frame_id_;
-      ellipse.pose.position.x = l_sfeature.second.pos_.x_;
-      ellipse.pose.position.y = l_sfeature.second.pos_.y_;
-      ellipse.pose.position.z = l_sfeature.second.pos_.z_;
-      ellipse.scale.x = 3 * l_sfeature.second.gauss_.stdev_.x_;
-      ellipse.scale.y = 3 * l_sfeature.second.gauss_.stdev_.y_;
-      ellipse.pose.orientation.x = q.x();
-      ellipse.pose.orientation.y = q.y();
-      ellipse.pose.orientation.z = q.z();
-      ellipse.pose.orientation.w = q.w();
+    ellipse.ns = "/ellipse";
+    ellipse.id = id;
+    ellipse.header.stamp = rclcpp::Time();
+    ellipse.header.frame_id = params_.world_frame_id_;
+    ellipse.pose.position.x = l_sfeature.second.pos_.x_;
+    ellipse.pose.position.y = l_sfeature.second.pos_.y_;
+    ellipse.pose.position.z = l_sfeature.second.pos_.z_;
+    ellipse.scale.x = 3 * l_sfeature.second.gauss_.stdev_.x_;
+    ellipse.scale.y = 3 * l_sfeature.second.gauss_.stdev_.y_;
+    ellipse.pose.orientation.x = q.x();
+    ellipse.pose.orientation.y = q.y();
+    ellipse.pose.orientation.z = q.z();
+    ellipse.pose.orientation.w = q.w();
 
-      ellipse_array.markers.push_back(ellipse);
+    marker_array.markers.push_back(ellipse);
 
-      id++;
-    }
+    id++;
   }
 
-  // Draw ellipse that characterizes particles distribution
-  tf2::Quaternion q;
-  q.setRPY(0, 0, pose.gaussian_dist_.theta_);
-
-  ellipse.id = id;
-  ellipse.header.stamp = rclcpp::Time();
-  ellipse.header.frame_id = params_.world_frame_id_;
-  ellipse.pose.position.x = pose.x_;
-  ellipse.pose.position.y = pose.y_;
-  ellipse.pose.position.z = pose.z_;
-  ellipse.scale.x = 3 * pose.gaussian_dist_.stdev_.x_;
-  ellipse.scale.y = 3 * pose.gaussian_dist_.stdev_.y_;
-  ellipse.pose.orientation.x = q.x();
-  ellipse.pose.orientation.y = q.y();
-  ellipse.pose.orientation.z = q.z();
-  ellipse.pose.orientation.w = q.w();
-  ellipse.color.r = 0.0f;
-  ellipse.color.g = 0.0f;
-  ellipse.color.b = 1.0f;
-  ellipse.color.a = 1.0f;
-  ellipse_array.markers.push_back(ellipse);
-
   map2D_publisher_->publish(marker_array);
-  map2D_publisher_->publish(ellipse_array);
 }
 
 void VineSLAM_ros::publishElevationMap() const
@@ -163,8 +171,8 @@ void VineSLAM_ros::publishElevationMap() const
   visualization_msgs::msg::MarkerArray elevation_map_marker;
   visualization_msgs::msg::Marker cube;
 
-  float min_height = -1.0;
-  float max_height = 1.0;
+  float min_height = -3.0;
+  float max_height = 3.0;
 
   // Define marker layout
   cube.ns = "/elevation_cube";

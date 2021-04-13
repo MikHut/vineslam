@@ -1,11 +1,11 @@
 slam_node:
-  robot_model: agrob  # {agrob, rocha}
+  robot_model: rocha  # {agrob, rocha}
   world_frame_id: map_nn2
   use_semantic_features: False
   use_lidar_features: True
   use_image_features: False
-  use_gps: False
-  use_imu: False
+  use_gps: True
+  use_imu: True
 
   camera_info:
     baseline: 0.12 # meters
@@ -23,10 +23,10 @@ slam_node:
       origin:
         x: -110.0
         y: -75.0
-        z: -3.0
+        z: -18.0
       width: 150.0
       lenght: 150.0
-      height: 6.0
+      height: 25.0
       resolution: 0.25 # meters
       save_map: True
       output_folder: "/home/andresaguiar/Desktop/"

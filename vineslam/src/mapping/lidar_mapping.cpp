@@ -251,20 +251,29 @@ void LidarMapper::globalCornerMap(const Pose& robot_pose, const std::vector<Corn
     Corner correspondence{};
     float best_correspondence = 0.20;
     bool found = false;
-    std::vector<Corner> l_corners = grid_map(l_pt.x_, l_pt.y_, l_pt.z_).corner_features_;
-    for (const auto& l_corner : l_corners)
-    {
-      float dist_min = l_pt.distance(l_corner.pos_);
+    std::vector<Corner>* l_corners{ nullptr };
 
-      if (dist_min < best_correspondence)
-      {
-        correspondence = l_corner;
-        best_correspondence = dist_min;
-        found = true;
-      }
+    if (grid_map(l_pt.x_, l_pt.y_, l_pt.z_).data != nullptr)
+    {
+      l_corners = grid_map(l_pt.x_, l_pt.y_, l_pt.z_).data->corner_features_;
     }
 
-    found &= (best_correspondence < 0.2);
+    if (l_corners != nullptr)
+    {
+      for (const auto& l_corner : *l_corners)
+      {
+        float dist_min = l_pt.distance(l_corner.pos_);
+
+        if (dist_min < best_correspondence)
+        {
+          correspondence = l_corner;
+          best_correspondence = dist_min;
+          found = true;
+        }
+      }
+
+      found &= (best_correspondence < 0.2);
+    }
 
     // - Then, insert the corner into the grid map
     if (found)
@@ -312,20 +321,29 @@ void LidarMapper::globalPlanarMap(const Pose& robot_pose, const std::vector<Plan
     Planar correspondence{};
     float best_correspondence = 0.20;
     bool found = false;
-    std::vector<Planar> l_planars = grid_map(l_pt.x_, l_pt.y_, l_pt.z_).planar_features_;
-    for (const auto& l_planar : l_planars)
-    {
-      float dist_min = l_pt.distance(l_planar.pos_);
+    std::vector<Planar>* l_planars = { nullptr };
 
-      if (dist_min < best_correspondence)
-      {
-        correspondence = l_planar;
-        best_correspondence = dist_min;
-        found = true;
-      }
+    if (grid_map(l_pt.x_, l_pt.y_, l_pt.z_).data != nullptr)
+    {
+      l_planars = grid_map(l_pt.x_, l_pt.y_, l_pt.z_).data->planar_features_;
     }
 
-    found &= (best_correspondence < 0.2);
+    if (l_planars != nullptr)
+    {
+      for (const auto& l_planar : *l_planars)
+      {
+        float dist_min = l_pt.distance(l_planar.pos_);
+
+        if (dist_min < best_correspondence)
+        {
+          correspondence = l_planar;
+          best_correspondence = dist_min;
+          found = true;
+        }
+      }
+
+      found &= (best_correspondence < 0.2);
+    }
 
     // - Then, insert the planar into the grid map
     if (found)
@@ -913,42 +931,42 @@ bool LidarMapper::checkPlaneConsistency(const SemiPlane& plane, const SemiPlane&
   }
 
   // B - Check if the points belonging to the semiplane are continuous
-//  Point p0;
-//  if (plane.points_.empty())
-//  {
-//    return false;
-//  }
-//  else
-//  {
-//    p0 = plane.points_[0];
-//  }
-//  std::vector<Point> pts = plane.points_;
-//  float d0 = 0;
-//  while (pts.size() >= 2)  // Find nearest neighbor of p0, pop it from the vector, compare distances computed
-//                           // between iterations, find holes by large variations on the distance measured
-//  {
-//    float d1, min_dist = std::numeric_limits<float>::max();
-//    uint32_t idx = 0;
-//    for (uint32_t i = 0; i < pts.size(); ++i)
-//    {
-//      d1 = p0.distance(pts[i]);
-//      if (d1 != 0 && d1 < min_dist)
-//      {
-//        min_dist = d1;
-//        idx = i;
-//      }
-//    }
-//    d1 = min_dist;
-//    if (std::fabs(d1 - d0) > 0.2 && d0 != 0)  // We found a hole in this case ...
-//    {
-//      return false;
-//    }
-//    else
-//    {
-//      pts.erase(pts.begin() + idx);
-//      d0 = d1;
-//    }
-//  }
+  //  Point p0;
+  //  if (plane.points_.empty())
+  //  {
+  //    return false;
+  //  }
+  //  else
+  //  {
+  //    p0 = plane.points_[0];
+  //  }
+  //  std::vector<Point> pts = plane.points_;
+  //  float d0 = 0;
+  //  while (pts.size() >= 2)  // Find nearest neighbor of p0, pop it from the vector, compare distances computed
+  //                           // between iterations, find holes by large variations on the distance measured
+  //  {
+  //    float d1, min_dist = std::numeric_limits<float>::max();
+  //    uint32_t idx = 0;
+  //    for (uint32_t i = 0; i < pts.size(); ++i)
+  //    {
+  //      d1 = p0.distance(pts[i]);
+  //      if (d1 != 0 && d1 < min_dist)
+  //      {
+  //        min_dist = d1;
+  //        idx = i;
+  //      }
+  //    }
+  //    d1 = min_dist;
+  //    if (std::fabs(d1 - d0) > 0.2 && d0 != 0)  // We found a hole in this case ...
+  //    {
+  //      return false;
+  //    }
+  //    else
+  //    {
+  //      pts.erase(pts.begin() + idx);
+  //      d0 = d1;
+  //    }
+  //  }
 
   // C - Make sure that the plane is not horizontal
   float dot = Vec(plane.a_, plane.b_, plane.c_).dot(Vec(ground_plane.a_, ground_plane.b_, ground_plane.c_));
@@ -1182,7 +1200,7 @@ void LidarMapper::performRayTrace(const Pose& robot_pose, const std::vector<Poin
   // ---------------------------------------------------------------
   Point sensor_origin(-vel2base_x_, -vel2base_y_, -vel2base_z_);
   Point vel_origin_pt = sensor_origin * vel_tf.inverse();  // converts the sensor point to base link
-  Point wrl_origin_pt = vel_origin_pt * robot_tf;      // converts the base link point into the world
+  Point wrl_origin_pt = vel_origin_pt * robot_tf;          // converts the base link point into the world
 
   // ---------------------------------------------------------------
   // ---- Call ray trace
@@ -1191,8 +1209,8 @@ void LidarMapper::performRayTrace(const Pose& robot_pose, const std::vector<Poin
   t.tick("rayTrace()");
   grid_map.rayTrace(transformed_pts, wrl_origin_pt);
   t.tock();
-  t.getLog();
-  t.clearLog();
+//  t.getLog();
+//  t.clearLog();
 }
 
 }  // namespace vineslam

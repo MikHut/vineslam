@@ -210,8 +210,8 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
     w_sum_ += particle.w_;
   }
 
-  t_->getLog();
-  t_->clearLog();
+//  t_->getLog();
+//  t_->clearLog();
 }
 
 void PF::gps(const Pose& gps_pose, std::vector<float>& ws)
@@ -258,31 +258,44 @@ void PF::highLevel(const std::vector<SemanticFeature>& landmarks, OccupancyMap* 
     thread_pool_->enqueue([this, landmarks, grid_map, normalizer_landmark, &ws, i]() {
 #endif
       // Convert particle orientation to rotation matrix
-      Pose m_pose = particles_[i].p_;
-      m_pose.R_ = 0.;
-      m_pose.P_ = 0.;
-      m_pose.z_ = 0.;
+      Pose l_pose = particles_[i].p_;
+      l_pose.R_ = 0.;
+      l_pose.P_ = 0.;
+      l_pose.z_ = 0.;
       std::array<float, 9> Rot{};
-      m_pose.toRotMatrix(Rot);
+      l_pose.toRotMatrix(Rot);
 
       // ------------------------------------------------------
       // --- 2D semantic feature map fitting
       // ------------------------------------------------------
-      std::vector<float> dlandmarkvec;
+      float w_landmarks = 0.;
       for (const auto& landmark : landmarks)
       {
         // Convert landmark to the maps's referential frame
         Point X;
-        X.x_ = landmark.pos_.x_ * Rot[0] + landmark.pos_.y_ * Rot[1] + landmark.pos_.z_ * Rot[2] + m_pose.x_;
-        X.y_ = landmark.pos_.x_ * Rot[3] + landmark.pos_.y_ * Rot[4] + landmark.pos_.z_ * Rot[5] + m_pose.y_;
+        X.x_ = landmark.pos_.x_ * Rot[0] + landmark.pos_.y_ * Rot[1] + landmark.pos_.z_ * Rot[2] + l_pose.x_;
+        X.y_ = landmark.pos_.x_ * Rot[3] + landmark.pos_.y_ * Rot[4] + landmark.pos_.z_ * Rot[5] + l_pose.y_;
         X.z_ = 0.;
 
         // Search for a correspondence in the current cell first
         float best_correspondence = std::numeric_limits<float>::max();
         bool found = false;
-        for (const auto& m_landmark : (*grid_map)(X.x_, X.y_, 0).landmarks_)
+
+        // Check cell data
+        Cell* c = &(*grid_map)(X.x_, X.y_, 0);
+        if (c->data == nullptr)
         {
-          float dist_min = X.distanceXY(m_landmark.second.pos_);
+          continue;
+        }
+        std::map<int, SemanticFeature>* l_landmarks = c->data->landmarks_;
+        if (l_landmarks == nullptr)
+        {
+          continue;
+        }
+
+        for (const auto& l_landmark : *l_landmarks)
+        {
+          float dist_min = X.distanceXY(l_landmark.second.pos_);
 
           if (dist_min < best_correspondence)
           {
@@ -296,11 +309,23 @@ void PF::highLevel(const std::vector<SemanticFeature>& landmarks, OccupancyMap* 
         {
           std::vector<Cell> adjacents;
           grid_map->getAdjacent(X.x_, X.y_, 0, 2, adjacents);
-          for (const auto& m_cell : adjacents)
+
+          for (const auto& l_cell : adjacents)
           {
-            for (const auto& m_landmark : m_cell.landmarks_)
+            // Check cell data
+            if (l_cell.data == nullptr)
             {
-              float dist_min = X.distanceXY(m_landmark.second.pos_);
+              continue;
+            }
+            std::map<int, SemanticFeature>* ll_landmarks = l_cell.data->landmarks_;
+            if (ll_landmarks == nullptr)
+            {
+              continue;
+            }
+
+            for (const auto& l_landmark : *ll_landmarks)
+            {
+              float dist_min = X.distanceXY(l_landmark.second.pos_);
               if (dist_min < best_correspondence)
               {
                 best_correspondence = dist_min;
@@ -311,22 +336,9 @@ void PF::highLevel(const std::vector<SemanticFeature>& landmarks, OccupancyMap* 
         }
 
         // Save distance if a correspondence was found
-        if (!found)
-          continue;
-        else
-          dlandmarkvec.push_back(best_correspondence);
-      }
-
-      // - Semantic landmark matching [x, y, yaw] weight
-      float w_landmarks = 1.;
-      if (dlandmarkvec.size() <= 1)
-      {
-        w_landmarks = 0.;
-      }
-      else
-      {
-        for (const auto& dist : dlandmarkvec)
-          w_landmarks += (normalizer_landmark * static_cast<float>(std::exp(-1. / sigma_landmark_matching_ * dist)));
+        if (found)
+          w_landmarks += (normalizer_landmark *
+                          static_cast<float>(std::exp(-1. / sigma_landmark_matching_ * best_correspondence)));
       }
 
       ws[particles_[i].id_] = w_landmarks;
@@ -355,22 +367,31 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners, OccupancyMap* gr
       // --- 3D corner map fitting
       // ------------------------------------------------------
       float w_corners = 0;
-      std::vector<float> dcornervec;
       for (const auto& corner : corners)
       {
         // Convert feature to the map's referential frame
         Point X = corner.pos_ * particles_[i].tf_;
 
-        std::vector<Corner> m_corners = (*grid_map)(X.x_, X.y_, X.z_).corner_features_;
+        // Check cell data
+        Cell* c = &(*grid_map)(X.x_, X.y_, X.z_);
+        if (c->data == nullptr)
+        {
+          continue;
+        }
+        std::vector<Corner>* l_corners = c->data->corner_features_;
+        if (l_corners == nullptr)
+        {
+          continue;
+        }
 
         // Search for a correspondence in the current cell first
         float best_correspondence = 0.5;
         bool found = false;
-        for (const auto& m_corner : m_corners)
+        for (const auto& l_corner : *l_corners)
         {
-          float dist_sq = ((X.x_ - m_corner.pos_.x_) * (X.x_ - m_corner.pos_.x_) +
-                           (X.y_ - m_corner.pos_.y_) * (X.y_ - m_corner.pos_.y_) +
-                           (X.z_ - m_corner.pos_.z_) * (X.z_ - m_corner.pos_.z_));
+          float dist_sq = ((X.x_ - l_corner.pos_.x_) * (X.x_ - l_corner.pos_.x_) +
+                           (X.y_ - l_corner.pos_.y_) * (X.y_ - l_corner.pos_.y_) +
+                           (X.z_ - l_corner.pos_.z_) * (X.z_ - l_corner.pos_.z_));
 
           if (dist_sq < best_correspondence)
           {
@@ -416,16 +437,26 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* gr
         // Convert feature to the map's referential frame
         Point X = planar.pos_ * particles_[i].tf_;
 
-        std::vector<Planar> m_planars = (*grid_map)(X.x_, X.y_, X.z_).planar_features_;
+        // Check cell data
+        Cell* c = &(*grid_map)(X.x_, X.y_, X.z_);
+        if (c->data == nullptr)
+        {
+          continue;
+        }
+        std::vector<Planar>* l_planars = c->data->planar_features_;
+        if (l_planars == nullptr)
+        {
+          continue;
+        }
 
         // Search for a correspondence in the current cell first
         float best_correspondence = 0.5;
         bool found = false;
-        for (const auto& m_planar : m_planars)
+        for (const auto& l_planar : *l_planars)
         {
-          float dist_sq = ((X.x_ - m_planar.pos_.x_) * (X.x_ - m_planar.pos_.x_) +
-                           (X.y_ - m_planar.pos_.y_) * (X.y_ - m_planar.pos_.y_) +
-                           (X.z_ - m_planar.pos_.z_) * (X.z_ - m_planar.pos_.z_));
+          float dist_sq = ((X.x_ - l_planar.pos_.x_) * (X.x_ - l_planar.pos_.x_) +
+                           (X.y_ - l_planar.pos_.y_) * (X.y_ - l_planar.pos_.y_) +
+                           (X.z_ - l_planar.pos_.z_) * (X.z_ - l_planar.pos_.z_));
 
           if (dist_sq < best_correspondence)
           {
@@ -578,13 +609,8 @@ void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* g
           }
         }
 
-        float vv = 0, cc = 0;
         if (found)
         {
-          vv = ((normalizer_plane_vector *
-                 static_cast<float>(std::exp((-1. / sigma_plane_matching_vector_) * correspondence_vec))));
-          cc = ((normalizer_plane_centroid *
-                 static_cast<float>(std::exp((-1. / sigma_plane_matching_centroid_) * correspondence_centroid))));
           w_planes +=
               ((normalizer_plane_vector *
                 static_cast<float>(std::exp((-1. / sigma_plane_matching_vector_) * correspondence_vec))) *

@@ -91,7 +91,6 @@ void VineSLAM_ros::publish2DMap(const Pose& pose, const std::vector<float>& bear
 {
   visualization_msgs::msg::MarkerArray marker_array;
   visualization_msgs::msg::Marker marker;
-  visualization_msgs::msg::MarkerArray ellipse_array;
   visualization_msgs::msg::Marker ellipse;
 
   // Define marker layout
@@ -124,69 +123,47 @@ void VineSLAM_ros::publish2DMap(const Pose& pose, const std::vector<float>& bear
   ellipse.color.a = 1.0f;
   ellipse.lifetime = rclcpp::Duration(970000000);
 
+  std::map<int, SemanticFeature> l_landmarks = (*grid_map_)(0).getLandmarks();
+
   // Publish markers
   int id = 1;
-  for (auto& it : (*grid_map_)(0))
+  for (const auto& l_sfeature : l_landmarks)
   {
-    for (const auto& l_sfeature : it.landmarks_)
-    {
-      // Draw sfeature mean
-      marker.id = id;
-      marker.header.stamp = rclcpp::Time();
-      marker.header.frame_id = params_.world_frame_id_;
-      marker.pose.position.x = l_sfeature.second.pos_.x_;
-      marker.pose.position.y = l_sfeature.second.pos_.y_;
-      marker.pose.position.z = l_sfeature.second.pos_.z_;
+    // Draw sfeature mean
+    marker.ns = "/marker";
+    marker.id = id;
+    marker.header.stamp = rclcpp::Time();
+    marker.header.frame_id = params_.world_frame_id_;
+    marker.pose.position.x = l_sfeature.second.pos_.x_;
+    marker.pose.position.y = l_sfeature.second.pos_.y_;
+    marker.pose.position.z = l_sfeature.second.pos_.z_;
 
-      marker_array.markers.push_back(marker);
+    marker_array.markers.push_back(marker);
 
-      // Draw sfeature standard deviation
-      tf2::Quaternion q;
-      q.setRPY(0, 0, l_sfeature.second.gauss_.theta_);
+    // Draw sfeature standard deviation
+    tf2::Quaternion q;
+    q.setRPY(0, 0, l_sfeature.second.gauss_.theta_);
 
-      ellipse.id = id;
-      ellipse.header.stamp = rclcpp::Time();
-      ellipse.header.frame_id = params_.world_frame_id_;
-      ellipse.pose.position.x = l_sfeature.second.pos_.x_;
-      ellipse.pose.position.y = l_sfeature.second.pos_.y_;
-      ellipse.pose.position.z = l_sfeature.second.pos_.z_;
-      ellipse.scale.x = 3 * l_sfeature.second.gauss_.stdev_.x_;
-      ellipse.scale.y = 3 * l_sfeature.second.gauss_.stdev_.y_;
-      ellipse.pose.orientation.x = q.x();
-      ellipse.pose.orientation.y = q.y();
-      ellipse.pose.orientation.z = q.z();
-      ellipse.pose.orientation.w = q.w();
+    ellipse.ns = "/ellipse";
+    ellipse.id = id;
+    ellipse.header.stamp = rclcpp::Time();
+    ellipse.header.frame_id = params_.world_frame_id_;
+    ellipse.pose.position.x = l_sfeature.second.pos_.x_;
+    ellipse.pose.position.y = l_sfeature.second.pos_.y_;
+    ellipse.pose.position.z = l_sfeature.second.pos_.z_;
+    ellipse.scale.x = 3 * l_sfeature.second.gauss_.stdev_.x_;
+    ellipse.scale.y = 3 * l_sfeature.second.gauss_.stdev_.y_;
+    ellipse.pose.orientation.x = q.x();
+    ellipse.pose.orientation.y = q.y();
+    ellipse.pose.orientation.z = q.z();
+    ellipse.pose.orientation.w = q.w();
 
-      ellipse_array.markers.push_back(ellipse);
+    marker_array.markers.push_back(ellipse);
 
-      id++;
-    }
+    id++;
   }
 
-  // Draw ellipse that characterizes particles distribution
-  tf2::Quaternion q;
-  q.setRPY(0, 0, pose.gaussian_dist_.theta_);
-
-  ellipse.id = id;
-  ellipse.header.stamp = rclcpp::Time();
-  ellipse.header.frame_id = params_.world_frame_id_;
-  ellipse.pose.position.x = pose.x_;
-  ellipse.pose.position.y = pose.y_;
-  ellipse.pose.position.z = pose.z_;
-  ellipse.scale.x = 3 * pose.gaussian_dist_.stdev_.x_;
-  ellipse.scale.y = 3 * pose.gaussian_dist_.stdev_.y_;
-  ellipse.pose.orientation.x = q.x();
-  ellipse.pose.orientation.y = q.y();
-  ellipse.pose.orientation.z = q.z();
-  ellipse.pose.orientation.w = q.w();
-  ellipse.color.r = 0.0f;
-  ellipse.color.g = 0.0f;
-  ellipse.color.b = 1.0f;
-  ellipse.color.a = 1.0f;
-  ellipse_array.markers.push_back(ellipse);
-
   map2D_publisher_->publish(marker_array);
-  map2D_publisher_->publish(ellipse_array);
 }
 
 void VineSLAM_ros::publishElevationMap() const

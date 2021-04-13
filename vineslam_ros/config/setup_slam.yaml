@@ -23,10 +23,10 @@ slam_node:
       origin:
         x: -110.0
         y: -75.0
-        z: -9.0
+        z: -18.0
       width: 150.0
       lenght: 150.0
-      height: 15.0
+      height: 25.0
       resolution: 0.25 # meters
       save_map: True
       output_folder: "/home/andresaguiar/Desktop/"

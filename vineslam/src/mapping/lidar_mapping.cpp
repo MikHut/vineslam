@@ -251,12 +251,14 @@ void LidarMapper::globalCornerMap(const Pose& robot_pose, const std::vector<Corn
     Corner correspondence{};
     float best_correspondence = 0.20;
     bool found = false;
-    std::vector<Corner>* l_corners = grid_map(l_pt.x_, l_pt.y_, l_pt.z_).corner_features_;
+    std::vector<Corner>* l_corners{ nullptr };
 
-    if (l_corners == nullptr)
+    if (grid_map(l_pt.x_, l_pt.y_, l_pt.z_).data != nullptr)
     {
+      l_corners = grid_map(l_pt.x_, l_pt.y_, l_pt.z_).data->corner_features_;
     }
-    else
+
+    if (l_corners != nullptr)
     {
       for (const auto& l_corner : *l_corners)
       {
@@ -319,12 +321,14 @@ void LidarMapper::globalPlanarMap(const Pose& robot_pose, const std::vector<Plan
     Planar correspondence{};
     float best_correspondence = 0.20;
     bool found = false;
-    std::vector<Planar>* l_planars = grid_map(l_pt.x_, l_pt.y_, l_pt.z_).planar_features_;
+    std::vector<Planar>* l_planars = { nullptr };
 
-    if (l_planars == nullptr)
+    if (grid_map(l_pt.x_, l_pt.y_, l_pt.z_).data != nullptr)
     {
+      l_planars = grid_map(l_pt.x_, l_pt.y_, l_pt.z_).data->planar_features_;
     }
-    else
+
+    if (l_planars != nullptr)
     {
       for (const auto& l_planar : *l_planars)
       {
@@ -1205,8 +1209,8 @@ void LidarMapper::performRayTrace(const Pose& robot_pose, const std::vector<Poin
   t.tick("rayTrace()");
   grid_map.rayTrace(transformed_pts, wrl_origin_pt);
   t.tock();
-  t.getLog();
-  t.clearLog();
+//  t.getLog();
+//  t.clearLog();
 }
 
 }  // namespace vineslam

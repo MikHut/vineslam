@@ -177,12 +177,14 @@ std::pair<int, Point> LandmarkMapper::findCorr(const Point& pos, OccupancyMap& g
 
   Point correspondence;
 
-  std::map<int, SemanticFeature>* l_landmarks = grid_map(pos.x_, pos.y_, 0).landmarks_;
+  std::map<int, SemanticFeature>* l_landmarks = nullptr;
 
-  if (l_landmarks == nullptr)
+  if (grid_map(pos.x_, pos.y_, 0).data != nullptr)
   {
+    l_landmarks = grid_map(pos.x_, pos.y_, 0).data->landmarks_;
   }
-  else
+
+  if (l_landmarks != nullptr)
   {
     // Search on current cell first
     for (const auto& l_landmark : *l_landmarks)
@@ -204,12 +206,14 @@ std::pair<int, Point> LandmarkMapper::findCorr(const Point& pos, OccupancyMap& g
   grid_map.getAdjacent(pos.x_, pos.y_, 0., number_layers, adjacents);
   for (const auto& l_cell : adjacents)
   {
-    std::map<int, SemanticFeature>* ll_landmarks = l_cell.landmarks_;
+    std::map<int, SemanticFeature>* ll_landmarks = nullptr;
 
-    if (ll_landmarks == nullptr)
+    if (l_cell.data != nullptr)
     {
+      ll_landmarks = l_cell.data->landmarks_;
     }
-    else
+
+    if (ll_landmarks != nullptr)
     {
       for (const auto& l_landmark : *ll_landmarks)
       {
@@ -257,25 +261,15 @@ void LandmarkMapper::filter(OccupancyMap& grid_map) const
 {
   int old_limit = grid_map(0).n_landmarks_ - (grid_map(0).n_landmarks_ / 10);
 
-  for (auto& cell : grid_map(0))
+  std::map<int, SemanticFeature> l_landmarks = grid_map(0).getLandmarks();
+
+  for (const auto& l_landmark : l_landmarks)
   {
-    std::map<int, SemanticFeature>* l_landmarks = cell.landmarks_;
-
-    if (l_landmarks == nullptr)
+    if (l_landmark.first < old_limit && (l_landmark.second.gauss_.stdev_.x_ > stdev_threshold_ ||
+                                         l_landmark.second.gauss_.stdev_.y_ > stdev_threshold_))
     {
+      grid_map(l_landmark.second.pos_.x_, l_landmark.second.pos_.y_, 0).data->landmarks_->erase(l_landmark.first);
     }
-    else
-    {
-      for (const auto& l_landmark : *l_landmarks)
-      {
-        if (l_landmark.first < old_limit && (l_landmark.second.gauss_.stdev_.x_ > stdev_threshold_ ||
-                                             l_landmark.second.gauss_.stdev_.y_ > stdev_threshold_))
-        {
-          cell.landmarks_->erase(l_landmark.first);
-        }
-      }
-    }
-
   }
 }
 

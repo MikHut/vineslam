@@ -94,8 +94,8 @@ def generate_launch_description():
             executable='run_detection_model',
             name='run_detection_model',
             parameters=[
-                {'model_file': '/home/andresaguiar/ROS/catkin_ws_ros2/src/tpu-object-detection/object_detection/models/mv1/edgetpu_cpp_model_output_tflite_graph_edgetpu.tflite'},
-                {'labels_file': '/home/andresaguiar/ROS/catkin_ws_ros2/src/tpu-object-detection/object_detection/models/mv1/edgetpu_cpp_model_labels.txt'}
+                {'model_file': '/home/andresaguiar/ROS/ros2_ws/src/tpu-object-detection/object_detection/models/mv1/edgetpu_cpp_model_output_tflite_graph_edgetpu.tflite'},
+                {'labels_file': '/home/andresaguiar/ROS/ros2_ws/src/tpu-object-detection/object_detection/models/mv1/edgetpu_cpp_model_labels.txt'}
             ],
             remappings=[
                 ('/input_rgb_image', image_topic),

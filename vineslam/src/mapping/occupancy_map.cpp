@@ -53,13 +53,20 @@ bool MapLayer::insert(const SemanticFeature& l_landmark, const int& id, const in
     return false;
   }
 
-  // Check if cell already has some semantic feature
-  if ((*this)(i, j).landmarks_ == nullptr)
+  // Check if memory for cell is already allocated
+  Cell* c = &(*this)(i, j);
+  if (c->data == nullptr)
   {
-    (*this)(i, j).landmarks_ = new std::map<int, SemanticFeature>();
+    c->data = new CellData();
   }
 
-  cellInsert(id, l_landmark, (*this)(i, j).landmarks_);
+  // Check if cell already has some semantic feature
+  if (c->data->landmarks_ == nullptr)
+  {
+    c->data->landmarks_ = new std::map<int, SemanticFeature>();
+  }
+
+  cellInsert(id, l_landmark, c->data->landmarks_);
   n_landmarks_++;
 
   // Mark cell as occupied in pointer array
@@ -93,13 +100,20 @@ bool MapLayer::insert(const ImageFeature& l_feature, const int& i, const int& j)
     return false;
   }
 
-  // Check if cell already has some surf feature
-  if ((*this)(i, j).surf_features_ == nullptr)
+  // Check if memory for cell is already allocated
+  Cell* c = &(*this)(i, j);
+  if (c->data == nullptr)
   {
-    (*this)(i, j).surf_features_ = new std::vector<ImageFeature>();
+    c->data = new CellData();
   }
 
-  (*this)(i, j).surf_features_->push_back(l_feature);
+  // Check if cell already has some surf feature
+  if (c->data->surf_features_ == nullptr)
+  {
+    c->data->surf_features_ = new std::vector<ImageFeature>();
+  }
+
+  c->data->surf_features_->push_back(l_feature);
   n_surf_features_++;
 
   // Mark cell as occupied in pointer array
@@ -133,31 +147,38 @@ bool MapLayer::insert(const Corner& l_feature, const int& i, const int& j)
     return false;
   }
 
-  // Check if cell already has some corner feature
-  if ((*this)(i, j).corner_features_ == nullptr)
+  // Check if memory for cell is already allocated
+  Cell* c = &(*this)(i, j);
+  if (c->data == nullptr)
   {
-    (*this)(i, j).corner_features_ = new std::vector<Corner>();
-    (*this)(i, j).candidate_corner_features_ = new std::vector<Corner>();
+    c->data = new CellData();
   }
 
-  if ((*this)(i, j).candidate_corner_features_->size() < min_corner_obsvs_ - 1)  // insert a candidate (not enough
-                                                                                 // observations yet)
+  // Check if cell already has some corner feature
+  if (c->data->corner_features_ == nullptr)
   {
-    (*this)(i, j).candidate_corner_features_->push_back(l_feature);
+    c->data->corner_features_ = new std::vector<Corner>();
+    c->data->candidate_corner_features_ = new std::vector<Corner>();
+  }
+
+  if (c->data->candidate_corner_features_->size() < min_corner_obsvs_ - 1)  // insert a candidate (not enough
+                                                                            // observations yet)
+  {
+    c->data->candidate_corner_features_->push_back(l_feature);
 
     return true;
   }
-  else if ((*this)(i, j).candidate_corner_features_->size() == min_corner_obsvs_ - 1)  // we reached the minimum
-                                                                                       // number of observations
+  else if (c->data->candidate_corner_features_->size() == min_corner_obsvs_ - 1)  // we reached the minimum
+                                                                                  // number of observations
   {
-    (*this)(i, j).candidate_corner_features_->push_back(l_feature);
+    c->data->candidate_corner_features_->push_back(l_feature);
 
     // Compute the mean of the candidates
-    uint32_t n_candidates = (*this)(i, j).candidate_corner_features_->size();
+    uint32_t n_candidates = c->data->candidate_corner_features_->size();
     Point l_pt(0, 0, 0);
     for (uint32_t k = 0; k < n_candidates; ++k)
     {
-      Corner c1 = (*(*this)(i, j).candidate_corner_features_)[k];
+      Corner c1 = (*c->data->candidate_corner_features_)[k];
 
       l_pt.x_ += c1.pos_.x_;
       l_pt.y_ += c1.pos_.y_;
@@ -168,15 +189,15 @@ bool MapLayer::insert(const Corner& l_feature, const int& i, const int& j)
     l_pt.z_ /= n_candidates;
 
     // Insert it in the map
-    Corner c(l_pt, 0);
-    (*this)(i, j).corner_features_->push_back(c);
+    Corner l_corner(l_pt, 0);
+    c->data->corner_features_->push_back(l_corner);
     n_corner_features_++;
   }
-  else if ((*this)(i, j).candidate_corner_features_->size() >= min_corner_obsvs_)  // normal insertion after reaching
-                                                                                   // the minimum number of
-                                                                                   // observations
+  else if (c->data->candidate_corner_features_->size() >= min_corner_obsvs_)  // normal insertion after
+                                                                              // reaching the minimum number
+                                                                              // of observations
   {
-    (*this)(i, j).corner_features_->push_back(l_feature);
+    c->data->corner_features_->push_back(l_feature);
     n_corner_features_++;
   }
 
@@ -211,31 +232,38 @@ bool MapLayer::insert(const Planar& l_feature, const int& i, const int& j)
     return false;
   }
 
-  // Check if cell already has some planar feature
-  if ((*this)(i, j).planar_features_ == nullptr)
+  // Check if memory for cell is already allocated
+  Cell* c = &(*this)(i, j);
+  if (c->data == nullptr)
   {
-    (*this)(i, j).planar_features_ = new std::vector<Planar>();
-    (*this)(i, j).candidate_planar_features_ = new std::vector<Planar>();
+    c->data = new CellData();
   }
 
-  if ((*this)(i, j).candidate_planar_features_->size() < min_planar_obsvs_ - 1)  // insert a candidate (not enough
-                                                                                 // observations yet)
+  // Check if cell already has some planar feature
+  if (c->data->planar_features_ == nullptr)
   {
-    (*this)(i, j).candidate_planar_features_->push_back(l_feature);
+    c->data->planar_features_ = new std::vector<Planar>();
+    c->data->candidate_planar_features_ = new std::vector<Planar>();
+  }
+
+  if (c->data->candidate_planar_features_->size() < min_planar_obsvs_ - 1)  // insert a candidate (not enough
+                                                                            // observations yet)
+  {
+    c->data->candidate_planar_features_->push_back(l_feature);
 
     return true;
   }
-  else if ((*this)(i, j).candidate_planar_features_->size() == min_planar_obsvs_ - 1)  // we reached the minimum
-                                                                                       // number of observations
+  else if (c->data->candidate_planar_features_->size() == min_planar_obsvs_ - 1)  // we reached the minimum
+                                                                                  // number of observations
   {
-    (*this)(i, j).candidate_planar_features_->push_back(l_feature);
+    c->data->candidate_planar_features_->push_back(l_feature);
 
     // Compute the mean of the candidates
-    uint32_t n_candidates = (*this)(i, j).candidate_planar_features_->size();
+    uint32_t n_candidates = c->data->candidate_planar_features_->size();
     Point l_pt(0, 0, 0);
     for (uint32_t k = 0; k < n_candidates; ++k)
     {
-      Planar p1 = (*(*this)(i, j).candidate_planar_features_)[k];
+      Planar p1 = (*c->data->candidate_planar_features_)[k];
 
       l_pt.x_ += p1.pos_.x_;
       l_pt.y_ += p1.pos_.y_;
@@ -246,15 +274,15 @@ bool MapLayer::insert(const Planar& l_feature, const int& i, const int& j)
     l_pt.z_ /= n_candidates;
 
     // Insert it in the map
-    Planar p(l_pt, 0);
-    (*this)(i, j).planar_features_->push_back(p);
+    Planar l_planar(l_pt, 0);
+    c->data->planar_features_->push_back(l_planar);
     n_planar_features_++;
   }
-  else if ((*this)(i, j).candidate_planar_features_->size() >= min_planar_obsvs_)  // normal insertion after reaching
-                                                                                   // the minimum number of
-                                                                                   // observations
+  else if (c->data->candidate_planar_features_->size() >= min_planar_obsvs_)  // normal insertion after reaching
+                                                                              // the minimum number of
+                                                                              // observations
   {
-    (*this)(i, j).planar_features_->push_back(l_feature);
+    c->data->planar_features_->push_back(l_feature);
     n_planar_features_++;
   }
 
@@ -286,12 +314,13 @@ bool MapLayer::update(const SemanticFeature& new_landmark, const int& id, const 
 
   // Get array of landmarks present in the cell of the input landmark
   Cell l_cell = (*this)(l_i, l_j);
-  std::map<int, SemanticFeature>* l_landmarks = l_cell.landmarks_;
-
-  if (l_landmarks == nullptr)
+  std::map<int, SemanticFeature>* l_landmarks = nullptr;
+  if (l_cell.data != nullptr)
   {
+    l_landmarks = l_cell.data->landmarks_;
   }
-  else
+
+  if (l_landmarks != nullptr)
   {
     for (const auto& l_landmark : *l_landmarks)
     {
@@ -305,14 +334,21 @@ bool MapLayer::update(const SemanticFeature& new_landmark, const int& id, const 
         // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
         int new_l_i = static_cast<int>(std::round(new_landmark.pos_.x_ / resolution_ + .49));
         int new_l_j = static_cast<int>(std::round(new_landmark.pos_.y_ / resolution_ + .49));
-        if (new_l_i != l_i || new_l_j != l_j)
+
+        if ((new_l_i != l_i || new_l_j != l_j))
         {
-          (*this)(l_i, l_j).landmarks_->erase(id);
+          (*this)(l_i, l_j).data->landmarks_->erase(id);
           insert(new_landmark, id);
         }
         else
         {
-          (*(*this)(l_i, l_j).landmarks_)[id] = new_landmark;
+          // Check if cell memory is already allocated
+          if ((*this)(l_i, l_j).data == nullptr)
+          {
+            (*this)(l_i, l_j).data = new CellData();
+          }
+
+          (*(*this)(l_i, l_j).data->landmarks_)[id] = new_landmark;
         }
         return true;
       }
@@ -334,13 +370,13 @@ bool MapLayer::update(const Corner& old_corner, const Corner& new_corner)
 
   // Access cell of old corner
   Cell l_cell = (*this)(l_i, l_j);
-  // Get all the corner in the given cell
-  std::vector<Corner>* l_corners = l_cell.corner_features_;
-
-  if (l_corners == nullptr)
+  std::vector<Corner>* l_corners = nullptr;
+  if (l_cell.data != nullptr)
   {
+    l_corners = l_cell.data->corner_features_;
   }
-  else
+
+  if (l_corners != nullptr)
   {
     // Find the corner and update it
     for (size_t i = 0; i < l_corners->size(); i++)
@@ -356,12 +392,12 @@ bool MapLayer::update(const Corner& old_corner, const Corner& new_corner)
 
         if (new_l_i != l_i || new_l_j != l_j)
         {
-          (*this)(l_i, l_j).corner_features_->erase((*this)(l_i, l_j).corner_features_->begin() + i);
+          (*this)(l_i, l_j).data->corner_features_->erase((*this)(l_i, l_j).data->corner_features_->begin() + i);
           insert(new_corner);
         }
         else
         {
-          (*(*this)(l_i, l_j).corner_features_)[i] = new_corner;
+          (*(*this)(l_i, l_j).data->corner_features_)[i] = new_corner;
         }
 
         return true;
@@ -384,13 +420,13 @@ bool MapLayer::update(const Planar& old_planar, const Planar& new_planar)
 
   // Access cell of old planar
   Cell l_cell = (*this)(l_i, l_j);
-  // Get all the planar in the given cell
-  std::vector<Planar>* l_planars = l_cell.planar_features_;
-
-  if (l_planars == nullptr)
+  std::vector<Planar>* l_planars = nullptr;
+  if (l_cell.data != nullptr)
   {
+    l_planars = l_cell.data->planar_features_;
   }
-  else
+
+  if (l_planars != nullptr)
   {
     // Find the planar and update it
     for (size_t i = 0; i < l_planars->size(); i++)
@@ -406,12 +442,12 @@ bool MapLayer::update(const Planar& old_planar, const Planar& new_planar)
 
         if (new_l_i != l_i || new_l_j != l_j)
         {
-          (*this)(l_i, l_j).planar_features_->erase((*this)(l_i, l_j).planar_features_->begin() + i);
+          (*this)(l_i, l_j).data->planar_features_->erase((*this)(l_i, l_j).data->planar_features_->begin() + i);
           insert(new_planar);
         }
         else
         {
-          (*(*this)(l_i, l_j).planar_features_)[i] = new_planar;
+          (*(*this)(l_i, l_j).data->planar_features_)[i] = new_planar;
         }
 
         return true;
@@ -434,8 +470,11 @@ void MapLayer::downsampleCorners()
 {
   for (const auto& i : corner_set_)
   {
-    std::vector<Corner>* l_corners = cell_vec_[i].corner_features_;
-
+    if (cell_vec_[i].data == nullptr)
+    {
+      continue;
+    }
+    std::vector<Corner>* l_corners = cell_vec_[i].data->corner_features_;
     if (l_corners == nullptr)
     {
       continue;
@@ -456,9 +495,9 @@ void MapLayer::downsampleCorners()
     l_pt.y_ /= size;
     l_pt.z_ /= size;
 
-    cell_vec_[i].corner_features_->clear();
+    cell_vec_[i].data->corner_features_->clear();
     Corner c(l_pt, 0);
-    *(cell_vec_[i].corner_features_) = { c };
+    *(cell_vec_[i].data->corner_features_) = { c };
   }
 }
 
@@ -466,8 +505,11 @@ void MapLayer::downsamplePlanars()
 {
   for (const auto& i : planar_set_)
   {
-    std::vector<Planar>* l_planars = cell_vec_[i].planar_features_;
-
+    if (cell_vec_[i].data == nullptr)
+    {
+      continue;
+    }
+    std::vector<Planar>* l_planars = cell_vec_[i].data->planar_features_;
     if (l_planars == nullptr)
     {
       continue;
@@ -487,9 +529,9 @@ void MapLayer::downsamplePlanars()
     l_pt.y_ /= size;
     l_pt.z_ /= size;
 
-    cell_vec_[i].planar_features_->clear();
+    cell_vec_[i].data->planar_features_->clear();
     Planar p(l_pt, 0);
-    *(cell_vec_[i].planar_features_) = { p };
+    *(cell_vec_[i].data->planar_features_) = { p };
   }
 }
 
@@ -741,7 +783,7 @@ bool MapLayer::findNearest(const ImageFeature& input, ImageFeature& nearest, flo
 
       //      // ------- Use feature descriptor to find correspondences
       //      // ------- Grid map is used to limit the search space
-      //      for (const auto& feature : *(*this)(l_i, l_j).surf_features_)
+      //      for (const auto& feature : *(*this)(l_i, l_j).data->surf_features_)
       //      {
       //        std::vector<float> desc = input.signature_;
       //        std::vector<float> l_desc = feature.signature_;
@@ -778,11 +820,12 @@ bool MapLayer::findNearest(const ImageFeature& input, ImageFeature& nearest, flo
       //      }
       //      // ---------------------------------------------------------------------------
 
-      std::vector<ImageFeature>* l_image_features = (*this)(l_i, l_j).surf_features_;
-      if (l_image_features == nullptr)
+      std::vector<ImageFeature>* l_image_features = nullptr;
+      if ((*this)(l_i, l_j).data != nullptr)
       {
+        l_image_features = (*this)(l_i, l_j).data->surf_features_;
       }
-      else
+      if (l_image_features != nullptr)
       {
         found_solution = found_solution | !l_image_features->empty();
 
@@ -990,11 +1033,12 @@ bool MapLayer::findNearest(const Corner& input, Corner& nearest, float& sdist)
           continue;
       }
 
-      std::vector<Corner>* l_corners = (*this)(l_i, l_j).corner_features_;
-      if (l_corners == nullptr)
+      std::vector<Corner>* l_corners = nullptr;
+      if ((*this)(l_i, l_j).data != nullptr)
       {
+        l_corners = (*this)(l_i, l_j).data->corner_features_;
       }
-      else
+      if (l_corners != nullptr)
       {
         // Found solution if there is any feature in the target cell
         found_solution = found_solution | !l_corners->empty();
@@ -1204,11 +1248,12 @@ bool MapLayer::findNearest(const Planar& input, Planar& nearest, float& sdist)
           continue;
       }
 
-      std::vector<Planar>* l_planars = (*this)(l_i, l_j).planar_features_;
-      if (l_planars == nullptr)
+      std::vector<Planar>* l_planars = nullptr;
+      if ((*this)(l_i, l_j).data != nullptr)
       {
+        l_planars = (*this)(l_i, l_j).data->planar_features_;
       }
-      else
+      if (l_planars != nullptr)
       {
         // Found solution if there is any feature in the target cell
         found_solution = found_solution | !l_planars->empty();
@@ -1253,12 +1298,12 @@ bool MapLayer::findNearestOnCell(const ImageFeature& input, ImageFeature& neares
   float min_dist = std::numeric_limits<float>::max();
   float dist;
 
-  std::vector<ImageFeature>* l_image_features = (*this)(i, j).surf_features_;
-  if (l_image_features == nullptr)
+  std::vector<ImageFeature>* l_image_features = nullptr;
+  if ((*this)(i, j).data != nullptr)
   {
-    return false;
+    l_image_features = (*this)(i, j).data->surf_features_;
   }
-  else
+  if (l_image_features != nullptr)
   {
     for (const auto& feature : *l_image_features)
     {
@@ -1281,7 +1326,7 @@ OccupancyMap::OccupancyMap(const Parameters& params, const Pose& origin_offset)
   origin_.y_ = params.gridmap_origin_y_ + origin_offset.y_;
   origin_.z_ = params.gridmap_origin_z_;
   resolution_ = params.gridmap_resolution_;
-  resolution_z_ = resolution_ / 4;
+  resolution_z_ = resolution_ / 8;
   width_ = params.gridmap_width_;
   lenght_ = params.gridmap_lenght_;
   height_ = params.gridmap_height_;
@@ -1377,8 +1422,14 @@ bool OccupancyMap::update(const Corner& old_corner, const Corner& new_corner)
 {
   int old_layer_num;
   int new_layer_num;
-  getLayerNumber(old_corner.pos_.z_, old_layer_num);
-  getLayerNumber(new_corner.pos_.z_, new_layer_num);
+  if (!getLayerNumber(old_corner.pos_.z_, old_layer_num))
+  {
+    return false;
+  }
+  if (!getLayerNumber(new_corner.pos_.z_, new_layer_num))
+  {
+    return false;
+  }
 
   if (old_layer_num == new_layer_num)
   {
@@ -1393,13 +1444,13 @@ bool OccupancyMap::update(const Corner& old_corner, const Corner& new_corner)
 
     // Access cell of old corner
     Cell l_cell = layers_map_[old_layer_num](l_i, l_j);
-    // Get all the corner in the given cell
-    std::vector<Corner>* l_corners = l_cell.corner_features_;
-
-    if (l_corners == nullptr)
+    std::vector<Corner>* l_corners = nullptr;
+    if (l_cell.data != nullptr)
     {
+      l_corners = l_cell.data->corner_features_;
     }
-    else
+
+    if (l_corners != nullptr)
     {
       // Find the corner and update it
       for (size_t i = 0; i < l_corners->size(); i++)
@@ -1409,8 +1460,8 @@ bool OccupancyMap::update(const Corner& old_corner, const Corner& new_corner)
         if (l_corner.pos_.x_ == old_corner.pos_.x_ && l_corner.pos_.y_ == old_corner.pos_.y_ &&
             l_corner.pos_.z_ == old_corner.pos_.z_)
         {
-          layers_map_[old_layer_num](l_i, l_j).corner_features_->erase(
-              layers_map_[old_layer_num](l_i, l_j).corner_features_->begin() + i);
+          layers_map_[old_layer_num](l_i, l_j).data->corner_features_->erase(
+              layers_map_[old_layer_num](l_i, l_j).data->corner_features_->begin() + i);
 
           insert(new_corner);
 
@@ -1452,13 +1503,13 @@ bool OccupancyMap::update(const Planar& old_planar, const Planar& new_planar)
 
     // Access cell of old planar
     Cell l_cell = layers_map_[old_layer_num](l_i, l_j);
-    // Get all the planar in the given cell
-    std::vector<Planar>* l_planars = l_cell.planar_features_;
-
-    if (l_planars == nullptr)
+    std::vector<Planar>* l_planars = nullptr;
+    if (l_cell.data != nullptr)
     {
+      l_planars = l_cell.data->planar_features_;
     }
-    else
+
+    if (l_planars != nullptr)
     {
       // Find the planar and update it
       for (size_t i = 0; i < l_planars->size(); i++)
@@ -1468,8 +1519,8 @@ bool OccupancyMap::update(const Planar& old_planar, const Planar& new_planar)
         if (l_planar.pos_.x_ == old_planar.pos_.x_ && l_planar.pos_.y_ == old_planar.pos_.y_ &&
             l_planar.pos_.z_ == old_planar.pos_.z_)
         {
-          layers_map_[old_layer_num](l_i, l_j).planar_features_->erase(
-              layers_map_[old_layer_num](l_i, l_j).planar_features_->begin() + i);
+          layers_map_[old_layer_num](l_i, l_j).data->planar_features_->erase(
+              layers_map_[old_layer_num](l_i, l_j).data->planar_features_->begin() + i);
 
           insert(new_planar);
 
@@ -1511,13 +1562,13 @@ bool OccupancyMap::update(const ImageFeature& old_image_feature, const ImageFeat
 
     // Access cell of old corner
     Cell l_cell = layers_map_[old_layer_num](l_i, l_j);
-    // Get all the corner in the given cell
-    std::vector<ImageFeature>* l_image_features = l_cell.surf_features_;
-
-    if (l_image_features == nullptr)
+    std::vector<ImageFeature>* l_image_features = nullptr;
+    if (l_cell.data != nullptr)
     {
+      l_image_features = l_cell.data->surf_features_;
     }
-    else
+
+    if (l_image_features != nullptr)
     {
       // Find the corner and update it
       for (size_t i = 0; i < l_image_features->size(); i++)
@@ -1528,8 +1579,8 @@ bool OccupancyMap::update(const ImageFeature& old_image_feature, const ImageFeat
             l_image_feature.pos_.y_ == old_image_feature.pos_.y_ &&
             l_image_feature.pos_.z_ == old_image_feature.pos_.z_)
         {
-          layers_map_[old_layer_num](l_i, l_j).surf_features_->erase(
-              layers_map_[old_layer_num](l_i, l_j).surf_features_->begin() + i);
+          layers_map_[old_layer_num](l_i, l_j).data->surf_features_->erase(
+              layers_map_[old_layer_num](l_i, l_j).data->surf_features_->begin() + i);
 
           insert(new_image_feature);
 
@@ -1737,10 +1788,10 @@ bool OccupancyMap::rayTrace(const std::vector<Point>& pts, const Point& sensor_o
   //      // If the cell is not empty and the number of traverses if higher than the number of hits, we will erase all
   //      the
   //      // planar information from it
-  //      if (!c->planar_features_->empty() && (c->traverses_planars >= c->hits_planars))
+  //      if (!c->data->planar_features_->empty() && (c->traverses_planars >= c->hits_planars))
   //      {
-  //        *c->planar_features_ = {};
-  //        *c->candidate_planar_features_ = {};
+  //        *c->data->planar_features_ = {};
+  //        *c->data->candidate_planar_features_ = {};
   //        *c->n_candidate_planars_ = 0;
   //      }
   //    }

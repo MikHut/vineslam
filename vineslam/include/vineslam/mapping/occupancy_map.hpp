@@ -14,7 +14,7 @@
 
 namespace vineslam
 {
-struct Cell
+struct CellData
 {
   // List of landmarks, features, and points at each cell
   std::map<int, SemanticFeature>* landmarks_{ nullptr };
@@ -25,6 +25,13 @@ struct Cell
   // List of candidate landmarks, features, and points at each cell
   std::vector<Corner>* candidate_corner_features_{ nullptr };
   std::vector<Planar>* candidate_planar_features_{ nullptr };
+};
+
+struct Cell
+{
+  CellData* data{ nullptr };  // this is a trick: a pointer occupies 64-bit of memory. thus, for the cells not occupied,
+                              // we only have 64 bits of memory. if the struct Cell contained all the members present in
+                              // Data, we would have 6 * 64 bits of memory per non-occupied cell.
 };
 
 class MapLayer
@@ -182,11 +189,20 @@ public:
   bool findNearestOnCell(const ImageFeature& input, ImageFeature& nearest);
 
   // Getter functions
+  std::map<int, SemanticFeature> getLandmarks() const
+  {
+    std::map<int, SemanticFeature> out_landmarks;
+    for (const auto& i : landmark_set_)
+      for (const auto& landmark : *cell_vec_[i].data->landmarks_)
+        cellInsert(landmark.first, landmark.second, &out_landmarks);
+
+    return out_landmarks;
+  }
   std::vector<Corner> getCorners() const
   {
     std::vector<Corner> out_corners;
     for (const auto& i : corner_set_)
-      for (const auto& corner : *cell_vec_[i].corner_features_)
+      for (const auto& corner : *cell_vec_[i].data->corner_features_)
         out_corners.push_back(corner);
 
     return out_corners;
@@ -195,7 +211,7 @@ public:
   {
     std::vector<Planar> out_planars;
     for (const auto& i : planar_set_)
-      for (const auto& planar : *cell_vec_[i].planar_features_)
+      for (const auto& planar : *cell_vec_[i].data->planar_features_)
         out_planars.push_back(planar);
 
     return out_planars;
@@ -204,7 +220,7 @@ public:
   {
     std::vector<ImageFeature> out_surf_features;
     for (const auto& i : surf_set_)
-      for (const auto& img_feature : *cell_vec_[i].surf_features_)
+      for (const auto& img_feature : *cell_vec_[i].data->surf_features_)
         out_surf_features.push_back(img_feature);
 
     return out_surf_features;
@@ -224,10 +240,10 @@ public:
     // ******************************************************* //
     for (auto& cell : cell_vec_)
     {
-      cell.corner_features_->shrink_to_fit();
-      cell.planar_features_->shrink_to_fit();
-      cell.surf_features_->shrink_to_fit();
-      cell.landmarks_->clear();
+      cell.data->corner_features_->shrink_to_fit();
+      cell.data->planar_features_->shrink_to_fit();
+      cell.data->surf_features_->shrink_to_fit();
+      cell.data->landmarks_->clear();
     }
 
     n_corner_features_ = 0;

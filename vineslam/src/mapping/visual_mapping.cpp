@@ -48,13 +48,14 @@ void VisualMapper::globalMap(const std::vector<ImageFeature>& features, const Po
     ImageFeature correspondence{};
     float best_correspondence = 0.02;
     bool found = false;
-    std::vector<ImageFeature>* l_image_features = grid_map(l_pt.x_, l_pt.y_, l_pt.z_).surf_features_;
+    std::vector<ImageFeature>* l_image_features = { nullptr };
 
-    if (l_image_features == nullptr)
+    if (grid_map(l_pt.x_, l_pt.y_, l_pt.z_).data != nullptr)
     {
+      l_image_features = grid_map(l_pt.x_, l_pt.y_, l_pt.z_).data->surf_features_;
     }
-    else
-    {
+
+    if (l_image_features != nullptr)
       for (const auto& l_image_feature : *l_image_features)
       {
         float dist_min = l_pt.distance(l_image_feature.pos_);
@@ -66,7 +67,6 @@ void VisualMapper::globalMap(const std::vector<ImageFeature>& features, const Po
           found = true;
         }
       }
-    }
 
     //    // Only search in the adjacent cells if we do not find in the source cell
     //    if (!found)
@@ -75,7 +75,7 @@ void VisualMapper::globalMap(const std::vector<ImageFeature>& features, const Po
     //      grid_map.getAdjacent(l_pt.x_, l_pt.y_, l_pt.z_, 2, adjacents);
     //      for (const auto& m_cell : adjacents)
     //      {
-    //        for (const auto& m_image_feature : m_cell.surf_features_)
+    //        for (const auto& m_image_feature : m_cell.data->surf_features_)
     //        {
     //          float dist_min = l_pt.distance(m_image_feature.pos_);
     //          if (dist_min < best_correspondence)

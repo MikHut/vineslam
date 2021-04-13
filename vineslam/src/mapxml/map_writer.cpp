@@ -50,47 +50,42 @@ void MapWriter::writeToFile(OccupancyMap* grid_map)
     {
       for (float j = ymin; j < ymax - grid_map->resolution_;)
       {
-        std::map<int, SemanticFeature>* l_landmarks = layer.second(i, j).landmarks_;
-        std::vector<ImageFeature>* l_image_features = layer.second(i, j).surf_features_;
-        std::vector<Corner>* l_corners = layer.second(i, j).corner_features_;
-        std::vector<Planar>* l_planars = layer.second(i, j).planar_features_;
+        // Check if there is any feature in the current cell
+        if (layer.second(i, j).data == nullptr)
+        {
+          j += grid_map->resolution_;
+          continue;
+        }
+
+        std::map<int, SemanticFeature>* l_landmarks = layer.second(i, j).data->landmarks_;
+        std::vector<ImageFeature>* l_image_features = layer.second(i, j).data->surf_features_;
+        std::vector<Corner>* l_corners = layer.second(i, j).data->corner_features_;
+        std::vector<Planar>* l_planars = layer.second(i, j).data->planar_features_;
 
         // Check if cell is empty: we have to check first is the pointers to the arrays are valid :-)
         bool is_empty = true;
-        if (l_landmarks == nullptr)
-        {
-        }
-        else
+        if (l_landmarks != nullptr)
         {
           if (!l_landmarks->empty())
           {
             is_empty = false;
           }
         }
-        if (l_image_features == nullptr)
-        {
-        }
-        else
+        if (l_image_features != nullptr)
         {
           if (!l_image_features->empty())
           {
             is_empty = false;
           }
         }
-        if (l_corners == nullptr)
-        {
-        }
-        else
+        if (l_corners != nullptr)
         {
           if (!l_corners->empty())
           {
             is_empty = false;
           }
         }
-        if (l_planars == nullptr)
-        {
-        }
-        else
+        if (l_planars != nullptr)
         {
           if (!l_planars->empty())
           {

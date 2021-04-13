@@ -81,8 +81,8 @@ void VineSLAM_ros::loopOnce()
     l_timer.tick("vineslam_ros::process()");
     process();
     l_timer.tock();
-    l_timer.getLog();
-    l_timer.clearLog();
+    //    l_timer.getLog();
+    //    l_timer.clearLog();
   }
 
   // Reset information flags
@@ -92,8 +92,8 @@ void VineSLAM_ros::loopOnce()
   input_data_.received_odometry_ = false;
   input_data_.received_gnss_ = false;
 
-  timer_->getLog();
-  timer_->clearLog();
+  //  timer_->getLog();
+  //  timer_->clearLog();
 }
 
 void VineSLAM_ros::init()
@@ -157,6 +157,7 @@ void VineSLAM_ros::process()
   // ---------------------------------------------------------
   // - Compute 2D local map of semantic features on robot's referential frame
   std::vector<SemanticFeature> l_landmarks;
+  RCLCPP_INFO(this->get_logger(), "landmark_mapper::localMap()");
   if (params_.use_semantic_features_)
   {
     timer_->tick("landmark_mapper::localMap()");
@@ -169,6 +170,7 @@ void VineSLAM_ros::process()
   std::vector<Planar> l_planars;
   std::vector<SemiPlane> l_planes;
   SemiPlane l_ground_plane;
+  RCLCPP_INFO(this->get_logger(), "lidar_mapper::localMap()");
   if (params_.use_lidar_features_)
   {
     timer_->tick("lidar_mapper::localMap()");
@@ -179,6 +181,7 @@ void VineSLAM_ros::process()
 
   // - Compute 3D image features on robot's referential frame
   std::vector<ImageFeature> l_surf_features;
+  RCLCPP_INFO(this->get_logger(), "visual_mapper::localMap()");
   if (params_.use_image_features_)
   {
     timer_->tick("visual_mapper::localMap()");
@@ -205,6 +208,7 @@ void VineSLAM_ros::process()
   // ---------------------------------------------------------
   // ----- Localization procedure
   // ---------------------------------------------------------
+  RCLCPP_INFO(this->get_logger(), "localizer()");
   Tf p_odom_tf = input_data_.p_wheel_odom_pose_.toTf();
   Tf c_odom_tf = input_data_.wheel_odom_pose_.toTf();
   Tf odom_inc_tf = p_odom_tf.inverse() * c_odom_tf;
@@ -220,6 +224,7 @@ void VineSLAM_ros::process()
   // ---------------------------------------------------------
   // ----- Register multi-layer map (if performing SLAM)
   // ---------------------------------------------------------
+  RCLCPP_INFO(this->get_logger(), "map_registers()");
   if (register_map_)
   {
     timer_->tick("landmark_mapper::process()");
@@ -326,11 +331,13 @@ void VineSLAM_ros::process()
   path_publisher_->publish(ros_path);
 
   // Non-dense publishers
+  RCLCPP_INFO(this->get_logger(), "map_publishers()");
   publish3DMap(l_corners, corners_local_publisher_);
   publish3DMap(l_planars, planars_local_publisher_);
   l_planes.push_back(l_ground_plane);
   publish3DMap(l_planes, planes_local_publisher_);
   publishRobotBox(robot_pose_);
+  RCLCPP_INFO(this->get_logger(), "The end...()\n");
 }
 
 void VineSLAM_ros::imageFeatureListener(const vineslam_msgs::msg::FeatureArray::SharedPtr features)

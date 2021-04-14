@@ -240,10 +240,6 @@ void VineSLAM_ros::publish3DMap()
   std::vector<Corner> corner_features = grid_map_->getCorners();
   std::vector<Planar> planar_features = grid_map_->getPlanars();
 
-  RCLCPP_INFO(this->get_logger(), "%d", surf_features.size());
-  RCLCPP_INFO(this->get_logger(), "%d", corner_features.size());
-  RCLCPP_INFO(this->get_logger(), "%d", planar_features.size());
-
   for (const auto& feature : surf_features)
   {
     pcl::PointXYZRGB l_pt(feature.r_, feature.g_, feature.b_);

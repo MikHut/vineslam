@@ -3,9 +3,8 @@
 #include <iostream>
 #include <ctime>
 #include <fstream>
-#include <yaml-cpp/yaml.h>
 
-#include "../mapping/occupancy_map.hpp"
+#include <vineslam/mapping/occupancy_map.hpp>
 
 // ----- TAGS ----- //
 // -- General

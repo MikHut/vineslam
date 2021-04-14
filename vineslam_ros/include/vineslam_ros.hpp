@@ -15,6 +15,8 @@
 #include <vineslam/math/const.hpp>
 #include <vineslam/map_io/map_writer.hpp>
 #include <vineslam/map_io/map_parser.hpp>
+#include <vineslam/map_io/elevation_map_writer.hpp>
+#include <vineslam/map_io/elevation_map_parser.hpp>
 #include <vineslam/utils/save_data.hpp>
 #include <vineslam/utils/Timer.hpp>
 // ----------------------------

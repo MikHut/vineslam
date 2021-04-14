@@ -34,6 +34,9 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
   {
     MapWriter mw(params_);
     mw.writeToFile(grid_map_);
+
+    ElevationMapWriter ew(params_);
+    ew.writeToFile(elevation_map_);
   }
 
   RCLCPP_INFO(this->get_logger(), "Map saved.");

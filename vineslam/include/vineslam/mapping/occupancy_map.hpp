@@ -284,7 +284,8 @@ class OccupancyMap
 public:
   // Class constructor
   // - initializes the multi-layer grid map given the input parameters
-  OccupancyMap(const Parameters& params, const Pose& origin_offset);
+  OccupancyMap(const Parameters& params, const Pose& origin_offset, const uint32_t& min_planar_obsvs,
+               const uint32_t& min_corner_obsvs);
 
   // Copy constructor
   OccupancyMap(const OccupancyMap& grid_map);

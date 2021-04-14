@@ -51,6 +51,17 @@
 #define BLUE "b"
 #define LAPLACIAN "laplacian"
 #define SIGNATURE "signature"
+// ----- PLANES
+#define PLANES "planes"
+#define POINTS_ "points"
+#define POINT "point"
+#define CENTROID "centroid"
+#define EXTREMAS "extremas"
+#define EXTREMA "extrema"
+#define COEF_A "a"
+#define COEF_B "b"
+#define COEF_C "c"
+#define COEF_D "d"
 
 namespace vineslam
 {

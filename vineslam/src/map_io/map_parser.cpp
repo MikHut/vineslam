@@ -1,4 +1,4 @@
-#include "../../include/vineslam/mapxml/map_parser.hpp"
+#include "../../include/vineslam/map_io/map_parser.hpp"
 
 namespace vineslam
 {
@@ -76,6 +76,8 @@ void MapParser::parseFile(OccupancyMap* grid_map)
   Corner corner;
   Planar planar;
   ImageFeature surf_feature;
+  SemiPlane semi_plane;
+  Point pt;
 
   // Read map data
   while (readingdata)
@@ -90,10 +92,14 @@ void MapParser::parseFile(OccupancyMap* grid_map)
 
     switch (state)
     {
-      case 0:  // new cell
-        if (tag == openTag(CELL))
+      case 0:
+        if (tag == openTag(CELL))  // new cell
         {
           state = 1;
+        }
+        else if (tag == openTag(PLANES))  // read planes
+        {
+          state = 11;
         }
         else if (tag == closeTag(DATA_))
         {
@@ -289,6 +295,109 @@ void MapParser::parseFile(OccupancyMap* grid_map)
           state = 9;
         }
         break;
+      case 11:  // we will start to read a plane
+        if (tag == openTag(PLANE))
+        {
+          semi_plane = SemiPlane();
+          state = 12;
+        }
+        else if (tag == closeTag(PLANES))
+          state = 0;
+        break;
+      case 12:  // we are reading the general arguments of a plane
+        if (tag == openTag(COEF_A))
+        {
+          semi_plane.a_ = getFloat(line);
+        }
+        else if (tag == openTag(COEF_B))
+        {
+          semi_plane.b_ = getFloat(line);
+        }
+        else if (tag == openTag(COEF_C))
+        {
+          semi_plane.c_ = getFloat(line);
+        }
+        else if (tag == openTag(COEF_D))
+        {
+          semi_plane.d_ = getFloat(line);
+        }
+        else if (tag == openTag(CENTROID))
+        {
+          state = 13;
+        }
+        else if (tag == openTag(POINT))
+        {
+          pt = Point();
+          state = 14;
+        }
+        else if (tag == openTag(EXTREMA))
+        {
+          pt = Point();
+          state = 15;
+        }
+        else if (tag == closeTag(PLANE))
+        {
+          grid_map->planes_.push_back(semi_plane);
+          state = 11;
+        }
+        break;
+      case 13:  // reading the plane centroid
+        if (tag == openTag(X_COORDINATE))
+        {
+          semi_plane.centroid_.x_ = getFloat(line);
+        }
+        else if (tag == openTag(Y_COORDINATE))
+        {
+          semi_plane.centroid_.y_ = getFloat(line);
+        }
+        else if (tag == openTag(Z_COORDINATE))
+        {
+          semi_plane.centroid_.z_ = getFloat(line);
+        }
+        else if (tag == closeTag(CENTROID))
+        {
+          state = 12;
+        }
+        break;
+      case 14:  // reading the plane points
+        if (tag == openTag(X_COORDINATE))
+        {
+          pt.x_ = getFloat(line);
+        }
+        else if (tag == openTag(Y_COORDINATE))
+        {
+          pt.y_ = getFloat(line);
+        }
+        else if (tag == openTag(Z_COORDINATE))
+        {
+          pt.z_ = getFloat(line);
+        }
+        else if (tag == closeTag(POINT))
+        {
+          semi_plane.points_.push_back(pt);
+          state = 12;
+        }
+        break;
+      case 15:  // reading the plane extremas
+        if (tag == openTag(X_COORDINATE))
+        {
+          pt.x_ = getFloat(line);
+        }
+        else if (tag == openTag(Y_COORDINATE))
+        {
+          pt.y_ = getFloat(line);
+        }
+        else if (tag == openTag(Z_COORDINATE))
+        {
+          pt.z_ = getFloat(line);
+        }
+        else if (tag == closeTag(EXTREMA))
+        {
+          semi_plane.extremas_.push_back(pt);
+          state = 12;
+        }
+        break;
+
       default:
         readingdata = false;
         break;

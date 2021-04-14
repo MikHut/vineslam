@@ -1,4 +1,4 @@
-#include "../../include/vineslam/mapxml/map_writer.hpp"
+#include "../../include/vineslam/map_io/map_writer.hpp"
 
 namespace vineslam
 {
@@ -210,6 +210,50 @@ void MapWriter::writeToFile(OccupancyMap* grid_map)
       i += grid_map->resolution_;
     }
   }
+
+  // Medium level semiplanes
+  xmlfile << TAB << open(PLANES) << ENDL;
+  for (const auto& plane : grid_map->planes_)
+  {
+    xmlfile << TAB << TAB << open(PLANE) << ENDL;
+
+    xmlfile << TAB << TAB << TAB << open(COEF_A) << plane.a_ << close(COEF_A) << ENDL;
+    xmlfile << TAB << TAB << TAB << open(COEF_B) << plane.b_ << close(COEF_B) << ENDL;
+    xmlfile << TAB << TAB << TAB << open(COEF_C) << plane.c_ << close(COEF_C) << ENDL;
+    xmlfile << TAB << TAB << TAB << open(COEF_D) << plane.d_ << close(COEF_D) << ENDL;
+
+    xmlfile << TAB << TAB << TAB << open(CENTROID) << ENDL;
+    xmlfile << TAB << TAB << TAB << TAB << open(X_COORDINATE) << plane.centroid_.x_ << close(X_COORDINATE) << ENDL;
+    xmlfile << TAB << TAB << TAB << TAB << open(Y_COORDINATE) << plane.centroid_.y_ << close(Y_COORDINATE) << ENDL;
+    xmlfile << TAB << TAB << TAB << TAB << open(Z_COORDINATE) << plane.centroid_.z_ << close(Z_COORDINATE) << ENDL;
+    xmlfile << TAB << TAB << TAB << close(CENTROID) << ENDL;
+
+    xmlfile << TAB << TAB << TAB << open(POINTS_) << ENDL;
+    for (const auto& pt : plane.points_)
+    {
+      xmlfile << TAB << TAB << TAB << TAB << open(POINT) << ENDL;
+      xmlfile << TAB << TAB << TAB << TAB << TAB << open(X_COORDINATE) << pt.x_ << close(X_COORDINATE) << ENDL;
+      xmlfile << TAB << TAB << TAB << TAB << TAB << open(Y_COORDINATE) << pt.y_ << close(Y_COORDINATE) << ENDL;
+      xmlfile << TAB << TAB << TAB << TAB << TAB << open(Z_COORDINATE) << pt.z_ << close(Z_COORDINATE) << ENDL;
+      xmlfile << TAB << TAB << TAB << TAB << close(POINT) << ENDL;
+    }
+    xmlfile << TAB << TAB << TAB << close(POINTS_) << ENDL;
+
+    xmlfile << TAB << TAB << TAB << open(EXTREMAS) << ENDL;
+    for (const auto& pt : plane.extremas_)
+    {
+      xmlfile << TAB << TAB << TAB << TAB << open(EXTREMA) << ENDL;
+      xmlfile << TAB << TAB << TAB << TAB << TAB << open(X_COORDINATE) << pt.x_ << close(X_COORDINATE) << ENDL;
+      xmlfile << TAB << TAB << TAB << TAB << TAB << open(Y_COORDINATE) << pt.y_ << close(Y_COORDINATE) << ENDL;
+      xmlfile << TAB << TAB << TAB << TAB << TAB << open(Z_COORDINATE) << pt.z_ << close(Z_COORDINATE) << ENDL;
+      xmlfile << TAB << TAB << TAB << TAB << close(EXTREMA) << ENDL;
+    }
+    xmlfile << TAB << TAB << TAB << close(EXTREMAS) << ENDL;
+
+    xmlfile << TAB << TAB << close(PLANE) << ENDL;
+  }
+  xmlfile << TAB << close(PLANES) << ENDL;
+
   xmlfile << close(DATA_) << ENDL << ENDL;
   // --------------------------------------------------------------------------------
 

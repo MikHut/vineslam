@@ -139,15 +139,17 @@ LocalizationNode::LocalizationNode(int argc, char** argv) : VineSLAM_ros("Locali
   // ----- Load map dimensions and initialize it
   // ---------------------------------------------------------
   RCLCPP_INFO(this->get_logger(), "Loading map from xml file...");
-  MapParser parser(params_);
-  parser.parseHeader(&params_);
-  elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
+  ElevationMapParser elevation_map_parser(params_);
+  MapParser map_parser(params_);
+  map_parser.parseHeader(&params_);
   grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0), 1, 1);
+  elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
 
   // ---------------------------------------------------------
   // ----- Load the map from the xml input file
   // ---------------------------------------------------------
-  parser.parseFile(&(*grid_map_));
+  map_parser.parseFile(&(*grid_map_));
+  elevation_map_parser.parseFile(&(*elevation_map_));
   RCLCPP_INFO(this->get_logger(), "The map has been loaded...");
 
   // Call execution thread
@@ -244,6 +246,12 @@ void LocalizationNode::loadParameters(Parameters& params)
   param = prefix + ".multilayer_mapping.grid_map.map_file_path";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.map_input_file_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".multilayer_mapping.grid_map.elevation_map_file_path";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.elevation_map_input_file_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }

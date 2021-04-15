@@ -67,6 +67,11 @@ void MapParser::parseFile(OccupancyMap* grid_map)
 {
   std::ifstream xmlfile(file_path_);
 
+  if (!xmlfile.is_open())
+  {
+    return;
+  }
+
   // Read map data, and fill the occupancy grid
   bool readingdata = true;
   int state = 0;

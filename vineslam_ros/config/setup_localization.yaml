@@ -20,7 +20,8 @@ localization_node:
   multilayer_mapping:
     # Grid map definitions
     grid_map:
-      map_file_path: "/home/andresaguiar/Desktop/map_1618411175.xml"
+      map_file_path: "/home/andresaguiar/Desktop/map_1618421739.xml"
+      elevation_map_file_path: "/home/andresaguiar/Desktop/elevation_map_1618421745.xml"
 
   pf:
     n_particles: 500

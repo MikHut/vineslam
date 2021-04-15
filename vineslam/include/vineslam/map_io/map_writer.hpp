@@ -68,7 +68,7 @@ class MapWriter
 {
 public:
   // Class constructor - loads the file name
-  explicit MapWriter(const Parameters& params);
+  explicit MapWriter(const Parameters& params, const std::time_t& timestamp);
 
   // Receives the occupancy grid map and writes it to a xml file
   void writeToFile(OccupancyMap* grid_map);

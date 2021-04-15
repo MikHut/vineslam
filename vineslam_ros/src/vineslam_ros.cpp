@@ -32,10 +32,12 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
 
   if (save_map)
   {
-    MapWriter mw(params_);
+    std::time_t timestamp = std::time(nullptr);
+
+    MapWriter mw(params_, timestamp);
     mw.writeToFile(grid_map_);
 
-    ElevationMapWriter ew(params_);
+    ElevationMapWriter ew(params_, timestamp);
     ew.writeToFile(elevation_map_);
   }
 

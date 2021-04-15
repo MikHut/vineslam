@@ -7,9 +7,15 @@ MapParser::MapParser(const Parameters& params)
   file_path_ = params.map_input_file_;
 }
 
-void MapParser::parseHeader(Parameters* params)
+bool MapParser::parseHeader(Parameters* params)
 {
   std::ifstream xmlfile(file_path_);
+
+  if (!xmlfile.is_open())
+  {
+    return false;
+  }
+
   bool readinginfo = true;
 
   // Read xml header
@@ -61,15 +67,17 @@ void MapParser::parseHeader(Parameters* params)
       readinginfo = false;
     }
   }
+
+  return true;
 }
 
-void MapParser::parseFile(OccupancyMap* grid_map)
+bool MapParser::parseFile(OccupancyMap* grid_map)
 {
   std::ifstream xmlfile(file_path_);
 
   if (!xmlfile.is_open())
   {
-    return;
+    return false;
   }
 
   // Read map data, and fill the occupancy grid
@@ -408,6 +416,8 @@ void MapParser::parseFile(OccupancyMap* grid_map)
         break;
     }
   }
+
+  return true;
 }
 
 std::string MapParser::openTag(const std::string& m_tag)

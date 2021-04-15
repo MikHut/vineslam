@@ -17,8 +17,8 @@ public:
   ElevationMapParser(const Parameters& params);
 
   // Receives the occupancy grid map and writes it to a xml file
-  void parseHeader(Parameters *params);
-  void parseFile(ElevationMap* grid_map);
+  bool parseHeader(Parameters *params);
+  bool parseFile(ElevationMap* elevation_map);
 
 private:
   // Build a xml tag (open) from a string

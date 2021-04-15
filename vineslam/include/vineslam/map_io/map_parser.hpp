@@ -20,8 +20,8 @@ public:
   explicit MapParser(const Parameters&  params);
 
   // Receives the occupancy grid map and writes it to a xml file
-  void parseHeader(Parameters *params);
-  void parseFile(OccupancyMap* grid_map);
+  bool parseHeader(Parameters *params);
+  bool parseFile(OccupancyMap* grid_map);
 
 private:
   // Build a xml tag (open) from a string

@@ -138,19 +138,34 @@ LocalizationNode::LocalizationNode(int argc, char** argv) : VineSLAM_ros("Locali
   // ---------------------------------------------------------
   // ----- Load map dimensions and initialize it
   // ---------------------------------------------------------
-  RCLCPP_INFO(this->get_logger(), "Loading map from xml file...");
   ElevationMapParser elevation_map_parser(params_);
   MapParser map_parser(params_);
-  map_parser.parseHeader(&params_);
-  grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0), 1, 1);
-  elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
+  if (!map_parser.parseHeader(&params_))
+  {
+    RCLCPP_ERROR(this->get_logger(), "Map input file not found.");
+    return;
+  }
+  else
+  {
+    grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0), 1, 1);
+    elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
+  }
 
   // ---------------------------------------------------------
   // ----- Load the map from the xml input file
   // ---------------------------------------------------------
-  map_parser.parseFile(&(*grid_map_));
-  elevation_map_parser.parseFile(&(*elevation_map_));
-  RCLCPP_INFO(this->get_logger(), "The map has been loaded...");
+  if (!map_parser.parseFile(&(*grid_map_)))
+  {
+    RCLCPP_ERROR(this->get_logger(), "Map input file not found.");
+    return;
+  }
+  if (!elevation_map_parser.parseFile(&(*elevation_map_)))
+  {
+    RCLCPP_ERROR(this->get_logger(), "Map input file not found.");
+    return;
+  }
+
+  RCLCPP_INFO(this->get_logger(), "Ready for execution...");
 
   // Call execution thread
   std::thread th1(&VineSLAM_ros::loop, dynamic_cast<VineSLAM_ros*>(this));

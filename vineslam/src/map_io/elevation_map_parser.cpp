@@ -7,9 +7,15 @@ ElevationMapParser::ElevationMapParser(const Parameters& params)
   file_path_ = params.elevation_map_input_file_;
 }
 
-void ElevationMapParser::parseHeader(Parameters* params)
+bool ElevationMapParser::parseHeader(Parameters* params)
 {
   std::ifstream xmlfile(file_path_);
+
+  if (!xmlfile.is_open())
+  {
+    return false;
+  }
+
   bool readinginfo = true;
 
   // Read xml header
@@ -53,15 +59,17 @@ void ElevationMapParser::parseHeader(Parameters* params)
       readinginfo = false;
     }
   }
+
+  return true;
 }
 
-void ElevationMapParser::parseFile(ElevationMap* elevation_map)
+bool ElevationMapParser::parseFile(ElevationMap* elevation_map)
 {
   std::ifstream xmlfile(file_path_);
 
   if (!xmlfile.is_open())
   {
-    return;
+    return false;
   }
 
   // Read map data, and fill the occupancy grid
@@ -113,6 +121,8 @@ void ElevationMapParser::parseFile(ElevationMap* elevation_map)
         break;
     }
   }
+
+  return true;
 }
 
 std::string ElevationMapParser::openTag(const std::string& m_tag)

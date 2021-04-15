@@ -2,13 +2,9 @@
 
 namespace vineslam
 {
-MapWriter::MapWriter(const Parameters& params)
+MapWriter::MapWriter(const Parameters& params, const std::time_t& timestamp)
 {
-  // Read input parameters
-  file_path_ = params.map_output_folder_;
-
-  std::time_t t = std::time(nullptr);
-  file_path_ += "map_" + std::to_string(t) + ".xml";
+  file_path_ = params.map_output_folder_ + "map_" + std::to_string(timestamp) + ".xml";
 }
 
 void MapWriter::writeToFile(OccupancyMap* grid_map)

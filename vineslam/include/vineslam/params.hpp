@@ -23,6 +23,12 @@ struct Parameters
   bool use_imu_{};
 
   // -----------------------------------
+  // ------ Map origin - datum
+  // -----------------------------------
+  float datum_lat_{};
+  float datum_long_{};
+
+  // -----------------------------------
   // ------ Camera info parameters
   // -----------------------------------
   float baseline_{};
@@ -50,6 +56,7 @@ struct Parameters
   bool save_map_{};
   std::string map_output_folder_;
   std::string map_input_file_;
+  std::string elevation_map_input_file_;
 
   // -----------------------------------
   // ------ Particle filter parameters

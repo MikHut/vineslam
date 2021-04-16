@@ -1,27 +1,24 @@
 #pragma once
 
 #include <iostream>
-#include <sstream>
+#include <ctime>
 #include <fstream>
-#include <utility>
 
-#include "map_writer.hpp"
-#include "../mapping/occupancy_map.hpp"
-#include "../feature/semantic.hpp"
-#include "../feature/three_dimensional.hpp"
-#include "../feature/visual.hpp"
+#include <vineslam/mapping/elevation_map.hpp>
+#include <vineslam/params.hpp>
+#include <vineslam/map_io/map_writer.hpp>
+#include <vineslam/map_io/elevation_map_writer.hpp>
 
 namespace vineslam
 {
-class MapParser
+class ElevationMapParser
 {
 public:
-  // Class constructor - loads the file name
-  explicit MapParser(const Parameters&  params);
+  ElevationMapParser(const Parameters& params);
 
   // Receives the occupancy grid map and writes it to a xml file
-  void parseHeader(Parameters *params);
-  void parseFile(OccupancyMap* grid_map);
+  bool parseHeader(Parameters *params);
+  bool parseFile(ElevationMap* elevation_map);
 
 private:
   // Build a xml tag (open) from a string

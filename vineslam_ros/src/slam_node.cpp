@@ -148,7 +148,7 @@ SLAMNode::SLAMNode(int argc, char** argv) : VineSLAM_ros("SLAMNode")
 
   // Allocate map memory
   RCLCPP_INFO(this->get_logger(), "Allocating map memory!");
-  grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0));
+  grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0), 20, 5);
   elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
   RCLCPP_INFO(this->get_logger(), "Done!");
 
@@ -204,6 +204,18 @@ void SLAMNode::loadParameters(Parameters& params)
   param = prefix + ".use_imu";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.use_imu_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".datum.latitude";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.datum_lat_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".datum.longitude";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.datum_long_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
@@ -339,11 +351,6 @@ void SLAMNode::loadParameters(Parameters& params)
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
-
-  //  rclcpp::Parameter cam2base_param = this->get_parameter(prefix + "/system/cam2base");
-  //  params.cam2base_ = cam2base_param.as_double_array();
-  //  rclcpp::Parameter vel2base_param = this->get_parameter(prefix + "/system/vel2base");
-  //  params.cam2base_ = vel2base_param.as_double_array();
 }
 
 SLAMNode::~SLAMNode() = default;

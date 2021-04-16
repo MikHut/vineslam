@@ -20,10 +20,6 @@ MapLayer::MapLayer(const Parameters& params, const Pose& origin_offset)
   n_surf_features_ = 0;
   n_landmarks_ = 0;
   n_corner_features_ = 0;
-
-  // Set the minimum number of corners and planar feature observations to add them to the map
-  min_planar_obsvs_ = 20;
-  min_corner_obsvs_ = 5;
 }
 
 MapLayer::MapLayer(const MapLayer& grid_map)
@@ -1319,7 +1315,8 @@ bool MapLayer::findNearestOnCell(const ImageFeature& input, ImageFeature& neares
   return true;
 }
 
-OccupancyMap::OccupancyMap(const Parameters& params, const Pose& origin_offset)
+OccupancyMap::OccupancyMap(const Parameters& params, const Pose& origin_offset, const uint32_t& min_planar_obsvs,
+                           const uint32_t& min_corner_obsvs)
 {
   // Read input parameters
   origin_.x_ = params.gridmap_origin_x_ + origin_offset.x_;
@@ -1341,6 +1338,8 @@ OccupancyMap::OccupancyMap(const Parameters& params, const Pose& origin_offset)
     int layer_num;
     getLayerNumber(i, layer_num);
     layers_map_[layer_num] = MapLayer(params, origin_offset);
+    layers_map_[layer_num].min_planar_obsvs_ = min_planar_obsvs;
+    layers_map_[layer_num].min_corner_obsvs_ = min_corner_obsvs;
     i += resolution_z_;
   }
 }

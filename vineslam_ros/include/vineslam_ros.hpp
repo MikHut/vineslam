@@ -13,8 +13,10 @@
 #include <vineslam/math/Point.hpp>
 #include <vineslam/math/Pose.hpp>
 #include <vineslam/math/const.hpp>
-#include <vineslam/mapxml/map_writer.hpp>
-#include <vineslam/mapxml/map_parser.hpp>
+#include <vineslam/map_io/map_writer.hpp>
+#include <vineslam/map_io/map_parser.hpp>
+#include <vineslam/map_io/elevation_map_writer.hpp>
+#include <vineslam/map_io/elevation_map_parser.hpp>
 #include <vineslam/utils/save_data.hpp>
 #include <vineslam/utils/Timer.hpp>
 // ----------------------------
@@ -54,6 +56,11 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_cloud.h>
 #include <pcl/filters/filter.h>
+
+// OpenCV
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/highgui.hpp>
 
 namespace vineslam
 {

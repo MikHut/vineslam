@@ -1,224 +1,319 @@
-//#include "../include/localization_node.hpp"
+#include "../include/localization_node.hpp"
 
 int main(int argc, char** argv)
 {
-//  vineslam::LocalizationNode localization_node(argc, argv);
+  // Initialize ROS node
+  rclcpp::init(argc, argv);
+  rclcpp::spin(std::make_shared<vineslam::LocalizationNode>(argc, argv));
+  rclcpp::shutdown();
+
   return 0;
 }
-//
-//namespace vineslam
-//{
-//// --------------------------------------------------------------------------------
-//// ----- Constructor and destructor
-//// --------------------------------------------------------------------------------
-//
-//LocalizationNode::LocalizationNode(int argc, char** argv)
-//{
-//  // ---------------------------------------------------------
-//  // Initialize ROS node
-//  // ---------------------------------------------------------
-//  ros::init(argc, argv, "LocalizationNode");
-//  ros::NodeHandle nh;
-//
-//  // ---------------------------------------------------------
-//  // ----- Load params
-//  // ---------------------------------------------------------
-//  loadParameters(nh, "/localization_node", params_);
-//
-//  // ---------------------------------------------------------
-//  // ----- Set initialization flags default values
-//  // ---------------------------------------------------------
-//  init_flag_ = true;
-//  init_gps_ = true;
-//  init_odom_ = true;
-//  register_map_ = false;
-//  estimate_heading_ = true;
-//
-//  // ---------------------------------------------------------
-//  // ----- Declare the Mappers and Localizer objects
-//  // ---------------------------------------------------------
-//  localizer_ = new Localizer(params_);
-//  land_mapper_ = new LandmarkMapper(params_);
-//  vis_mapper_ = new VisualMapper(params_);
-//  lid_mapper_ = new LidarMapper(params_);
-//
-//  // ---------------------------------------------------------
-//  // ----- Initialize local grid map that will be used for relative motion calculation
-//  // ---------------------------------------------------------
-//  Parameters local_map_params;
-//  local_map_params.gridmap_origin_x_ = -30;
-//  local_map_params.gridmap_origin_y_ = -30;
-//  local_map_params.gridmap_origin_z_ = -0.5;
-//  local_map_params.gridmap_resolution_ = 0.20;
-//  local_map_params.gridmap_width_ = 60;
-//  local_map_params.gridmap_lenght_ = 60;
-//  local_map_params.gridmap_height_ = 2.5;
-//  previous_map_ = new OccupancyMap(local_map_params, Pose(0, 0, 0, 0, 0, 0));
-//
-//  // ---------------------------------------------------------
-//  // ----- Services
-//  // ---------------------------------------------------------
-//  polar2pose_ = nh.serviceClient<agrob_map_transform::GetPose>("polar_to_pose");
-//  set_datum_ = nh.serviceClient<agrob_map_transform::SetDatum>("datum");
-//
-//  // Landmark subscription
-//  ros::Subscriber feat_subscriber = nh.subscribe(params_.image_features_topic_, 1, &VineSLAM_ros::imageFeatureListener,
-//                                                 dynamic_cast<VineSLAM_ros*>(this));
-//  ros::Subscriber land_subscriber =
-//      nh.subscribe(params_.detections_topic_, 1, &VineSLAM_ros::landmarkListener, dynamic_cast<VineSLAM_ros*>(this));
-//  // Scan subscription
-//  ros::Subscriber scan_subscriber =
-//      nh.subscribe(params_.pcl_topic_, 1, &VineSLAM_ros::scanListener, dynamic_cast<VineSLAM_ros*>(this));
-//  // Odometry subscription
-//  ros::Subscriber odom_subscriber =
-//      nh.subscribe(params_.odom_topic_, 1, &VineSLAM_ros::odomListener, dynamic_cast<VineSLAM_ros*>(this));
-//  // GPS subscription
-//  ros::Subscriber gps_subscriber =
-//      nh.subscribe(params_.fix_topic_, 1, &VineSLAM_ros::gpsListener, dynamic_cast<VineSLAM_ros*>(this));
-//
-//  // ---------------------------------------------------------
-//  // ----- Publish maps and particle filter
-//  // ---------------------------------------------------------
-//  vineslam_report_publisher_ = nh.advertise<vineslam_msgs::report>("/vineslam/report", 1);
-//  grid_map_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/occupancyMap", 1);
-//  map2D_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/map2D", 1);
-//  map3D_features_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZRGB>>("/vineslam/map3D/SURF", 1);
-//  map3D_corners_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners", 1);
-//  map3D_planars_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planars", 1);
-//  map3D_planes_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/map3D/planes", 1);
-//  planes_local_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/map3D/planes_local", 1);
-//  corners_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/corners_local", 1);
-//  planars_local_publisher_ = nh.advertise<pcl::PointCloud<pcl::PointXYZI>>("/vineslam/map3D/planars_local", 1);
-//  pose_publisher_ = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/pose", 1);
-//  gps_path_publisher_ = nh.advertise<nav_msgs::Path>("/vineslam/gps_path", 1);
-//  gps_pose_publisher_ = nh.advertise<geometry_msgs::PoseStamped>("/vineslam/gps_pose", 1);
-//  path_publisher_ = nh.advertise<nav_msgs::Path>("/vineslam/path", 1);
-//  poses_publisher_ = nh.advertise<geometry_msgs::PoseArray>("/vineslam/poses", 1);
-//
-//  // ---------------------------------------------------------
-//  // ----- ROS services
-//  // ---------------------------------------------------------
-//  ros::ServiceServer stop_hed_srv = nh.advertiseService(
-//      "stop_gps_heading_estimation", &VineSLAM_ros::stopHeadingEstimation, dynamic_cast<VineSLAM_ros*>(this));
-//
-//  // ---------------------------------------------------------
-//  // ----- GNSS varibales
-//  // ---------------------------------------------------------
-//  if (params_.use_gps_)
-//  {
-//    datum_autocorrection_stage_ = 0;
-//    global_counter_ = 0;
-//  }
-//
-//  // ---------------------------------------------------------
-//  // ----- Get static sensor tfs
-//  // ---------------------------------------------------------
-//  tf::Transform cam2base;
-//  cam2base.setRotation(
-//      tf::Quaternion(params_.cam2base_[3], params_.cam2base_[4], params_.cam2base_[5], params_.cam2base_[6]));
-//  cam2base.setOrigin(tf::Vector3(params_.cam2base_[0], params_.cam2base_[1], params_.cam2base_[2]));
-//  cam2base = cam2base.inverse();
-//  tf::Vector3 t = cam2base.getOrigin();
-//  tfScalar roll, pitch, yaw;
-//  cam2base.getBasis().getRPY(roll, pitch, yaw);
-//
-//  vis_mapper_->setCam2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
-//  land_mapper_->setCamPitch(pitch);
-//
-//  tf::Transform vel2base;
-//  vel2base.setRotation(
-//      tf::Quaternion(params_.vel2base_[3], params_.vel2base_[4], params_.vel2base_[5], params_.vel2base_[6]));
-//  vel2base.setOrigin(tf::Vector3(params_.vel2base_[0], params_.vel2base_[1], params_.vel2base_[2]));
-//  vel2base = vel2base.inverse();
-//  t = vel2base.getOrigin();
-//  vel2base.getBasis().getRPY(roll, pitch, yaw);
-//
-//  lid_mapper_->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
-//
-//  ROS_INFO("Loading map from xml file...");
-//  // ---------------------------------------------------------
-//  // ----- Load map dimensions and initialize it
-//  // ---------------------------------------------------------
-//  MapParser parser(params_);
-//  parser.parseHeader(&params_);
-//  grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0));
-//
-//  // ---------------------------------------------------------
-//  // ----- Load the map from the xml input file
-//  // ---------------------------------------------------------
-//  parser.parseFile(&(*grid_map_));
-//  ROS_INFO("The map has been loaded...");
-//
-//  // ---------------------------------------------------------
-//  // ----- Call execution thread
-//  // ---------------------------------------------------------
-//  std::thread th(&VineSLAM_ros::loop, dynamic_cast<VineSLAM_ros*>(this));
-//  th.detach();
-//
-//  // ---------------------------------------------------------
-//  // ----- ROS spin ...
-//  // ---------------------------------------------------------
-//  ROS_INFO("Done! Execution started.");
-//  ros::spin();
-//  ROS_INFO("ROS shutting down...");
-//}
-//
-//void LocalizationNode::init()
-//{
-//  // ---------------------------------------------------------
-//  // ----- Initialize the localizer and get first particles distribution
-//  // ---------------------------------------------------------
-//  localizer_->init(Pose(0, 0, 0, 0, 0, 0));
-//  robot_pose_ = localizer_->getPose();
-//
-//  // ---------------------------------------------------------
-//  // ----- Initialize the multi-layer maps
-//  // ---------------------------------------------------------
-//
-//  // - 2D semantic feature map
-//  if (params_.use_semantic_features_)
-//  {
-//    land_mapper_->init(robot_pose_, input_data_.land_bearings_, input_data_.land_depths_, input_data_.land_labels_,
-//                       *grid_map_);
-//  }
-//
-//  // - 3D PCL corner map estimation
-//  std::vector<Corner> l_corners;
-//  std::vector<Planar> l_planars;
-//  std::vector<SemiPlane> l_planes;
-//  SemiPlane l_ground_plane;
-//  if (params_.use_lidar_features_)
-//  {
-//    lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
-//
-//    // - Save local map for next iteration
-//    previous_map_->clear();
-//    for (const auto& planar : l_planars)
-//      previous_map_->insert(planar);
-//    for (const auto& corner : l_corners)
-//      previous_map_->insert(corner);
-//    previous_map_->downsamplePlanars();
-//  }
-//
-//  // - 3D image feature map estimation
-//  std::vector<ImageFeature> l_surf_features;
-//  if (params_.use_image_features_)
-//  {
-//    //    vis_mapper_->localMap(input_data_.rgb_image_, input_data_.depth_array_, l_surf_features);
-//    vis_mapper_->localMap(input_data_.image_features_, l_surf_features);
-//  }
-//
-//  if (register_map_)
-//  {
-//    // - Register 3D maps
-//    vis_mapper_->registerMaps(robot_pose_, l_surf_features, *grid_map_);
-//    lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, l_ground_plane, *grid_map_);
-//    grid_map_->downsamplePlanars();
-//  }
-//
-//  ROS_INFO("Localization and Mapping has started.");
-//}
-//
-//LocalizationNode::~LocalizationNode() = default;
-//
-//}  // namespace vineslam
+
+namespace vineslam
+{
+// --------------------------------------------------------------------------------
+// ----- Constructor and destructor
+// --------------------------------------------------------------------------------
+
+LocalizationNode::LocalizationNode(int argc, char** argv) : VineSLAM_ros("LocalizationNode")
+{
+  // Load params
+  loadParameters(params_);
+
+  // Set initialization flags default values
+  init_flag_ = true;
+  init_gps_ = true;
+  init_odom_ = true;
+  register_map_ = false;
+
+  // Declare the Mappers and Localizer objects
+  localizer_ = new Localizer(params_);
+  land_mapper_ = new LandmarkMapper(params_);
+  vis_mapper_ = new VisualMapper(params_);
+  lid_mapper_ = new LidarMapper(params_);
+  timer_ = new Timer("VineSLAM subfunctions");
+
+  // Image feature subscription
+  feature_subscriber_ = this->create_subscription<vineslam_msgs::msg::FeatureArray>(
+      "/features_topic", 10,
+      std::bind(&VineSLAM_ros::imageFeatureListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
+  // Semantic feature subscription
+  landmark_subscriber_ = this->create_subscription<vision_msgs::msg::Detection3DArray>(
+      "/detections_topic", 10,
+      std::bind(&VineSLAM_ros::landmarkListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
+  // Scan subscription
+  scan_subscriber_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
+      "/scan_topic", 10,
+      std::bind(&VineSLAM_ros::scanListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
+  // Odometry subscription
+  odom_subscriber_ = this->create_subscription<nav_msgs::msg::Odometry>(
+      "/odom_topic", 10,
+      std::bind(&VineSLAM_ros::odomListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
+  // GPS subscription
+  gps_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
+      "/gps_topic", 10,
+      std::bind(&VineSLAM_ros::gpsListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
+  // IMU subscription
+  imu_subscriber_ = this->create_subscription<geometry_msgs::msg::Vector3Stamped>(
+      "/imu_topic", 10,
+      std::bind(&VineSLAM_ros::imuListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
+
+  // Publish maps and particle filter
+  vineslam_report_publisher_ = this->create_publisher<vineslam_msgs::msg::Report>("/vineslam/report", 10);
+  elevation_map_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/elevationMap", 10);
+  map2D_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/map2D", 10);
+  map3D_features_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/SURF", 10);
+  map3D_corners_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/corners", 10);
+  map3D_planars_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/planars", 10);
+  map3D_planes_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/map3D/planes", 10);
+  planes_local_publisher_ =
+      this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/map3D/planes_local", 10);
+  corners_local_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/corners_local", 10);
+  planars_local_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/planars_local", 10);
+  pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/vineslam/pose", 10);
+  path_publisher_ = this->create_publisher<nav_msgs::msg::Path>("/vineslam/path", 10);
+  poses_publisher_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/vineslam/poses", 10);
+  gps_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/vineslam/gps_pose", 10);
+  // Debug publishers
+  grid_map_publisher_ =
+      this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/debug/grid_map_limits", 10);
+  robot_box_publisher_ = this->create_publisher<visualization_msgs::msg::Marker>("/vineslam/debug/robot_box", 10);
+
+  // Static transforms
+  RCLCPP_INFO(this->get_logger(), "Waiting for static transforms...");
+  tf2_ros::Buffer tf_buffer(this->get_clock());
+  tf2_ros::TransformListener tfListener(tf_buffer);
+  geometry_msgs::msg::TransformStamped cam2base_msg, vel2base_msg;
+  bool got_cam2base = false, got_vel2base = false;
+  while (!got_cam2base && rclcpp::ok())
+  {
+    try
+    {
+      cam2base_msg = tf_buffer.lookupTransform("zed_camera_left_optical_frame", "base_link", rclcpp::Time(0));
+    }
+    catch (tf2::TransformException& ex)
+    {
+      RCLCPP_WARN(this->get_logger(), "%s", ex.what());
+      rclcpp::sleep_for(std::chrono::nanoseconds(1000000000));
+      continue;
+    }
+    got_cam2base = true;
+  }
+  while (!got_vel2base && rclcpp::ok())
+  {
+    try
+    {
+      vel2base_msg = tf_buffer.lookupTransform("velodyne", "base_link", rclcpp::Time(0));
+    }
+    catch (tf2::TransformException& ex)
+    {
+      RCLCPP_WARN(this->get_logger(), "%s", ex.what());
+      rclcpp::sleep_for(std::chrono::nanoseconds(1000000000));
+      continue;
+    }
+    got_vel2base = true;
+  }
+  RCLCPP_INFO(this->get_logger(), "Received!");
+
+  // Save sensors to map transformation
+  tf2::Stamped<tf2::Transform> cam2base_stamped;
+  tf2::fromMsg(cam2base_msg, cam2base_stamped);
+
+  tf2::Transform cam2base = cam2base_stamped;  //.inverse();
+  tf2::Vector3 t = cam2base.getOrigin();
+  tf2Scalar roll, pitch, yaw;
+  cam2base.getBasis().getRPY(roll, pitch, yaw);
+  vis_mapper_->setCam2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
+  land_mapper_->setCamPitch(pitch);
+
+  tf2::Stamped<tf2::Transform> vel2base_stamped;
+  tf2::fromMsg(vel2base_msg, vel2base_stamped);
+
+  tf2::Transform vel2base = vel2base_stamped;  //.inverse();
+  t = vel2base.getOrigin();
+  vel2base.getBasis().getRPY(roll, pitch, yaw);
+  lid_mapper_->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
+
+  // ---------------------------------------------------------
+  // ----- Load map dimensions and initialize it
+  // ---------------------------------------------------------
+  ElevationMapParser elevation_map_parser(params_);
+  MapParser map_parser(params_);
+  if (!map_parser.parseHeader(&params_))
+  {
+    RCLCPP_ERROR(this->get_logger(), "Map input file not found.");
+    return;
+  }
+  else
+  {
+    grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0), 1, 1);
+    elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
+  }
+
+  // ---------------------------------------------------------
+  // ----- Load the map from the xml input file
+  // ---------------------------------------------------------
+  if (!map_parser.parseFile(&(*grid_map_)))
+  {
+    RCLCPP_ERROR(this->get_logger(), "Map input file not found.");
+    return;
+  }
+  if (!elevation_map_parser.parseFile(&(*elevation_map_)))
+  {
+    RCLCPP_ERROR(this->get_logger(), "Map input file not found.");
+    return;
+  }
+
+  RCLCPP_INFO(this->get_logger(), "Ready for execution...");
+
+  // Call execution thread
+  std::thread th1(&VineSLAM_ros::loop, dynamic_cast<VineSLAM_ros*>(this));
+  std::thread th2(&VineSLAM_ros::publishDenseInfo, dynamic_cast<VineSLAM_ros*>(this));
+  th1.detach();
+  th2.detach();
+}
+
+void LocalizationNode::loadParameters(Parameters& params)
+{
+  std::string prefix = this->get_name();
+  std::string param;
+
+  // Load params
+  param = prefix + ".robot_model";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.robot_model_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".world_frame_id";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.world_frame_id_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".use_semantic_features";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.use_semantic_features_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".use_lidar_features";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.use_lidar_features_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".use_image_features";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.use_image_features_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".use_gps";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.use_gps_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".use_imu";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.use_imu_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".camera_info.baseline";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.baseline_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".camera_info.fx";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.fx_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".robot_dimensions.x";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.robot_dim_x_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".robot_dimensions.y";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.robot_dim_y_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".robot_dimensions.z";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.robot_dim_z_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".camera_info.cx";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.cx_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".multilayer_mapping.grid_map.map_file_path";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.map_input_file_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".multilayer_mapping.grid_map.elevation_map_file_path";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.elevation_map_input_file_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".pf.n_particles";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.number_particles_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".pf.sigma_xx";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.sigma_xx_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".pf.sigma_yy";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.sigma_yy_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".pf.sigma_zz";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.sigma_zz_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".pf.sigma_RR";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.sigma_RR_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".pf.sigma_PP";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.sigma_PP_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".pf.sigma_YY";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.sigma_YY_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+}
+
+LocalizationNode::~LocalizationNode() = default;
+
+}  // namespace vineslam

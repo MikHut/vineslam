@@ -16,8 +16,16 @@ public:
   ~LocalizationNode();
 
 private:
-  // Initialization function. This node has its own init() routine since it does not initialize the grid map in here.
-  void init();
+  // Parameters loader
+  void loadParameters(Parameters& params);
+
+  // ROS subscribers
+  rclcpp::Subscription<vineslam_msgs::msg::FeatureArray>::SharedPtr feature_subscriber_;
+  rclcpp::Subscription<vision_msgs::msg::Detection3DArray>::SharedPtr landmark_subscriber_;
+  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr scan_subscriber_;
+  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_subscriber_;
+  rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr gps_subscriber_;
+  rclcpp::Subscription<geometry_msgs::msg::Vector3Stamped>::SharedPtr imu_subscriber_;
 };
 
 }  // namespace vineslam

@@ -7,6 +7,11 @@ slam_node:
   use_gps: True
   use_imu: True
 
+  # WARNING (!): this is not the datum of the RTK base, but the datum of the robot initial position
+  datum:
+    latitude: 41.16666453372342
+    longitude: -7.555095358663023
+
   camera_info:
     baseline: 0.12 # meters
     fx: 692.95849609375  # pixels

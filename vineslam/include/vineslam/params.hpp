@@ -23,6 +23,12 @@ struct Parameters
   bool use_imu_{};
 
   // -----------------------------------
+  // ------ Map origin - datum
+  // -----------------------------------
+  float datum_lat_{};
+  float datum_long_{};
+
+  // -----------------------------------
   // ------ Camera info parameters
   // -----------------------------------
   float baseline_{};

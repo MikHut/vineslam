@@ -28,6 +28,7 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(PCL REQUIRED)
+find_package(OpenCV REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
         "srv/StartMapRegistration.srv"
@@ -58,12 +59,12 @@ set(dependencies
 add_executable(slam_node src/slam_node.cpp src/vineslam_ros.cpp src/visualization.cpp)
 ament_target_dependencies(slam_node ${dependencies})
 rosidl_target_interfaces(slam_node ${PROJECT_NAME} "rosidl_typesupport_cpp")
-target_link_libraries(slam_node ${PCL_LIBRARIES})
+target_link_libraries(slam_node ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
 
 add_executable(localization_node src/localization_node.cpp src/vineslam_ros.cpp src/visualization.cpp)
 ament_target_dependencies(localization_node ${dependencies})
 rosidl_target_interfaces(localization_node ${PROJECT_NAME} "rosidl_typesupport_cpp")
-target_link_libraries(localization_node ${PCL_LIBRARIES})
+target_link_libraries(localization_node ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
 
 install(TARGETS
         slam_node

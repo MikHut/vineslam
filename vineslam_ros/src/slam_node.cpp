@@ -207,6 +207,18 @@ void SLAMNode::loadParameters(Parameters& params)
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
+  param = prefix + ".datum.latitude";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.datum_lat_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".datum.longitude";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.datum_long_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
   param = prefix + ".camera_info.baseline";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.baseline_))

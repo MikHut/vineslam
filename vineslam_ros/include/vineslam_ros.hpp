@@ -57,6 +57,11 @@
 #include <pcl/point_cloud.h>
 #include <pcl/filters/filter.h>
 
+// OpenCV
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/highgui.hpp>
+
 namespace vineslam
 {
 class VineSLAM_ros : public rclcpp::Node

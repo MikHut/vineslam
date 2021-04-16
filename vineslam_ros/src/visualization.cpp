@@ -171,8 +171,8 @@ void VineSLAM_ros::publishElevationMap() const
   visualization_msgs::msg::MarkerArray elevation_map_marker;
   visualization_msgs::msg::Marker cube;
 
-  float min_height = -3.0;
-  float max_height = 3.0;
+  float min_height = grid_map_->origin_.z_;
+  float max_height = grid_map_->origin_.z_ + grid_map_->height_;
 
   // Define marker layout
   cube.ns = "/elevation_cube";

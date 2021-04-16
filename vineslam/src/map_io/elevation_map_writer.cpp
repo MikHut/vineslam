@@ -36,7 +36,7 @@ void ElevationMapWriter::writeToFile(ElevationMap* elevation_map)
   float xmin = elevation_map->origin_.x_;
   float xmax = xmin + elevation_map->width_;
   float ymin = elevation_map->origin_.y_;
-  float ymax = xmin + elevation_map->lenght_;
+  float ymax = ymin + elevation_map->lenght_;
   for (float i = xmin; i < xmax - elevation_map->resolution_;)
   {
     for (float j = ymin; j < ymax - elevation_map->resolution_;)

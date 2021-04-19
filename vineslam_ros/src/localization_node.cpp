@@ -4,7 +4,7 @@ int main(int argc, char** argv)
 {
   // Initialize ROS node
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<vineslam::LocalizationNode>(argc, argv));
+  rclcpp::spin(std::make_shared<vineslam::LocalizationNode>());
   rclcpp::shutdown();
 
   return 0;
@@ -16,7 +16,7 @@ namespace vineslam
 // ----- Constructor and destructor
 // --------------------------------------------------------------------------------
 
-LocalizationNode::LocalizationNode(int argc, char** argv) : VineSLAM_ros("LocalizationNode")
+LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
 {
   // Load params
   loadParameters(params_);
@@ -30,7 +30,7 @@ LocalizationNode::LocalizationNode(int argc, char** argv) : VineSLAM_ros("Locali
   // Declare the Mappers and Localizer objects
   localizer_ = new Localizer(params_);
   land_mapper_ = new LandmarkMapper(params_);
-  vis_mapper_ = new VisualMapper(params_);
+  vis_mapper_ = new VisualMapper();
   lid_mapper_ = new LidarMapper(params_);
   timer_ = new Timer("VineSLAM subfunctions");
 

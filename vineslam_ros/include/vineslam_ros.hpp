@@ -12,7 +12,7 @@
 #include <vineslam/mapping/lidar_mapping.hpp>
 #include <vineslam/math/Point.hpp>
 #include <vineslam/math/Pose.hpp>
-#include <vineslam/math/const.hpp>
+#include <vineslam/math/Const.hpp>
 #include <vineslam/map_io/map_writer.hpp>
 #include <vineslam/map_io/map_parser.hpp>
 #include <vineslam/map_io/elevation_map_writer.hpp>
@@ -28,8 +28,6 @@
 #include <vineslam_ros/srv/start_map_registration.hpp>
 #include <vineslam_ros/srv/stop_map_registration.hpp>
 #include <vineslam_ros/srv/save_map.hpp>
-// ----------------------------
-#include "convertions.hpp"
 // ----------------------------
 
 // std
@@ -118,7 +116,7 @@ public:
   // Global thread to publish maps and other info
   void publishDenseInfo();
   // Publish 2D semantic features map
-  void publish2DMap(const Pose& pose, const std::vector<float>& bearings, const std::vector<float>& depths) const;
+  void publish2DMap() const;
   // Publish the elevation map
   void publishElevationMap() const;
   // Publish the 3D maps

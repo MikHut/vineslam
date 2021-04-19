@@ -98,7 +98,7 @@ private:
     int index = l_i + (l_j * static_cast<int>(std::round(width_ / resolution_ + .49)));
 
     // Trough exception if out of bounds indexing
-    if (index >= cell_vec_.size() - 1 || index < 0)
+    if (index >= static_cast<int>(cell_vec_.size()) - 1 || index < 0)
       throw "Exception: Access to grid map out of bounds\n";
   }
 };

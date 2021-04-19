@@ -3,7 +3,7 @@
 #include <iostream>
 
 #include "../math/Pose.hpp"
-#include "../math/stat.hpp"
+#include "../math/Stat.hpp"
 #include "../math/Point.hpp"
 #include "../math/Vec.hpp"
 

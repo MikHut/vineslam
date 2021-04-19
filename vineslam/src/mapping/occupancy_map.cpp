@@ -1,5 +1,4 @@
 #include "../../include/vineslam/mapping/occupancy_map.hpp"
-#include <sys/resource.h>
 
 namespace vineslam
 {
@@ -62,7 +61,7 @@ bool MapLayer::insert(const SemanticFeature& l_landmark, const int& id, const in
     c->data->landmarks_ = new std::map<int, SemanticFeature>();
   }
 
-  cellInsert(id, l_landmark, c->data->landmarks_);
+  CellRoutines::insert(id, l_landmark, c->data->landmarks_);
   n_landmarks_++;
 
   // Mark cell as occupied in pointer array
@@ -457,7 +456,7 @@ bool MapLayer::update(const Planar& old_planar, const Planar& new_planar)
   return false;
 }
 
-bool MapLayer::update(const ImageFeature& old_image_feature, const ImageFeature& new_image_feature)
+bool MapLayer::update(/*const ImageFeature& old_image_feature, const ImageFeature& new_image_feature*/)
 {
   return false;
 }
@@ -480,7 +479,6 @@ void MapLayer::downsampleCorners()
     if (size == 0)
       continue;
     Point l_pt(0, 0, 0);
-    int wp;
     for (const auto& corner : *l_corners)
     {
       l_pt.x_ += corner.pos_.x_;
@@ -625,7 +623,7 @@ bool MapLayer::findNearest(const ImageFeature& input, ImageFeature& nearest, flo
   // iterator to move into the desired next cell
   int it = 0;
   // distance checker
-  float ddist = std::numeric_limits<float>::max();
+  // float ddist = std::numeric_limits<float>::max();
   sdist = std::numeric_limits<float>::max();
   // booleans for stop criteria
   bool found_solution;
@@ -1550,7 +1548,7 @@ bool OccupancyMap::update(const ImageFeature& old_image_feature, const ImageFeat
 
   if (old_layer_num == new_layer_num)
   {
-    return layers_map_[old_layer_num].update(old_image_feature, new_image_feature);
+    return layers_map_[old_layer_num].update(/*old_image_feature, new_image_feature*/);
   }
   else
   {
@@ -1758,146 +1756,6 @@ bool OccupancyMap::findNearestOnCell(const ImageFeature& input, ImageFeature& ne
   {
     return layers_map_[layer_num].findNearestOnCell(input, nearest);
   }
-}
-
-bool OccupancyMap::rayTrace(const std::vector<Point>& pts, const Point& sensor_origin)
-{
-  //  for (const auto& pt : pts)
-  //  {
-  //    // Check if point lies inside the map
-  //    if (!isInside(pt.x_, pt.y_, pt.z_))
-  //    {
-  //      continue;
-  //    }
-  //
-  //    // Voxel traverse - get grid map points traversed by the ray
-  //    std::vector<Point> voxels = voxelTraversal(sensor_origin, pt);
-  //
-  //    // Delete the traversed occupied cell points
-  //    uint32_t num_pts =
-  //        (voxels.size() > 10) ? voxels.size() - 10 : 0;  // we do not want to remove the last points of the ray
-  //    for (uint32_t i = 0; i < num_pts; i++)
-  //    {
-  //      Point f_pt(voxels[i].x_ * resolution_, voxels[i].y_ * resolution_, voxels[i].z_ * resolution_z_);
-  //      Cell* c = &(*this)(f_pt.x_, f_pt.y_, f_pt.z_);
-  //
-  //      // Increment the number of rays that have traversed this cell
-  //      c->traverses_planars++;
-  //
-  //      // If the cell is not empty and the number of traverses if higher than the number of hits, we will erase all
-  //      the
-  //      // planar information from it
-  //      if (!c->data->planar_features_->empty() && (c->traverses_planars >= c->hits_planars))
-  //      {
-  //        *c->data->planar_features_ = {};
-  //        *c->data->candidate_planar_features_ = {};
-  //        *c->n_candidate_planars_ = 0;
-  //      }
-  //    }
-  //  }
-
-  return true;
-}
-
-std::vector<Point> OccupancyMap::voxelTraversal(const Point& ray_start, const Point& ray_end)
-{
-  std::vector<Point> visited_voxels;
-
-  // This id of the first/current voxel hit by the ray.
-  // Using floor (round down) is actually very important,
-  // the implicit int-casting will round up for negative numbers.
-  Point current_voxel(std::floor(ray_start.x_ / resolution_), std::floor(ray_start.y_ / resolution_),
-                      std::floor(ray_start.z_ / resolution_z_));
-
-  // The id of the last voxel hit by the ray.
-  // TODO: what happens if the end point is on a border?
-  Point last_voxel(std::floor(ray_end.x_ / resolution_), std::floor(ray_end.y_ / resolution_),
-                   std::floor(ray_end.z_ / resolution_z_));
-
-  // Compute normalized ray direction.
-  Point ray = ray_end - ray_start;
-  // ray.normalize();
-
-  // In which direction the voxel ids are incremented.
-  float stepX = (ray.x_ >= 0) ? 1 : -1;  // correct
-  float stepY = (ray.y_ >= 0) ? 1 : -1;  // correct
-  float stepZ = (ray.z_ >= 0) ? 1 : -1;  // correct
-
-  // Distance along the ray to the next voxel border from the current position (tMaxX, tMaxY, tMaxZ).
-  float next_voxel_boundary_x = (current_voxel.x_ + stepX) * resolution_;    // correct
-  float next_voxel_boundary_y = (current_voxel.y_ + stepY) * resolution_;    // correct
-  float next_voxel_boundary_z = (current_voxel.z_ + stepZ) * resolution_z_;  // correct
-
-  // tMaxX, tMaxY, tMaxZ -- distance until next intersection with voxel-border
-  // the value of t at which the ray crosses the first vertical voxel boundary
-  float tMaxX = (ray.x_ != 0) ? (next_voxel_boundary_x - ray_start.x_) / ray.x_ : std::numeric_limits<float>::max();  //
-  float tMaxY = (ray.y_ != 0) ? (next_voxel_boundary_y - ray_start.y_) / ray.y_ : std::numeric_limits<float>::max();  //
-  float tMaxZ = (ray.z_ != 0) ? (next_voxel_boundary_z - ray_start.z_) / ray.z_ : std::numeric_limits<float>::max();  //
-
-  // tDeltaX, tDeltaY, tDeltaZ --
-  // how far along the ray we must move for the horizontal component to equal the width of a voxel
-  // the direction in which we traverse the grid
-  // can only be FLT_MAX if we never go in that direction
-  float tDeltaX = (ray.x_ != 0) ? resolution_ / ray.x_ * stepX : std::numeric_limits<float>::max();
-  float tDeltaY = (ray.y_ != 0) ? resolution_ / ray.y_ * stepY : std::numeric_limits<float>::max();
-  float tDeltaZ = (ray.z_ != 0) ? resolution_z_ / ray.z_ * stepZ : std::numeric_limits<float>::max();
-
-  Point diff(0, 0, 0);
-  bool neg_ray = false;
-  if (current_voxel.x_ != last_voxel.x_ && ray.x_ < 0)
-  {
-    diff.x_--;
-    neg_ray = true;
-  }
-  if (current_voxel.y_ != last_voxel.y_ && ray.y_ < 0)
-  {
-    diff.y_--;
-    neg_ray = true;
-  }
-  if (current_voxel.z_ != last_voxel.z_ && ray.z_ < 0)
-  {
-    diff.z_--;
-    neg_ray = true;
-  }
-  visited_voxels.push_back(current_voxel);
-  if (neg_ray)
-  {
-    current_voxel = current_voxel + diff;
-    visited_voxels.push_back(current_voxel);
-  }
-
-  while (last_voxel != current_voxel)
-  {
-    if (tMaxX < tMaxY)
-    {
-      if (tMaxX < tMaxZ)
-      {
-        current_voxel.x_ += stepX;
-        tMaxX += tDeltaX;
-      }
-      else
-      {
-        current_voxel.z_ += stepZ;
-        tMaxZ += tDeltaZ;
-      }
-    }
-    else
-    {
-      if (tMaxY < tMaxZ)
-      {
-        current_voxel.y_ += stepY;
-        tMaxY += tDeltaY;
-      }
-      else
-      {
-        current_voxel.z_ += stepZ;
-        tMaxZ += tDeltaZ;
-      }
-    }
-    visited_voxels.push_back(current_voxel);
-  }
-
-  return visited_voxels;
 }
 
 }  // namespace vineslam

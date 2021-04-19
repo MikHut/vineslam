@@ -24,15 +24,15 @@ static void pose2TransformStamped(const tf2::Quaternion& q, const tf2::Vector3& 
   tf.transform.translation.z = t.z();
 }
 
-static geometry_msgs::msg::Point point2GeometryMsgsPoint(const Point& vineslam_point)
-{
-  geometry_msgs::msg::Point ros_point;
-  ros_point.x = vineslam_point.x_;
-  ros_point.y = vineslam_point.y_;
-  ros_point.z = vineslam_point.z_;
-
-  return ros_point;
-}
+//static geometry_msgs::msg::Point point2GeometryMsgsPoint(const Point& vineslam_point)
+//{
+//  geometry_msgs::msg::Point ros_point;
+//  ros_point.x = vineslam_point.x_;
+//  ros_point.y = vineslam_point.y_;
+//  ros_point.z = vineslam_point.z_;
+//
+//  return ros_point;
+//}
 
 static void GNSS2UTM(const float& latitute, const float& longitude, float& utm_north, float& utm_east,
                      std::string& utm_zone)

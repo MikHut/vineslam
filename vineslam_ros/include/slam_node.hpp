@@ -10,7 +10,7 @@ public:
   // Class constructor that
   // - Initialize the ROS node
   // - Define the publish and subscribe topics
-  SLAMNode(int argc, char** argv);
+  SLAMNode();
 
   // Class destructor - saves the map to an output xml file
   ~SLAMNode();

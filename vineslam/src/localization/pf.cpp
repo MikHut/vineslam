@@ -55,7 +55,37 @@ PF::PF(const Parameters& params, const Pose& initial_pose) : params_(params)
   number_clusters_ = 3;
 }
 
-void PF::motionModel(const Pose& odom_inc, const Pose& p_odom)
+// Samples a zero mean Gaussian
+// See https://www.taygeta.com/random/gaussian.html
+float PF::sampleGaussian(const float& sigma, const unsigned long int& S)
+{
+  if (S != 0)
+    srand48(S);
+  if (sigma == 0)
+    return 0.;
+
+  float x1, x2, w;
+  float r;
+
+  do
+  {
+    do
+    {
+      r = drand48();
+    } while (r == 0.0);
+    x1 = 2.0 * r - 1.0;
+    do
+    {
+      r = drand48();
+    } while (r == 0.0);
+    x2 = 2.0 * drand48() - 1.0;
+    w = x1 * x1 + x2 * x2;
+  } while (w > 1.0 || w == 0.0);
+
+  return (sigma * x2 * sqrt(-2.0 * log(w) / w));
+}
+
+void PF::motionModel(const Pose& odom_inc)
 {
   float d_trans = odom_inc.norm3D();
 
@@ -237,8 +267,8 @@ void PF::imu(const Pose& imu_pose, std::vector<float>& ws)
   {
     // - IMU [roll, pitch] weight
     float w_imu;
-    float delta_R = std::fabs(normalizeAngle(particle.p_.R_ - imu_pose.R_));
-    float delta_P = std::fabs(normalizeAngle(particle.p_.P_ - imu_pose.P_));
+    float delta_R = std::fabs(Const::normalizeAngle(particle.p_.R_ - imu_pose.R_));
+    float delta_P = std::fabs(Const::normalizeAngle(particle.p_.P_ - imu_pose.P_));
 
     w_imu = (normalizer_imu * static_cast<float>(std::exp(-1. / sigma_imu_ * delta_R))) *
             (normalizer_imu * static_cast<float>(std::exp(-1. / sigma_imu_ * delta_P)));
@@ -535,7 +565,7 @@ void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* g
           point = point * particles_[i].tf_;  // Convert plane boundaries
         }
         l_plane.centroid_ = l_plane.centroid_ * particles_[i].tf_;                        // Convert the centroid
-        estimateNormal(l_plane.points_, l_plane.a_, l_plane.b_, l_plane.c_, l_plane.d_);  // Convert plane normal
+        Ransac::estimateNormal(l_plane.points_, l_plane.a_, l_plane.b_, l_plane.c_, l_plane.d_);  // Convert plane normal
 
         bool found = false;
         for (auto& g_plane : grid_map->planes_)
@@ -568,7 +598,7 @@ void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* g
 
           // Now, check for transformed polygon intersections
           SemiPlane isct;
-          polygonIntersection(gg_plane, lg_plane, isct.extremas_);
+          ConvexHull::polygonIntersection(gg_plane, lg_plane, isct.extremas_);
 
           // Compute the intersection semi plane area
           isct.setArea();

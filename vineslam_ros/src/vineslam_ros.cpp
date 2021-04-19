@@ -1,4 +1,5 @@
 #include "../include/vineslam_ros.hpp"
+#include "../include/convertions.hpp"
 
 namespace vineslam
 {

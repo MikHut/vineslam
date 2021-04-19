@@ -14,7 +14,7 @@ void VineSLAM_ros::publishDenseInfo()
     publishReport();
 
     // Publish the 2D map
-    publish2DMap(robot_pose_, input_data_.land_bearings_, input_data_.land_depths_);
+    publish2DMap();
     // Publish 3D maps
     publish3DMap();
     publishElevationMap();
@@ -86,8 +86,7 @@ void VineSLAM_ros::publishRobotBox(const Pose& robot_pose) const
   robot_box_publisher_->publish(robot_cube);
 }
 
-void VineSLAM_ros::publish2DMap(const Pose& pose, const std::vector<float>& bearings,
-                                const std::vector<float>& depths) const
+void VineSLAM_ros::publish2DMap() const
 {
   visualization_msgs::msg::MarkerArray marker_array;
   visualization_msgs::msg::Marker marker;

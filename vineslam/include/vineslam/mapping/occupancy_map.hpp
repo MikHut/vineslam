@@ -38,6 +38,7 @@ class MapLayer
 {
 public:
   MapLayer() = default;
+  ~MapLayer() = default;
 
   // Class constructor
   // - initializes the grid map given the input parameters
@@ -91,7 +92,7 @@ public:
     int index = l_i + (l_j * static_cast<int>(std::round(width_ / resolution_ + .49)));
 
     // Trough exception if out of bounds indexing
-    if (index >= cell_vec_.size() - 1 || index < 0)
+    if (index >= static_cast<int>(cell_vec_.size()) - 1 || index < 0)
       throw "Exception: Access to grid map out of bounds\n";
   }
 
@@ -108,7 +109,7 @@ public:
     int ll_j = l_j - static_cast<int>(std::round(origin_.y_ / resolution_ + .49));
     int index = ll_i + (ll_j * static_cast<int>(std::round(width_ / resolution_ + .49)));
 
-    if (index >= cell_vec_.size() - 1 || index < 0)
+    if (index >= static_cast<int>(cell_vec_.size()) - 1 || index < 0)
     {
       return false;
     }
@@ -162,7 +163,7 @@ public:
   bool update(const Planar& old_planar, const Planar& new_planar);
 
   // Updates a image 3D feature location
-  bool update(const ImageFeature& old_image_feature, const ImageFeature& new_image_feature);
+  bool update(/*const ImageFeature& old_image_feature, const ImageFeature& new_image_feature*/);
 
   // Downsamples the corner map
   void downsampleCorners();
@@ -194,7 +195,7 @@ public:
     std::map<int, SemanticFeature> out_landmarks;
     for (const auto& i : landmark_set_)
       for (const auto& landmark : *cell_vec_[i].data->landmarks_)
-        cellInsert(landmark.first, landmark.second, &out_landmarks);
+        CellRoutines::insert(landmark.first, landmark.second, &out_landmarks);
 
     return out_landmarks;
   }
@@ -394,10 +395,6 @@ public:
   bool findNearestOnCell(const ImageFeature& input, ImageFeature& nearest);
   // Recover the layer number from the feature z component
   bool getLayerNumber(const float& z, int& layer_num) const;
-  // Returns all the grid map cells transversed by a ray
-  std::vector<Point> voxelTraversal(const Point& ray_start, const Point& ray_end);
-  // Performs ray trace for a specific set of points
-  bool rayTrace(const std::vector<Point>& pts, const Point& sensor_origin);
 
   // Getter functions
   std::vector<Corner> getCorners()

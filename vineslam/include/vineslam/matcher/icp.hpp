@@ -9,7 +9,7 @@
 #include "../math/Point.hpp"
 #include "../math/Pose.hpp"
 #include "../math/Tf.hpp"
-#include "../math/stat.hpp"
+#include "../math/Stat.hpp"
 
 namespace vineslam
 {

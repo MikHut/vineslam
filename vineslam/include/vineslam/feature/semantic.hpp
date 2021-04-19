@@ -86,7 +86,7 @@ struct SemanticFeature : public Feature
     std::cout << "   type:        " << info_.type_ << std::endl;
     std::cout << "   description: " << info_.description_ << std::endl;
     std::cout << "   character:   " << c << std::endl;
-    std::cout << "   position:    " << pos_;
+    std::cout << "   position:    " << "[" << pos_.x_ << ", " << pos_.y_ << "]" << std::endl;
     std::cout << "   stdev:      [" << gauss_.stdev_.x_ << "," << gauss_.stdev_.y_ << "]" << std::endl;
   }
 

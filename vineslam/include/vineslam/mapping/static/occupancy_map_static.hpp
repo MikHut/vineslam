@@ -9,28 +9,31 @@
 
 namespace vineslam
 {
+struct CellRoutines
+{
 // Inserts a landmark with a given id
-static void cellInsert(const int& id, const SemanticFeature& l_landmark, std::map<int, SemanticFeature>* landmarks)
+static void insert(const int& id, const SemanticFeature& l_landmark, std::map<int, SemanticFeature>* landmarks)
 {
   (*landmarks)[id] = l_landmark;
 }
 
 // Inserts a image feature in the features array
-static void cellInsert(const ImageFeature& l_feature, std::vector<ImageFeature>* surf_features)
+static void insert(const ImageFeature& l_feature, std::vector<ImageFeature>* surf_features)
 {
   surf_features->push_back(l_feature);
 }
 
 // Inserts a corner feature in the features array
-static void cellInsert(const Corner& l_feature, std::vector<Corner>* corner_features)
+static void insert(const Corner& l_feature, std::vector<Corner>* corner_features)
 {
   corner_features->push_back(l_feature);
 }
 
 // Inserts a planar feature in the features array
-static void cellInsert(const Planar& l_feature, std::vector<Planar>* planar_features)
+static void insert(const Planar& l_feature, std::vector<Planar>* planar_features)
 {
   planar_features->push_back(l_feature);
 }
+};
 
 }  // namespace vineslam

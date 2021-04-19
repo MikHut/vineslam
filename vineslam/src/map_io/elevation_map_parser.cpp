@@ -75,7 +75,7 @@ bool ElevationMapParser::parseFile(ElevationMap* elevation_map)
   // Read map data, and fill the occupancy grid
   bool readingdata = true;
   int state = 0;
-  float x, y, altitude;
+  float x = 0, y = 0, altitude;
 
   // Read map data
   while (readingdata)

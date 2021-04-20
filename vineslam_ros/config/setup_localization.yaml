@@ -7,6 +7,12 @@ localization_node:
   use_gps: True
   use_imu: True
 
+  # WARNING (!): this is not the datum of the RTK base, but the datum of the robot initial position
+  datum:
+    latitude: 41.16666453372342
+    longitude: -7.555095358663023
+    heading: 1.3786
+
   camera_info:
     baseline: 0.12 # meters
     fx: 692.95849609375  # pixels
@@ -20,8 +26,9 @@ localization_node:
   multilayer_mapping:
     # Grid map definitions
     grid_map:
-      map_file_path: "/home/andresaguiar/Desktop/map_1618511359.xml"
-      elevation_map_file_path: "/home/andresaguiar/Desktop/elevation_map_1618511359.xml"
+      map_file_path: "/home/andresaguiar/Desktop/map_19_04_2021/map_1618859904.xml"
+      elevation_map_file_path: "/home/andresaguiar/Desktop/map_19_04_2021/elevation_map_1618859904.xml"
+      output_folder: "/home/andresaguiar/Desktop/"
 
   pf:
     n_particles: 500

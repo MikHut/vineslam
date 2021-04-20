@@ -219,6 +219,12 @@ void SLAMNode::loadParameters(Parameters& params)
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
+  param = prefix + ".datum.heading";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.datum_head_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
   param = prefix + ".camera_info.baseline";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.baseline_))
@@ -294,12 +300,6 @@ void SLAMNode::loadParameters(Parameters& params)
   param = prefix + ".multilayer_mapping.grid_map.resolution";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.gridmap_resolution_))
-  {
-    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
-  }
-  param = prefix + ".multilayer_mapping.grid_map.save_map";
-  this->declare_parameter(param);
-  if (!this->get_parameter(param, params.save_map_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }

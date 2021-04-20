@@ -80,6 +80,10 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
       this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/debug/grid_map_limits", 10);
   robot_box_publisher_ = this->create_publisher<visualization_msgs::msg::Marker>("/vineslam/debug/robot_box", 10);
 
+  save_map_srv_ = this->create_service<vineslam_ros::srv::SaveMap>(
+      "/vineslam/save_map", std::bind(&VineSLAM_ros::saveMap, dynamic_cast<VineSLAM_ros*>(this),
+                                      std::placeholders::_1, std::placeholders::_2));
+
   // Static transforms
   RCLCPP_INFO(this->get_logger(), "Waiting for static transforms...");
   tf2_ros::Buffer tf_buffer(this->get_clock());
@@ -222,6 +226,24 @@ void LocalizationNode::loadParameters(Parameters& params)
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
+  param = prefix + ".datum.latitude";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.datum_lat_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".datum.longitude";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.datum_long_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".datum.heading";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.datum_head_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
   param = prefix + ".camera_info.baseline";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.baseline_))
@@ -261,6 +283,12 @@ void LocalizationNode::loadParameters(Parameters& params)
   param = prefix + ".multilayer_mapping.grid_map.map_file_path";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.map_input_file_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".multilayer_mapping.grid_map.output_folder";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.map_output_folder_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }

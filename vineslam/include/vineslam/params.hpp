@@ -27,6 +27,7 @@ struct Parameters
   // -----------------------------------
   float datum_lat_{};
   float datum_long_{};
+  float datum_head_{};
 
   // -----------------------------------
   // ------ Camera info parameters
@@ -53,7 +54,6 @@ struct Parameters
   float gridmap_lenght_{};
   float gridmap_height_{};
   float gridmap_resolution_{};
-  bool save_map_{};
   std::string map_output_folder_;
   std::string map_input_file_;
   std::string elevation_map_input_file_;

@@ -26,6 +26,9 @@ private:
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_subscriber_;
   rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr gps_subscriber_;
   rclcpp::Subscription<geometry_msgs::msg::Vector3Stamped>::SharedPtr imu_subscriber_;
+
+  // ROS services
+  rclcpp::Service<vineslam_ros::srv::SaveMap>::SharedPtr save_map_srv_;
 };
 
 }  // namespace vineslam

@@ -586,7 +586,6 @@ void VineSLAM_ros::publishReport() const
   vineslam_report_publisher_->publish(report);
 }
 
-
 // ------------------------------------------------------------------------------------
 // ----- ROS services
 // ------------------------------------------------------------------------------------
@@ -612,126 +611,179 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
 {
   RCLCPP_INFO(this->get_logger(), "Saving map to xml file.");
 
-  // Save map data
-  bool save_map = params_.save_map_;
+  // ----------------------------------------------------
+  // ------ Export maps on xml file format
+  // ----------------------------------------------------
+  std::time_t timestamp = std::time(nullptr);
 
-  if (save_map)
+  //  MapWriter mw(params_, timestamp);
+  //  mw.writeToFile(grid_map_);
+  //
+  //  ElevationMapWriter ew(params_, timestamp);
+  //  ew.writeToFile(elevation_map_);
+
+  // ----------------------------------------------------
+  // ------ Export geo-referenced map images and info
+  // ----------------------------------------------------
+
+  std::ofstream infofile;
+  infofile.open(params_.map_output_folder_ + "info_" + std::to_string(timestamp) + ".json");
+
+  // Compute polar coordinates of center and corners of the map image
+  float datum_utm_x, datum_utm_y;
+  std::string datum_utm_zone;
+  GNSS2UTM(params_.datum_lat_, params_.datum_long_, datum_utm_x, datum_utm_y, datum_utm_zone);
+
+  Point referenced_map_center(datum_utm_x + (grid_map_->width_ / 2 + grid_map_->origin_.x_),
+                              datum_utm_y + (grid_map_->lenght_ / 2 + grid_map_->origin_.y_), 0);
+
+  // Convert the map into a square to ease the rotation process
+  float width_inc = 0, lenght_inc = 0;
+  Point left_upper_corner, left_bottom_corner, right_upper_corner, right_bottom_corner;
+  if (grid_map_->width_ > grid_map_->lenght_)
   {
-    // ----------------------------------------------------
-    // ------ Export maps on xml file format
-    // ----------------------------------------------------
-    std::time_t timestamp = std::time(nullptr);
+    lenght_inc = grid_map_->width_ - grid_map_->lenght_;
 
-    MapWriter mw(params_, timestamp);
-    mw.writeToFile(grid_map_);
-
-    ElevationMapWriter ew(params_, timestamp);
-    ew.writeToFile(elevation_map_);
-
-    // ----------------------------------------------------
-    // ------ Export geo-referenced map images
-    // ----------------------------------------------------
-
-    // Compute polar coordinates of center and corners of the map image
-    float datum_utm_x, datum_utm_y;
-    std::string datum_utm_zone;
-    GNSS2UTM(params_.datum_lat_, params_.datum_long_, datum_utm_x, datum_utm_y, datum_utm_zone);
-
-    Point referenced_map_center(datum_utm_x + (grid_map_->width_ / 2 + grid_map_->origin_.x_),
-                                datum_utm_y + (grid_map_->height_ / 2 + grid_map_->origin_.y_), 0);
-
-    Point left_upper_corner = referenced_map_center + Point(-grid_map_->width_ / 2, grid_map_->height_ / 2);
-    Point right_upper_corner = referenced_map_center + Point(grid_map_->width_ / 2, grid_map_->height_ / 2);
-    Point left_bottom_corner = referenced_map_center + Point(-grid_map_->width_ / 2, -grid_map_->height_ / 2);
-    Point right_bottom_corner = referenced_map_center + Point(grid_map_->width_ / 2, -grid_map_->height_ / 2);
-
-    Point left_upper_corner_ll, right_upper_corner_ll, left_bottom_corner_ll, right_bottom_corner_ll;
-
-    UTMtoGNSS(left_upper_corner.x_, left_upper_corner.y_, datum_utm_zone, left_upper_corner_ll.x_,
-              left_upper_corner_ll.y_);
-    UTMtoGNSS(right_upper_corner.x_, right_upper_corner.y_, datum_utm_zone, right_upper_corner_ll.x_,
-              right_upper_corner_ll.y_);
-    UTMtoGNSS(left_bottom_corner.x_, left_bottom_corner.y_, datum_utm_zone, left_bottom_corner_ll.x_,
-              left_bottom_corner_ll.y_);
-    UTMtoGNSS(right_bottom_corner.x_, right_bottom_corner.y_, datum_utm_zone, right_bottom_corner_ll.x_,
-              right_bottom_corner_ll.y_);
-
-    // Draw map images
-    cv::Mat corners_image_map = cv::Mat::zeros(
-        cv::Size(grid_map_->width_ / grid_map_->resolution_, grid_map_->lenght_ / grid_map_->resolution_), CV_8UC3);
-    cv::Mat planars_image_map = cv::Mat::zeros(
-        cv::Size(grid_map_->width_ / grid_map_->resolution_, grid_map_->lenght_ / grid_map_->resolution_), CV_8UC3);
-    cv::Mat elevation_image_map = cv::Mat::zeros(cv::Size(elevation_map_->width_ / elevation_map_->resolution_,
-                                                          elevation_map_->lenght_ / elevation_map_->resolution_),
-                                                 CV_8UC3);
-
-    // Corners image map
-    std::vector<Corner> corners = grid_map_->getCorners();
-    for (const auto& corner : corners)
-    {
-      cv::Point pt(static_cast<int>((corner.pos_.x_ - grid_map_->origin_.x_) / grid_map_->resolution_),
-                   corners_image_map.rows -
-                   static_cast<int>((corner.pos_.y_ - grid_map_->origin_.y_) / grid_map_->resolution_));
-      corners_image_map.at<cv::Vec3b>(pt)[0] = 0;
-      corners_image_map.at<cv::Vec3b>(pt)[1] = 255;
-      corners_image_map.at<cv::Vec3b>(pt)[2] = 0;
-    }
-    // Planars image map
-    std::vector<Planar> planars = grid_map_->getPlanars();
-    for (const auto& planar : planars)
-    {
-      cv::Point pt(static_cast<int>((planar.pos_.x_ - grid_map_->origin_.x_) / grid_map_->resolution_),
-                   planars_image_map.rows -
-                   static_cast<int>((planar.pos_.y_ - grid_map_->origin_.y_) / grid_map_->resolution_));
-      planars_image_map.at<cv::Vec3b>(pt)[0] = 0;
-      planars_image_map.at<cv::Vec3b>(pt)[1] = 255;
-      planars_image_map.at<cv::Vec3b>(pt)[2] = 0;
-    }
-    // Elevation image map
-    float xmin = elevation_map_->origin_.x_;
-    float xmax = xmin + elevation_map_->width_;
-    float ymin = elevation_map_->origin_.y_;
-    float ymax = ymin + elevation_map_->lenght_;
-    float min_height = grid_map_->origin_.z_;
-    float max_height = grid_map_->origin_.z_ + grid_map_->height_;
-    for (float i = xmin; i < xmax - elevation_map_->resolution_;)
-    {
-      for (float j = ymin; j < ymax - elevation_map_->resolution_;)
-      {
-        float z = (*elevation_map_)(i, j);
-        if (z == 0)
-        {
-          j += elevation_map_->resolution_;
-          continue;
-        }
-        else
-        {
-          cv::Point pt(static_cast<int>((i - elevation_map_->origin_.x_) / elevation_map_->resolution_),
-                       elevation_image_map.rows -
-                       static_cast<int>((j - elevation_map_->origin_.y_) / elevation_map_->resolution_));
-
-          float h = (static_cast<float>(1) -
-                     std::min(std::max((std::fabs(z) - min_height) / (max_height - min_height), static_cast<float>(0)),
-                              static_cast<float>(1)));
-
-          float r, g, b;
-          vineslam::ElevationMap::color(h, r, g, b);
-          int cv_r = static_cast<int>(r * 255), cv_g = static_cast<int>(g * 255), cv_b = static_cast<int>(b * 255);
-          elevation_image_map.at<cv::Vec3b>(pt)[0] = cv_b;
-          elevation_image_map.at<cv::Vec3b>(pt)[1] = cv_g;
-          elevation_image_map.at<cv::Vec3b>(pt)[2] = cv_r;
-        }
-
-        j += elevation_map_->resolution_;
-      }
-      i += elevation_map_->resolution_;
-    }
-
-    cv::imwrite(params_.map_output_folder_ + "corners_map_" + std::to_string(timestamp) + ".png", corners_image_map);
-    cv::imwrite(params_.map_output_folder_ + "planars_map_" + std::to_string(timestamp) + ".png", planars_image_map);
-    cv::imwrite(params_.map_output_folder_ + "elevation_map_" + std::to_string(timestamp) + ".png",
-                elevation_image_map);
+    left_upper_corner = referenced_map_center + Point(-grid_map_->width_ / 2, grid_map_->lenght_ / 2 + lenght_inc);
+    left_bottom_corner = referenced_map_center + Point(-grid_map_->width_ / 2, -grid_map_->lenght_ / 2);
+    right_upper_corner = referenced_map_center + Point(grid_map_->width_ / 2, grid_map_->lenght_ / 2 + lenght_inc);
+    right_bottom_corner = referenced_map_center + Point(grid_map_->width_ / 2, -grid_map_->lenght_ / 2);
   }
+  else if (grid_map_->width_ < grid_map_->height_)
+  {
+    width_inc = grid_map_->lenght_ - grid_map_->width_;
+
+    left_upper_corner = referenced_map_center + Point(-grid_map_->width_ / 2 - width_inc, grid_map_->lenght_ / 2);
+    left_bottom_corner = referenced_map_center + Point(-grid_map_->width_ / 2 - width_inc, -grid_map_->lenght_ / 2);
+    right_upper_corner = referenced_map_center + Point(grid_map_->width_ / 2, grid_map_->lenght_ / 2);
+    right_bottom_corner = referenced_map_center + Point(grid_map_->width_ / 2, -grid_map_->lenght_ / 2);
+  }
+  else
+  {
+    left_upper_corner = referenced_map_center + Point(-grid_map_->width_ / 2, grid_map_->lenght_ / 2);
+    left_bottom_corner = referenced_map_center + Point(-grid_map_->width_ / 2, -grid_map_->lenght_ / 2);
+    right_upper_corner = referenced_map_center + Point(grid_map_->width_ / 2, grid_map_->lenght_ / 2);
+    right_bottom_corner = referenced_map_center + Point(grid_map_->width_ / 2, -grid_map_->lenght_ / 2);
+  }
+
+  RCLCPP_INFO(this->get_logger(), "%f, %f, %f, %f", grid_map_->width_, grid_map_->lenght_, width_inc, lenght_inc);
+
+  // Compute GNSS location of the four corners
+  Point left_upper_corner_ll, right_upper_corner_ll, left_bottom_corner_ll, right_bottom_corner_ll;
+
+  UTMtoGNSS(left_upper_corner.x_, left_upper_corner.y_, datum_utm_zone, left_upper_corner_ll.x_,
+            left_upper_corner_ll.y_);
+  UTMtoGNSS(right_upper_corner.x_, right_upper_corner.y_, datum_utm_zone, right_upper_corner_ll.x_,
+            right_upper_corner_ll.y_);
+  UTMtoGNSS(left_bottom_corner.x_, left_bottom_corner.y_, datum_utm_zone, left_bottom_corner_ll.x_,
+            left_bottom_corner_ll.y_);
+  UTMtoGNSS(right_bottom_corner.x_, right_bottom_corner.y_, datum_utm_zone, right_bottom_corner_ll.x_,
+            right_bottom_corner_ll.y_);
+
+  infofile << std::setprecision(8) << "left_upper_corner: [" << left_upper_corner_ll.x_ << ", "
+           << left_upper_corner_ll.y_ << "]\n";
+  infofile << std::setprecision(8) << "right_upper_corner: [" << right_upper_corner_ll.x_ << ", "
+           << right_upper_corner_ll.y_ << "]\n";
+  infofile << std::setprecision(8) << "left_bottom_corner: [" << left_bottom_corner_ll.x_ << ", "
+           << left_bottom_corner_ll.y_ << "]\n";
+  infofile << std::setprecision(8) << "right_bottom_corner: [" << right_bottom_corner_ll.x_ << ", "
+           << right_bottom_corner_ll.y_ << "]\n";
+  infofile.close();
+
+  // Draw map images
+  cv::Mat corners_image_map = cv::Mat(cv::Size((grid_map_->width_ + width_inc) / grid_map_->resolution_,
+                                               (grid_map_->lenght_ + lenght_inc) / grid_map_->resolution_),
+                                      CV_8UC3, cv::Scalar(255, 255, 255));
+  cv::Mat planars_image_map = cv::Mat(cv::Size((grid_map_->width_ + width_inc) / grid_map_->resolution_,
+                                               (grid_map_->lenght_ + lenght_inc) / grid_map_->resolution_),
+                                      CV_8UC3, cv::Scalar(255, 255, 255));
+  cv::Mat elevation_image_map = cv::Mat(cv::Size((elevation_map_->width_ + width_inc) / elevation_map_->resolution_,
+                                                 (elevation_map_->lenght_ + lenght_inc) / elevation_map_->resolution_),
+                                        CV_8UC3, cv::Scalar(255, 255, 255));
+
+  // Corners image map
+  std::vector<Corner> corners = grid_map_->getCorners();
+  for (const auto& corner : corners)
+  {
+    cv::Point pt(static_cast<int>((corner.pos_.x_ - grid_map_->origin_.x_ + width_inc) / grid_map_->resolution_),
+                 corners_image_map.rows -
+                     static_cast<int>((corner.pos_.y_ - grid_map_->origin_.y_ + lenght_inc) / grid_map_->resolution_));
+
+    corners_image_map.at<cv::Vec3b>(pt)[0] = 0;
+    corners_image_map.at<cv::Vec3b>(pt)[1] = 255;
+    corners_image_map.at<cv::Vec3b>(pt)[2] = 0;
+  }
+  // Planars image map
+  std::vector<Planar> planars = grid_map_->getPlanars();
+  for (const auto& planar : planars)
+  {
+    cv::Point pt(static_cast<int>((planar.pos_.x_ - grid_map_->origin_.x_ + width_inc) / grid_map_->resolution_),
+                 planars_image_map.rows -
+                     static_cast<int>((planar.pos_.y_ - grid_map_->origin_.y_ + lenght_inc) / grid_map_->resolution_));
+    planars_image_map.at<cv::Vec3b>(pt)[0] = 0;
+    planars_image_map.at<cv::Vec3b>(pt)[1] = 255;
+    planars_image_map.at<cv::Vec3b>(pt)[2] = 0;
+  }
+  // Elevation image map
+  float xmin = elevation_map_->origin_.x_;
+  float xmax = xmin + elevation_map_->width_;
+  float ymin = elevation_map_->origin_.y_;
+  float ymax = ymin + elevation_map_->lenght_;
+  float min_height = grid_map_->origin_.z_;
+  float max_height = grid_map_->origin_.z_ + grid_map_->height_;
+  for (float i = xmin; i < xmax - elevation_map_->resolution_;)
+  {
+    for (float j = ymin; j < ymax - elevation_map_->resolution_;)
+    {
+      float z = (*elevation_map_)(i, j);
+      if (z == 0)
+      {
+        j += elevation_map_->resolution_;
+        continue;
+      }
+      else
+      {
+        cv::Point pt(static_cast<int>((i - elevation_map_->origin_.x_ + width_inc) / elevation_map_->resolution_),
+                     elevation_image_map.rows -
+                         static_cast<int>((j - elevation_map_->origin_.y_ + lenght_inc) / elevation_map_->resolution_));
+
+        float h = (static_cast<float>(1) -
+                   std::min(std::max((std::fabs(z) - min_height) / (max_height - min_height), static_cast<float>(0)),
+                            static_cast<float>(1)));
+
+        float r, g, b;
+        vineslam::ElevationMap::color(h, r, g, b);
+        int cv_r = static_cast<int>(r * 255), cv_g = static_cast<int>(g * 255), cv_b = static_cast<int>(b * 255);
+        elevation_image_map.at<cv::Vec3b>(pt)[0] = cv_b;
+        elevation_image_map.at<cv::Vec3b>(pt)[1] = cv_g;
+        elevation_image_map.at<cv::Vec3b>(pt)[2] = cv_r;
+      }
+
+      j += elevation_map_->resolution_;
+    }
+    i += elevation_map_->resolution_;
+  }
+
+  // Rotate images by [heading] radians to align them with satellite images
+  auto cv_rotate = [](cv::Mat input, float angle) {
+    cv::Mat dst;
+    cv::Point2f pt(input.cols / 2., input.rows / 2.);
+    cv::Mat r = cv::getRotationMatrix2D(pt, angle, 1.0);
+    cv::warpAffine(input, dst, r, cv::Size(input.cols, input.rows));
+    return dst;
+  };
+
+  cv::Mat ci = cv_rotate(corners_image_map, params_.datum_head_ * RAD_TO_DEGREE);
+  cv::Mat pi = cv_rotate(planars_image_map, params_.datum_head_ * RAD_TO_DEGREE);
+  cv::Mat ei = cv_rotate(elevation_image_map, params_.datum_head_ * RAD_TO_DEGREE);
+  //  cv::Mat ci = cv_rotate(corners_image_map, 0 * RAD_TO_DEGREE);
+  //  cv::Mat pi = cv_rotate(planars_image_map, 0 * RAD_TO_DEGREE);
+  //  cv::Mat ei = cv_rotate(elevation_image_map, 0 * RAD_TO_DEGREE);
+
+  // Save images
+  cv::imwrite(params_.map_output_folder_ + "corners_map_" + std::to_string(timestamp) + ".png", ci);
+  cv::imwrite(params_.map_output_folder_ + "planars_map_" + std::to_string(timestamp) + ".png", pi);
+  cv::imwrite(params_.map_output_folder_ + "elevation_map_" + std::to_string(timestamp) + ".png", ei);
 
   RCLCPP_INFO(this->get_logger(), "Map saved.");
 

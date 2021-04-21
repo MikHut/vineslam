@@ -195,6 +195,8 @@ Visualization Manager:
           Value: false
         map_nn1:
           Value: true
+        map_nn2:
+          Value: true
         map_sn0:
           Value: true
         odom:
@@ -211,9 +213,160 @@ Visualization Manager:
       Name: TF
       Show Arrows: false
       Show Axes: true
-      Show Names: true
+      Show Names: false
       Tree:
-        {}
+        odom:
+          base_link:
+            front_left_wheel_link:
+              {}
+            front_right_wheel_link:
+              {}
+            map_sn0:
+              Vertex/1000:
+                {}
+              Vertex/1005:
+                {}
+              Vertex/1006:
+                {}
+              Vertex/1007:
+                {}
+              Vertex/1008:
+                {}
+              Vertex/1009:
+                {}
+              Vertex/1010:
+                {}
+              Vertex/1011:
+                {}
+              Vertex/1012:
+                {}
+              Vertex/1013:
+                {}
+              Vertex/1014:
+                {}
+              Vertex/1015:
+                {}
+              Vertex/1016:
+                {}
+              Vertex/1028:
+                {}
+              Vertex/1030:
+                {}
+              Vertex/1031:
+                {}
+              Vertex/1032:
+                {}
+              Vertex/1033:
+                {}
+              Vertex/1034:
+                {}
+              Vertex/1035:
+                {}
+              Vertex/1036:
+                {}
+              Vertex/1037:
+                {}
+              Vertex/1038:
+                {}
+              Vertex/1039:
+                {}
+              Vertex/1040:
+                {}
+              Vertex/1041:
+                {}
+              Vertex/1042:
+                {}
+              Vertex/1043:
+                {}
+              Vertex/1044:
+                {}
+              Vertex/1045:
+                {}
+              Vertex/1046:
+                {}
+              Vertex/1047:
+                {}
+              Vertex/1048:
+                {}
+              Vertex/1049:
+                {}
+              Vertex/1050:
+                {}
+              Vertex/1051:
+                {}
+              Vertex/1052:
+                {}
+              Vertex/1053:
+                {}
+              Vertex/1054:
+                {}
+              Vertex/1055:
+                {}
+              Vertex/1056:
+                {}
+              Vertex/1058:
+                {}
+              Vertex/1059:
+                {}
+              Vertex/1060:
+                {}
+              Vertex/1061:
+                {}
+              Vertex/1062:
+                {}
+              Vertex/1063:
+                {}
+              Vertex/1064:
+                {}
+              Vertex/1065:
+                {}
+              Vertex/1066:
+                {}
+              Vertex/1067:
+                {}
+              Vertex/1068:
+                {}
+              Vertex/1069:
+                {}
+              Vertex/1070:
+                {}
+              Vertex/1071:
+                {}
+              Vertex/1072:
+                {}
+              Vertex/1073:
+                {}
+              Vertex/1074:
+                {}
+              Vertex/1075:
+                {}
+              Vertex/1076:
+                {}
+              Vertex/1078:
+                {}
+              Vertex/1079:
+                {}
+              Vertex/1081:
+                {}
+              Vertex/1082:
+                {}
+              Vertex/1083:
+                {}
+              Vertex/1130:
+                {}
+            rear_left_wheel_link:
+              {}
+            rear_right_wheel_link:
+              {}
+            velodyne:
+              {}
+            zed_camera_left_optical_frame:
+              {}
+          map_nn1:
+            Vertex/10000:
+              {}
+          map_nn2:
+            {}
       Update Interval: 0
       Value: true
     - Class: rviz_common/Group
@@ -454,7 +607,7 @@ Visualization Manager:
           Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 150
+          Max Intensity: 242
           Min Color: 0; 0; 0
           Min Intensity: 0
           Name: Corners Map
@@ -552,7 +705,7 @@ Visualization Manager:
           Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 185
+          Max Intensity: 177
           Min Color: 0; 0; 0
           Min Intensity: 0
           Name: Velodyne
@@ -666,12 +819,12 @@ Visualization Manager:
     - Class: rviz_common/Group
       Displays:
         - Class: rviz_default_plugins/InteractiveMarkers
-          Enable Transparency: true
+          Enable Transparency: false
           Enabled: true
           Interactive Markers Namespace: /vineslam/initialization_marker
           Name: Initialization Marker
           Show Axes: false
-          Show Descriptions: true
+          Show Descriptions: false
           Show Visual Aids: false
           Value: true
       Enabled: true
@@ -719,25 +872,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 58.873165130615234
+      Distance: 18.328624725341797
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 5.166930198669434
-        Y: 3.137328624725342
-        Z: 7.482106685638428
+        X: 3.8525099754333496
+        Y: -3.053457736968994
+        Z: 3.687525749206543
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.4897964000701904
+      Pitch: 1.509796380996704
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.730472564697266
+      Yaw: 4.665468215942383
     Saved: ~
 Window Geometry:
   Displays:

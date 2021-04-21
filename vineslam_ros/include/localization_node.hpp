@@ -25,6 +25,12 @@ private:
   void loopOnce();
   void process();
 
+  // Thread to publish the tfs exported by the localization node
+  // NOTE: We perform this process in a thread since we both need to do it on runtime and when setting the initial pose
+  //       In the second case, if not in a thread, the tfs are only published when the used sends some feedback through
+  //       the interactive marker.
+  void broadcastTfs();
+
   // Routine to set the initial 6-DoF pose of the robot in relation with the previously built map
   void initializeOnMap();
   // Interactive marker callback functions

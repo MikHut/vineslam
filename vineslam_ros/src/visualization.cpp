@@ -795,7 +795,7 @@ void VineSLAM_ros::make6DofMarker(visualization_msgs::msg::InteractiveMarker& im
 
   control.markers.push_back(marker_box);
   imarker.controls.push_back(control);
-  imarker.controls[0].interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::MOVE_3D;
+  imarker.controls[0].interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::MOVE_ROTATE_3D;
 
   control = visualization_msgs::msg::InteractiveMarkerControl();
   control.orientation.w = 1;
@@ -809,9 +809,19 @@ void VineSLAM_ros::make6DofMarker(visualization_msgs::msg::InteractiveMarker& im
 
   control = visualization_msgs::msg::InteractiveMarkerControl();
   control.orientation.w = 1;
-  control.orientation.x = 0;
-  control.orientation.y = 1;
+  control.orientation.x = 1;
+  control.orientation.y = 0;
   control.orientation.z = 0;
+  control.name = "rotate_x";
+  control.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::ROTATE_AXIS;
+  control.orientation_mode = visualization_msgs::msg::InteractiveMarkerControl::FIXED;
+  imarker.controls.push_back(control);
+
+  control = visualization_msgs::msg::InteractiveMarkerControl();
+  control.orientation.w = 1;
+  control.orientation.x = 0;
+  control.orientation.y = 0;
+  control.orientation.z = 1;
   control.name = "move_y";
   control.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::MOVE_AXIS;
   control.orientation_mode = visualization_msgs::msg::InteractiveMarkerControl::FIXED;
@@ -822,8 +832,28 @@ void VineSLAM_ros::make6DofMarker(visualization_msgs::msg::InteractiveMarker& im
   control.orientation.x = 0;
   control.orientation.y = 0;
   control.orientation.z = 1;
+  control.name = "rotate_y";
+  control.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::ROTATE_AXIS;
+  control.orientation_mode = visualization_msgs::msg::InteractiveMarkerControl::FIXED;
+  imarker.controls.push_back(control);
+
+  control = visualization_msgs::msg::InteractiveMarkerControl();
+  control.orientation.w = 1;
+  control.orientation.x = 0;
+  control.orientation.y = 1;
+  control.orientation.z = 0;
   control.name = "move_z";
   control.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::MOVE_AXIS;
+  control.orientation_mode = visualization_msgs::msg::InteractiveMarkerControl::FIXED;
+  imarker.controls.push_back(control);
+
+  control = visualization_msgs::msg::InteractiveMarkerControl();
+  control.orientation.w = 1;
+  control.orientation.x = 0;
+  control.orientation.y = 1;
+  control.orientation.z = 0;
+  control.name = "rotate_z";
+  control.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::ROTATE_AXIS;
   control.orientation_mode = visualization_msgs::msg::InteractiveMarkerControl::FIXED;
   imarker.controls.push_back(control);
 }

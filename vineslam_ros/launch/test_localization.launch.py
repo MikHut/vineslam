@@ -12,7 +12,7 @@ def generate_launch_description():
     # ------------------------------------------------------------
 
     # Simulated time
-    use_sim_time = LaunchConfiguration('use_sim_time', default='true')
+    use_sim_time = LaunchConfiguration('use_sim_time', default='false')
 
     config_path = os.path.join(
         get_package_share_directory('vineslam_ros'),
@@ -23,7 +23,7 @@ def generate_launch_description():
     rviz_path = os.path.join(
         get_package_share_directory('vineslam_ros'),
         'config',
-        'test.rviz')
+        'test_localization.rviz')
 
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)

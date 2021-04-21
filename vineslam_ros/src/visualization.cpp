@@ -2,9 +2,9 @@
 
 namespace vineslam
 {
-void VineSLAM_ros::publishDenseInfo()
+void VineSLAM_ros::publishDenseInfo(const float& rate)
 {
-  rclcpp::Rate r(1);
+  uint32_t mil_secs = static_cast<uint32_t>((1 / rate) * 1e3);
   while (rclcpp::ok())
   {
     if (init_flag_)
@@ -21,7 +21,7 @@ void VineSLAM_ros::publishDenseInfo()
     publishGridMapLimits();
 
     // Impose loop frequency
-    r.sleep();
+    rclcpp::sleep_for(std::chrono::milliseconds(mil_secs));
   }
 }
 
@@ -767,6 +767,65 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<Planar>& p
   sensor_msgs::msg::PointCloud2 cloud_out2;
   pcl::toROSMsg(*cloud_out, cloud_out2);
   pub->publish(cloud_out2);
+}
+
+void VineSLAM_ros::make6DofMarker(visualization_msgs::msg::InteractiveMarker& imarker, Point position,
+                                  std::string marker_name)
+{
+  imarker.header.frame_id = params_.world_frame_id_;
+  imarker.pose.position.x = position.x_;
+  imarker.pose.position.y = position.y_;
+  imarker.pose.position.z = position.z_;
+  imarker.scale = 2;
+  imarker.name = marker_name;
+  imarker.description = "6-DoF interactive marker";
+
+  visualization_msgs::msg::InteractiveMarkerControl control;
+  control.always_visible = true;
+
+  visualization_msgs::msg::Marker marker_box;
+  marker_box.type = visualization_msgs::msg::Marker::SPHERE;
+  marker_box.scale.x = imarker.scale * 0.3;
+  marker_box.scale.y = imarker.scale * 0.3;
+  marker_box.scale.z = imarker.scale * 0.3;
+  marker_box.color.r = 1;
+  marker_box.color.b = 0;
+  marker_box.color.g = 0;
+  marker_box.color.a = 0.9;
+
+  control.markers.push_back(marker_box);
+  imarker.controls.push_back(control);
+  imarker.controls[0].interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::MOVE_3D;
+
+  control = visualization_msgs::msg::InteractiveMarkerControl();
+  control.orientation.w = 1;
+  control.orientation.x = 1;
+  control.orientation.y = 0;
+  control.orientation.z = 0;
+  control.name = "move_x";
+  control.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::MOVE_AXIS;
+  control.orientation_mode = visualization_msgs::msg::InteractiveMarkerControl::FIXED;
+  imarker.controls.push_back(control);
+
+  control = visualization_msgs::msg::InteractiveMarkerControl();
+  control.orientation.w = 1;
+  control.orientation.x = 0;
+  control.orientation.y = 1;
+  control.orientation.z = 0;
+  control.name = "move_y";
+  control.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::MOVE_AXIS;
+  control.orientation_mode = visualization_msgs::msg::InteractiveMarkerControl::FIXED;
+  imarker.controls.push_back(control);
+
+  control = visualization_msgs::msg::InteractiveMarkerControl();
+  control.orientation.w = 1;
+  control.orientation.x = 0;
+  control.orientation.y = 0;
+  control.orientation.z = 1;
+  control.name = "move_z";
+  control.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::MOVE_AXIS;
+  control.orientation_mode = visualization_msgs::msg::InteractiveMarkerControl::FIXED;
+  imarker.controls.push_back(control);
 }
 
 }  // namespace vineslam

@@ -19,6 +19,22 @@ private:
   // Parameters loader
   void loadParameters(Parameters& params);
 
+  // Runtime execution routines
+  void init();
+  void loop();
+  void loopOnce();
+  void process();
+
+  // Routine to set the initial 6-DoF pose of the robot in relation with the previously built map
+  void initializeOnMap();
+  // Interactive marker callback functions
+  void iMarkerCallback(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr& feedback);
+  void iMenuCallback(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr& feedback);
+
+  // Interactive marker for initialization variables
+  interactive_markers::MenuHandler im_menu_handler_;
+  std::unique_ptr<interactive_markers::InteractiveMarkerServer> im_server_;
+
   // ROS subscribers
   rclcpp::Subscription<vineslam_msgs::msg::FeatureArray>::SharedPtr feature_subscriber_;
   rclcpp::Subscription<vision_msgs::msg::Detection3DArray>::SharedPtr landmark_subscriber_;

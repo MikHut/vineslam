@@ -9,9 +9,14 @@ localization_node:
 
   # WARNING (!): this is not the datum of the RTK base, but the datum of the robot initial position
   datum:
-    latitude: 41.16666453372342
-    longitude: -7.555095358663023
-    heading: 1.3786
+    map:
+      latitude: 41.16666453372342
+      longitude: -7.555095358663023
+      heading: 1.3786 # this is not being used in the localization node :)
+    robot:
+      latitude: 41.16671662742007
+      longitude: -7.555065576828292
+      heading: 1.3786 # this is not being used in the localization node :)
 
   camera_info:
     baseline: 0.12 # meters

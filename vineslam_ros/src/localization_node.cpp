@@ -1,9 +1,11 @@
 #include "../include/localization_node.hpp"
+#include "../include/convertions.hpp"
 
 int main(int argc, char** argv)
 {
   // Initialize ROS node
   rclcpp::init(argc, argv);
+
   rclcpp::spin(std::make_shared<vineslam::LocalizationNode>());
   rclcpp::shutdown();
 
@@ -25,7 +27,6 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
   init_flag_ = true;
   init_gps_ = true;
   init_odom_ = true;
-  register_map_ = false;
 
   // Declare the Mappers and Localizer objects
   localizer_ = new Localizer(params_);
@@ -81,8 +82,8 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
   robot_box_publisher_ = this->create_publisher<visualization_msgs::msg::Marker>("/vineslam/debug/robot_box", 10);
 
   save_map_srv_ = this->create_service<vineslam_ros::srv::SaveMap>(
-      "/vineslam/save_map", std::bind(&VineSLAM_ros::saveMap, dynamic_cast<VineSLAM_ros*>(this),
-                                      std::placeholders::_1, std::placeholders::_2));
+      "/vineslam/save_map", std::bind(&VineSLAM_ros::saveMap, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1,
+                                      std::placeholders::_2));
 
   // Static transforms
   RCLCPP_INFO(this->get_logger(), "Waiting for static transforms...");
@@ -139,6 +140,9 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
   vel2base.getBasis().getRPY(roll, pitch, yaw);
   lid_mapper_->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
 
+  // Initialize tf broadcaster
+  tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
+
   // ---------------------------------------------------------
   // ----- Load map dimensions and initialize it
   // ---------------------------------------------------------
@@ -172,8 +176,8 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
   RCLCPP_INFO(this->get_logger(), "Ready for execution...");
 
   // Call execution thread
-  std::thread th1(&VineSLAM_ros::loop, dynamic_cast<VineSLAM_ros*>(this));
-  std::thread th2(&VineSLAM_ros::publishDenseInfo, dynamic_cast<VineSLAM_ros*>(this));
+  std::thread th1(&LocalizationNode::loop, this);
+  std::thread th2(&LocalizationNode::publishDenseInfo, this, 1.0);  // Publish dense info at 1.0Hz
   th1.detach();
   th2.detach();
 }
@@ -226,21 +230,39 @@ void LocalizationNode::loadParameters(Parameters& params)
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
-  param = prefix + ".datum.latitude";
+  param = prefix + ".datum.map.latitude";
   this->declare_parameter(param);
-  if (!this->get_parameter(param, params.datum_lat_))
+  if (!this->get_parameter(param, params.map_datum_lat_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
-  param = prefix + ".datum.longitude";
+  param = prefix + ".datum.map.longitude";
   this->declare_parameter(param);
-  if (!this->get_parameter(param, params.datum_long_))
+  if (!this->get_parameter(param, params.map_datum_long_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
-  param = prefix + ".datum.heading";
+  param = prefix + ".datum.map.heading";
   this->declare_parameter(param);
-  if (!this->get_parameter(param, params.datum_head_))
+  if (!this->get_parameter(param, params.map_datum_head_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".datum.robot.latitude";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.robot_datum_lat_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".datum.robot.longitude";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.robot_datum_long_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".datum.robot.heading";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.robot_datum_head_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
@@ -339,6 +361,397 @@ void LocalizationNode::loadParameters(Parameters& params)
   if (!this->get_parameter(param, params.sigma_YY_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+}
+
+void LocalizationNode::loop()
+{
+  // Reset information flags
+  input_data_.received_image_features_ = false;
+  input_data_.received_scans_ = false;
+  input_data_.received_landmarks_ = false;
+  input_data_.received_odometry_ = false;
+  input_data_.received_gnss_ = false;
+
+  // ---------------------------------------------------------
+  // ----- Declare the interactive marker that will initialize
+  // ----- the robot pose on the map
+  // ---------------------------------------------------------
+  publish3DMap();
+  initializeOnMap();
+
+  while (rclcpp::ok())
+  {
+    loopOnce();
+  }
+}
+
+void LocalizationNode::loopOnce()
+{
+  // Check if we have all the necessary data
+  bool can_continue = (input_data_.received_image_features_ || (!params_.use_image_features_)) &&
+                      input_data_.received_scans_ &&
+                      (input_data_.received_landmarks_ || !params_.use_semantic_features_) &&
+                      (input_data_.received_gnss_ || !params_.use_gps_);
+
+  if (!can_continue)
+    return;
+
+  // VineSLAM main loop
+  if (!init_flag_)
+  {
+    Timer l_timer("VineSLAM main loop");
+    l_timer.tick("vineslam_ros::process()");
+    process();
+    l_timer.tock();
+    //    l_timer.getLog();
+    //    l_timer.clearLog();
+  }
+
+  // Reset information flags
+  input_data_.received_image_features_ = false;
+  input_data_.received_scans_ = false;
+  input_data_.received_landmarks_ = false;
+  input_data_.received_odometry_ = false;
+  input_data_.received_gnss_ = false;
+
+  //  timer_->getLog();
+  //  timer_->clearLog();
+}
+
+void LocalizationNode::init()
+{
+  // ---------------------------------------------------------
+  // ----- Initialize the localizer and get first particles distribution
+  // ---------------------------------------------------------
+  localizer_->init(robot_pose_);
+  robot_pose_ = localizer_->getPose();
+
+  // ---------------------------------------------------------
+  // ----- Initialize the multi-layer maps
+  // ---------------------------------------------------------
+
+  // - 2D semantic feature map
+  if (params_.use_semantic_features_)
+  {
+    land_mapper_->init(robot_pose_, input_data_.land_bearings_, input_data_.land_depths_, input_data_.land_labels_,
+                       *grid_map_);
+  }
+
+  // - 3D PCL corner map estimation
+  std::vector<Corner> l_corners;
+  std::vector<Planar> l_planars;
+  std::vector<SemiPlane> l_planes;
+  SemiPlane l_ground_plane;
+  if (params_.use_lidar_features_)
+  {
+    lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+    l_planes = {};
+  }
+
+  // - 3D image feature map estimation
+  std::vector<ImageFeature> l_surf_features;
+  if (params_.use_image_features_)
+  {
+    vis_mapper_->localMap(input_data_.image_features_, l_surf_features);
+  }
+
+  RCLCPP_INFO(this->get_logger(), "Localization has started.");
+}
+
+void LocalizationNode::initializeOnMap()
+{
+  // -------------------------------------------------------------------------------
+  // ------ Compute the difference between map's and robot's datums
+  // -------------------------------------------------------------------------------
+  //  Point map_origin;
+  //  std::string map_zone;
+  //  GNSS2UTM(params_.map_datum_lat_, params_.map_datum_long_, map_origin.x_, map_origin.y_, map_zone);
+  //
+  //  Point robot_origin;
+  //  std::string robot_zone;
+  //  GNSS2UTM(params_.robot_datum_lat_, params_.robot_datum_long_, robot_origin.x_, robot_origin.y_, robot_zone);
+  //
+  //  RCLCPP_INFO(this->get_logger(), "%f, %f", map_origin.x_, map_origin.y_);
+  //  RCLCPP_INFO(this->get_logger(), "%f, %f", robot_origin.x_, robot_origin.y_);
+  //  RCLCPP_INFO(this->get_logger(), "%f, %f", map_origin.x_ - robot_origin.x_, map_origin.y_ - robot_origin.y_);
+  //
+  //  robot_pose_ = Pose(robot_origin.x_ - map_origin.x_, map_origin.y_ - robot_origin.y_, 0, 0, 0, 0);
+
+  im_menu_handler_ = interactive_markers::MenuHandler();
+  im_menu_handler_.insert("Initialize System",
+                          std::bind(&LocalizationNode::iMenuCallback, this, std::placeholders::_1));
+
+  im_server_ = std::make_unique<interactive_markers::InteractiveMarkerServer>(
+      "/vineslam/initialization_marker", get_node_base_interface(), get_node_clock_interface(),
+      get_node_logging_interface(), get_node_topics_interface(), get_node_services_interface());
+
+  std::string marker_name = "initialization_markers";
+  visualization_msgs::msg::InteractiveMarker imarker;
+  make6DofMarker(imarker, Point(0, 0, 0), marker_name);
+
+  // add the interactive marker to our collection &
+  // tell the server to call processFeedback() when feedback arrives for it
+  im_server_->insert(imarker);
+  im_server_->setCallback(imarker.name, std::bind(&LocalizationNode::iMarkerCallback, this, std::placeholders::_1));
+  im_menu_handler_.apply(*im_server_, imarker.name);
+
+  // 'commit' changes and send to all clients
+  im_server_->applyChanges();
+
+  RCLCPP_INFO(this->get_logger(), "Ready");
+}
+
+void LocalizationNode::process()
+{
+  // -------------------------------------------------------------------------------
+  // -------------------------------------------------------------------------------
+  // ---- Localization and mapping procedures
+  // -------------------------------------------------------------------------------
+  // -------------------------------------------------------------------------------
+
+  // ---------------------------------------------------------
+  // ----- Build local maps to use in the localization
+  // ---------------------------------------------------------
+  // - Compute 2D local map of semantic features on robot's referential frame
+  std::vector<SemanticFeature> l_landmarks;
+  if (params_.use_semantic_features_)
+  {
+    timer_->tick("landmark_mapper::localMap()");
+    land_mapper_->localMap(input_data_.land_bearings_, input_data_.land_depths_, l_landmarks);
+    timer_->tock();
+  }
+
+  // - Compute 3D PCL corners and ground plane on robot's referential frame
+  std::vector<Corner> l_corners;
+  std::vector<Planar> l_planars;
+  std::vector<SemiPlane> l_planes;
+  SemiPlane l_ground_plane;
+  if (params_.use_lidar_features_)
+  {
+    timer_->tick("lidar_mapper::localMap()");
+    lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+    l_planes = {};
+    timer_->tock();
+  }
+
+  // - Compute 3D image features on robot's referential frame
+  std::vector<ImageFeature> l_surf_features;
+  if (params_.use_image_features_)
+  {
+    timer_->tick("visual_mapper::localMap()");
+    vis_mapper_->localMap(input_data_.image_features_, l_surf_features);
+    timer_->tock();
+  }
+
+  // ---------------------------------------------------------
+  // ----- Build observation structure to use in the localization
+  // ---------------------------------------------------------
+  // * High level landmarks (if we're using them)
+  // * Point cloud corners and planars
+  // * SURF 3D image features
+  // * GPS (if we're using it)
+  obsv_.landmarks_ = l_landmarks;
+  obsv_.corners_ = l_corners;
+  obsv_.planars_ = l_planars;
+  obsv_.ground_plane_ = l_ground_plane;
+  obsv_.planes_ = l_planes;
+  obsv_.surf_features_ = l_surf_features;
+  obsv_.gps_pose_ = input_data_.gnss_pose_;
+  obsv_.imu_pose_ = input_data_.imu_pose_;
+
+  // ---------------------------------------------------------
+  // ----- Localization procedure
+  // ---------------------------------------------------------
+  Tf p_odom_tf = input_data_.p_wheel_odom_pose_.toTf();
+  Tf c_odom_tf = input_data_.wheel_odom_pose_.toTf();
+  Tf odom_inc_tf = p_odom_tf.inverse() * c_odom_tf;
+  Pose odom_inc(odom_inc_tf.R_array_, odom_inc_tf.t_array_);
+  input_data_.p_wheel_odom_pose_ = input_data_.wheel_odom_pose_;
+  odom_inc.normalize();
+
+  timer_->tick("localizer::process()");
+  localizer_->process(odom_inc, obsv_, grid_map_);
+  robot_pose_ = localizer_->getPose();
+  timer_->tock();
+
+  // ---------------------------------------------------------
+  // ----- ROS publishers and tf broadcasting
+  // ---------------------------------------------------------
+
+  // Publish tf::Transforms
+  tf2::Quaternion q;
+
+  // ---- base2map
+  geometry_msgs::msg::TransformStamped base2map_msg;
+  base2map_msg.header.stamp = header_.stamp;
+  base2map_msg.header.frame_id = params_.world_frame_id_;
+  base2map_msg.child_frame_id = "base_link";
+  q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
+  q.normalize();
+  pose2TransformStamped(q, tf2::Vector3(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_), base2map_msg);
+
+  if (params_.robot_model_ == "agrob")  // in this configuration we broadcast a map->base_link tf
+  {
+    tf_broadcaster_->sendTransform(base2map_msg);
+
+    // ---- odom2map
+    geometry_msgs::msg::TransformStamped map2odom_msg;
+    map2odom_msg.header.stamp = header_.stamp;
+    map2odom_msg.header.frame_id = "odom";
+    map2odom_msg.child_frame_id = params_.world_frame_id_;
+    q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
+    q.normalize();
+    pose2TransformStamped(q, tf2::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_), map2odom_msg);
+    tf_broadcaster_->sendTransform(map2odom_msg);
+    // ----
+  }
+  else  // in this configuration we broadcast a odom->map tf
+  {
+    geometry_msgs::msg::TransformStamped odom2base_msg;
+    tf2_ros::Buffer tf_buffer(this->get_clock());
+    tf2_ros::TransformListener tfListener(tf_buffer);
+
+    try
+    {
+      odom2base_msg = tf_buffer.lookupTransform("odom", "base_link", rclcpp::Time(0), rclcpp::Duration(300000000));
+    }
+    catch (tf2::TransformException& ex)
+    {
+      RCLCPP_WARN(this->get_logger(), "%s", ex.what());
+    }
+
+    tf2::Stamped<tf2::Transform> odom2base_tf, base2map_tf, odom2map_tf;
+    tf2::fromMsg(odom2base_msg, odom2base_tf);
+    tf2::fromMsg(base2map_msg, base2map_tf);
+
+    geometry_msgs::msg::TransformStamped odom2map_msg;
+
+    tf2::Transform t = odom2base_tf * base2map_tf.inverse();
+    odom2map_tf.setRotation(t.getRotation());
+    odom2map_tf.setOrigin(t.getOrigin());
+    pose2TransformStamped(odom2map_tf.getRotation(), odom2map_tf.getOrigin(), odom2map_msg);
+
+    odom2map_msg.header.stamp = header_.stamp;
+    odom2map_msg.header.frame_id = "odom";
+    odom2map_msg.child_frame_id = params_.world_frame_id_;
+
+    tf_broadcaster_->sendTransform(odom2map_msg);
+  }
+
+  // Convert vineslam pose to ROS pose and publish it
+  geometry_msgs::msg::PoseStamped pose_stamped;
+  pose_stamped.header.stamp = header_.stamp;
+  pose_stamped.header.frame_id = params_.world_frame_id_;
+  pose_stamped.pose.position.x = robot_pose_.x_;
+  pose_stamped.pose.position.y = robot_pose_.y_;
+  pose_stamped.pose.position.z = robot_pose_.z_;
+  pose_stamped.pose.orientation.x = q.x();
+  pose_stamped.pose.orientation.y = q.y();
+  pose_stamped.pose.orientation.z = q.z();
+  pose_stamped.pose.orientation.w = q.w();
+  pose_publisher_->publish(pose_stamped);
+
+  //  // Push back the current pose to the path container and publish it
+  //  path_.push_back(pose_stamped);
+  //  nav_msgs::msg::Path ros_path;
+  //  ros_path.header.stamp = rclcpp::Time();
+  //  ros_path.header.frame_id = params_.world_frame_id_;
+  //  ros_path.poses = path_;
+  //  path_publisher_->publish(ros_path);
+  //
+  //  // Non-dense publishers
+  //  publish3DMap(l_corners, corners_local_publisher_);
+  //  publish3DMap(l_planars, planars_local_publisher_);
+  //  l_planes.push_back(l_ground_plane);
+  //  publish3DMap(l_planes, planes_local_publisher_);
+  //  publishRobotBox(robot_pose_);
+}
+
+void LocalizationNode::iMarkerCallback(
+    const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr& feedback)
+{
+  geometry_msgs::msg::TransformStamped base2map_msg;
+  base2map_msg.header.stamp = header_.stamp;
+  base2map_msg.header.frame_id = params_.world_frame_id_;
+  base2map_msg.child_frame_id = "base_link";
+
+  tf2::Quaternion q;
+  q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
+  q.normalize();
+  pose2TransformStamped(feedback->pose.orientation, feedback->pose.position, base2map_msg);
+
+  if (params_.robot_model_ == "agrob")  // in this configuration we broadcast a map->base_link tf
+  {
+    tf_broadcaster_->sendTransform(base2map_msg);
+
+    // ---- odom2map
+    geometry_msgs::msg::TransformStamped map2odom_msg;
+    map2odom_msg.header.stamp = header_.stamp;
+    map2odom_msg.header.frame_id = "odom";
+    map2odom_msg.child_frame_id = params_.world_frame_id_;
+    q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
+    q.normalize();
+    pose2TransformStamped(q, tf2::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_), map2odom_msg);
+    tf_broadcaster_->sendTransform(map2odom_msg);
+    // ----
+  }
+  else  // in this configuration we broadcast a odom->map tf
+  {
+    geometry_msgs::msg::TransformStamped odom2base_msg;
+    tf2_ros::Buffer tf_buffer(this->get_clock());
+    tf2_ros::TransformListener tfListener(tf_buffer);
+
+    try
+    {
+      odom2base_msg = tf_buffer.lookupTransform("odom", "base_link", rclcpp::Time(0), rclcpp::Duration(300000000));
+    }
+    catch (tf2::TransformException& ex)
+    {
+      RCLCPP_WARN(this->get_logger(), "%s", ex.what());
+    }
+
+    tf2::Stamped<tf2::Transform> odom2base_tf, base2map_tf, odom2map_tf;
+    tf2::fromMsg(odom2base_msg, odom2base_tf);
+    tf2::fromMsg(base2map_msg, base2map_tf);
+
+    geometry_msgs::msg::TransformStamped odom2map_msg;
+
+    tf2::Transform t = odom2base_tf * base2map_tf.inverse();
+    odom2map_tf.setRotation(t.getRotation());
+    odom2map_tf.setOrigin(t.getOrigin());
+    pose2TransformStamped(odom2map_tf.getRotation(), odom2map_tf.getOrigin(), odom2map_msg);
+
+    odom2map_msg.header.stamp = header_.stamp;
+    odom2map_msg.header.frame_id = "odom";
+    odom2map_msg.child_frame_id = params_.world_frame_id_;
+
+    tf_broadcaster_->sendTransform(odom2map_msg);
+  }
+}
+
+void LocalizationNode::iMenuCallback(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr& feedback)
+{
+  if (feedback->menu_entry_id == 1)
+  {
+    // Save the robot initial pose set by the user
+    tf2::Quaternion q(feedback->pose.orientation.x, feedback->pose.orientation.y, feedback->pose.orientation.z,
+                      feedback->pose.orientation.w);
+    tf2Scalar R, P, Y;
+    tf2::Matrix3x3(q).getRPY(R, P, Y);
+
+    robot_pose_.x_ = feedback->pose.position.x;
+    robot_pose_.y_ = feedback->pose.position.y;
+    robot_pose_.z_ = feedback->pose.position.z;
+    robot_pose_.R_ = static_cast<float>(R);
+    robot_pose_.P_ = static_cast<float>(P);
+    robot_pose_.Y_ = static_cast<float>(Y);
+
+    // Initialize the localization system
+    RCLCPP_INFO(this->get_logger(), "Initializing system...");
+    init();
+    RCLCPP_INFO(this->get_logger(), "Initialization performed! Starting execution.");
+    init_flag_ = false;
   }
 }
 

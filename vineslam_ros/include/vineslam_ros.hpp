@@ -133,7 +133,7 @@ public:
   void publish3DMap(const Pose& r_pose, const std::vector<Planar>& planars,
                     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub);
   // Creates a 6-DoF interactive marker
-  void make6DofMarker(visualization_msgs::msg::InteractiveMarker &imarker, Point position, std::string marker_name);
+  void make6DofMarker(visualization_msgs::msg::InteractiveMarker& imarker, Point position, std::string marker_name);
   // Publishes a box containing the grid map
   void publishGridMapLimits() const;
   // Publishes a box containing the zone occupied by the robot
@@ -208,6 +208,8 @@ public:
   Pose init_odom_pose_;
   Pose init_gps_pose_;
   Pose robot_pose_;
+  Pose map2init;  // This is only used for localization-only. It represents the initial transformation between the map
+                  // and the robot frames
 
   // odom -> satellite pose variables
   geometry_msgs::msg::TransformStamped satellite2base_msg_;

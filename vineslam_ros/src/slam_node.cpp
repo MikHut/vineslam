@@ -26,6 +26,9 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   init_gps_ = true;
   init_odom_ = true;
 
+  // Set map to robot initial tf to 0 (it will always be zero since we are doing slam here)
+  map2init = Pose(0, 0, 0, 0, 0, 0);
+
   // Declare the Mappers and Localizer objects
   localizer_ = new Localizer(params_);
   land_mapper_ = new LandmarkMapper(params_);

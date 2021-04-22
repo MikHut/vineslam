@@ -4,7 +4,7 @@ localization_node:
   use_semantic_features: False
   use_lidar_features: True
   use_image_features: False
-  use_gps: True
+  use_gps: False
   use_imu: True
 
   # WARNING (!): this is not the datum of the RTK base, but the datum of the robot initial position
@@ -14,6 +14,8 @@ localization_node:
       longitude: -7.555095358663023
       heading: 1.3786 # this is not being used in the localization node :)
     robot:
+#      latitude: 41.16666453372342
+#      longitude: -7.555095358663023
       latitude: 41.16671662742007
       longitude: -7.555065576828292
       heading: 1.3786 # this is not being used in the localization node :)

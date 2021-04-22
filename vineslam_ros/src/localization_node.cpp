@@ -28,6 +28,9 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
   init_gps_ = true;
   init_odom_ = true;
 
+  // Set map to robot initial tf to 0 (it will be updated when the user set the initial robot pose)
+  map2init = Pose(0, 0, 0, 0, 0, 0);
+
   // Declare the Mappers and Localizer objects
   localizer_ = new Localizer(params_);
   land_mapper_ = new LandmarkMapper(params_);
@@ -474,16 +477,13 @@ void LocalizationNode::initializeOnMap()
   std::string robot_zone;
   GNSS2UTM(params_.robot_datum_lat_, params_.robot_datum_long_, robot_origin.x_, robot_origin.y_, robot_zone);
 
-  RCLCPP_INFO(this->get_logger(), "%f, %f", map_origin.x_, map_origin.y_);
-  RCLCPP_INFO(this->get_logger(), "%f, %f", robot_origin.x_, robot_origin.y_);
-  RCLCPP_INFO(this->get_logger(), "%f, %f", map_origin.x_ - robot_origin.x_, map_origin.y_ - robot_origin.y_);
-
   robot_pose_ = Pose(robot_origin.x_ - map_origin.x_, map_origin.y_ - robot_origin.y_, 0, 0, 0, 0);
 
   // Create the interactive marker menu entries
   im_menu_handler_ = interactive_markers::MenuHandler();
-  im_menu_handler_.insert("Initialize System",
-                          std::bind(&LocalizationNode::iMenuCallback, this, std::placeholders::_1));
+  im_menu_handler_.insert("Call matcher", std::bind(&LocalizationNode::iMenuCallback, this, std::placeholders::_1));
+  im_menu_handler_.insert("Set pose", std::bind(&LocalizationNode::iMenuCallback, this, std::placeholders::_1));
+  im_menu_handler_.insert("Reset pose", std::bind(&LocalizationNode::iMenuCallback, this, std::placeholders::_1));
 
   // Declare the interactive marker server
   im_server_ = std::make_unique<interactive_markers::InteractiveMarkerServer>(
@@ -688,24 +688,69 @@ void LocalizationNode::iMenuCallback(const visualization_msgs::msg::InteractiveM
 {
   if (feedback->menu_entry_id == 1)
   {
-    // Save the robot initial pose set by the user
+    // Save the marker pose as initial guess for the matcher
     tf2::Quaternion q(feedback->pose.orientation.x, feedback->pose.orientation.y, feedback->pose.orientation.z,
                       feedback->pose.orientation.w);
     tf2Scalar R, P, Y;
     tf2::Matrix3x3(q).getRPY(R, P, Y);
 
-    robot_pose_.x_ = feedback->pose.position.x;
-    robot_pose_.y_ = feedback->pose.position.y;
-    robot_pose_.z_ = feedback->pose.position.z;
-    robot_pose_.R_ = static_cast<float>(R);
-    robot_pose_.P_ = static_cast<float>(P);
-    robot_pose_.Y_ = static_cast<float>(Y);
+    Pose initial_guess;
+    initial_guess.x_ = feedback->pose.position.x;
+    initial_guess.y_ = feedback->pose.position.y;
+    initial_guess.z_ = feedback->pose.position.z;
+    initial_guess.R_ = static_cast<float>(R);
+    initial_guess.P_ = static_cast<float>(P);
+    initial_guess.Y_ = static_cast<float>(Y);
+
+    Tf initial_guess_tf = initial_guess.toTf();
+
+    // Compute the planar features to use
+    std::vector<Corner> l_corners;
+    std::vector<Planar> l_planars;
+    std::vector<SemiPlane> l_planes;
+    SemiPlane l_ground_plane;
+    if (params_.use_lidar_features_)
+    {
+      lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+    }
+
+    // Prepare and call the matcher
+    ICP<Planar> initialization_matcher;
+    initialization_matcher.setTolerance(1e-5);
+    initialization_matcher.setMaxIterations(500);
+    initialization_matcher.setRejectOutliersFlag(false);
+    initialization_matcher.setInputTarget(grid_map_);
+    initialization_matcher.setInputSource(l_planars);
+
+    std::vector<Planar> aligned;
+    float rms_error;
+    if (initialization_matcher.align(initial_guess_tf, rms_error, aligned))
+    {
+      // Get homogeneous transformation result
+      Tf result;
+      initialization_matcher.getTransform(result);
+
+      // Save the result into the robot pose
+      robot_pose_ = Pose(result.R_array_, result.t_array_);
+    }
+    else
+    {
+      RCLCPP_ERROR(this->get_logger(), "The matcher failed, please try again with another initial guess.");
+    }
+  }
+  else if (feedback->menu_entry_id == 2)
+  {
+    // Set the map2init pose
+    map2init = robot_pose_;
 
     // Initialize the localization system
     RCLCPP_INFO(this->get_logger(), "Initializing system...");
     init();
     RCLCPP_INFO(this->get_logger(), "Initialization performed! Starting execution.");
     init_flag_ = false;
+  }
+  else if (feedback->menu_entry_id == 3)
+  {
   }
 }
 

@@ -146,8 +146,8 @@ void VineSLAM_ros::gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamp
           tf_buffer.lookupTransform("map_sn0", "base_link", rclcpp::Time(0), rclcpp::Duration(300000000));
 
       // Get rtk z offset
-      tf2::Stamped<tf2::Transform> odom2satellite_tf;
-      tf2::fromMsg(satellite2base_msg_, odom2satellite_tf);
+      tf2::Stamped<tf2::Transform> satellite2base_tf;
+      tf2::fromMsg(satellite2base_msg_, satellite2base_tf);
 
       tf2::Quaternion q;
       q.setX(msg->pose.pose.orientation.x);
@@ -157,7 +157,7 @@ void VineSLAM_ros::gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamp
 
       tf2::Transform gps_raw_pose(
           q, tf2::Vector3(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z));
-      tf2::Transform gps_pose = odom2satellite_tf.inverse() * gps_raw_pose;
+      tf2::Transform gps_pose = satellite2base_tf.inverse() * gps_raw_pose;
 
       rtk_z_offset_ = gps_pose.getOrigin().z();
 
@@ -171,8 +171,8 @@ void VineSLAM_ros::gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamp
   else
   {
     // Compute the rtk pose in sn0's reference frame
-    tf2::Stamped<tf2::Transform> odom2satellite_tf;
-    tf2::fromMsg(satellite2base_msg_, odom2satellite_tf);
+    tf2::Stamped<tf2::Transform> satellite2base_tf;
+    tf2::fromMsg(satellite2base_msg_, satellite2base_tf);
 
     tf2::Quaternion q;
     q.setX(msg->pose.pose.orientation.x);
@@ -182,14 +182,12 @@ void VineSLAM_ros::gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamp
 
     tf2::Transform gps_raw_pose(
         q, tf2::Vector3(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z));
-    tf2::Transform gps_pose = odom2satellite_tf.inverse() * gps_raw_pose;
+    tf2::Transform gps_pose = satellite2base_tf.inverse() * gps_raw_pose;
 
     // Save pose
     input_data_.gnss_pose_.x_ = gps_pose.getOrigin().x();
     input_data_.gnss_pose_.y_ = gps_pose.getOrigin().y();
     input_data_.gnss_pose_.z_ = gps_pose.getOrigin().z() - static_cast<tf2Scalar>(rtk_z_offset_);
-
-    std::cout << input_data_.gnss_pose_.x_ << ", " << input_data_.gnss_pose_.y_ << ", " << input_data_.gnss_pose_.z_ << "\n";
 
     // Set received flag to true
     input_data_.received_gnss_ = true;

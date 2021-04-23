@@ -26,9 +26,6 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   init_gps_ = true;
   init_odom_ = true;
 
-  // Set map to robot initial tf to 0 (it will always be zero since we are doing slam here)
-  map2init = Pose(0, 0, 0, 0, 0, 0);
-
   // Declare the Mappers and Localizer objects
   localizer_ = new Localizer(params_);
   land_mapper_ = new LandmarkMapper(params_);
@@ -142,6 +139,10 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   vel2base.getBasis().getRPY(roll, pitch, yaw);
   lid_mapper_->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
 
+  // Set the satellite -> map compensation to the identity since we are mapping (the origin of the robot is at the
+  // origin of the map)
+  map2robot_gnss_tf_.setIdentity();
+
   // Initialize tf broadcaster
   tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
 
@@ -153,7 +154,7 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
 
   // Call execution thread
   std::thread th1(&SLAMNode::loop, this);
-  std::thread th2(&SLAMNode::publishDenseInfo, this, 1.); // Publish dense info at 1Hz
+  std::thread th2(&SLAMNode::publishDenseInfo, this, 1.);  // Publish dense info at 1Hz
   th1.detach();
   th2.detach();
 }

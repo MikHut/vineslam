@@ -41,7 +41,9 @@ public:
   {
     if (source_vec_.empty())
     {
+#if VERBOSE == 1
       std::cout << "WARNING (ICP::align): source cloud empty. Returning first guess." << std::endl;
+#endif
       return true;
     }
 
@@ -78,13 +80,17 @@ public:
 
     if (!found_solution)  // invalid iteration
     {
+#if VERBOSE == 1
       std::cout << "WARNING ICP::align: Scan matcher failed - none valid iteration..." << std::endl;
+#endif
       return false;
     }
 
     if (n_iters == max_iters_)
     {
+#if VERBOSE == 1
       std::cout << "WANRING ICP::aling: Scan matcher failed - it did not converge..." << std::endl;
+#endif
       return false;
     }
 
@@ -99,9 +105,11 @@ public:
     //    if (std::fabs(delta_p.x_) > 0.5 || std::fabs(delta_p.y_) > 0.5 || std::fabs(delta_p.z_) > 0.5 ||
     //        std::fabs(delta_p.R_) > 0.85 || std::fabs(delta_p.P_) > 0.85 || std::fabs(delta_p.Y_) > 0.85)
     //    {
+    //#if VERBOSE == 1
     //      std::cout << "WARNING ICP::align: Huge jump detected on ICP - considering "
     //                   "iteration as invalid..."
     //                << std::endl;
+    //#endif
     //      return false;
     //    }
 
@@ -262,12 +270,16 @@ private:
 
     if (j == 0)  // Invalid iteration
     {
+#if VERBOSE == 1
       std::cout << "WARNING (ICP::step): Invalid iteration - none correspondence found..." << std::endl;
+#endif
       return false;
     }
     if (nsamples == 0)  // Invalid iteration
     {
+#if VERBOSE == 1
       std::cout << "WARNING (ICP::step): Invalid iteration - none inlier found..." << std::endl;
+#endif
       return false;
     }
 

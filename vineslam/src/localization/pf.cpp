@@ -88,6 +88,7 @@ float PF::sampleGaussian(const float& sigma, const unsigned long int& S)
 void PF::motionModel(const Pose& odom_inc)
 {
   float d_trans = odom_inc.norm3D();
+  float d_rot = Const::normalizeAngle(odom_inc.Y_);
 
   // Innovate particles
   for (auto& particle : particles_)
@@ -98,7 +99,7 @@ void PF::motionModel(const Pose& odom_inc)
 
     std::array<float, 6> gaussian_noise{};
     for (float& i : gaussian_noise)
-      i = d_trans * sampleGaussian(1.0);
+      i = (d_trans/* + d_rot*/) * sampleGaussian(1.0);
 
     pose_noise.x_ *= gaussian_noise[0];  // xx
     pose_noise.y_ *= gaussian_noise[1];  // yy
@@ -240,8 +241,8 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
     w_sum_ += particle.w_;
   }
 
-//  t_->getLog();
-//  t_->clearLog();
+  //  t_->getLog();
+  //  t_->clearLog();
 }
 
 void PF::gps(const Pose& gps_pose, std::vector<float>& ws)
@@ -564,8 +565,9 @@ void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* g
         {
           point = point * particles_[i].tf_;  // Convert plane boundaries
         }
-        l_plane.centroid_ = l_plane.centroid_ * particles_[i].tf_;                        // Convert the centroid
-        Ransac::estimateNormal(l_plane.points_, l_plane.a_, l_plane.b_, l_plane.c_, l_plane.d_);  // Convert plane normal
+        l_plane.centroid_ = l_plane.centroid_ * particles_[i].tf_;  // Convert the centroid
+        Ransac::estimateNormal(l_plane.points_, l_plane.a_, l_plane.b_, l_plane.c_,
+                               l_plane.d_);  // Convert plane normal
 
         bool found = false;
         for (auto& g_plane : grid_map->planes_)

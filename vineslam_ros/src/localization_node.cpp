@@ -28,9 +28,6 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
   init_gps_ = true;
   init_odom_ = true;
 
-  // Set map to robot initial tf to 0 (it will be updated when the user set the initial robot pose)
-  map2init = Pose(0, 0, 0, 0, 0, 0);
-
   // Declare the Mappers and Localizer objects
   localizer_ = new Localizer(params_);
   land_mapper_ = new LandmarkMapper(params_);
@@ -124,7 +121,7 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
   }
   RCLCPP_INFO(this->get_logger(), "Received!");
 
-  // Save sensors to map transformation
+  // Save tfs
   tf2::Stamped<tf2::Transform> cam2base_stamped;
   tf2::fromMsg(cam2base_msg, cam2base_stamped);
 
@@ -469,15 +466,21 @@ void LocalizationNode::initializeOnMap()
   // -------------------------------------------------------------------------------
   // ------ Compute the difference between map's and robot's datums
   // -------------------------------------------------------------------------------
-  Point map_origin;
+  double map_origin_x, map_origin_y;
   std::string map_zone;
-  GNSS2UTM(params_.map_datum_lat_, params_.map_datum_long_, map_origin.x_, map_origin.y_, map_zone);
+  GNSS2UTM(params_.map_datum_lat_, params_.map_datum_long_, map_origin_x, map_origin_y, map_zone);
 
-  Point robot_origin;
+  double robot_pose_x, robot_pose_y;
   std::string robot_zone;
-  GNSS2UTM(params_.robot_datum_lat_, params_.robot_datum_long_, robot_origin.x_, robot_origin.y_, robot_zone);
+  GNSS2UTM(params_.robot_datum_lat_, params_.robot_datum_long_, robot_pose_x, robot_pose_y, robot_zone);
 
-  robot_pose_ = Pose(robot_origin.x_ - map_origin.x_, map_origin.y_ - robot_origin.y_, 0, 0, 0, 0);
+  robot_pose_ = Pose(robot_pose_x - map_origin_x, map_origin_y - robot_pose_y, 0, 0, 0,
+                     params_.robot_datum_head_ - params_.map_datum_head_);
+
+  // Set the map -> robot gnss transformation
+  tf2::Quaternion q;
+  q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
+  map2robot_gnss_tf_ = tf2::Transform(q, tf2::Vector3(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_));
 
   // Create the interactive marker menu entries
   im_menu_handler_ = interactive_markers::MenuHandler();
@@ -493,7 +496,7 @@ void LocalizationNode::initializeOnMap()
   // Create the 6-DoF interactive marker
   std::string marker_name = "initialization_markers";
   visualization_msgs::msg::InteractiveMarker imarker;
-  make6DofMarker(imarker, Point(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_), marker_name);
+  make6DofMarker(imarker, robot_pose_, marker_name);
 
   // Insert the interactive marker and menu into the server and associate them with the corresponding callback functions
   im_server_->insert(imarker);
@@ -596,6 +599,8 @@ void LocalizationNode::process()
   pose_stamped.pose.orientation.z = q.z();
   pose_stamped.pose.orientation.w = q.w();
   pose_publisher_->publish(pose_stamped);
+
+  publish3DMap(l_planars, planars_local_publisher_);
 }
 
 void LocalizationNode::broadcastTfs()
@@ -639,28 +644,28 @@ void LocalizationNode::broadcastTfs()
       try
       {
         odom2base_msg = tf_buffer.lookupTransform("odom", "base_link", rclcpp::Time(0), rclcpp::Duration(300000000));
+
+        tf2::Stamped<tf2::Transform> odom2base_tf, base2map_tf, odom2map_tf;
+        tf2::fromMsg(odom2base_msg, odom2base_tf);
+        tf2::fromMsg(base2map_msg, base2map_tf);
+
+        geometry_msgs::msg::TransformStamped odom2map_msg;
+
+        tf2::Transform t = odom2base_tf * base2map_tf.inverse();
+        odom2map_tf.setRotation(t.getRotation());
+        odom2map_tf.setOrigin(t.getOrigin());
+        pose2TransformStamped(odom2map_tf.getRotation(), odom2map_tf.getOrigin(), odom2map_msg);
+
+        odom2map_msg.header.stamp = header_.stamp;
+        odom2map_msg.header.frame_id = "odom";
+        odom2map_msg.child_frame_id = params_.world_frame_id_;
+
+        tf_broadcaster_->sendTransform(odom2map_msg);
       }
       catch (tf2::TransformException& ex)
       {
         RCLCPP_WARN(this->get_logger(), "%s", ex.what());
       }
-
-      tf2::Stamped<tf2::Transform> odom2base_tf, base2map_tf, odom2map_tf;
-      tf2::fromMsg(odom2base_msg, odom2base_tf);
-      tf2::fromMsg(base2map_msg, base2map_tf);
-
-      geometry_msgs::msg::TransformStamped odom2map_msg;
-
-      tf2::Transform t = odom2base_tf * base2map_tf.inverse();
-      odom2map_tf.setRotation(t.getRotation());
-      odom2map_tf.setOrigin(t.getOrigin());
-      pose2TransformStamped(odom2map_tf.getRotation(), odom2map_tf.getOrigin(), odom2map_msg);
-
-      odom2map_msg.header.stamp = header_.stamp;
-      odom2map_msg.header.frame_id = "odom";
-      odom2map_msg.child_frame_id = params_.world_frame_id_;
-
-      tf_broadcaster_->sendTransform(odom2map_msg);
     }
 
     rclcpp::sleep_for(std::chrono::milliseconds(mil_secs));
@@ -740,14 +745,13 @@ void LocalizationNode::iMenuCallback(const visualization_msgs::msg::InteractiveM
   }
   else if (feedback->menu_entry_id == 2)
   {
-    // Set the map2init pose
-    map2init = robot_pose_;
-
     // Initialize the localization system
     RCLCPP_INFO(this->get_logger(), "Initializing system...");
     init();
     RCLCPP_INFO(this->get_logger(), "Initialization performed! Starting execution.");
     init_flag_ = false;
+
+    map2robot_gnss_tf_.setOrigin(tf2::Vector3(robot_pose_.x_, robot_pose_.y_, 0));
   }
   else if (feedback->menu_entry_id == 3)
   {

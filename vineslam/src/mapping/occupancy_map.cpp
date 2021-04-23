@@ -44,7 +44,9 @@ bool MapLayer::insert(const SemanticFeature& l_landmark, const int& id, const in
   }
   catch (char const* msg)
   {
+#if VERBOSE == 1
     std::cout << "MapLayer::insert(SemanticFeature) --- " << msg;
+#endif
     return false;
   }
 
@@ -91,7 +93,9 @@ bool MapLayer::insert(const ImageFeature& l_feature, const int& i, const int& j)
   }
   catch (char const* msg)
   {
+#if VERBOSE == 1
     std::cout << "MapLayer::insert(ImageFeature) --- " << msg;
+#endif
     return false;
   }
 
@@ -138,7 +142,9 @@ bool MapLayer::insert(const Corner& l_feature, const int& i, const int& j)
   }
   catch (char const* msg)
   {
+#if VERBOSE == 1
     std::cout << "MapLayer::insert(Corner) --- " << msg;
+#endif
     return false;
   }
 
@@ -223,7 +229,9 @@ bool MapLayer::insert(const Planar& l_feature, const int& i, const int& j)
   }
   catch (char const* msg)
   {
+#if VERBOSE == 1
     std::cout << "MapLayer::insert(Planar) --- " << msg;
+#endif
     return false;
   }
 
@@ -350,9 +358,11 @@ bool MapLayer::update(const SemanticFeature& new_landmark, const int& id, const 
     }
   }
 
+#if VERBOSE == 1
   std::cout << "WARNING (MapLayer::update): Trying to update Landmark that is "
                "not on the map... "
             << std::endl;
+#endif
   return false;
 }
 
@@ -400,9 +410,11 @@ bool MapLayer::update(const Corner& old_corner, const Corner& new_corner)
     }
   }
 
+#if VERBOSE == 1
   std::cout << "WARNING (OcuppancyMap::update): Trying to update a corner that is "
                "not on the map... "
             << std::endl;
+#endif
   return false;
 }
 
@@ -450,9 +462,11 @@ bool MapLayer::update(const Planar& old_planar, const Planar& new_planar)
     }
   }
 
+#if VERBOSE == 1
   std::cout << "WARNING (OcuppancyMap::update): Trying to update a planar that is "
                "not on the map... "
             << std::endl;
+#endif
   return false;
 }
 
@@ -537,7 +551,9 @@ bool MapLayer::getAdjacent(const int& i, const int& j, const int& layers, std::v
   }
   catch (char const* msg)
   {
+#if VERBOSE == 1
     std::cout << "MapLayer::GetAdjacent() --- " << msg;
+#endif
     return false;
   }
 
@@ -576,8 +592,10 @@ bool MapLayer::getAdjacent(const int& i, const int& j, const int& layers, std::v
   }
   else
   {
+#if VERBOSE == 1
     std::cout << "WARNING: Invalid number of adjacent layers. Only 1 or 2 adjacent "
                  "layers are supported.";
+#endif
     return false;
   }
 }
@@ -644,7 +662,9 @@ bool MapLayer::findNearest(const ImageFeature& input, ImageFeature& nearest, flo
           }
           catch (char const* msg)
           {
+#if VERBOSE == 1
             std::cout << "MapLayer::findNearest(ImageFeature) --- " << msg;
+#endif
             return false;
           }
 
@@ -785,9 +805,11 @@ bool MapLayer::findNearest(const ImageFeature& input, ImageFeature& nearest, flo
       //        // Check validity of descriptors data
       //        if (desc.size() != l_desc.size())
       //        {
+      //#if VERBOSE == 1
       //          std::cout << "WARNING (findNearest): source and target descriptors have "
       //                       "different size ... "
       //                    << std::endl;
+      //#endif
       //          break;
       //        }
       //
@@ -896,7 +918,9 @@ bool MapLayer::findNearest(const Corner& input, Corner& nearest, float& sdist)
           }
           catch (char const* msg)
           {
+#if VERBOSE == 1
             std::cout << "MapLayer::findNearest(Corner) --- " << msg;
+#endif
             return false;
           }
 
@@ -1111,7 +1135,9 @@ bool MapLayer::findNearest(const Planar& input, Planar& nearest, float& sdist)
           }
           catch (char const* msg)
           {
+#if VERBOSE == 1
             std::cout << "MapLayer::findNearest(Planar) --- " << msg;
+#endif
             return false;
           }
 
@@ -1279,7 +1305,9 @@ bool MapLayer::findNearestOnCell(const ImageFeature& input, ImageFeature& neares
 {
   if (n_surf_features_ == 0)
   {
+#if VERBOSE == 1
     std::cout << "WARNING (findNearest): Trying to find nearest feature on empty map..." << std::endl;
+#endif
     return false;
   }
 
@@ -1468,9 +1496,11 @@ bool OccupancyMap::update(const Corner& old_corner, const Corner& new_corner)
     }
   }
 
+#if VERBOSE == 1
   std::cout << "WARNING (OcuppancyMap::update): Trying to update a corner that is "
                "not on the map... "
             << std::endl;
+#endif
   return false;
 }
 
@@ -1527,9 +1557,11 @@ bool OccupancyMap::update(const Planar& old_planar, const Planar& new_planar)
     }
   }
 
+#if VERBOSE == 1
   std::cout << "WARNING (OcuppancyMap::update): Trying to update a planar that is "
                "not on the map... "
             << std::endl;
+#endif
   return false;
 }
 
@@ -1587,9 +1619,11 @@ bool OccupancyMap::update(const ImageFeature& old_image_feature, const ImageFeat
     }
   }
 
+#if VERBOSE == 1
   std::cout << "WARNING (OcuppancyMap::update): Trying to update an image feature that is "
                "not on the map... "
             << std::endl;
+#endif
   return false;
 }
 

@@ -34,7 +34,7 @@ static void pose2TransformStamped(const tf2::Quaternion& q, const tf2::Vector3& 
 //  return ros_point;
 //}
 
-static void GNSS2UTM(const float& latitute, const float& longitude, float& utm_north, float& utm_east,
+static void GNSS2UTM(const double& latitute, const double& longitude, double& utm_north, double& utm_east,
                      std::string& utm_zone)
 {
   auto UTMLetterDesignator = [](float latitude) {
@@ -82,22 +82,22 @@ static void GNSS2UTM(const float& latitute, const float& longitude, float& utm_n
       return 'Z';
   };
 
-  float a = WGS84_A;
-  float ecc_squared = UTM_E2;
-  float k0 = UTM_K0;
+  double a = WGS84_A;
+  double ecc_squared = UTM_E2;
+  double k0 = UTM_K0;
 
-  float longiture_origin;
-  float ecc_prime_squared;
-  float N, T, C, A, M;
+  double longiture_origin;
+  double ecc_prime_squared;
+  double N, T, C, A, M;
 
   // Make sure the longitude is between -180.00 .. 179.9
-  float long_tmp = (longitude + 180) - static_cast<int>((longitude + 180) / 360) * 360 - 180;
+  double long_tmp = (longitude + 180.0f) - static_cast<int>((longitude + 180.0f) / 360.0f) * 360.0f - 180.0f;
 
-  float lat_rad = latitute * DEGREE_TO_RAD;
-  float long_rad = long_tmp * DEGREE_TO_RAD;
-  float long_origin_rad;
+  double lat_rad = latitute * DEGREE_TO_RAD;
+  double long_rad = long_tmp * DEGREE_TO_RAD;
+  double long_origin_rad;
 
-  int zone_number = static_cast<int>((long_tmp + 180) / 6) + 1;
+  int zone_number = static_cast<int>((long_tmp + 180.0f) / 6.0f) + 1.0f;
 
   if (latitute >= 56.0 && latitute < 64.0 && long_tmp >= 3.0 && long_tmp < 12.0)
     zone_number = 32;
@@ -115,7 +115,7 @@ static void GNSS2UTM(const float& latitute, const float& longitude, float& utm_n
       zone_number = 37;
   }
   // +3 puts origin in middle of zone
-  longiture_origin = (zone_number - 1) * 6 - 180 + 3;
+  longiture_origin = (zone_number - 1.0f) * 6.0f - 180.0f + 3.0f;
   long_origin_rad = longiture_origin * DEGREE_TO_RAD;
 
   // Compute the UTM Zone from the latitude and longitude
@@ -123,31 +123,31 @@ static void GNSS2UTM(const float& latitute, const float& longitude, float& utm_n
   snprintf(zone_buf, sizeof(zone_buf), "%hu%c", zone_number, UTMLetterDesignator(latitute));
   utm_zone = std::string(zone_buf);
 
-  ecc_prime_squared = (ecc_squared) / (1 - ecc_squared);
+  ecc_prime_squared = (ecc_squared) / (1.0f - ecc_squared);
 
-  N = a / sqrt(1 - ecc_squared * sin(lat_rad) * sin(lat_rad));
+  N = a / sqrt(1.0f - ecc_squared * sin(lat_rad) * sin(lat_rad));
   T = tan(lat_rad) * tan(lat_rad);
   C = ecc_prime_squared * cos(lat_rad) * cos(lat_rad);
   A = cos(lat_rad) * (long_rad - long_origin_rad);
 
   M = a *
-      ((1 - ecc_squared / 4 - 3 * ecc_squared * ecc_squared / 64 - 5 * ecc_squared * ecc_squared * ecc_squared / 256) *
+      ((1.0f - ecc_squared / 4.0f - 3.0f * ecc_squared * ecc_squared / 64.0f - 5.0f * ecc_squared * ecc_squared * ecc_squared / 256.0f) *
            lat_rad -
-       (3 * ecc_squared / 8 + 3 * ecc_squared * ecc_squared / 32 +
-        45 * ecc_squared * ecc_squared * ecc_squared / 1024) *
-           sin(2 * lat_rad) +
-       (15 * ecc_squared * ecc_squared / 256 + 45 * ecc_squared * ecc_squared * ecc_squared / 1024) * sin(4 * lat_rad) -
-       (35 * ecc_squared * ecc_squared * ecc_squared / 3072) * sin(6 * lat_rad));
+       (3.0f * ecc_squared / 8.0f + 3.0f * ecc_squared * ecc_squared / 32.0f +
+        45.0f * ecc_squared * ecc_squared * ecc_squared / 1024.0f) *
+           sin(2.0f * lat_rad) +
+       (15.0f * ecc_squared * ecc_squared / 256.0f + 45.0f * ecc_squared * ecc_squared * ecc_squared / 1024.0f) * sin(4.0f * lat_rad) -
+       (35.0f * ecc_squared * ecc_squared * ecc_squared / 3072.0f) * sin(6.0f * lat_rad));
 
-  utm_east = static_cast<float>(k0 * N *
-                                    (A + (1 - T + C) * A * A * A / 6 +
-                                     (5 - 18 * T + T * T + 72 * C - 58 * ecc_prime_squared) * A * A * A * A * A / 120) +
+  utm_east = static_cast<double>(k0 * N *
+                                    (A + (1.0f - T + C) * A * A * A / 6.0f +
+                                     (5.0f - 18.0f * T + T * T + 72.0f * C - 58.0f * ecc_prime_squared) * A * A * A * A * A / 120.0f) +
                                 500000.0);
 
-  utm_north = static_cast<float>(
+  utm_north = static_cast<double>(
       k0 * (M + N * tan(lat_rad) *
-                    (A * A / 2 + (5 - T + 9 * C + 4 * C * C) * A * A * A * A / 24 +
-                     (61 - 58 * T + T * T + 600 * C - 330 * ecc_prime_squared) * A * A * A * A * A * A / 720)));
+                    (A * A / 2.0f + (5.0f - T + 9.0f * C + 4.0f * C * C) * A * A * A * A / 24.0f +
+                     (61.0f - 58.0f * T + T * T + 600.0f * C - 330.0f * ecc_prime_squared) * A * A * A * A * A * A / 720.0f)));
 
   if (latitute < 0)
   {
@@ -182,33 +182,33 @@ static void UTMtoGNSS(const float& utm_north, const float& utm_east, const std::
 
   // +3 puts origin in middle of zone
   long_origin = (zone_number - 1) * 6 - 180 + 3;
-  ecc_primed_squared = (ecc_squared) / (1 - ecc_squared);
+  ecc_primed_squared = (ecc_squared) / (1.0f - ecc_squared);
 
   M = y / k0;
-  mu = M / (a * (1 - ecc_squared / 4 - 3 * ecc_squared * ecc_squared / 64 -
-                 5 * ecc_squared * ecc_squared * ecc_squared / 256));
+  mu = M / (a * (1.0f - ecc_squared / 4.0f - 3.0f * ecc_squared * ecc_squared / 64.0f -
+                 5.0f * ecc_squared * ecc_squared * ecc_squared / 256.0f));
 
   phi1_rad =
-      mu + ((3 * e1 / 2 - 27 * e1 * e1 * e1 / 32) * sin(2 * mu) +
-            (21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 * e1 / 32) * sin(4 * mu) + (151 * e1 * e1 * e1 / 96) * sin(6 * mu));
+      mu + ((3.0f * e1 / 2.0f - 27.0f * e1 * e1 * e1 / 32.0f) * sin(2.0f * mu) +
+            (21.0f * e1 * e1 / 16.0f - 55.0f * e1 * e1 * e1 * e1 / 32.0f) * sin(4.0f * mu) + (151.0f * e1 * e1 * e1 / 96.0f) * sin(6.0f * mu));
 
-  N1 = a / sqrt(1 - ecc_squared * sin(phi1_rad) * sin(phi1_rad));
+  N1 = a / sqrt(1.0f - ecc_squared * sin(phi1_rad) * sin(phi1_rad));
   T1 = tan(phi1_rad) * tan(phi1_rad);
   C1 = ecc_primed_squared * cos(phi1_rad) * cos(phi1_rad);
-  R1 = a * (1 - ecc_squared) / pow(1 - ecc_squared * sin(phi1_rad) * sin(phi1_rad), 1.5);
+  R1 = a * (1.0f - ecc_squared) / pow(1.0f - ecc_squared * sin(phi1_rad) * sin(phi1_rad), 1.5);
   D = x / (N1 * k0);
 
   latitude =
       phi1_rad - ((N1 * tan(phi1_rad) / R1) *
-                  (D * D / 2 - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * ecc_primed_squared) * D * D * D * D / 24 +
-                   (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * ecc_primed_squared - 3 * C1 * C1) * D * D * D * D *
-                       D * D / 720));
+                  (D * D / 2.0f - (5.0f + 3.0f * T1 + 10.0f * C1 - 4.0f * C1 * C1 - 9.0f * ecc_primed_squared) * D * D * D * D / 24.0f +
+                   (61.0f + 90.0f * T1 + 298.0f * C1 + 45.0f * T1 * T1 - 252.0f * ecc_primed_squared - 3.0f * C1 * C1) * D * D * D * D *
+                       D * D / 720.0f));
 
   latitude = latitude * RAD_TO_DEGREE;
 
   longitude =
-      ((D - (1 + 2 * T1 + C1) * D * D * D / 6 +
-        (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * ecc_primed_squared + 24 * T1 * T1) * D * D * D * D * D / 120) /
+      ((D - (1.0f + 2.0f * T1 + C1) * D * D * D / 6.0f +
+        (5.0f - 2.0f * C1 + 28.0f * T1 - 3.0f * C1 * C1 + 8.0f * ecc_primed_squared + 24.0f * T1 * T1) * D * D * D * D * D / 120.0f) /
        cos(phi1_rad));
   longitude = long_origin + longitude * RAD_TO_DEGREE;
 }

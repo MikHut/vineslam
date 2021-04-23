@@ -141,7 +141,7 @@ void VineSLAM_ros::gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamp
 
     try
     {
-      // Get odom -> sn0 transformation
+      // Get base_link -> sn0 transformation
       satellite2base_msg_ =
           tf_buffer.lookupTransform("map_sn0", "base_link", rclcpp::Time(0), rclcpp::Duration(300000000));
 
@@ -182,7 +182,7 @@ void VineSLAM_ros::gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamp
 
     tf2::Transform gps_raw_pose(
         q, tf2::Vector3(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z));
-    tf2::Transform gps_pose = satellite2base_tf.inverse() * gps_raw_pose;
+    tf2::Transform gps_pose = map2robot_gnss_tf_ * (satellite2base_tf.inverse() * gps_raw_pose);
 
     // Save pose
     input_data_.gnss_pose_.x_ = gps_pose.getOrigin().x();
@@ -315,7 +315,7 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
   infofile.open(params_.map_output_folder_ + "info_" + std::to_string(timestamp) + ".json");
 
   // Compute polar coordinates of center and corners of the map image
-  float datum_utm_x, datum_utm_y;
+  double datum_utm_x, datum_utm_y;
   std::string datum_utm_zone;
   GNSS2UTM(params_.map_datum_lat_, params_.map_datum_long_, datum_utm_x, datum_utm_y, datum_utm_zone);
 

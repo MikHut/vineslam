@@ -116,7 +116,9 @@ struct Ransac
 
       if (!found_valid_pts)
       {
+#if VERBOSE == 1
         std::cout << "WARNING (ransac): No valid set of points found ... " << std::endl;
+#endif
         return false;
       }
 

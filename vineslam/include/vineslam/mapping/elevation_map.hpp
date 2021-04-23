@@ -33,8 +33,10 @@ public:
     }
     catch (char const* msg)
     {
+#if VERBOSE == 1
       std::cout << msg;
       std::cout << "Returning last grid element ..." << std::endl;
+#endif
 
       return cell_vec_[cell_vec_.size() - 1];
     }

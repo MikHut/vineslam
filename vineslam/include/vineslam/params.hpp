@@ -25,12 +25,12 @@ struct Parameters
   // -----------------------------------
   // ------ Map origin - datum
   // -----------------------------------
-  float map_datum_lat_{};
-  float map_datum_long_{};
-  float map_datum_head_{};
-  float robot_datum_lat_{};
-  float robot_datum_long_{};
-  float robot_datum_head_{};
+  double map_datum_lat_{};
+  double map_datum_long_{};
+  double map_datum_head_{};
+  double robot_datum_lat_{};
+  double robot_datum_long_{};
+  double robot_datum_head_{};
 
   // -----------------------------------
   // ------ Camera info parameters

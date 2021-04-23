@@ -769,17 +769,27 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<Planar>& p
   pub->publish(cloud_out2);
 }
 
-void VineSLAM_ros::make6DofMarker(visualization_msgs::msg::InteractiveMarker& imarker, Point position,
+void VineSLAM_ros::make6DofMarker(visualization_msgs::msg::InteractiveMarker& imarker, Pose pose,
                                   std::string marker_name)
 {
+  // Convert euler to quaternion
+  tf2::Quaternion q;
+  q.setRPY(pose.R_, pose.P_, pose.Y_);
+
+  // Create and initialize the interactive marker
   imarker.header.frame_id = params_.world_frame_id_;
-  imarker.pose.position.x = position.x_;
-  imarker.pose.position.y = position.y_;
-  imarker.pose.position.z = position.z_;
+  imarker.pose.position.x = pose.x_;
+  imarker.pose.position.y = pose.y_;
+  imarker.pose.position.z = pose.z_;
+  imarker.pose.orientation.x = q.getX();
+  imarker.pose.orientation.y = q.getY();
+  imarker.pose.orientation.z = q.getZ();
+  imarker.pose.orientation.w = q.getW();
   imarker.scale = 2;
   imarker.name = marker_name;
   imarker.description = "6-DoF interactive marker";
 
+  // Create and set controls
   visualization_msgs::msg::InteractiveMarkerControl control;
   control.always_visible = true;
 

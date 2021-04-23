@@ -93,13 +93,12 @@ A 3D map built with SURF features detected on the image.
 ## <a name="installation"/> Installation
 
 ```
-sudo apt-get install ros-melodic-geographic-msgs ros-melodic-vision-msgs ros-melodic-pcl-ros
+sudo apt-get install ros-foxy-vision-msgs
 
-cd <path_to_catkin_ws>/src
-git clone git@gitlab.inesctec.pt:agrob/agrob_map_transform.git -b master
+cd <path_to_ros2_ws>/src
 git clone git@gitlab.inesctec.pt:agrob/vineslam.git -b master
-cd <path_to_catkin_ws>
-catkin_make -DCMAKE_BUILD_TYPE=Release
+cd <path_to_ros2_ws>
+colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 ```
 
 ## <a name="ros"/> ROS structure

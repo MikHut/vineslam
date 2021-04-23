@@ -12,7 +12,7 @@
 #include <vineslam/math/Point.hpp>
 #include <vineslam/math/Pose.hpp>
 #include <vineslam/math/Tf.hpp>
-#include <vineslam/math/const.hpp>
+#include <vineslam/math/Const.hpp>
 #include <vineslam/filters/ransac.hpp>
 #include <vineslam/filters/convex_hull.hpp>
 #include <vineslam/utils/Timer.hpp>
@@ -57,9 +57,6 @@ public:
   void registerMaps(const Pose& robot_pose, const std::vector<Corner>& corners, const std::vector<Planar>& planars,
                     const std::vector<SemiPlane>& planes, const SemiPlane& ground, OccupancyMap& grid_map);
 
-  // Call the ray trace routine
-  void performRayTrace(const Pose& robot_pose, const std::vector<Point>& scan_pts, OccupancyMap& grid_map);
-
   // -------------------------------------------------------------------------------
   // ---- 3D pointcloud feature map
   // -------------------------------------------------------------------------------
@@ -101,11 +98,10 @@ private:
   void flatGroundRemoval(const std::vector<Point>& in_pts, Plane& out_pcl);
 
   // Cloud generic plane segmentation
-  void cloudSegmentation(const std::vector<Point>& in_pts, std::vector<PlanePoint>& cloud_seg,
-                         std::vector<PlanePoint>& cloud_seg_pure);
+  void cloudSegmentation(const std::vector<Point>& in_pts, std::vector<PlanePoint>& cloud_seg);
 
   // Label a segment of a 3D point cloud
-  void labelComponents(const int& row, const int& col, const std::vector<Point>& in_pts, int& label);
+  void labelComponents(const int& row, const int& col, int& label);
 
   // Extract a couple of semiplanes
   void extractHighLevelPlanes(const std::vector<Point>& in_plane_pts, const SemiPlane& ground_plane,

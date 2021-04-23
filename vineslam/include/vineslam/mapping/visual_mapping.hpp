@@ -10,7 +10,7 @@
 #include "../math/Point.hpp"
 #include "../math/Pose.hpp"
 #include "../math/Tf.hpp"
-#include "../math/const.hpp"
+#include "../math/Const.hpp"
 
 namespace vineslam
 {
@@ -19,7 +19,7 @@ class VisualMapper
 public:
   // Class constructor - receives and saves the system
   // parameters
-  explicit VisualMapper(const Parameters& params);
+  VisualMapper();
 
   void registerMaps(const Pose& robot_pose, std::vector<ImageFeature>& img_features, OccupancyMap& grid_map);
 

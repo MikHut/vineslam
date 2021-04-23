@@ -40,7 +40,7 @@ void Localizer::process(const Pose& wheel_odom_inc, const Observation& obsv, Occ
   // ------------------------------------------------------------------------------
   // ---------------- Draw particles using odometry motion model
   // ------------------------------------------------------------------------------
-  pf_->motionModel(odom_inc, p_odom_);
+  pf_->motionModel(odom_inc);
   // - Save not resampled particles
   m_particles_.clear();
   for (const auto& particle : pf_->particles_)

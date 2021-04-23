@@ -3,6 +3,7 @@ import yaml
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
+from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 
 
@@ -12,7 +13,7 @@ def generate_launch_description():
     # ------------------------------------------------------------
 
     # Simulated time
-    use_sim_time = LaunchConfiguration('use_sim_time', default='true')
+    use_sim_time = LaunchConfiguration('use_sim_time', default='false')
 
     config_path = os.path.join(
         get_package_share_directory('vineslam_ros'),
@@ -23,12 +24,15 @@ def generate_launch_description():
     rviz_path = os.path.join(
         get_package_share_directory('vineslam_ros'),
         'config',
-        'test.rviz')
+        'test_localization.rviz')
 
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
 
     ld = LaunchDescription()
+
+    log_level = DeclareLaunchArgument("log_level", default_value=["info"], description="Logging level")
+    ld.add_action(log_level)
 
     # ------------------------------------------------------------
     # ---- Declare ros nodes
@@ -52,6 +56,7 @@ def generate_launch_description():
     ld.add_action(tf2)
 
     # VineSLAM node
+    logger = LaunchConfiguration("log_level")
     vineslam = Node(
         package='vineslam_ros',
         executable='localization_node',
@@ -65,15 +70,12 @@ def generate_launch_description():
             ('/detections_topic', '/tpu/detections'),
             ('/scan_topic', '/white/velodyne_points'),
         ],
-        output={
-            'stdout': 'screen',
-            'stderr': 'screen',
-        },
+        arguments=['--ros-args', '--log-level', logger]
     )
     ld.add_action(vineslam)
 
-    if config['localization_node']['use_semantic_features'] == True or config['localization_node']['use_image_features']:
-
+    if config['localization_node']['use_semantic_features'] == True or config['localization_node'][
+        'use_image_features']:
         depth_topic = '/zed/zed_node/depth/depth_registered'
         image_topic = '/zed/zed_node/left/image'
 
@@ -94,8 +96,10 @@ def generate_launch_description():
             executable='run_detection_model',
             name='run_detection_model',
             parameters=[
-                {'model_file': '/home/andresaguiar/ROS/ros2_ws/src/tpu-object-detection/object_detection/models/mv1/edgetpu_cpp_model_output_tflite_graph_edgetpu.tflite'},
-                {'labels_file': '/home/andresaguiar/ROS/ros2_ws/src/tpu-object-detection/object_detection/models/mv1/edgetpu_cpp_model_labels.txt'}
+                {
+                    'model_file': '/home/andresaguiar/ROS/ros2_ws/src/tpu-object-detection/object_detection/models/mv1/edgetpu_cpp_model_output_tflite_graph_edgetpu.tflite'},
+                {
+                    'labels_file': '/home/andresaguiar/ROS/ros2_ws/src/tpu-object-detection/object_detection/models/mv1/edgetpu_cpp_model_labels.txt'}
             ],
             remappings=[
                 ('/input_rgb_image', image_topic),
@@ -135,6 +139,5 @@ def generate_launch_description():
         arguments=['-d', rviz_path, '--ros-args', '--log-level', 'INFO'],
     )
     ld.add_action(rviz)
-
 
     return ld

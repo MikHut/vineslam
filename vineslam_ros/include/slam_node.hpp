@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vineslam_ros.hpp"
+#include "../include/convertions.hpp"
 
 namespace vineslam
 {
@@ -10,7 +11,7 @@ public:
   // Class constructor that
   // - Initialize the ROS node
   // - Define the publish and subscribe topics
-  SLAMNode(int argc, char** argv);
+  SLAMNode();
 
   // Class destructor - saves the map to an output xml file
   ~SLAMNode();
@@ -18,6 +19,12 @@ public:
 private:
   // Parameters loader
   void loadParameters(Parameters& params);
+
+  // Runtime execution routines
+  void init();
+  void loop();
+  void loopOnce();
+  void process();
 
   // ROS subscribers
   rclcpp::Subscription<vineslam_msgs::msg::FeatureArray>::SharedPtr feature_subscriber_;
@@ -28,8 +35,6 @@ private:
   rclcpp::Subscription<geometry_msgs::msg::Vector3Stamped>::SharedPtr imu_subscriber_;
 
   // ROS services
-  rclcpp::Service<vineslam_ros::srv::StartMapRegistration>::SharedPtr start_reg_srv_;
-  rclcpp::Service<vineslam_ros::srv::StopMapRegistration>::SharedPtr stop_reg_srv_;
   rclcpp::Service<vineslam_ros::srv::SaveMap>::SharedPtr save_map_srv_;
 };
 

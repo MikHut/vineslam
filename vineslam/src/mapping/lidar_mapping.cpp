@@ -155,7 +155,7 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
   // A - Extraction
   flatGroundRemoval(transformed_pcl, unfiltered_gplane);
   // B - Filtering
-  ransac(unfiltered_gplane.points_, filtered_gplane, 100, 0.01, true);
+  Ransac::process(unfiltered_gplane.points_, filtered_gplane, 100, 0.01, true);
   // C - Centroid calculation
   for (const auto& pt : filtered_gplane.points_)
   {
@@ -163,7 +163,7 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
   }
   filtered_gplane.centroid_ = filtered_gplane.centroid_ / static_cast<float>(filtered_gplane.points_.size());
   // D - Bounding polygon
-  convexHull(filtered_gplane, out_groundplane);
+  ConvexHull::process(filtered_gplane, out_groundplane);
   for (auto& pt : out_groundplane.points_)
   {
     pt = pt * tf.inverse();
@@ -194,8 +194,8 @@ void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& o
   }
 
   // - Planes that are not the ground
-  std::vector<PlanePoint> cloud_seg, cloud_seg_pure;
-  cloudSegmentation(transformed_pcl, cloud_seg, cloud_seg_pure);
+  std::vector<PlanePoint> cloud_seg;
+  cloudSegmentation(transformed_pcl, cloud_seg);
 
   // - Extract high level planes, and then convert them to semi-planes
   extractHighLevelPlanes(transformed_pcl, out_groundplane, out_planes);
@@ -374,7 +374,8 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, const std::vector<SemiP
   // ----------------------------------------------------------------------------
   if (it_ % filter_frequency_ == 0)
   {
-    for (uint32_t i = 0; i < grid_map.planes_.size(); i++)
+    int planes_size = static_cast<int>(grid_map.planes_.size());
+    for (int i = 0; i < planes_size; i++)
     {
       if (grid_map.planes_[i].n_occurences_ > filter_frequency_ && grid_map.planes_[i].n_correspondences_ < 10)
       {
@@ -418,7 +419,7 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, const std::vector<SemiP
     float ov_area = area_th;
 
     // Declare plane to store the correspondence
-    SemiPlane* correspondence;
+    auto* correspondence = new SemiPlane();
 
     // Convert local plane to maps' referential frame
     SemiPlane l_plane = plane;
@@ -431,7 +432,7 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, const std::vector<SemiP
       point = point * tf;  // Convert plane boundaries
     }
     l_plane.centroid_ = l_plane.centroid_ * tf;                                       // Convert the centroid
-    estimateNormal(l_plane.points_, l_plane.a_, l_plane.b_, l_plane.c_, l_plane.d_);  // Convert plane normal
+    Ransac::estimateNormal(l_plane.points_, l_plane.a_, l_plane.b_, l_plane.c_, l_plane.d_);  // Convert plane normal
     l_plane.setLocalRefFrame();
 
     bool found = false;
@@ -468,7 +469,7 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, const std::vector<SemiP
 
       // Now, check for transformed polygon intersections
       SemiPlane isct;
-      polygonIntersection(gg_plane, lg_plane, isct.extremas_);
+      ConvexHull::polygonIntersection(gg_plane, lg_plane, isct.extremas_);
 
       // Compute the intersection semi plane area
       isct.setArea();
@@ -529,7 +530,7 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, const std::vector<SemiP
 
       // Re-compute the plane normal
       float l_a, l_b, l_c, l_d;
-      estimateNormal(correspondence->points_, l_a, l_b, l_c, l_d);
+      Ransac::estimateNormal(correspondence->points_, l_a, l_b, l_c, l_d);
       correspondence->a_ = l_a;
       correspondence->b_ = l_b;
       correspondence->c_ = l_c;
@@ -539,7 +540,7 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, const std::vector<SemiP
       // Re-compute the semi plane boundaries
       Plane filter_plane(l_a, l_b, l_c, l_d, correspondence->points_);
       SemiPlane filter_semiplane;
-      convexHull(filter_plane, filter_semiplane);
+      ConvexHull::process(filter_plane, filter_semiplane);
       correspondence->extremas_ = filter_semiplane.extremas_;
       correspondence->setArea();
 
@@ -681,8 +682,7 @@ void LidarMapper::groundRemoval(const std::vector<Point>& in_pts, Plane& out_pcl
   }
 }
 
-void LidarMapper::cloudSegmentation(const std::vector<Point>& in_pts, std::vector<PlanePoint>& cloud_seg,
-                                    std::vector<PlanePoint>& cloud_seg_pure)
+void LidarMapper::cloudSegmentation(const std::vector<Point>& in_pts, std::vector<PlanePoint>& cloud_seg)
 {
   // Segmentation process
   int label = 1;
@@ -691,7 +691,7 @@ void LidarMapper::cloudSegmentation(const std::vector<Point>& in_pts, std::vecto
     for (int j = 0; j < horizontal_scans_; j++)
     {
       if (label_mat_(i, j) == 0 && range_mat_(i, j) != -1)
-        labelComponents(i, j, in_pts, label);
+        labelComponents(i, j, label);
     }
   }
 
@@ -737,7 +737,7 @@ void LidarMapper::cloudSegmentation(const std::vector<Point>& in_pts, std::vecto
   }
 }
 
-void LidarMapper::labelComponents(const int& row, const int& col, const std::vector<Point>& in_pts, int& label)
+void LidarMapper::labelComponents(const int& row, const int& col, int& label)
 {
   using Coord2D = Eigen::Vector2i;
   std::deque<Coord2D> queue;
@@ -810,7 +810,7 @@ void LidarMapper::labelComponents(const int& row, const int& col, const std::vec
   {
     feasible_segment = true;
   }
-  else if (global_queue.size() >= segment_valid_point_num_)
+  else if (static_cast<int>(global_queue.size()) >= segment_valid_point_num_)
   {
     int line_count = 0;
     for (int i = 0; i < vertical_scans_; i++)
@@ -884,14 +884,14 @@ void LidarMapper::extractHighLevelPlanes(const std::vector<Point>& in_pts, const
   // - Remove outliers using RANSAC
   std::vector<Plane> planes = {};
   Plane side_plane_a_filtered, side_plane_b_filtered;
-  if (ransac(side_plane_a.points_, side_plane_a_filtered, 300, 0.10, true) &&
+  if (Ransac::process(side_plane_a.points_, side_plane_a_filtered, 300, 0.10, true) &&
       side_plane_a_filtered.points_.size() < 7000 &&
       side_plane_a_filtered.points_.size() > 75)  // prevent dense planes and slow convex hulls
   {
     side_plane_a_filtered.id_ = 0;
     planes.push_back(side_plane_a_filtered);
   }
-  if (ransac(side_plane_b.points_, side_plane_b_filtered, 300, 0.10, true) &&
+  if (Ransac::process(side_plane_b.points_, side_plane_b_filtered, 300, 0.10, true) &&
       side_plane_b_filtered.points_.size() < 7000 &&
       side_plane_b_filtered.points_.size() > 75)  // prevent dense planes and slow convex hulls
   {
@@ -914,7 +914,7 @@ void LidarMapper::extractHighLevelPlanes(const std::vector<Point>& in_pts, const
     plane.setLocalRefFrame();
 
     SemiPlane l_semi_plane;
-    bool ch = convexHull(plane, l_semi_plane);
+    bool ch = ConvexHull::process(plane, l_semi_plane);
     if (ch && checkPlaneConsistency(l_semi_plane, ground_plane))
     {
       out_planes.push_back(l_semi_plane);
@@ -1095,7 +1095,7 @@ void LidarMapper::extractFeatures(const std::vector<PlanePoint>& in_plane_pts, s
           neighbor_picked[idx] = 1;
           for (int m = 1; m <= 5; m++)
           {
-            if (idx + m >= seg_pcl_.col_idx.size())
+            if (idx + m >= static_cast<int>(seg_pcl_.col_idx.size()))
               continue;
             int col_diff = std::abs(seg_pcl_.col_idx[idx + m] - seg_pcl_.col_idx[idx + m - 1]);
             if (col_diff > 10)
@@ -1167,50 +1167,4 @@ void LidarMapper::extractFeatures(const std::vector<PlanePoint>& in_plane_pts, s
     out_planars.insert(out_planars.end(), planar_points_less_flat.begin(), planar_points_less_flat.end());
   }
 }
-
-void LidarMapper::performRayTrace(const Pose& robot_pose, const std::vector<Point>& scan_pts, OccupancyMap& grid_map)
-{
-  // ---------------------------------------------------------------
-  // ---- Convert sensor points to the world
-  // ---------------------------------------------------------------
-
-  // Build velodyne to base_link transformation matrix
-  Pose vel_pose(vel2base_x_, vel2base_y_, vel2base_z_, vel2base_roll_, vel2base_pitch_, vel2base_yaw_);
-  std::array<float, 9> vel_rot{};
-  vel_pose.toRotMatrix(vel_rot);
-  Tf vel_tf(vel_rot, std::array<float, 3>{ vel_pose.x_, vel_pose.y_, vel_pose.z_ });
-
-  // Build world to base_link transformation matrix
-  std::array<float, 9> robot_rot{};
-  robot_pose.toRotMatrix(robot_rot);
-  std::array<float, 3> robot_trans = { robot_pose.x_, robot_pose.y_, robot_pose.z_ };
-  Tf robot_tf(robot_rot, robot_trans);
-
-  std::vector<Point> transformed_pts;
-  for (const auto& pt : scan_pts)
-  {
-    Point vel_pt = pt * vel_tf.inverse();  // converts the sensor point to base link
-    Point wrl_pt = vel_pt * robot_tf;      // converts the base link point into the world
-
-    transformed_pts.push_back(wrl_pt);
-  }
-
-  // ---------------------------------------------------------------
-  // ---- Convert sensor origin to the world
-  // ---------------------------------------------------------------
-  Point sensor_origin(-vel2base_x_, -vel2base_y_, -vel2base_z_);
-  Point vel_origin_pt = sensor_origin * vel_tf.inverse();  // converts the sensor point to base link
-  Point wrl_origin_pt = vel_origin_pt * robot_tf;          // converts the base link point into the world
-
-  // ---------------------------------------------------------------
-  // ---- Call ray trace
-  // ---------------------------------------------------------------
-  Timer t("Ray Trace");
-  t.tick("rayTrace()");
-  grid_map.rayTrace(transformed_pts, wrl_origin_pt);
-  t.tock();
-//  t.getLog();
-//  t.clearLog();
-}
-
 }  // namespace vineslam

@@ -9,8 +9,8 @@
 #include <vineslam/matcher/icp.hpp>
 #include <vineslam/math/Point.hpp>
 #include <vineslam/math/Pose.hpp>
-#include <vineslam/math/const.hpp>
-#include <vineslam/math/stat.hpp>
+#include <vineslam/math/Const.hpp>
+#include <vineslam/math/Stat.hpp>
 #include <vineslam/filters/convex_hull.hpp>
 #include <vineslam/filters/ransac.hpp>
 #include <vineslam/utils/Timer.hpp>
@@ -54,13 +54,6 @@ struct Particle
   int which_cluster_{};
 };
 
-// Print particle ...
-static std::ostream& operator<<(std::ostream& o, const Particle& p)
-{
-  o << "Particle " << p.id_ << ":\n" << p.p_ << p.w_ << "\n\n";
-  return o;
-}
-
 class PF
 {
 public:
@@ -69,12 +62,15 @@ public:
   PF(const Parameters& params, const Pose& initial_pose);
 
   // Apply odometry motion model to all particles
-  void motionModel(const Pose& odom_inc, const Pose& p_odom);
+  void motionModel(const Pose& odom_inc);
   // Update particles weights using the multi-layer map
   void update(const std::vector<SemanticFeature>& landmarks, const std::vector<Corner>& corners,
               const std::vector<Planar>& planars, const std::vector<SemiPlane>& planes, const SemiPlane& ground_plane,
               const std::vector<ImageFeature>& surf_features, const Pose& gps_pose, const Pose& imu_pose,
               OccupancyMap* grid_map);
+  // Update 'beam model of range finders'
+  void updateModel(const float& z_k, const float& z_k_asterisc, const float& z_dist, const float& sigma_hit,
+                   const float& sigma_short, float& w);
   // Normalize particles weights
   void normalizeWeights();
   // Resample particles
@@ -114,6 +110,9 @@ public:
   int number_clusters_;
 
 private:
+  // Samples a zero-mean gaussian distribution with a given standard deviation
+  float sampleGaussian(const float& sigma, const unsigned long int& S = 0);
+
   // Update functions
   // - High level semantic features layer
   void highLevel(const std::vector<SemanticFeature>& landmarks, OccupancyMap* grid_map, std::vector<float>& ws);

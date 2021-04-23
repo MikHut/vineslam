@@ -83,7 +83,6 @@ bool MapParser::parseFile(OccupancyMap* grid_map)
   // Read map data, and fill the occupancy grid
   bool readingdata = true;
   int state = 0;
-  float x, y, z;
   int landmark_id;
   SemanticFeature semantic_feature;
   Corner corner;
@@ -120,17 +119,8 @@ bool MapParser::parseFile(OccupancyMap* grid_map)
         }
         break;
       case 1:  // reading cell position
-        if (tag == openTag(X_COORDINATE))
+        if (tag == openTag(Z_COORDINATE))
         {
-          x = getFloat(line);
-        }
-        else if (tag == openTag(Y_COORDINATE))
-        {
-          y = getFloat(line);
-        }
-        else if (tag == openTag(Z_COORDINATE))
-        {
-          z = getFloat(line);
           state = 2;
         }
         break;
@@ -141,7 +131,10 @@ bool MapParser::parseFile(OccupancyMap* grid_map)
           state = 3;
         }
         else if (tag == closeTag(SEMANTICF))
+        {
           state = 4;
+        }
+        break;
       case 3:  // reading a new landmark
         if (tag == openTag(ID_))
         {

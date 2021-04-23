@@ -2,7 +2,7 @@
 
 namespace vineslam
 {
-VisualMapper::VisualMapper(const Parameters& params)
+VisualMapper::VisualMapper()
 {
 }
 
@@ -47,7 +47,7 @@ void VisualMapper::globalMap(const std::vector<ImageFeature>& features, const Po
     // - Then, look for correspondences in the local map
     ImageFeature correspondence{};
     float best_correspondence = 0.02;
-    bool found = false;
+    // bool found = false;
     std::vector<ImageFeature>* l_image_features = { nullptr };
 
     if (grid_map(l_pt.x_, l_pt.y_, l_pt.z_).data != nullptr)
@@ -64,7 +64,7 @@ void VisualMapper::globalMap(const std::vector<ImageFeature>& features, const Po
         {
           correspondence = l_image_feature;
           best_correspondence = dist_min;
-          found = true;
+          // found = true;
         }
       }
 

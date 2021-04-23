@@ -11,6 +11,7 @@ slam_node:
   datum:
     latitude: 41.16666453372342
     longitude: -7.555095358663023
+    heading: 4.4561
 
   camera_info:
     baseline: 0.12 # meters
@@ -26,14 +27,13 @@ slam_node:
     # Grid map definitions
     grid_map:
       origin:
-        x: -110.0
-        y: -75.0
+        x: -90.0
+        y: -90.0
         z: -18.0
-      width: 150.0
-      lenght: 150.0
+      width: 180.0
+      lenght: 180.0
       height: 25.0
       resolution: 0.25 # meters
-      save_map: True
       output_folder: "/home/andresaguiar/Desktop/"
 
   pf:

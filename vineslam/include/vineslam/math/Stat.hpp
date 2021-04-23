@@ -62,39 +62,10 @@ struct Gaussian
     return *this;
   }
 
+
   T1 mean_;
   T2 stdev_;
   float theta_{};  // TO USE IN REPRESENTATION: the angle of the corresponding ellipse
 };
 
-// Samples a zero mean Gaussian
-// See https://www.taygeta.com/random/gaussian.html
-static float sampleGaussian(const float& sigma, const unsigned long int& S = 0)
-{
-  if (S != 0)
-    srand48(S);
-  if (sigma == 0)
-    return 0.;
-
-  float x1, x2, w;
-  float r;
-
-  do
-  {
-    do
-    {
-      r = drand48();
-    } while (r == 0.0);
-    x1 = 2.0 * r - 1.0;
-    do
-    {
-      r = drand48();
-    } while (r == 0.0);
-    x2 = 2.0 * drand48() - 1.0;
-    w = x1 * x1 + x2 * x2;
-  } while (w > 1.0 || w == 0.0);
-
-  return (sigma * x2 * sqrt(-2.0 * log(w) / w));
-}
-
-};  // namespace vineslam
+}  // namespace vineslam

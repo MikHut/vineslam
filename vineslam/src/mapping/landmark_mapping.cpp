@@ -15,7 +15,8 @@ void LandmarkMapper::init(const Pose& pose, const std::vector<float>& bearings, 
                           const std::vector<int>& labels, OccupancyMap& grid_map)
 {
   int n_obsv = bearings.size();
-  Gaussian<Point, Point> robot_gauss = pose.getDist();
+  Gaussian<Point, Point> robot_gauss;
+  pose.getDist(robot_gauss);
 
   // Convert 6-DOF pose to homogenous transformation
   std::array<float, 9> Rot{};
@@ -35,7 +36,7 @@ void LandmarkMapper::init(const Pose& pose, const std::vector<float>& bearings, 
 
     // Calculate
     // - the initial estimation of the landmark on map's referential frame
-    float th = normalizeAngle(bearings[i]);
+    float th = Const::normalizeAngle(bearings[i]);
     Point X_cam(depths[i] * std::cos(th), depths[i] * std::sin(th), 0.);
     Point X;
     X.x_ = X_cam.x_ * Rot[0] + X_cam.y_ * Rot[1] + X_cam.z_ * Rot[2] + trans.x_;
@@ -43,7 +44,7 @@ void LandmarkMapper::init(const Pose& pose, const std::vector<float>& bearings, 
     X.z_ = 0.;
 
     // Push back a Kalman Filter object for the respective landmark
-    KF kf(params_, X.toEig2D(), pose.toEig2D(), robot_gauss.stdev_.toEig2D(), z);
+    KF kf(params_, X.toEig2D(), robot_gauss.stdev_.toEig2D(), z);
     filters.push_back(kf);
 
     // Insert the landmark on the map, with a single observation
@@ -113,7 +114,8 @@ void LandmarkMapper::predict(const Pose& pose, const std::vector<float>& bearing
                              const std::vector<int>& labels, OccupancyMap& grid_map)
 {
   int n_obsv = bearings.size();
-  Gaussian<Point, Point> robot_gauss = pose.getDist();
+  Gaussian<Point, Point> robot_gauss;
+  pose.getDist(robot_gauss);
 
   // Convert 6DOF pose to homogenous transformation
   std::array<float, 9> Rot{};
@@ -124,7 +126,7 @@ void LandmarkMapper::predict(const Pose& pose, const std::vector<float>& bearing
   {
     // Calculate the landmark position on map's referential frame
     // based on the ith observation
-    float th = normalizeAngle(bearings[i]);
+    float th = Const::normalizeAngle(bearings[i]);
     Point X_cam(depths[i] * std::cos(th), depths[i] * std::sin(th), 0.);
     Point X;
     X.x_ = X_cam.x_ * Rot[0] + X_cam.y_ * Rot[1] + X_cam.z_ * Rot[2] + trans.x_;
@@ -144,7 +146,7 @@ void LandmarkMapper::predict(const Pose& pose, const std::vector<float>& bearing
       Eigen::MatrixXd R(2, 2);
 
       // Initialize the Kalman Filter
-      KF kf(params_, X.toEig2D(), pose.toEig2D(), robot_gauss.stdev_.toEig2D(), z);
+      KF kf(params_, X.toEig2D(), robot_gauss.stdev_.toEig2D(), z);
       filters.push_back(kf);
 
       // Insert the landmark on the map, with a single observation
@@ -243,7 +245,7 @@ void LandmarkMapper::localMap(const std::vector<float>& bearings, const std::vec
   {
     // Calculate the estimation of the landmark position on
     // camera's referential frame
-    float th = normalizeAngle(bearings[i]);
+    float th = Const::normalizeAngle(bearings[i]);
     Point X_cam(depths[i] * std::cos(th), depths[i] * std::sin(th), 0.);
 
     // Compensate camera inclination

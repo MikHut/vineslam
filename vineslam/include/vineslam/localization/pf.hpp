@@ -68,6 +68,9 @@ public:
               const std::vector<Planar>& planars, const std::vector<SemiPlane>& planes, const SemiPlane& ground_plane,
               const std::vector<ImageFeature>& surf_features, const Pose& gps_pose, const Pose& imu_pose,
               OccupancyMap* grid_map);
+  // Update 'beam model of range finders'
+  void updateModel(const float& z_k, const float& z_k_asterisc, const float& z_dist, const float& sigma_hit,
+                   const float& sigma_short, float& w);
   // Normalize particles weights
   void normalizeWeights();
   // Resample particles

@@ -39,9 +39,15 @@ localization_node:
     n_particles: 500
 
     # Particles innovation
-    sigma_xx: 2.0 # meters
-    sigma_yy: 2.0 # meters
-    sigma_zz: 1.5 # meters
-    sigma_RR: 1.0 # radians
-    sigma_PP: 1.0 # radians
-    sigma_YY: 1.5 # radians
+    sigma_xx: 1.0 # meters
+    sigma_yy: 1.0 # meters
+    sigma_zz: 0.7 # meters
+    sigma_RR: 0.7 # radians
+    sigma_PP: 0.7 # radians
+    sigma_YY: 1.0 # radians
+#    sigma_xx: 0.5 # meters
+#    sigma_yy: 0.5 # meters
+#    sigma_zz: 0.3 # meters
+#    sigma_RR: 0.3 # radians
+#    sigma_PP: 0.3 # radians
+#    sigma_YY: 0.7 # radians

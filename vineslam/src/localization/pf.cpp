@@ -99,7 +99,7 @@ void PF::motionModel(const Pose& odom_inc)
 
     std::array<float, 6> gaussian_noise{};
     for (float& i : gaussian_noise)
-      i = (d_trans/* + d_rot*/) * sampleGaussian(1.0);
+      i = (d_trans /* + d_rot*/) * sampleGaussian(1.0);
 
     pose_noise.x_ *= gaussian_noise[0];  // xx
     pose_noise.y_ *= gaussian_noise[1];  // yy
@@ -243,6 +243,39 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
 
   //  t_->getLog();
   //  t_->clearLog();
+}
+
+void PF::updateModel(const float& z_k, const float& z_k_asterisc, const float& z_dist, const float& sigma_hit,
+                     const float& sigma_short, float& w)
+{
+  // Define weights of each of the model components considering that
+  // z_hit + z_short + z_max + z_rand = 1
+  float z_hit = 0.4;
+  float z_short = 0.3;
+  float z_max = 0.2;
+  float z_rand = 0.1;
+
+  // Maximum distance measured by the LiDAR
+  float d_max = 200;
+  // Distance to the features
+
+  // Compute the 'correct range with local measurement noise' component (hit)
+  float normalizer_hit = static_cast<float>(1.) / (sigma_hit * std::sqrt(M_2PI));
+  float squared_dist_hit = std::pow(z_dist, 2);
+  float p_hit = (normalizer_hit * static_cast<float>(std::exp(-1. / sigma_hit * squared_dist_hit)));
+
+  // Compute the 'unexpected objects component' (short)
+  float normalizer_short = 1 / (1 - std::exp(-sigma_short * z_k_asterisc));
+  float p_short = normalizer_short * sigma_short * std::exp(-sigma_short * z_k);
+
+  // Compute the 'failures' component (max)
+  float p_max = (z_k >= d_max) ? 1. : 0.;
+
+  // Compute the 'random measurements' component (rand)
+  float p_rand = (z_k >= 0 && z_k < d_max) ? (1. / d_max) : 0.;
+
+  // Compute the final weight
+  w = (z_hit * p_hit) + (z_short * p_short) + (z_max * p_max) + (z_rand * p_rand);
 }
 
 void PF::gps(const Pose& gps_pose, std::vector<float>& ws)
@@ -416,6 +449,7 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners, OccupancyMap* gr
         }
 
         // Search for a correspondence in the current cell first
+        Point best_correspondence_point;
         float best_correspondence = 0.5;
         bool found = false;
         for (const auto& l_corner : *l_corners)
@@ -426,6 +460,7 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners, OccupancyMap* gr
 
           if (dist_sq < best_correspondence)
           {
+            best_correspondence_point = l_corner.pos_;
             best_correspondence = dist_sq;
             found = true;
           }
@@ -433,8 +468,14 @@ void PF::mediumLevelCorners(const std::vector<Corner>& corners, OccupancyMap* gr
 
         // Save distance if a correspondence was found
         if (found)
+        {
           w_corners +=
               (normalizer_corner * static_cast<float>(std::exp(-1. / sigma_corner_matching_ * best_correspondence)));
+          // float l_w;
+          // updateModel(X.norm3D(), best_correspondence_point.norm3D(), best_correspondence, sigma_corner_matching_,
+          // 0.1, l_w);
+          // w_corners += l_w;
+        }
       }
 
       ws[particles_[i].id_] = w_corners;
@@ -481,6 +522,7 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* gr
         }
 
         // Search for a correspondence in the current cell first
+        Point best_correspondence_point;
         float best_correspondence = 0.5;
         bool found = false;
         for (const auto& l_planar : *l_planars)
@@ -491,6 +533,7 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* gr
 
           if (dist_sq < best_correspondence)
           {
+            best_correspondence_point = l_planar.pos_;
             best_correspondence = dist_sq;
             found = true;
           }
@@ -498,8 +541,15 @@ void PF::mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* gr
 
         // Save distance if a correspondence was found
         if (found)
+        {
           w_planars +=
               (normalizer_planar * static_cast<float>(std::exp((-1. / sigma_planar_matching_) * best_correspondence)));
+
+          // float l_w;
+          // updateModel(X.norm3D(), best_correspondence_point.norm3D(), best_correspondence, sigma_planar_matching_,
+          // 0.1, l_w);
+          // w_planars += l_w;
+        }
       }
 
       ws[particles_[i].id_] = w_planars;

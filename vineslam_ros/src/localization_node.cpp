@@ -28,6 +28,9 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
   init_gps_ = true;
   init_odom_ = true;
 
+  // Initialize variables
+  estimate_heading_ = false;
+
   // Declare the Mappers and Localizer objects
   localizer_ = new Localizer(params_);
   land_mapper_ = new LandmarkMapper(params_);
@@ -52,9 +55,12 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
       "/odom_topic", 10,
       std::bind(&VineSLAM_ros::odomListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
   // GPS subscription
-  gps_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
+  gps_subscriber_ = this->create_subscription<sensor_msgs::msg::NavSatFix>(
       "/gps_topic", 10,
       std::bind(&VineSLAM_ros::gpsListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
+  //  gps_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
+  //      "/gps_topic", 10,
+  //      std::bind(&VineSLAM_ros::gpsListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
   // IMU subscription
   imu_subscriber_ = this->create_subscription<geometry_msgs::msg::Vector3Stamped>(
       "/imu_topic", 10,
@@ -76,6 +82,7 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
   path_publisher_ = this->create_publisher<nav_msgs::msg::Path>("/vineslam/path", 10);
   poses_publisher_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/vineslam/poses", 10);
   gps_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/vineslam/gps_pose", 10);
+  gps_fix_publisher_ = this->create_publisher<sensor_msgs::msg::NavSatFix>("/vineslam/pose_fix", 10);
   // Debug publishers
   grid_map_publisher_ =
       this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/debug/grid_map_limits", 10);
@@ -232,39 +239,21 @@ void LocalizationNode::loadParameters(Parameters& params)
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
-  param = prefix + ".datum.map.latitude";
-  this->declare_parameter(param);
-  if (!this->get_parameter(param, params.map_datum_lat_))
-  {
-    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
-  }
-  param = prefix + ".datum.map.longitude";
-  this->declare_parameter(param);
-  if (!this->get_parameter(param, params.map_datum_long_))
-  {
-    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
-  }
-  param = prefix + ".datum.map.heading";
-  this->declare_parameter(param);
-  if (!this->get_parameter(param, params.map_datum_head_))
-  {
-    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
-  }
-  param = prefix + ".datum.robot.latitude";
+  param = prefix + ".robot.latitude";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.robot_datum_lat_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
-  param = prefix + ".datum.robot.longitude";
+  param = prefix + ".robot.longitude";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.robot_datum_long_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
-  param = prefix + ".datum.robot.heading";
+  param = prefix + ".robot.altitude";
   this->declare_parameter(param);
-  if (!this->get_parameter(param, params.robot_datum_head_))
+  if (!this->get_parameter(param, params.robot_datum_alt_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
@@ -466,16 +455,18 @@ void LocalizationNode::initializeOnMap()
   // -------------------------------------------------------------------------------
   // ------ Compute the difference between map's and robot's datums
   // -------------------------------------------------------------------------------
-  double map_origin_x, map_origin_y;
-  std::string map_zone;
-  GNSS2UTM(params_.map_datum_lat_, params_.map_datum_long_, map_origin_x, map_origin_y, map_zone);
+  geodetic_converter_ = new Geodetic(params_.map_datum_lat_, params_.map_datum_long_, params_.map_datum_alt_);
 
-  double robot_pose_x, robot_pose_y;
-  std::string robot_zone;
-  GNSS2UTM(params_.robot_datum_lat_, params_.robot_datum_long_, robot_pose_x, robot_pose_y, robot_zone);
+  double robot_e, robot_n, robot_u;
+  geodetic_converter_->geodetic2enu(params_.robot_datum_lat_, params_.robot_datum_long_, params_.robot_datum_alt_,
+                                    robot_e, robot_n, robot_u);
 
-  robot_pose_ = Pose(robot_pose_x - map_origin_x, map_origin_y - robot_pose_y, 0, 0, 0,
-                     params_.robot_datum_head_ - params_.map_datum_head_);
+  // Rotate the obtained point considering the gnss heading
+  Pose heading_pose(0, 0, 0, 0, 0, -params_.map_datum_head_);
+  Tf heading_tf = heading_pose.toTf();
+  Point corrected_point = Point(robot_n, -robot_e, robot_u) * heading_tf;
+
+  robot_pose_ = Pose(corrected_point.x_, corrected_point.y_, corrected_point.z_, 0, 0, 0);
 
   // Set the map -> robot gnss transformation
   tf2::Quaternion q;
@@ -581,6 +572,19 @@ void LocalizationNode::process()
   timer_->tock();
 
   // ---------------------------------------------------------
+  // ----- Conversion of pose into latitude and longitude
+  // ---------------------------------------------------------
+  double datum_utm_x, datum_utm_y, robot_utm_x, robot_utm_y;
+  float robot_latitude, robot_longitude;
+  std::string datum_utm_zone;
+  GNSS2UTM(params_.map_datum_lat_, params_.map_datum_long_, datum_utm_x, datum_utm_y, datum_utm_zone);
+  robot_utm_x = datum_utm_x + (robot_pose_.x_ * std::cos(params_.map_datum_head_) -
+                               robot_pose_.y_ * std::sin(params_.map_datum_head_));
+  robot_utm_y = datum_utm_y - (robot_pose_.x_ * std::sin(params_.map_datum_head_) +
+                               robot_pose_.y_ * std::cos(params_.map_datum_head_));
+  UTMtoGNSS(robot_utm_x, robot_utm_y, datum_utm_zone, robot_latitude, robot_longitude);
+
+  // ---------------------------------------------------------
   // ----- ROS publishers
   // ---------------------------------------------------------
   tf2::Quaternion q;
@@ -599,6 +603,14 @@ void LocalizationNode::process()
   pose_stamped.pose.orientation.z = q.z();
   pose_stamped.pose.orientation.w = q.w();
   pose_publisher_->publish(pose_stamped);
+
+  // Publish robot pose in GNSS polar coordinates
+  sensor_msgs::msg::NavSatFix pose_ll;
+  pose_ll.header.stamp = header_.stamp;
+  pose_ll.header.frame_id = "gps";
+  pose_ll.latitude = robot_latitude;
+  pose_ll.longitude = robot_longitude;
+  gps_fix_publisher_->publish(pose_ll);
 
   publish3DMap(l_planars, planars_local_publisher_);
 }

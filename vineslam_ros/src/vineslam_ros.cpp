@@ -130,64 +130,39 @@ void VineSLAM_ros::odomListener(const nav_msgs::msg::Odometry::SharedPtr msg)
   input_data_.received_odometry_ = true;
 }
 
-void VineSLAM_ros::gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
+void VineSLAM_ros::gpsListener(const sensor_msgs::msg::NavSatFix::SharedPtr msg)
 {
   header_ = msg->header;
 
   if (init_gps_)
   {
-    tf2_ros::Buffer tf_buffer(this->get_clock());
-    tf2_ros::TransformListener tfListener(tf_buffer);
-
-    try
-    {
-      // Get base_link -> sn0 transformation
-      satellite2base_msg_ =
-          tf_buffer.lookupTransform("map_sn0", "base_link", rclcpp::Time(0), rclcpp::Duration(300000000));
-
-      // Get rtk z offset
-      tf2::Stamped<tf2::Transform> satellite2base_tf;
-      tf2::fromMsg(satellite2base_msg_, satellite2base_tf);
-
-      tf2::Quaternion q;
-      q.setX(msg->pose.pose.orientation.x);
-      q.setY(msg->pose.pose.orientation.y);
-      q.setZ(msg->pose.pose.orientation.z);
-      q.setW(msg->pose.pose.orientation.w);
-
-      tf2::Transform gps_raw_pose(
-          q, tf2::Vector3(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z));
-      tf2::Transform gps_pose = satellite2base_tf.inverse() * gps_raw_pose;
-
-      rtk_z_offset_ = gps_pose.getOrigin().z();
-
-      init_gps_ = false;
-    }
-    catch (tf2::TransformException& ex)
-    {
-      RCLCPP_WARN(this->get_logger(), "%s", ex.what());
-    }
+    geodetic_converter_ = new Geodetic(params_.map_datum_lat_, params_.map_datum_long_, params_.map_datum_alt_);
+    init_gps_ = false;
   }
   else
   {
-    // Compute the rtk pose in sn0's reference frame
-    tf2::Stamped<tf2::Transform> satellite2base_tf;
-    tf2::fromMsg(satellite2base_msg_, satellite2base_tf);
-
-    tf2::Quaternion q;
-    q.setX(msg->pose.pose.orientation.x);
-    q.setY(msg->pose.pose.orientation.y);
-    q.setZ(msg->pose.pose.orientation.z);
-    q.setW(msg->pose.pose.orientation.w);
-
-    tf2::Transform gps_raw_pose(
-        q, tf2::Vector3(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z));
-    tf2::Transform gps_pose = map2robot_gnss_tf_ * (satellite2base_tf.inverse() * gps_raw_pose);
+    double e, n, u;
+    geodetic_converter_->geodetic2enu(msg->latitude, msg->longitude, msg->altitude, e, n, u);
 
     // Save pose
-    input_data_.gnss_pose_.x_ = gps_pose.getOrigin().x();
-    input_data_.gnss_pose_.y_ = gps_pose.getOrigin().y();
-    input_data_.gnss_pose_.z_ = gps_pose.getOrigin().z() - static_cast<tf2Scalar>(rtk_z_offset_);
+    input_data_.gnss_raw_pose_.x_ = n;
+    input_data_.gnss_raw_pose_.y_ = -e;
+    input_data_.gnss_raw_pose_.z_ = u;
+
+    if (estimate_heading_)
+    {
+      getGNSSHeading();
+    }
+
+    // Convert the gnss with the correct heading
+    Pose heading_pose(0, 0, 0, 0, 0, params_.map_datum_head_);
+    Tf heading_tf = heading_pose.toTf();
+    Point corrected_gnss_pose =
+        Point(input_data_.gnss_raw_pose_.x_, input_data_.gnss_raw_pose_.y_, input_data_.gnss_raw_pose_.z_) *
+        heading_tf.inverse();
+    input_data_.gnss_pose_.x_ = corrected_gnss_pose.x_;
+    input_data_.gnss_pose_.y_ = corrected_gnss_pose.y_;
+    input_data_.gnss_pose_.z_ = corrected_gnss_pose.z_;
 
     // Set received flag to true
     input_data_.received_gnss_ = true;
@@ -221,8 +196,7 @@ void VineSLAM_ros::publishReport() const
 {
   // Publish particle poses (after and before resampling)
   // - Get the particles
-  std::vector<Particle> b_particles, a_particles;
-  (*localizer_).getParticlesBeforeResampling(b_particles);
+  std::vector<Particle> a_particles;
   (*localizer_).getParticles(a_particles);
   // - Convert them to ROS pose array and fill the vineslam report msgs
   vineslam_msgs::msg::Report report;
@@ -231,28 +205,6 @@ void VineSLAM_ros::publishReport() const
   ros_poses.header.frame_id = params_.world_frame_id_;
   report.header.stamp = ros_poses.header.stamp;
   report.header.frame_id = ros_poses.header.frame_id;
-  for (const auto& particle : b_particles)
-  {
-    tf2::Quaternion l_q;
-    l_q.setRPY(particle.p_.R_, particle.p_.P_, particle.p_.Y_);
-    l_q.normalize();
-
-    geometry_msgs::msg::Pose l_pose;
-    l_pose.position.x = particle.p_.x_;
-    l_pose.position.y = particle.p_.y_;
-    l_pose.position.z = particle.p_.z_;
-    l_pose.orientation.x = l_q.x();
-    l_pose.orientation.y = l_q.y();
-    l_pose.orientation.z = l_q.z();
-    l_pose.orientation.w = l_q.w();
-
-    vineslam_msgs::msg::Particle particle_info;
-    particle_info.id = particle.id_;
-    particle_info.pose = l_pose;
-    particle_info.w = particle.w_;
-
-    report.b_particles.push_back(particle_info);
-  }
   for (const auto& particle : a_particles)
   {
     tf2::Quaternion l_q;
@@ -287,6 +239,41 @@ void VineSLAM_ros::publishReport() const
   vineslam_report_publisher_->publish(report);
 }
 
+void VineSLAM_ros::getGNSSHeading()
+{
+  uint32_t mil_secs = static_cast<uint32_t>((1 / 3) * 1e3);
+  float robot_distance_traveleld = robot_pose_.norm3D();
+
+  if (robot_distance_traveleld > 0.1 && robot_distance_traveleld < 5.0)
+  {
+    float phi = 0.;
+    float min_dist = std::numeric_limits<float>::max();
+    while (phi < 360.)
+    {
+      float x = std::cos(phi * DEGREE_TO_RAD) * robot_pose_.x_ - std::sin(phi * DEGREE_TO_RAD) * robot_pose_.y_;
+      float y = std::sin(phi * DEGREE_TO_RAD) * robot_pose_.x_ + std::cos(phi * DEGREE_TO_RAD) * robot_pose_.y_;
+
+      Point source(x, y, 0.);
+      Point target(input_data_.gnss_raw_pose_.x_, input_data_.gnss_raw_pose_.y_, 0.);
+      float dist = source.distanceXY(target);
+
+      if (dist < min_dist)
+      {
+        min_dist = dist;
+        params_.map_datum_head_ = Const::normalizeAngle(phi * DEGREE_TO_RAD);
+      }
+
+      phi += 0.1;
+    }
+  }
+  else if (robot_distance_traveleld >= 5.0)
+  {
+    localizer_->changeGPSFlag(true);  // Set the confidence of the use of gps in the particle filter now that we have
+                                      // estimated heading.
+    estimate_heading_ = false;
+  }
+}
+
 // ------------------------------------------------------------------------------------
 // ----- ROS services
 // ------------------------------------------------------------------------------------
@@ -301,11 +288,11 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
   // ----------------------------------------------------
   std::time_t timestamp = std::time(nullptr);
 
-  MapWriter mw(params_, timestamp);
-  mw.writeToFile(grid_map_);
-
-  ElevationMapWriter ew(params_, timestamp);
-  ew.writeToFile(elevation_map_);
+  //  MapWriter mw(params_, timestamp);
+  //  mw.writeToFile(grid_map_, params_);
+  //
+  //  ElevationMapWriter ew(params_, timestamp);
+  //  ew.writeToFile(elevation_map_, params_);
 
   // ----------------------------------------------------
   // ------ Export geo-referenced map images and info
@@ -363,14 +350,12 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
   UTMtoGNSS(right_bottom_corner.x_, right_bottom_corner.y_, datum_utm_zone, right_bottom_corner_ll.x_,
             right_bottom_corner_ll.y_);
 
-  infofile << std::setprecision(8) << "left_upper_corner: [" << left_upper_corner_ll.x_ << ", "
-           << left_upper_corner_ll.y_ << "]\n";
-  infofile << std::setprecision(8) << "right_upper_corner: [" << right_upper_corner_ll.x_ << ", "
-           << right_upper_corner_ll.y_ << "]\n";
-  infofile << std::setprecision(8) << "left_bottom_corner: [" << left_bottom_corner_ll.x_ << ", "
-           << left_bottom_corner_ll.y_ << "]\n";
-  infofile << std::setprecision(8) << "right_bottom_corner: [" << right_bottom_corner_ll.x_ << ", "
-           << right_bottom_corner_ll.y_ << "]\n";
+  infofile << "left_upper:\n";
+  infofile << std::setprecision(8) << "   latitude: " << left_upper_corner_ll.x_ << "\n"
+           << "   longitude: " << left_upper_corner_ll.y_ << "\n";
+  infofile << "right_bottom:\n";
+  infofile << std::setprecision(8) << "   latitude: " << right_bottom_corner_ll.x_ << "\n"
+           << "   longitude: " << right_bottom_corner_ll.y_ << "\n";
   infofile.close();
 
   // Draw map images
@@ -456,9 +441,10 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
     return dst;
   };
 
-  cv::Mat ci = cv_rotate(corners_image_map, params_.map_datum_head_ * RAD_TO_DEGREE);
-  cv::Mat pi = cv_rotate(planars_image_map, params_.map_datum_head_ * RAD_TO_DEGREE);
-  cv::Mat ei = cv_rotate(elevation_image_map, params_.map_datum_head_ * RAD_TO_DEGREE);
+  float heading = (params_.map_datum_head_ + M_PI / 2) * RAD_TO_DEGREE;
+  cv::Mat ci = cv_rotate(corners_image_map, heading);
+  cv::Mat pi = cv_rotate(planars_image_map, heading);
+  cv::Mat ei = cv_rotate(elevation_image_map, heading);
 
   // Save images
   cv::imwrite(params_.map_output_folder_ + "corners_map_" + std::to_string(timestamp) + ".png", ci);

@@ -7,7 +7,7 @@ ElevationMapWriter::ElevationMapWriter(const Parameters& params, const std::time
   file_path_ = params.map_output_folder_ + "elevation_map_" + std::to_string(timestamp) + ".xml";
 }
 
-void ElevationMapWriter::writeToFile(ElevationMap* elevation_map)
+void ElevationMapWriter::writeToFile(ElevationMap* elevation_map, const Parameters& params)
 {
   // Create file
   std::ofstream xmlfile;
@@ -21,6 +21,12 @@ void ElevationMapWriter::writeToFile(ElevationMap* elevation_map)
 
   // -- Grid map details
   xmlfile << open(INFO) << ENDL;
+  xmlfile << TAB << open(DATUM) << ENDL;
+  xmlfile << TAB << TAB << open(LATITUDE) << params.map_datum_lat_ << close(LATITUDE) << ENDL;
+  xmlfile << TAB << TAB << open(LONGITUDE) << params.map_datum_long_ << close(LONGITUDE) << ENDL;
+  xmlfile << TAB << TAB << open(ALTITUDE) << params.map_datum_alt_ << close(ALTITUDE) << ENDL;
+  xmlfile << TAB << TAB << open(HEADING) << params.map_datum_head_ << close(HEADING) << ENDL;
+  xmlfile << TAB << close(DATUM) << ENDL;
   xmlfile << TAB << open(ORIGIN) << ENDL;
   xmlfile << TAB << TAB << open(X_COORDINATE) << elevation_map->origin_.x_ << close(X_COORDINATE) << ENDL;
   xmlfile << TAB << TAB << open(Y_COORDINATE) << elevation_map->origin_.y_ << close(Y_COORDINATE) << ENDL;

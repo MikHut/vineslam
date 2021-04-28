@@ -26,6 +26,9 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   init_gps_ = true;
   init_odom_ = true;
 
+  // Initialize variables
+  estimate_heading_ = true;
+
   // Declare the Mappers and Localizer objects
   localizer_ = new Localizer(params_);
   land_mapper_ = new LandmarkMapper(params_);
@@ -50,9 +53,12 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
       "/odom_topic", 10,
       std::bind(&VineSLAM_ros::odomListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
   // GPS subscription
-  gps_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
+  gps_subscriber_ = this->create_subscription<sensor_msgs::msg::NavSatFix>(
       "/gps_topic", 10,
       std::bind(&VineSLAM_ros::gpsListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
+  //  gps_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
+  //      "/gps_topic", 10,
+  //      std::bind(&VineSLAM_ros::gpsListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
   // IMU subscription
   imu_subscriber_ = this->create_subscription<geometry_msgs::msg::Vector3Stamped>(
       "/imu_topic", 10,
@@ -74,6 +80,7 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   path_publisher_ = this->create_publisher<nav_msgs::msg::Path>("/vineslam/path", 10);
   poses_publisher_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/vineslam/poses", 10);
   gps_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/vineslam/gps_pose", 10);
+  gps_fix_publisher_ = this->create_publisher<sensor_msgs::msg::NavSatFix>("/vineslam/pose_fix", 10);
   // Debug publishers
   grid_map_publisher_ =
       this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/debug/grid_map_limits", 10);
@@ -152,7 +159,7 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
   RCLCPP_INFO(this->get_logger(), "Done!");
 
-  // Call execution thread
+  // Call execution threads
   std::thread th1(&SLAMNode::loop, this);
   std::thread th2(&SLAMNode::publishDenseInfo, this, 1.);  // Publish dense info at 1Hz
   th1.detach();
@@ -207,21 +214,21 @@ void SLAMNode::loadParameters(Parameters& params)
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
-  param = prefix + ".datum.latitude";
+  param = prefix + ".multilayer_mapping.datum.latitude";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.map_datum_lat_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
-  param = prefix + ".datum.longitude";
+  param = prefix + ".multilayer_mapping.datum.longitude";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.map_datum_long_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
-  param = prefix + ".datum.heading";
+  param = prefix + ".multilayer_mapping.datum.altitude";
   this->declare_parameter(param);
-  if (!this->get_parameter(param, params.map_datum_head_))
+  if (!this->get_parameter(param, params.map_datum_alt_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
@@ -414,6 +421,8 @@ void SLAMNode::init()
   // ----- Initialize the localizer and get first particles distribution
   // ---------------------------------------------------------
   localizer_->init(Pose(0, 0, 0, 0, 0, 0));
+  localizer_->changeGPSFlag(false);  // We do not trust the GPS at the beginning since we still have to estimate
+                                     // heading
   robot_pose_ = localizer_->getPose();
 
   // ---------------------------------------------------------
@@ -546,6 +555,19 @@ void SLAMNode::process()
   timer_->tock();
 
   // ---------------------------------------------------------
+  // ----- Conversion of pose into latitude and longitude
+  // ---------------------------------------------------------
+  double datum_utm_x, datum_utm_y, robot_utm_x, robot_utm_y;
+  float robot_latitude, robot_longitude;
+  std::string datum_utm_zone;
+  GNSS2UTM(params_.map_datum_lat_, params_.map_datum_long_, datum_utm_x, datum_utm_y, datum_utm_zone);
+  robot_utm_x = datum_utm_x + (robot_pose_.x_ * std::cos(params_.map_datum_head_) -
+                               robot_pose_.y_ * std::sin(params_.map_datum_head_));
+  robot_utm_y = datum_utm_y - (robot_pose_.x_ * std::sin(params_.map_datum_head_) +
+                               robot_pose_.y_ * std::cos(params_.map_datum_head_));
+  UTMtoGNSS(robot_utm_x, robot_utm_y, datum_utm_zone, robot_latitude, robot_longitude);
+
+  // ---------------------------------------------------------
   // ----- ROS publishers and tf broadcasting
   // ---------------------------------------------------------
 
@@ -629,6 +651,14 @@ void SLAMNode::process()
   ros_path.header.frame_id = params_.world_frame_id_;
   ros_path.poses = path_;
   path_publisher_->publish(ros_path);
+
+  // Publish robot pose in GNSS polar coordinates
+  sensor_msgs::msg::NavSatFix pose_ll;
+  pose_ll.header.stamp = header_.stamp;
+  pose_ll.header.frame_id = "gps";
+  pose_ll.latitude = robot_latitude;
+  pose_ll.longitude = robot_longitude;
+  gps_fix_publisher_->publish(pose_ll);
 
   // Non-dense publishers
   publish3DMap(l_corners, corners_local_publisher_);

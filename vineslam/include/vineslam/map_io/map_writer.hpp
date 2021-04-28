@@ -12,6 +12,11 @@
 #define ENDL "\n"
 #define TAB "    "
 // -- Map info
+#define DATUM "datum"
+#define LATITUDE "latitude"
+#define LONGITUDE "longitude"
+#define ALTITUDE "altitude"
+#define HEADING "heading"
 #define INFO "info"
 #define ORIGIN "origin"
 #define WIDTH "width"
@@ -71,7 +76,7 @@ public:
   explicit MapWriter(const Parameters& params, const std::time_t& timestamp);
 
   // Receives the occupancy grid map and writes it to a xml file
-  void writeToFile(OccupancyMap* grid_map);
+  void writeToFile(OccupancyMap* grid_map, const Parameters& params);
 
 private:
   // Opens a tag with a specified value

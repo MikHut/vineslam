@@ -34,6 +34,7 @@
 #include <chrono>
 #include <ctime>
 #include <iomanip>
+#include <thread>
 
 // ROS
 #include <rclcpp/rclcpp.hpp>
@@ -96,6 +97,9 @@ public:
 
   // Services callbacks
   bool saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr, vineslam_ros::srv::SaveMap::Response::SharedPtr);
+
+  // GNSS heading estimation
+  void getGNSSHeading();
 
   // ROS node
   rclcpp::Node::SharedPtr nh_;
@@ -220,7 +224,9 @@ public:
 
   // Satellite -> map compensation
   tf2::Transform map2robot_gnss_tf_;
-  double heading_;
+  float heading_;
+  bool estimate_heading_;
+  float heading_counter_;
 
   // Initialization flags
   bool init_flag_;

@@ -26,14 +26,6 @@ private:
   void loopOnce();
   void process();
 
-  // GNSS heading estimation
-  void getGNSSHeading();
-
-  // GNSS estimation variables
-  int datum_autocorrection_stage;
-  int32_t global_counter;
-  double datum_orientation[360][4];
-
   // ROS subscribers
   rclcpp::Subscription<vineslam_msgs::msg::FeatureArray>::SharedPtr feature_subscriber_;
   rclcpp::Subscription<vision_msgs::msg::Detection3DArray>::SharedPtr landmark_subscriber_;

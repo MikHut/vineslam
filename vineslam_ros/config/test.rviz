@@ -5,6 +5,7 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
+        - /TF1/Frames1
         - /Local Maps1
         - /Global maps1
         - /Global maps1/Planes Map1/Topic1
@@ -197,7 +198,7 @@ Visualization Manager:
         map_nn2:
           Value: true
         map_sn0:
-          Value: true
+          Value: false
         odom:
           Value: true
         rear_left_wheel_link:
@@ -551,8 +552,8 @@ Visualization Manager:
           Name: Planes Map
           Namespaces:
             /plane_extremas: true
-            /plane_normal: false
-            /plane_pts: false
+            /plane_normal: true
+            /plane_pts: true
           Topic:
             Depth: 5
             Durability Policy: Volatile
@@ -608,7 +609,7 @@ Visualization Manager:
           Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 150
+          Max Intensity: 144
           Min Color: 0; 0; 0
           Min Intensity: 0
           Name: Corners Map
@@ -860,7 +861,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 58.873165130615234
+      Distance: 38.70220947265625
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -875,10 +876,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.4897964000701904
+      Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.730472564697266
+      Yaw: 4.690472602844238
     Saved: ~
 Window Geometry:
   Displays:
@@ -894,5 +895,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1848
-  X: 72
+  X: 1992
   Y: 27

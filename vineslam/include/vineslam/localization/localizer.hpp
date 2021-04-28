@@ -55,7 +55,7 @@ public:
   void getParticles(std::vector<Particle>& in) const;
 
   // Setters
-  void setGPSConfidence(const float& gps_confidence);
+  void changeGPSFlag(const bool& val);
 
   // Localization logs
   std::string logs_;

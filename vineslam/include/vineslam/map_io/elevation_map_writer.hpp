@@ -18,7 +18,7 @@ public:
   ElevationMapWriter(const Parameters& params, const std::time_t& timestamp);
 
   // Receives the elevation grid map and writes it to a xml file
-  void writeToFile(ElevationMap* elevation_map);
+  void writeToFile(ElevationMap* elevation_map, const Parameters& params);
 
 private:
   // Opens a tag with a specified value

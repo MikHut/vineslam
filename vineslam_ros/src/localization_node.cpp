@@ -28,6 +28,9 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
   init_gps_ = true;
   init_odom_ = true;
 
+  // Initialize variables
+  estimate_heading_ = false;
+
   // Declare the Mappers and Localizer objects
   localizer_ = new Localizer(params_);
   land_mapper_ = new LandmarkMapper(params_);
@@ -79,7 +82,7 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
   path_publisher_ = this->create_publisher<nav_msgs::msg::Path>("/vineslam/path", 10);
   poses_publisher_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/vineslam/poses", 10);
   gps_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/vineslam/gps_pose", 10);
-  gps_fix_publisher_ = this->create_publisher<sensor_msgs::msg::NavSatFix>("/vineslam/gps_fix", 10);
+  gps_fix_publisher_ = this->create_publisher<sensor_msgs::msg::NavSatFix>("/vineslam/pose_fix", 10);
   // Debug publishers
   grid_map_publisher_ =
       this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/debug/grid_map_limits", 10);
@@ -233,30 +236,6 @@ void LocalizationNode::loadParameters(Parameters& params)
   param = prefix + ".use_imu";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.use_imu_))
-  {
-    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
-  }
-  param = prefix + ".multilayer_mapping.datum.latitude";
-  this->declare_parameter(param);
-  if (!this->get_parameter(param, params.map_datum_lat_))
-  {
-    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
-  }
-  param = prefix + ".multilayer_mapping.datum.longitude";
-  this->declare_parameter(param);
-  if (!this->get_parameter(param, params.map_datum_long_))
-  {
-    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
-  }
-  param = prefix + ".multilayer_mapping.datum.altitude";
-  this->declare_parameter(param);
-  if (!this->get_parameter(param, params.map_datum_alt_))
-  {
-    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
-  }
-  param = prefix + ".multilayer_mapping.datum.heading";
-  this->declare_parameter(param);
-  if (!this->get_parameter(param, params.map_datum_head_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
@@ -476,16 +455,13 @@ void LocalizationNode::initializeOnMap()
   // -------------------------------------------------------------------------------
   // ------ Compute the difference between map's and robot's datums
   // -------------------------------------------------------------------------------
-  double map_origin_x, map_origin_y;
-  std::string map_zone;
-  GNSS2UTM(params_.map_datum_lat_, params_.map_datum_long_, map_origin_x, map_origin_y, map_zone);
+  geodetic_converter_ = new Geodetic(params_.map_datum_lat_, params_.map_datum_long_, params_.map_datum_alt_);
 
-  double robot_pose_x, robot_pose_y;
-  std::string robot_zone;
-  GNSS2UTM(params_.robot_datum_lat_, params_.robot_datum_long_, robot_pose_x, robot_pose_y, robot_zone);
+  double robot_e, robot_n, robot_u;
+  geodetic_converter_->geodetic2enu(params_.robot_datum_lat_, params_.robot_datum_long_, params_.robot_datum_alt_,
+                                    robot_e, robot_n, robot_u);
 
-  robot_pose_ = Pose(robot_pose_x - map_origin_x, map_origin_y - robot_pose_y, 0, 0, 0,
-                     params_.robot_datum_head_ - params_.map_datum_head_);
+  robot_pose_ = Pose(robot_n, -robot_e, robot_u, 0, 0, 0);
 
   // Set the map -> robot gnss transformation
   tf2::Quaternion q;

@@ -27,11 +27,11 @@ slam_node:
     # Grid map definitions
     grid_map:
       origin:
-        x: -90.0
-        y: -90.0
+        x: -110.0
+        y: -110.0
         z: -18.0
-      width: 180.0
-      lenght: 180.0
+      width: 220.0
+      lenght: 220.0
       height: 25.0
       resolution: 0.25 # meters
       output_folder: "/home/andresaguiar/Desktop/"

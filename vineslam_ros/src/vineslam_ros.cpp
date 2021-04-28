@@ -149,6 +149,11 @@ void VineSLAM_ros::gpsListener(const sensor_msgs::msg::NavSatFix::SharedPtr msg)
     input_data_.gnss_raw_pose_.y_ = -e;
     input_data_.gnss_raw_pose_.z_ = u;
 
+    if (estimate_heading_)
+    {
+      getGNSSHeading();
+    }
+
     // Convert the gnss with the correct heading
     Pose heading_pose(0, 0, 0, 0, 0, heading_);
     Tf heading_tf = heading_pose.toTf();
@@ -179,7 +184,7 @@ void VineSLAM_ros::gpsListener(const sensor_msgs::msg::NavSatFix::SharedPtr msg)
   }
 }
 
-//void VineSLAM_ros::gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
+// void VineSLAM_ros::gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
 //{
 //  header_ = msg->header;
 //
@@ -313,6 +318,46 @@ void VineSLAM_ros::publishReport() const
   vineslam_report_publisher_->publish(report);
 }
 
+void VineSLAM_ros::getGNSSHeading()
+{
+  uint32_t mil_secs = static_cast<uint32_t>((1 / 3) * 1e3);
+  float robot_distance_traveleld = robot_pose_.norm3D();
+
+  if (robot_distance_traveleld > 0.1 && robot_distance_traveleld < 5.0)
+  {
+    float phi = 0.;
+    float min_dist = std::numeric_limits<float>::max();
+    while (phi < 360.)
+    {
+      float x = std::cos(phi * DEGREE_TO_RAD) * robot_pose_.x_ - std::sin(phi * DEGREE_TO_RAD) * robot_pose_.y_;
+      float y = std::sin(phi * DEGREE_TO_RAD) * robot_pose_.x_ + std::cos(phi * DEGREE_TO_RAD) * robot_pose_.y_;
+
+      Point source(x, y, 0.);
+      Point target(input_data_.gnss_raw_pose_.x_, input_data_.gnss_raw_pose_.y_, 0.);
+      float dist = source.distanceXY(target);
+
+      if (dist < min_dist)
+      {
+        min_dist = dist;
+        //        heading_ =
+        //            (Const::normalizeAngle(phi * DEGREE_TO_RAD) + (heading_ * (heading_counter_ - 1))) /
+        //            (heading_counter_);
+        heading_ = Const::normalizeAngle(phi * DEGREE_TO_RAD);
+      }
+
+      phi += 0.1;
+    }
+    heading_counter_++;
+  }
+  else if (robot_distance_traveleld >= 5.0)
+  {
+    localizer_->changeGPSFlag(true);  // Set the confidence of the use of gps in the particle filter now that we have
+                                      // estimated heading.
+    params_.map_datum_head_ = heading_;
+    estimate_heading_ = false;
+  }
+}
+
 // ------------------------------------------------------------------------------------
 // ----- ROS services
 // ------------------------------------------------------------------------------------
@@ -327,11 +372,11 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
   // ----------------------------------------------------
   std::time_t timestamp = std::time(nullptr);
 
-  MapWriter mw(params_, timestamp);
-  mw.writeToFile(grid_map_);
-
-  ElevationMapWriter ew(params_, timestamp);
-  ew.writeToFile(elevation_map_);
+  //  MapWriter mw(params_, timestamp);
+  //  mw.writeToFile(grid_map_, params_);
+  //
+  //  ElevationMapWriter ew(params_, timestamp);
+  //  ew.writeToFile(elevation_map_, params_);
 
   // ----------------------------------------------------
   // ------ Export geo-referenced map images and info
@@ -389,14 +434,12 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
   UTMtoGNSS(right_bottom_corner.x_, right_bottom_corner.y_, datum_utm_zone, right_bottom_corner_ll.x_,
             right_bottom_corner_ll.y_);
 
-  infofile << std::setprecision(8) << "left_upper_corner: [" << left_upper_corner_ll.x_ << ", "
-           << left_upper_corner_ll.y_ << "]\n";
-  infofile << std::setprecision(8) << "right_upper_corner: [" << right_upper_corner_ll.x_ << ", "
-           << right_upper_corner_ll.y_ << "]\n";
-  infofile << std::setprecision(8) << "left_bottom_corner: [" << left_bottom_corner_ll.x_ << ", "
-           << left_bottom_corner_ll.y_ << "]\n";
-  infofile << std::setprecision(8) << "right_bottom_corner: [" << right_bottom_corner_ll.x_ << ", "
-           << right_bottom_corner_ll.y_ << "]\n";
+  infofile << "left_upper:\n";
+  infofile << std::setprecision(8) << "   latitude: " << left_upper_corner_ll.x_ << "\n"
+           << "   longitude: " << left_upper_corner_ll.y_ << "\n";
+  infofile << "right_bottom:\n";
+  infofile << std::setprecision(8) << "   latitude: " << right_bottom_corner_ll.x_ << "\n"
+           << "   longitude: " << right_bottom_corner_ll.y_ << "\n";
   infofile.close();
 
   // Draw map images
@@ -482,9 +525,10 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
     return dst;
   };
 
-  cv::Mat ci = cv_rotate(corners_image_map, params_.map_datum_head_ * RAD_TO_DEGREE);
-  cv::Mat pi = cv_rotate(planars_image_map, params_.map_datum_head_ * RAD_TO_DEGREE);
-  cv::Mat ei = cv_rotate(elevation_image_map, params_.map_datum_head_ * RAD_TO_DEGREE);
+  float heading = (params_.map_datum_head_ + M_PI / 2) * RAD_TO_DEGREE;
+  cv::Mat ci = cv_rotate(corners_image_map, heading);
+  cv::Mat pi = cv_rotate(planars_image_map, heading);
+  cv::Mat ei = cv_rotate(elevation_image_map, heading);
 
   // Save images
   cv::imwrite(params_.map_output_folder_ + "corners_map_" + std::to_string(timestamp) + ".png", ci);

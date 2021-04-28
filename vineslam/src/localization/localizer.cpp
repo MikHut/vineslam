@@ -101,9 +101,9 @@ void Localizer::getParticles(std::vector<Particle>& in) const
     in[i] = pf_->particles_[i];
 }
 
-void Localizer::setGPSConfidence(const float& gps_confidence)
+void Localizer::changeGPSFlag(const bool& val)
 {
-  pf_->sigma_gps_ = gps_confidence;
+  pf_->use_gps_ = val;
 }
 
 }  // namespace vineslam

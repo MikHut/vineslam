@@ -13,6 +13,7 @@
 #include <vineslam/math/Point.hpp>
 #include <vineslam/math/Pose.hpp>
 #include <vineslam/math/Const.hpp>
+#include <vineslam/math/Geodetic.hpp>
 #include <vineslam/map_io/map_writer.hpp>
 #include <vineslam/map_io/map_parser.hpp>
 #include <vineslam/map_io/elevation_map_writer.hpp>
@@ -87,7 +88,8 @@ public:
   void odomListener(const nav_msgs::msg::Odometry::SharedPtr msg);
 
   // GPS callback function
-  void gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
+  void gpsListener(const sensor_msgs::msg::NavSatFix::SharedPtr msg);
+  //  void gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
 
   // IMU callback function
   void imuListener(const geometry_msgs::msg::Vector3Stamped::SharedPtr msg);
@@ -158,6 +160,7 @@ public:
     Pose p_wheel_odom_pose_;
     // GNSS pose
     Pose gnss_pose_;
+    Pose gnss_raw_pose_;
     // IMU pose
     Pose imu_pose_;
 
@@ -189,6 +192,7 @@ public:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr planars_local_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr planes_local_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr gps_pose_publisher_;
+  rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr gps_fix_publisher_;
 
   // Classes object members
   Parameters params_;
@@ -199,6 +203,7 @@ public:
   VisualMapper* vis_mapper_;
   LidarMapper* lid_mapper_;
   Timer* timer_;
+  Geodetic* geodetic_converter_;
   Observation obsv_;
 
   // Array of poses to store and publish the robot path
@@ -210,11 +215,12 @@ public:
   Pose robot_pose_;
 
   // base -> satellite pose variables
-  geometry_msgs::msg::TransformStamped satellite2base_msg_;
-  float rtk_z_offset_;
+  //  geometry_msgs::msg::TransformStamped satellite2base_msg_;
+  //  float rtk_z_offset_;
 
   // Satellite -> map compensation
   tf2::Transform map2robot_gnss_tf_;
+  double heading_;
 
   // Initialization flags
   bool init_flag_;

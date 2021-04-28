@@ -101,20 +101,9 @@ void Localizer::getParticles(std::vector<Particle>& in) const
     in[i] = pf_->particles_[i];
 }
 
-void Localizer::getParticlesBeforeResampling(std::vector<Particle>& in) const
+void Localizer::setGPSConfidence(const float& gps_confidence)
 {
-  in.resize(m_particles_.size());
-  for (size_t i = 0; i < in.size(); i++)
-    in[i] = m_particles_[i];
-}
-
-void Localizer::changeObservationsToUse(const bool& use_semantic_features, const bool& use_lidar_features,
-                                        const bool& use_image_features, const bool& use_gps)
-{
-  pf_->use_semantic_features_ = use_semantic_features;
-  pf_->use_lidar_features_ = use_lidar_features;
-  pf_->use_image_features_ = use_image_features;
-  pf_->use_gps_ = use_gps;
+  pf_->sigma_gps_ = gps_confidence;
 }
 
 }  // namespace vineslam

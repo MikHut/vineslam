@@ -27,9 +27,11 @@ struct Parameters
   // -----------------------------------
   double map_datum_lat_{};
   double map_datum_long_{};
+  double map_datum_alt_{};
   double map_datum_head_{};
   double robot_datum_lat_{};
   double robot_datum_long_{};
+  double robot_datum_alt_{};
   double robot_datum_head_{};
 
   // -----------------------------------

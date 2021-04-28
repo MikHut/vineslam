@@ -26,12 +26,21 @@ private:
   void loopOnce();
   void process();
 
+  // GNSS heading estimation
+  void getGNSSHeading();
+
+  // GNSS estimation variables
+  int datum_autocorrection_stage;
+  int32_t global_counter;
+  double datum_orientation[360][4];
+
   // ROS subscribers
   rclcpp::Subscription<vineslam_msgs::msg::FeatureArray>::SharedPtr feature_subscriber_;
   rclcpp::Subscription<vision_msgs::msg::Detection3DArray>::SharedPtr landmark_subscriber_;
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr scan_subscriber_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_subscriber_;
-  rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr gps_subscriber_;
+  rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr gps_subscriber_;
+  //  rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr gps_subscriber_;
   rclcpp::Subscription<geometry_msgs::msg::Vector3Stamped>::SharedPtr imu_subscriber_;
 
   // ROS services

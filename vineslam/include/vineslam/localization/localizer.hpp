@@ -53,11 +53,9 @@ public:
   Pose getPose() const;
   // Export the all the poses referent to all the particles
   void getParticles(std::vector<Particle>& in) const;
-  void getParticlesBeforeResampling(std::vector<Particle>& in) const;
 
-  // Routine to change the observations to use in the localization procedure
-  void changeObservationsToUse(const bool& use_semantic_features, const bool& use_lidar_features,
-                               const bool& use_image_features, const bool& use_gps);
+  // Setters
+  void setGPSConfidence(const float& gps_confidence);
 
   // Localization logs
   std::string logs_;

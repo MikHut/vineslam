@@ -50,9 +50,12 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
       "/odom_topic", 10,
       std::bind(&VineSLAM_ros::odomListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
   // GPS subscription
-  gps_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
+  gps_subscriber_ = this->create_subscription<sensor_msgs::msg::NavSatFix>(
       "/gps_topic", 10,
       std::bind(&VineSLAM_ros::gpsListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
+  //  gps_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
+  //      "/gps_topic", 10,
+  //      std::bind(&VineSLAM_ros::gpsListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
   // IMU subscription
   imu_subscriber_ = this->create_subscription<geometry_msgs::msg::Vector3Stamped>(
       "/imu_topic", 10,
@@ -74,6 +77,7 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   path_publisher_ = this->create_publisher<nav_msgs::msg::Path>("/vineslam/path", 10);
   poses_publisher_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/vineslam/poses", 10);
   gps_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/vineslam/gps_pose", 10);
+  gps_fix_publisher_ = this->create_publisher<sensor_msgs::msg::NavSatFix>("/vineslam/gps_fix", 10);
   // Debug publishers
   grid_map_publisher_ =
       this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/debug/grid_map_limits", 10);
@@ -152,7 +156,12 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
   RCLCPP_INFO(this->get_logger(), "Done!");
 
-  // Call execution thread
+  // Call execution threads
+  if (params_.use_gps_)
+  {
+    std::thread th0(&SLAMNode::getGNSSHeading, this);
+    th0.detach();
+  }
   std::thread th1(&SLAMNode::loop, this);
   std::thread th2(&SLAMNode::publishDenseInfo, this, 1.);  // Publish dense info at 1Hz
   th1.detach();
@@ -207,21 +216,21 @@ void SLAMNode::loadParameters(Parameters& params)
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
-  param = prefix + ".datum.latitude";
+  param = prefix + ".multilayer_mapping.datum.latitude";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.map_datum_lat_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
-  param = prefix + ".datum.longitude";
+  param = prefix + ".multilayer_mapping.datum.longitude";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.map_datum_long_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
-  param = prefix + ".datum.heading";
+  param = prefix + ".multilayer_mapping.datum.altitude";
   this->declare_parameter(param);
-  if (!this->get_parameter(param, params.map_datum_head_))
+  if (!this->get_parameter(param, params.map_datum_alt_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
@@ -414,6 +423,8 @@ void SLAMNode::init()
   // ----- Initialize the localizer and get first particles distribution
   // ---------------------------------------------------------
   localizer_->init(Pose(0, 0, 0, 0, 0, 0));
+  localizer_->setGPSConfidence(5.0);  // We do not trust the GPS at the beginning since we still have to estimate
+                                      // heading
   robot_pose_ = localizer_->getPose();
 
   // ---------------------------------------------------------
@@ -546,6 +557,17 @@ void SLAMNode::process()
   timer_->tock();
 
   // ---------------------------------------------------------
+  // ----- Conversion of pose into latitude and longitude
+  // ---------------------------------------------------------
+  double datum_utm_x, datum_utm_y, robot_utm_x, robot_utm_y;
+  float robot_latitude, robot_longitude;
+  std::string datum_utm_zone;
+  GNSS2UTM(params_.map_datum_lat_, params_.map_datum_long_, datum_utm_x, datum_utm_y, datum_utm_zone);
+  robot_utm_x = datum_utm_x + (robot_pose_.x_ * std::cos(heading_) - robot_pose_.y_ * std::sin(heading_));
+  robot_utm_y = datum_utm_y - (robot_pose_.x_ * std::sin(heading_) + robot_pose_.y_ * std::cos(heading_));
+  UTMtoGNSS(robot_utm_x, robot_utm_y, datum_utm_zone, robot_latitude, robot_longitude);
+
+  // ---------------------------------------------------------
   // ----- ROS publishers and tf broadcasting
   // ---------------------------------------------------------
 
@@ -630,12 +652,116 @@ void SLAMNode::process()
   ros_path.poses = path_;
   path_publisher_->publish(ros_path);
 
+  // Publish robot pose in GNSS polar coordinates
+  sensor_msgs::msg::NavSatFix pose_ll;
+  pose_ll.header.stamp = header_.stamp;
+  pose_ll.header.frame_id = "gps";
+  pose_ll.latitude = robot_latitude;
+  pose_ll.longitude = robot_longitude;
+  gps_fix_publisher_->publish(pose_ll);
+
   // Non-dense publishers
   publish3DMap(l_corners, corners_local_publisher_);
   publish3DMap(l_planars, planars_local_publisher_);
   l_planes.push_back(l_ground_plane);
   publish3DMap(l_planes, planes_local_publisher_);
   publishRobotBox(robot_pose_);
+}
+
+void SLAMNode::getGNSSHeading()
+{
+  uint32_t mil_secs = static_cast<uint32_t>((1 / 3) * 1e3);
+  datum_autocorrection_stage = 0;
+  global_counter = 0;
+
+  while (rclcpp::ok() && robot_pose_.norm3D() < 0.1)
+  {
+    // Wait until GPS has been initialized
+    if (init_gps_)
+    {
+      continue;
+    }
+
+    double weight_max = 0.;
+    if (datum_autocorrection_stage == 0)
+    {
+      datum_autocorrection_stage++;
+    }
+    else
+    {
+      double x, y;
+      x = robot_pose_.x_;
+      y = robot_pose_.y_;
+
+      double distance = std::sqrt((input_data_.gnss_raw_pose_.x_ - x) * (input_data_.gnss_raw_pose_.x_ - x) +
+                                  (input_data_.gnss_raw_pose_.y_ - y) * (input_data_.gnss_raw_pose_.y_ - y));
+      double center_map = std::sqrt(input_data_.gnss_raw_pose_.x_ * input_data_.gnss_raw_pose_.x_ +
+                                    input_data_.gnss_raw_pose_.y_ * input_data_.gnss_raw_pose_.y_);
+
+      if (datum_autocorrection_stage == 1)
+      {
+        datum_autocorrection_stage++;
+      }
+      else if (datum_autocorrection_stage == 2)
+      {
+        for (int i = 0; i < 360; i++)
+        {
+          datum_orientation[i][0] = static_cast<double>(i);
+          datum_orientation[i][1] = 1.0;
+        }
+        datum_autocorrection_stage = 3;
+      }
+      else if (datum_autocorrection_stage == 3)
+      {
+        global_counter++;
+
+        double dist_temp_max = 0.0;
+        for (auto& i : datum_orientation)
+        {
+          double xtemp, ytemp, dist_temp;
+          xtemp = std::cos(i[0] * DEGREE_TO_RAD) * x - std::sin(i[0] * DEGREE_TO_RAD) * y;
+          ytemp = std::sin(i[0] * DEGREE_TO_RAD) * x + std::cos(i[0] * DEGREE_TO_RAD) * y;
+          dist_temp = std::sqrt((input_data_.gnss_raw_pose_.x_ - xtemp) * (input_data_.gnss_raw_pose_.x_ - xtemp) +
+                                (input_data_.gnss_raw_pose_.y_ - ytemp) * (input_data_.gnss_raw_pose_.y_ - ytemp));
+          i[2] = dist_temp;
+          if (dist_temp_max < dist_temp)
+            dist_temp_max = dist_temp;
+        }
+
+        int index = 0;
+        for (auto& i : datum_orientation)
+        {
+          i[1] = (i[1] * static_cast<double>(global_counter) +
+                  static_cast<double>(1. - i[2] / dist_temp_max) * center_map) /
+                 static_cast<double>(global_counter + center_map);
+
+          if (std::isfinite(i[1]) == false)
+          {
+            datum_autocorrection_stage = 0;
+            continue;
+          }
+
+          if (weight_max < i[1])
+          {
+            weight_max = i[1];
+            heading_ = Const::normalizeAngle(index * DEGREE_TO_RAD);
+            //            heading_ = -0.12;
+          }
+
+          index++;
+        }
+      }
+      else
+      {
+        RCLCPP_ERROR(this->get_logger(), "Datum localization is bad. Error on heading location.");
+      }
+    }
+
+    // Impose loop frequency
+    rclcpp::sleep_for(std::chrono::milliseconds(mil_secs));
+  }
+  localizer_->setGPSConfidence(0.1);  // Set the confidence of the use of gps in the particle filter now that we have
+                                      // estimated heading.
 }
 
 SLAMNode::~SLAMNode() = default;

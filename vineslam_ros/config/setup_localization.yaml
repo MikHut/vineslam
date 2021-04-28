@@ -7,16 +7,11 @@ localization_node:
   use_gps: True
   use_imu: True
 
-  # WARNING (!): this is not the datum of the RTK base, but the datum of the robot initial position
-  datum:
-    map:
-      latitude: 41.16666454634276
-      longitude: -7.555095384867796
-      heading: 1.417
-    robot:
-      latitude: 41.16671663192795
-      longitude: -7.555065558118306
-      heading: 1.198
+  # Robot initial guess position in polar coordinates
+  robot:
+    latitude: 41.16671663192795
+    longitude: -7.555065558118306
+    heading: 1.198
 
   camera_info:
     baseline: 0.12 # meters
@@ -29,11 +24,18 @@ localization_node:
     z: 0.90 # meters
 
   multilayer_mapping:
+    # Datum
+    datum:
+      latitude: 41.16666452664269
+      longitude: -7.5550953842432085
+      altitude: 294.75472108864517
+      heading: 1.417
+
     # Grid map definitions
     grid_map:
-      map_file_path: "/home/andresaguiar/Desktop/map_19_04_2021/map_1618859904.xml"
-      elevation_map_file_path: "/home/andresaguiar/Desktop/map_19_04_2021/elevation_map_1618859904.xml"
-      output_folder: "/home/andresaguiar/Desktop/"
+      map_file_path: "/home/andresaguiar/Documents/maps/VineSLAM/map_16_04_2021/map_1618848802.xml"
+      elevation_map_file_path: "/home/andresaguiar/Documents/maps/VineSLAM/map_16_04_2021/elevation_map_1618848802.xml"
+      output_folder: "/home/andresaguiar/Documents/maps/VineSLAM/"
 
   pf:
     n_particles: 500
@@ -45,9 +47,3 @@ localization_node:
     sigma_RR: 0.7 # radians
     sigma_PP: 0.7 # radians
     sigma_YY: 1.0 # radians
-#    sigma_xx: 0.5 # meters
-#    sigma_yy: 0.5 # meters
-#    sigma_zz: 0.3 # meters
-#    sigma_RR: 0.3 # radians
-#    sigma_PP: 0.3 # radians
-#    sigma_YY: 0.7 # radians

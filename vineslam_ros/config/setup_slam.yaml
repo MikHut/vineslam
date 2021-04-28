@@ -1,29 +1,39 @@
 slam_node:
-  robot_model: agrob  # {agrob, rocha}
+  robot_model: rocha  # {agrob, rocha}
   world_frame_id: map_nn2
   use_semantic_features: False
   use_lidar_features: True
   use_image_features: False
-  use_gps: False
-  use_wheel_odometry: True
+  use_gps: True
+  use_imu: True
+
+  # WARNING (!): this is not the datum of the RTK base, but the datum of the robot initial position
+  datum:
+    latitude: 41.16666453372342
+    longitude: -7.555095358663023
+    heading: 4.4561
 
   camera_info:
     baseline: 0.12 # meters
     fx: 692.95849609375  # pixels
     cx: 692.95849609375  # pixels
 
+  robot_dimensions:
+    x: 1.00 # meters
+    y: 0.68 # meters
+    z: 0.90 # meters
+
   multilayer_mapping:
     # Grid map definitions
     grid_map:
       origin:
-        x: -75.0
-        y: -75.0
-        z: -0.5
-      width: 150.0
-      lenght: 150.0
-      height: 2.5
+        x: -90.0
+        y: -90.0
+        z: -18.0
+      width: 180.0
+      lenght: 180.0
+      height: 25.0
       resolution: 0.25 # meters
-      save_map: True
       output_folder: "/home/andresaguiar/Desktop/"
 
   pf:

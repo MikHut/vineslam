@@ -12,9 +12,11 @@
 #include <vineslam/mapping/lidar_mapping.hpp>
 #include <vineslam/math/Point.hpp>
 #include <vineslam/math/Pose.hpp>
-#include <vineslam/math/const.hpp>
-#include <vineslam/mapxml/map_writer.hpp>
-#include <vineslam/mapxml/map_parser.hpp>
+#include <vineslam/math/Const.hpp>
+#include <vineslam/map_io/map_writer.hpp>
+#include <vineslam/map_io/map_parser.hpp>
+#include <vineslam/map_io/elevation_map_writer.hpp>
+#include <vineslam/map_io/elevation_map_parser.hpp>
 #include <vineslam/utils/save_data.hpp>
 #include <vineslam/utils/Timer.hpp>
 // ----------------------------
@@ -23,8 +25,6 @@
 #include <vineslam_msgs/msg/feature.hpp>
 #include <vineslam_msgs/msg/feature_array.hpp>
 // ----------------------------
-#include <vineslam_ros/srv/start_map_registration.hpp>
-#include <vineslam_ros/srv/stop_map_registration.hpp>
 #include <vineslam_ros/srv/save_map.hpp>
 // ----------------------------
 
@@ -32,6 +32,7 @@
 #include <iostream>
 #include <chrono>
 #include <ctime>
+#include <iomanip>
 
 // ROS
 #include <rclcpp/rclcpp.hpp>
@@ -48,10 +49,20 @@
 #include <vision_msgs/msg/detection3_d.hpp>
 #include <vision_msgs/msg/detection3_d_array.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
+#include <visualization_msgs/msg/interactive_marker.hpp>
+#include <visualization_msgs/msg/interactive_marker_control.hpp>
+#include <visualization_msgs/msg/interactive_marker_feedback.hpp>
+#include <interactive_markers/interactive_marker_server.hpp>
+#include <interactive_markers/menu_handler.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_cloud.h>
 #include <pcl/filters/filter.h>
+
+// OpenCV
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/highgui.hpp>
 
 namespace vineslam
 {
@@ -62,15 +73,6 @@ public:
   VineSLAM_ros(const std::string& node) : Node(node)
   {
   }
-
-  // Runtime execution routines
-  virtual void init();
-
-  virtual void loop();
-
-  virtual void loopOnce();
-
-  virtual void process();
 
   // Stereo camera images callback function
   void imageFeatureListener(const vineslam_msgs::msg::FeatureArray::SharedPtr features);
@@ -85,29 +87,27 @@ public:
   void odomListener(const nav_msgs::msg::Odometry::SharedPtr msg);
 
   // GPS callback function
-  void gpsListener(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
+  void gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
+
+  // IMU callback function
+  void imuListener(const geometry_msgs::msg::Vector3Stamped::SharedPtr msg);
 
   // Services callbacks
-  bool startRegistration(vineslam_ros::srv::StartMapRegistration::Request::SharedPtr,
-                         vineslam_ros::srv::StartMapRegistration::Response::SharedPtr);
-  bool stopRegistration(vineslam_ros::srv::StopMapRegistration::Request::SharedPtr,
-                        vineslam_ros::srv::StopMapRegistration::Response::SharedPtr);
   bool saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr, vineslam_ros::srv::SaveMap::Response::SharedPtr);
-
-  // Conversions
-  static void pose2TransformStamped(const tf2::Quaternion& q, const tf2::Vector3& t,
-                                    geometry_msgs::msg::TransformStamped& tf);
 
   // ROS node
   rclcpp::Node::SharedPtr nh_;
+
+  // Most recent message header received
+  std_msgs::msg::Header header_;
 
   // Tf2 broadcaster
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
   // Global thread to publish maps and other info
-  void publishDenseInfo();
+  void publishDenseInfo(const float& rate);
   // Publish 2D semantic features map
-  void publish2DMap(const Pose& pose, const std::vector<float>& bearings, const std::vector<float>& depths) const;
+  void publish2DMap() const;
   // Publish the elevation map
   void publishElevationMap() const;
   // Publish the 3D maps
@@ -116,24 +116,28 @@ public:
   void publish3DMap(const std::vector<Plane>& planes,
                     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub);
   void publish3DMap(const Pose& r_pose, const std::vector<Plane>& planes,
-                           rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub);
+                    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub);
   // Publish the 3D PCL semi planes
   void publish3DMap(const std::vector<SemiPlane>& planes,
                     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub);
   void publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>& planes,
-                           rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub);
+                    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub);
   // Publish a 3D PCL corners map
   void publish3DMap(const std::vector<Corner>& corners,
                     const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub);
   void publish3DMap(const Pose& r_pose, const std::vector<Corner>& corners,
-                           rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub);
+                    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub);
   // Publish a 3D PCL planar features map
   void publish3DMap(const std::vector<Planar>& planars,
                     const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub);
   void publish3DMap(const Pose& r_pose, const std::vector<Planar>& planars,
-                           rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub);
+                    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub);
+  // Creates a 6-DoF interactive marker
+  void make6DofMarker(visualization_msgs::msg::InteractiveMarker& imarker, Pose pose, std::string marker_name);
   // Publishes a box containing the grid map
   void publishGridMapLimits() const;
+  // Publishes a box containing the zone occupied by the robot
+  void publishRobotBox(const Pose& robot_pose) const;
   // Publishes a VineSLAM state report for debug purposes
   void publishReport() const;
 
@@ -154,6 +158,9 @@ public:
     Pose p_wheel_odom_pose_;
     // GNSS pose
     Pose gnss_pose_;
+    // IMU pose
+    Pose imu_pose_;
+
     // LiDAR scan points
     std::vector<Point> scan_pts_;
 
@@ -170,6 +177,7 @@ public:
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr grid_map_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr elevation_map_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr map2D_publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr robot_box_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map3D_features_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map3D_corners_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map3D_planars_publisher_;
@@ -180,6 +188,7 @@ public:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr corners_local_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr planars_local_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr planes_local_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr gps_pose_publisher_;
 
   // Classes object members
   Parameters params_;
@@ -197,13 +206,20 @@ public:
 
   // Motion variables
   Pose init_odom_pose_;
+  Pose init_gps_pose_;
   Pose robot_pose_;
+
+  // base -> satellite pose variables
+  geometry_msgs::msg::TransformStamped satellite2base_msg_;
+  float rtk_z_offset_;
+
+  // Satellite -> map compensation
+  tf2::Transform map2robot_gnss_tf_;
 
   // Initialization flags
   bool init_flag_;
   bool init_gps_;
   bool init_odom_;
-  bool register_map_;
 };
 
 }  // namespace vineslam

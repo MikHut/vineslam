@@ -154,6 +154,8 @@ struct SemiPlane : public Plane
     centroid_ = l_plane.centroid_;
     local_ref_ = l_plane.local_ref_;
     extremas_ = l_extremas;
+    n_correspondences_ = 0;
+    n_occurences_ = 0;
     transformAndSetArea();
   }
 
@@ -199,6 +201,8 @@ struct SemiPlane : public Plane
     area_ = std::fabs(a / 2);
   }
 
+  uint32_t n_occurences_;
+  uint32_t n_correspondences_;
   std::vector<Point> extremas_;
   float area_{};
 };

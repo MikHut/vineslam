@@ -10,7 +10,7 @@
 #include "../localization/pf.hpp"
 #include "../math/Point.hpp"
 #include "../math/Pose.hpp"
-#include "../math/const.hpp"
+#include "../math/Const.hpp"
 
 // std, eigen
 #include <iostream>
@@ -22,13 +22,14 @@ namespace vineslam
 // Structure that stores  observations to use in the localization procedure
 struct Observation
 {
-  std::vector<SemanticFeature> landmarks;
-  std::vector<ImageFeature> surf_features;
-  std::vector<Planar> planars;
-  std::vector<Corner> corners;
-  std::vector<SemiPlane> planes;
-  SemiPlane ground_plane;
-  Pose gps_pose;
+  std::vector<SemanticFeature> landmarks_;
+  std::vector<ImageFeature> surf_features_;
+  std::vector<Planar> planars_;
+  std::vector<Corner> corners_;
+  std::vector<SemiPlane> planes_;
+  SemiPlane ground_plane_;
+  Pose gps_pose_;
+  Pose imu_pose_;
 };
 
 class Localizer

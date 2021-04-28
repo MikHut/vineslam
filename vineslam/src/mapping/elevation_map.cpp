@@ -33,7 +33,9 @@ bool ElevationMap::update(const float& z, const int& i, const int& j)
   }
   catch (char const* msg)
   {
+#if VERBOSE == 1
     std::cout << "ElevationMap::update() --- " << msg;
+#endif
     return false;
   }
 

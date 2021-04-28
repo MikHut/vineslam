@@ -1,14 +1,14 @@
 #pragma once
 
 // Classes
-#include "../params.hpp"
-#include "../feature/semantic.hpp"
-#include "../mapping/occupancy_map.hpp"
-#include "../math/Point.hpp"
-#include "../math/Pose.hpp"
-#include "../math/stat.hpp"
-#include "../math/const.hpp"
-#include "landmark_ekf.hpp"
+#include <vineslam/params.hpp>
+#include <vineslam/feature/semantic.hpp>
+#include <vineslam/mapping/occupancy_map.hpp>
+#include <vineslam/math/Point.hpp>
+#include <vineslam/math/Pose.hpp>
+#include <vineslam/math/Stat.hpp>
+#include <vineslam/math/Const.hpp>
+#include <vineslam/mapping/landmark_ekf.hpp>
 
 // std, eigen
 #include <cmath>

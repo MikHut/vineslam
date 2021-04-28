@@ -78,14 +78,4 @@ struct Tf
   std::array<float, 3> t_array_{};
 };
 
-// stdout operator
-static std::ostream& operator<<(std::ostream& out, Tf const& tf)
-{
-  return out << std::setprecision(3) << tf.R_array_[0] << " " << tf.R_array_[1] << " " << tf.R_array_[2] << " "
-             << tf.t_array_[0] << "\n"
-             << tf.R_array_[3] << " " << tf.R_array_[4] << " " << tf.R_array_[5] << " " << tf.t_array_[1] << "\n"
-             << tf.R_array_[6] << " " << tf.R_array_[7] << " " << tf.R_array_[8] << " " << tf.t_array_[2] << "\n"
-             << 0 << " " << 0 << " " << 0 << " " << 1 << "\n";
-}
-
 }  // namespace vineslam

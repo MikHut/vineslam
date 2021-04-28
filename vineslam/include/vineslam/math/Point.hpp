@@ -1,6 +1,6 @@
 #pragma once
 
-#include "const.hpp"
+#include "Const.hpp"
 #include "Tf.hpp"
 
 #include <cmath>
@@ -180,11 +180,5 @@ struct Point
   float y_;
   float z_;
 };
-
-// stdout operator
-static std::ostream& operator<<(std::ostream& out, Point const& p)
-{
-  return out << '(' << p.x_ << ' ' << p.y_ << ' ' << p.z_ << ")";
-}
 
 }  // namespace vineslam

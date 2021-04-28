@@ -3,9 +3,8 @@
 #include <iostream>
 #include <ctime>
 #include <fstream>
-#include <yaml-cpp/yaml.h>
 
-#include "../mapping/occupancy_map.hpp"
+#include <vineslam/mapping/occupancy_map.hpp>
 
 // ----- TAGS ----- //
 // -- General
@@ -51,6 +50,17 @@
 #define BLUE "b"
 #define LAPLACIAN "laplacian"
 #define SIGNATURE "signature"
+// ----- PLANES
+#define PLANES "planes"
+#define POINTS_ "points"
+#define POINT "point"
+#define CENTROID "centroid"
+#define EXTREMAS "extremas"
+#define EXTREMA "extrema"
+#define COEF_A "a"
+#define COEF_B "b"
+#define COEF_C "c"
+#define COEF_D "d"
 
 namespace vineslam
 {
@@ -58,7 +68,7 @@ class MapWriter
 {
 public:
   // Class constructor - loads the file name
-  explicit MapWriter(const Parameters& params);
+  explicit MapWriter(const Parameters& params, const std::time_t& timestamp);
 
   // Receives the occupancy grid map and writes it to a xml file
   void writeToFile(OccupancyMap* grid_map);

@@ -4,9 +4,14 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
+        - /Global Options1
         - /Local Maps1
         - /Global maps1
-      Splitter Ratio: 0.5740740895271301
+        - /Global maps1/Planes Map1/Topic1
+        - /Global maps1/Planes Map1/Namespaces1
+        - /Debug1
+        - /Sensors1
+      Splitter Ratio: 0.8148148059844971
     Tree Height: 787
   - Class: rviz_common/Selection
     Name: Selection
@@ -46,47 +51,321 @@ Visualization Manager:
       Enabled: true
       Frame Timeout: 15
       Frames:
-        All Enabled: true
+        All Enabled: false
+        Vertex/1000:
+          Value: false
+        Vertex/10000:
+          Value: false
+        Vertex/1005:
+          Value: false
+        Vertex/1006:
+          Value: false
+        Vertex/1007:
+          Value: false
+        Vertex/1008:
+          Value: false
+        Vertex/1009:
+          Value: false
+        Vertex/1010:
+          Value: false
+        Vertex/1011:
+          Value: false
+        Vertex/1012:
+          Value: false
+        Vertex/1013:
+          Value: false
+        Vertex/1014:
+          Value: false
+        Vertex/1015:
+          Value: false
+        Vertex/1016:
+          Value: false
+        Vertex/1028:
+          Value: false
+        Vertex/1030:
+          Value: false
+        Vertex/1031:
+          Value: false
+        Vertex/1032:
+          Value: false
+        Vertex/1033:
+          Value: false
+        Vertex/1034:
+          Value: false
+        Vertex/1035:
+          Value: false
+        Vertex/1036:
+          Value: false
+        Vertex/1037:
+          Value: false
+        Vertex/1038:
+          Value: false
+        Vertex/1039:
+          Value: false
+        Vertex/1040:
+          Value: false
+        Vertex/1041:
+          Value: false
+        Vertex/1042:
+          Value: false
+        Vertex/1043:
+          Value: false
+        Vertex/1044:
+          Value: false
+        Vertex/1045:
+          Value: false
+        Vertex/1046:
+          Value: false
+        Vertex/1047:
+          Value: false
+        Vertex/1048:
+          Value: false
+        Vertex/1049:
+          Value: false
+        Vertex/1050:
+          Value: false
+        Vertex/1051:
+          Value: false
+        Vertex/1052:
+          Value: false
+        Vertex/1053:
+          Value: false
+        Vertex/1054:
+          Value: false
+        Vertex/1055:
+          Value: false
+        Vertex/1056:
+          Value: false
+        Vertex/1058:
+          Value: false
+        Vertex/1059:
+          Value: false
+        Vertex/1060:
+          Value: false
+        Vertex/1061:
+          Value: false
+        Vertex/1062:
+          Value: false
+        Vertex/1063:
+          Value: false
+        Vertex/1064:
+          Value: false
+        Vertex/1065:
+          Value: false
+        Vertex/1066:
+          Value: false
+        Vertex/1067:
+          Value: false
+        Vertex/1068:
+          Value: false
+        Vertex/1069:
+          Value: false
+        Vertex/1070:
+          Value: false
+        Vertex/1071:
+          Value: false
+        Vertex/1072:
+          Value: false
+        Vertex/1073:
+          Value: false
+        Vertex/1074:
+          Value: false
+        Vertex/1075:
+          Value: false
+        Vertex/1076:
+          Value: false
+        Vertex/1078:
+          Value: false
+        Vertex/1079:
+          Value: false
+        Vertex/1081:
+          Value: false
+        Vertex/1082:
+          Value: false
+        Vertex/1083:
+          Value: false
+        Vertex/1130:
+          Value: false
         base_link:
           Value: true
-        camerat265_odom_frame:
-          Value: true
         front_left_wheel_link:
-          Value: true
+          Value: false
         front_right_wheel_link:
+          Value: false
+        map_nn1:
+          Value: false
+        map_nn2:
           Value: true
-        hokuyo_link:
-          Value: true
-        imu_link:
-          Value: true
-        map:
+        map_sn0:
           Value: true
         odom:
           Value: true
         rear_left_wheel_link:
-          Value: true
+          Value: false
         rear_right_wheel_link:
-          Value: true
-        tower_base:
-          Value: true
+          Value: false
         velodyne:
           Value: true
         zed_camera_left_optical_frame:
-          Value: true
+          Value: false
       Marker Scale: 5
       Name: TF
-      Show Arrows: true
+      Show Arrows: false
       Show Axes: true
-      Show Names: false
+      Show Names: true
       Tree:
-        map:
+        odom:
           base_link:
+            front_left_wheel_link:
+              {}
+            front_right_wheel_link:
+              {}
+            map_sn0:
+              Vertex/1000:
+                {}
+              Vertex/1005:
+                {}
+              Vertex/1006:
+                {}
+              Vertex/1007:
+                {}
+              Vertex/1008:
+                {}
+              Vertex/1009:
+                {}
+              Vertex/1010:
+                {}
+              Vertex/1011:
+                {}
+              Vertex/1012:
+                {}
+              Vertex/1013:
+                {}
+              Vertex/1014:
+                {}
+              Vertex/1015:
+                {}
+              Vertex/1016:
+                {}
+              Vertex/1028:
+                {}
+              Vertex/1030:
+                {}
+              Vertex/1031:
+                {}
+              Vertex/1032:
+                {}
+              Vertex/1033:
+                {}
+              Vertex/1034:
+                {}
+              Vertex/1035:
+                {}
+              Vertex/1036:
+                {}
+              Vertex/1037:
+                {}
+              Vertex/1038:
+                {}
+              Vertex/1039:
+                {}
+              Vertex/1040:
+                {}
+              Vertex/1041:
+                {}
+              Vertex/1042:
+                {}
+              Vertex/1043:
+                {}
+              Vertex/1044:
+                {}
+              Vertex/1045:
+                {}
+              Vertex/1046:
+                {}
+              Vertex/1047:
+                {}
+              Vertex/1048:
+                {}
+              Vertex/1049:
+                {}
+              Vertex/1050:
+                {}
+              Vertex/1051:
+                {}
+              Vertex/1052:
+                {}
+              Vertex/1053:
+                {}
+              Vertex/1054:
+                {}
+              Vertex/1055:
+                {}
+              Vertex/1056:
+                {}
+              Vertex/1058:
+                {}
+              Vertex/1059:
+                {}
+              Vertex/1060:
+                {}
+              Vertex/1061:
+                {}
+              Vertex/1062:
+                {}
+              Vertex/1063:
+                {}
+              Vertex/1064:
+                {}
+              Vertex/1065:
+                {}
+              Vertex/1066:
+                {}
+              Vertex/1067:
+                {}
+              Vertex/1068:
+                {}
+              Vertex/1069:
+                {}
+              Vertex/1070:
+                {}
+              Vertex/1071:
+                {}
+              Vertex/1072:
+                {}
+              Vertex/1073:
+                {}
+              Vertex/1074:
+                {}
+              Vertex/1075:
+                {}
+              Vertex/1076:
+                {}
+              Vertex/1078:
+                {}
+              Vertex/1079:
+                {}
+              Vertex/1081:
+                {}
+              Vertex/1082:
+                {}
+              Vertex/1083:
+                {}
+              Vertex/1130:
+                {}
+            rear_left_wheel_link:
+              {}
+            rear_right_wheel_link:
+              {}
+            velodyne:
+              {}
             zed_camera_left_optical_frame:
               {}
-          camerat265_odom_frame:
+          map_nn1:
+            Vertex/10000:
+              {}
+          map_nn2:
             {}
-        odom:
-          {}
       Update Interval: 0
       Value: true
     - Class: rviz_common/Group
@@ -157,7 +436,7 @@ Visualization Manager:
             Reliability Policy: Reliable
             Value: /vineslam/poses
           Value: true
-      Enabled: true
+      Enabled: false
       Name: Poses
     - Class: rviz_common/Group
       Displays:
@@ -173,12 +452,12 @@ Visualization Manager:
           Color: 255; 255; 255
           Color Transformer: Intensity
           Decay Time: 0
-          Enabled: true
+          Enabled: false
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 1870
+          Max Intensity: 950
           Min Color: 0; 0; 0
-          Min Intensity: 40
+          Min Intensity: 30
           Name: Corners Map
           Position Transformer: XYZ
           Selectable: true
@@ -193,7 +472,7 @@ Visualization Manager:
             Value: /vineslam/map3D/corners_local
           Use Fixed Frame: true
           Use rainbow: true
-          Value: true
+          Value: false
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
@@ -204,19 +483,19 @@ Visualization Manager:
           Channel Name: intensity
           Class: rviz_default_plugins/PointCloud2
           Color: 255; 255; 255
-          Color Transformer: ""
+          Color Transformer: FlatColor
           Decay Time: 0
-          Enabled: false
+          Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 4096
+          Max Intensity: 830
           Min Color: 0; 0; 0
-          Min Intensity: 0
+          Min Intensity: -10
           Name: Planars Map
-          Position Transformer: ""
+          Position Transformer: XYZ
           Selectable: true
           Size (Pixels): 3
-          Size (m): 0.009999999776482582
+          Size (m): 0.05000000074505806
           Style: Flat Squares
           Topic:
             Depth: 5
@@ -226,7 +505,7 @@ Visualization Manager:
             Value: /vineslam/map3D/planars_local
           Use Fixed Frame: true
           Use rainbow: true
-          Value: false
+          Value: true
         - Class: rviz_default_plugins/MarkerArray
           Enabled: false
           Name: Planes Map
@@ -272,8 +551,8 @@ Visualization Manager:
           Name: Planes Map
           Namespaces:
             /plane_extremas: true
-            /plane_normal: true
-            /plane_pts: true
+            /plane_normal: false
+            /plane_pts: false
           Topic:
             Depth: 5
             Durability Policy: Volatile
@@ -293,7 +572,7 @@ Visualization Manager:
           Color: 255; 255; 255
           Color Transformer: RGB8
           Decay Time: 0
-          Enabled: true
+          Enabled: false
           Invert Rainbow: false
           Max Color: 255; 255; 255
           Max Intensity: 4096
@@ -313,7 +592,7 @@ Visualization Manager:
             Value: /vineslam/map3D/SURF
           Use Fixed Frame: true
           Use rainbow: true
-          Value: true
+          Value: false
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
@@ -329,14 +608,14 @@ Visualization Manager:
           Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 284
+          Max Intensity: 150
           Min Color: 0; 0; 0
-          Min Intensity: 1
+          Min Intensity: 0
           Name: Corners Map
           Position Transformer: XYZ
           Selectable: true
           Size (Pixels): 3
-          Size (m): 0.05000000074505806
+          Size (m): 0.15000000596046448
           Style: Boxes
           Topic:
             Depth: 5
@@ -354,7 +633,7 @@ Visualization Manager:
             Min Value: -10
             Value: true
           Axis: Z
-          Channel Name: intensity
+          Channel Name: y
           Class: rviz_default_plugins/PointCloud2
           Color: 255; 255; 255
           Color Transformer: Intensity
@@ -362,14 +641,14 @@ Visualization Manager:
           Enabled: false
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 0
+          Max Intensity: 28.36250114440918
           Min Color: 0; 0; 0
-          Min Intensity: 0
+          Min Intensity: -24.42336654663086
           Name: Planars Map
           Position Transformer: XYZ
           Selectable: true
           Size (Pixels): 3
-          Size (m): 0.05000000074505806
+          Size (m): 0.10000000149011612
           Style: Boxes
           Topic:
             Depth: 5
@@ -384,6 +663,34 @@ Visualization Manager:
       Name: Global maps
     - Class: rviz_common/Group
       Displays:
+        - Class: rviz_default_plugins/MarkerArray
+          Enabled: false
+          Name: Global Map Limits
+          Namespaces:
+            {}
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /vineslam/debug/grid_map_limits
+          Value: false
+        - Class: rviz_default_plugins/Marker
+          Enabled: true
+          Name: Robot box
+          Namespaces:
+            "": true
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /vineslam/debug/robot_box
+          Value: true
+      Enabled: true
+      Name: Debug
+    - Class: rviz_common/Group
+      Displays:
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
@@ -394,26 +701,26 @@ Visualization Manager:
           Channel Name: intensity
           Class: rviz_default_plugins/PointCloud2
           Color: 255; 255; 255
-          Color Transformer: ""
+          Color Transformer: Intensity
           Decay Time: 0
           Enabled: false
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 4096
+          Max Intensity: 185
           Min Color: 0; 0; 0
           Min Intensity: 0
           Name: Velodyne
-          Position Transformer: ""
+          Position Transformer: XYZ
           Selectable: true
           Size (Pixels): 3
-          Size (m): 0.009999999776482582
+          Size (m): 0.05000000074505806
           Style: Flat Squares
           Topic:
             Depth: 5
             Durability Policy: Volatile
             History Policy: Keep Last
             Reliability Policy: Reliable
-            Value: /velodyne_points
+            Value: /white/velodyne_points
           Use Fixed Frame: true
           Use rainbow: true
           Value: false
@@ -453,17 +760,51 @@ Visualization Manager:
             Durability Policy: Volatile
             History Policy: Keep Last
             Reliability Policy: Reliable
-            Value: /husky_velocity_controller/odom
+            Value: /white/husky_velocity_controller/odom
+          Value: false
+        - Alpha: 1
+          Axes Length: 1
+          Axes Radius: 0.10000000149011612
+          Class: rviz_default_plugins/PoseWithCovariance
+          Color: 255; 25; 0
+          Covariance:
+            Orientation:
+              Alpha: 0.5
+              Color: 255; 255; 127
+              Color Style: Unique
+              Frame: Local
+              Offset: 1
+              Scale: 1
+              Value: true
+            Position:
+              Alpha: 0.30000001192092896
+              Color: 204; 51; 204
+              Scale: 1
+              Value: true
+            Value: true
+          Enabled: false
+          Head Length: 0.30000001192092896
+          Head Radius: 0.10000000149011612
+          Name: RTK Pose
+          Shaft Length: 1
+          Shaft Radius: 0.05000000074505806
+          Shape: Arrow
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /white/piksi/enu_pose_best_fix
           Value: false
         - Alpha: 1
           Axes Length: 1
           Axes Radius: 0.10000000149011612
           Class: rviz_default_plugins/Pose
-          Color: 255; 25; 0
-          Enabled: false
+          Color: 196; 160; 0
+          Enabled: true
           Head Length: 0.30000001192092896
           Head Radius: 0.10000000149011612
-          Name: GPS Pose
+          Name: RTK Pose (processed by VineSLAM)
           Shaft Length: 1
           Shaft Radius: 0.05000000074505806
           Shape: Arrow
@@ -473,40 +814,13 @@ Visualization Manager:
             History Policy: Keep Last
             Reliability Policy: Reliable
             Value: /vineslam/gps_pose
-          Value: false
-        - Alpha: 1
-          Buffer Length: 1
-          Class: rviz_default_plugins/Path
-          Color: 25; 255; 0
-          Enabled: false
-          Head Diameter: 0.30000001192092896
-          Head Length: 0.20000000298023224
-          Length: 0.30000001192092896
-          Line Style: Lines
-          Line Width: 0.029999999329447746
-          Name: GPS Path
-          Offset:
-            X: 0
-            Y: 0
-            Z: 0
-          Pose Color: 255; 85; 255
-          Pose Style: None
-          Radius: 0.029999999329447746
-          Shaft Diameter: 0.10000000149011612
-          Shaft Length: 0.10000000149011612
-          Topic:
-            Depth: 5
-            Durability Policy: Volatile
-            History Policy: Keep Last
-            Reliability Policy: Reliable
-            Value: /vineslam/gps_path
-          Value: false
+          Value: true
       Enabled: true
       Name: Sensors
   Enabled: true
   Global Options:
-    Background Color: 255; 255; 255
-    Fixed Frame: map
+    Background Color: 0; 0; 0
+    Fixed Frame: map_nn2
     Frame Rate: 30
   Name: root
   Tools:
@@ -546,25 +860,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 21.36026382446289
+      Distance: 58.873165130615234
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 3.3676111698150635
-        Y: -3.2558236122131348
-        Z: 4.2742791175842285
+        X: 5.166930198669434
+        Y: 3.137328624725342
+        Z: 7.482106685638428
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5653980374336243
+      Pitch: 1.4897964000701904
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 2.8504021167755127
+      Yaw: 4.730472564697266
     Saved: ~
 Window Geometry:
   Displays:
@@ -580,5 +894,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1848
-  X: 1992
+  X: 72
   Y: 27

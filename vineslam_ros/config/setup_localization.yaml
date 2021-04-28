@@ -1,0 +1,53 @@
+localization_node:
+  robot_model: rocha  # {agrob, rocha}
+  world_frame_id: map_nn2
+  use_semantic_features: False
+  use_lidar_features: True
+  use_image_features: False
+  use_gps: True
+  use_imu: True
+
+  # WARNING (!): this is not the datum of the RTK base, but the datum of the robot initial position
+  datum:
+    map:
+      latitude: 41.16666454634276
+      longitude: -7.555095384867796
+      heading: 1.417
+    robot:
+      latitude: 41.16671663192795
+      longitude: -7.555065558118306
+      heading: 1.198
+
+  camera_info:
+    baseline: 0.12 # meters
+    fx: 692.95849609375  # pixels
+    cx: 692.95849609375  # pixels
+
+  robot_dimensions:
+    x: 1.00 # meters
+    y: 0.68 # meters
+    z: 0.90 # meters
+
+  multilayer_mapping:
+    # Grid map definitions
+    grid_map:
+      map_file_path: "/home/andresaguiar/Desktop/map_19_04_2021/map_1618859904.xml"
+      elevation_map_file_path: "/home/andresaguiar/Desktop/map_19_04_2021/elevation_map_1618859904.xml"
+      output_folder: "/home/andresaguiar/Desktop/"
+
+  pf:
+    n_particles: 500
+
+    # Particles innovation
+    sigma_xx: 1.0 # meters
+    sigma_yy: 1.0 # meters
+    sigma_zz: 0.7 # meters
+    sigma_RR: 0.7 # radians
+    sigma_PP: 0.7 # radians
+    sigma_YY: 1.0 # radians
+#    sigma_xx: 0.5 # meters
+#    sigma_yy: 0.5 # meters
+#    sigma_zz: 0.3 # meters
+#    sigma_RR: 0.3 # radians
+#    sigma_PP: 0.3 # radians
+#    sigma_YY: 0.7 # radians

@@ -2,9 +2,9 @@
 
 namespace vineslam
 {
-void VineSLAM_ros::publishDenseInfo()
+void VineSLAM_ros::publishDenseInfo(const float& rate)
 {
-  rclcpp::Rate r(1);
+  uint32_t mil_secs = static_cast<uint32_t>((1 / rate) * 1e3);
   while (rclcpp::ok())
   {
     if (init_flag_)
@@ -14,14 +14,14 @@ void VineSLAM_ros::publishDenseInfo()
     publishReport();
 
     // Publish the 2D map
-    publish2DMap(robot_pose_, input_data_.land_bearings_, input_data_.land_depths_);
+    publish2DMap();
     // Publish 3D maps
     publish3DMap();
     publishElevationMap();
     publishGridMapLimits();
 
     // Impose loop frequency
-    r.sleep();
+    rclcpp::sleep_for(std::chrono::milliseconds(mil_secs));
   }
 }
 
@@ -55,12 +55,41 @@ void VineSLAM_ros::publishGridMapLimits() const
   grid_map_publisher_->publish(marker_array);
 }
 
-void VineSLAM_ros::publish2DMap(const Pose& pose, const std::vector<float>& bearings,
-                                const std::vector<float>& depths) const
+void VineSLAM_ros::publishRobotBox(const Pose& robot_pose) const
+{
+  // Robot pose orientation to quaternion
+  tf2::Quaternion q;
+  q.setRPY(robot_pose.R_, robot_pose.P_, robot_pose.Y_);
+
+  // Set robot original box corners
+  visualization_msgs::msg::Marker robot_cube;
+  robot_cube.header.frame_id = params_.world_frame_id_;
+  robot_cube.header.stamp = rclcpp::Time();
+  robot_cube.id = 0;
+  robot_cube.type = visualization_msgs::msg::Marker::CUBE;
+  robot_cube.action = visualization_msgs::msg::Marker::ADD;
+  robot_cube.color.a = 0.7;
+  robot_cube.color.r = 0;
+  robot_cube.color.g = 0;
+  robot_cube.color.b = 1;
+  robot_cube.scale.x = params_.robot_dim_x_;
+  robot_cube.scale.y = params_.robot_dim_y_;
+  robot_cube.scale.z = params_.robot_dim_z_;
+  robot_cube.pose.position.x = robot_pose.x_;
+  robot_cube.pose.position.y = robot_pose.y_;
+  robot_cube.pose.position.z = robot_pose.z_ + params_.robot_dim_z_ / 2;
+  robot_cube.pose.orientation.x = q.getX();
+  robot_cube.pose.orientation.y = q.getY();
+  robot_cube.pose.orientation.z = q.getZ();
+  robot_cube.pose.orientation.w = q.getW();
+
+  robot_box_publisher_->publish(robot_cube);
+}
+
+void VineSLAM_ros::publish2DMap() const
 {
   visualization_msgs::msg::MarkerArray marker_array;
   visualization_msgs::msg::Marker marker;
-  visualization_msgs::msg::MarkerArray ellipse_array;
   visualization_msgs::msg::Marker ellipse;
 
   // Define marker layout
@@ -78,7 +107,7 @@ void VineSLAM_ros::publish2DMap(const Pose& pose, const std::vector<float>& bear
   marker.color.g = 0.0f;
   marker.color.b = 1.0f;
   marker.color.a = 1.0;
-  marker.lifetime = rclcpp::Duration(200000000);
+  marker.lifetime = rclcpp::Duration(970000000);
 
   // Define marker layout
   ellipse.ns = "/ellipses";
@@ -91,71 +120,49 @@ void VineSLAM_ros::publish2DMap(const Pose& pose, const std::vector<float>& bear
   ellipse.color.g = 1.0f;
   ellipse.color.b = 0.0f;
   ellipse.color.a = 1.0f;
-  ellipse.lifetime = rclcpp::Duration(200000000);
+  ellipse.lifetime = rclcpp::Duration(970000000);
+
+  std::map<int, SemanticFeature> l_landmarks = (*grid_map_)(0).getLandmarks();
 
   // Publish markers
   int id = 1;
-  for (auto& it : (*grid_map_)(0))
+  for (const auto& l_sfeature : l_landmarks)
   {
-    for (const auto& l_sfeature : it.landmarks_)
-    {
-      // Draw sfeature mean
-      marker.id = id;
-      marker.header.stamp = rclcpp::Time();
-      marker.header.frame_id = params_.world_frame_id_;
-      marker.pose.position.x = l_sfeature.second.pos_.x_;
-      marker.pose.position.y = l_sfeature.second.pos_.y_;
-      marker.pose.position.z = l_sfeature.second.pos_.z_;
+    // Draw sfeature mean
+    marker.ns = "/marker";
+    marker.id = id;
+    marker.header.stamp = rclcpp::Time();
+    marker.header.frame_id = params_.world_frame_id_;
+    marker.pose.position.x = l_sfeature.second.pos_.x_;
+    marker.pose.position.y = l_sfeature.second.pos_.y_;
+    marker.pose.position.z = l_sfeature.second.pos_.z_;
 
-      marker_array.markers.push_back(marker);
+    marker_array.markers.push_back(marker);
 
-      // Draw sfeature standard deviation
-      tf2::Quaternion q;
-      q.setRPY(0, 0, l_sfeature.second.gauss_.theta_);
+    // Draw sfeature standard deviation
+    tf2::Quaternion q;
+    q.setRPY(0, 0, l_sfeature.second.gauss_.theta_);
 
-      ellipse.id = id;
-      ellipse.header.stamp = rclcpp::Time();
-      ellipse.header.frame_id = params_.world_frame_id_;
-      ellipse.pose.position.x = l_sfeature.second.pos_.x_;
-      ellipse.pose.position.y = l_sfeature.second.pos_.y_;
-      ellipse.pose.position.z = l_sfeature.second.pos_.z_;
-      ellipse.scale.x = 3 * l_sfeature.second.gauss_.stdev_.x_;
-      ellipse.scale.y = 3 * l_sfeature.second.gauss_.stdev_.y_;
-      ellipse.pose.orientation.x = q.x();
-      ellipse.pose.orientation.y = q.y();
-      ellipse.pose.orientation.z = q.z();
-      ellipse.pose.orientation.w = q.w();
+    ellipse.ns = "/ellipse";
+    ellipse.id = id;
+    ellipse.header.stamp = rclcpp::Time();
+    ellipse.header.frame_id = params_.world_frame_id_;
+    ellipse.pose.position.x = l_sfeature.second.pos_.x_;
+    ellipse.pose.position.y = l_sfeature.second.pos_.y_;
+    ellipse.pose.position.z = l_sfeature.second.pos_.z_;
+    ellipse.scale.x = 3 * l_sfeature.second.gauss_.stdev_.x_;
+    ellipse.scale.y = 3 * l_sfeature.second.gauss_.stdev_.y_;
+    ellipse.pose.orientation.x = q.x();
+    ellipse.pose.orientation.y = q.y();
+    ellipse.pose.orientation.z = q.z();
+    ellipse.pose.orientation.w = q.w();
 
-      ellipse_array.markers.push_back(ellipse);
+    marker_array.markers.push_back(ellipse);
 
-      id++;
-    }
+    id++;
   }
 
-  // Draw ellipse that characterizes particles distribution
-  tf2::Quaternion q;
-  q.setRPY(0, 0, pose.gaussian_dist_.theta_);
-
-  ellipse.id = id;
-  ellipse.header.stamp = rclcpp::Time();
-  ellipse.header.frame_id = params_.world_frame_id_;
-  ellipse.pose.position.x = pose.x_;
-  ellipse.pose.position.y = pose.y_;
-  ellipse.pose.position.z = pose.z_;
-  ellipse.scale.x = 3 * pose.gaussian_dist_.stdev_.x_;
-  ellipse.scale.y = 3 * pose.gaussian_dist_.stdev_.y_;
-  ellipse.pose.orientation.x = q.x();
-  ellipse.pose.orientation.y = q.y();
-  ellipse.pose.orientation.z = q.z();
-  ellipse.pose.orientation.w = q.w();
-  ellipse.color.r = 0.0f;
-  ellipse.color.g = 0.0f;
-  ellipse.color.b = 1.0f;
-  ellipse.color.a = 1.0f;
-  ellipse_array.markers.push_back(ellipse);
-
   map2D_publisher_->publish(marker_array);
-  map2D_publisher_->publish(ellipse_array);
 }
 
 void VineSLAM_ros::publishElevationMap() const
@@ -163,8 +170,8 @@ void VineSLAM_ros::publishElevationMap() const
   visualization_msgs::msg::MarkerArray elevation_map_marker;
   visualization_msgs::msg::Marker cube;
 
-  float min_height = -1.0;
-  float max_height = 1.0;
+  float min_height = grid_map_->origin_.z_;
+  float max_height = grid_map_->origin_.z_ + grid_map_->height_;
 
   // Define marker layout
   cube.ns = "/elevation_cube";
@@ -177,13 +184,13 @@ void VineSLAM_ros::publishElevationMap() const
   cube.pose.orientation.z = 0.0;
   cube.pose.orientation.w = 1.0;
   cube.color.a = 1.0;
-  cube.lifetime = rclcpp::Duration(200000000);
+  cube.lifetime = rclcpp::Duration(970000000);
 
   // Compute map layer bounds
   float xmin = elevation_map_->origin_.x_;
   float xmax = xmin + elevation_map_->width_;
   float ymin = elevation_map_->origin_.y_;
-  float ymax = xmin + elevation_map_->lenght_;
+  float ymax = ymin + elevation_map_->lenght_;
   for (float i = xmin; i < xmax - elevation_map_->resolution_;)
   {
     for (float j = ymin; j < ymax - elevation_map_->resolution_;)
@@ -292,7 +299,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<Plane>& planes,
   viz_pts.action = visualization_msgs::msg::Marker::ADD;
   viz_pts.scale.x = 0.1;
   viz_pts.scale.y = 0.1;
-  viz_pts.lifetime = rclcpp::Duration(200000000);
+  viz_pts.lifetime = rclcpp::Duration(970000000);
   viz_pts.header.frame_id = params_.world_frame_id_;
 
   std::array<float, 9> robot_R{};
@@ -336,7 +343,7 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<Plane>& pl
   viz_pts.action = visualization_msgs::msg::Marker::ADD;
   viz_pts.scale.x = 0.1;
   viz_pts.scale.y = 0.1;
-  viz_pts.lifetime = rclcpp::Duration(200000000);
+  viz_pts.lifetime = rclcpp::Duration(970000000);
   viz_pts.header.frame_id = params_.world_frame_id_;
 
   std::array<float, 9> robot_R{};
@@ -381,7 +388,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<SemiPlane>& planes,
   viz_pts.ns = "/plane_pts";
   viz_pts.type = visualization_msgs::msg::Marker::POINTS;
   viz_pts.action = visualization_msgs::msg::Marker::ADD;
-  viz_pts.lifetime = rclcpp::Duration(200000000);
+  viz_pts.lifetime = rclcpp::Duration(970000000);
   viz_pts.scale.x = 0.1;
   viz_pts.header.frame_id = params_.world_frame_id_;
 
@@ -393,7 +400,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<SemiPlane>& planes,
   viz_line.color.g = 0.0;
   viz_line.color.b = 1.0;
   viz_line.color.a = 1.0;
-  viz_line.lifetime = rclcpp::Duration(200000000);
+  viz_line.lifetime = rclcpp::Duration(970000000);
   viz_line.header.frame_id = params_.world_frame_id_;
 
   viz_normal.ns = "/plane_normal";
@@ -404,7 +411,7 @@ void VineSLAM_ros::publish3DMap(const std::vector<SemiPlane>& planes,
   viz_normal.color.b = 0;
   viz_normal.color.g = 0;
   viz_normal.scale.x = 0.1;
-  viz_normal.lifetime = rclcpp::Duration(200000000);
+  viz_normal.lifetime = rclcpp::Duration(970000000);
   viz_normal.header.frame_id = params_.world_frame_id_;
 
   std::array<float, 9> robot_R{};
@@ -521,7 +528,7 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>
   viz_pts.ns = "/plane_pts";
   viz_pts.type = visualization_msgs::msg::Marker::POINTS;
   viz_pts.action = visualization_msgs::msg::Marker::ADD;
-  viz_pts.lifetime = rclcpp::Duration(200000000);
+  viz_pts.lifetime = rclcpp::Duration(970000000);
   viz_pts.scale.x = 0.1;
   viz_pts.header.frame_id = params_.world_frame_id_;
 
@@ -534,7 +541,7 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>
   viz_line.color.a = 1.0;
   viz_line.scale.x = 0.1;
   viz_line.scale.y = 0.1;
-  viz_line.lifetime = rclcpp::Duration(200000000);
+  viz_line.lifetime = rclcpp::Duration(970000000);
   viz_line.header.frame_id = params_.world_frame_id_;
 
   viz_normal.ns = "/plane_normal";
@@ -545,7 +552,7 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>
   viz_normal.color.b = 0;
   viz_normal.color.g = 0;
   viz_normal.scale.x = 0.1;
-  viz_normal.lifetime = rclcpp::Duration(200000000);
+  viz_normal.lifetime = rclcpp::Duration(970000000);
   viz_normal.header.frame_id = params_.world_frame_id_;
 
   std::array<float, 9> robot_R{};
@@ -581,6 +588,12 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>
       {
         Point l_pt = plane.extremas_[k] * robot_tf;
 
+        std_msgs::msg::ColorRGBA color;
+        color.r = static_cast<int>(i + 1) % 2;
+        color.g = static_cast<int>(i + 1) % 3;
+        color.b = static_cast<int>(i + 1) % 4;
+        color.a = 1.0;
+
         geometry_msgs::msg::Point viz_pt;
         viz_pt.x = p_pt.x_;
         viz_pt.y = p_pt.y_;
@@ -590,13 +603,9 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<SemiPlane>
         viz_pt.y = l_pt.y_;
         viz_pt.z = l_pt.z_;
         viz_line.points.push_back(viz_pt);
+        viz_line.color = color;
         viz_line.id = l;
 
-        std_msgs::msg::ColorRGBA color;
-        color.r = 1;
-        color.g = 0;
-        color.b = 0;
-        color.a = 1.0;
         viz_pts.points.push_back(viz_pt);
         viz_pts.colors.push_back(color);
         marker_array.markers.push_back(viz_line);
@@ -758,6 +767,105 @@ void VineSLAM_ros::publish3DMap(const Pose& r_pose, const std::vector<Planar>& p
   sensor_msgs::msg::PointCloud2 cloud_out2;
   pcl::toROSMsg(*cloud_out, cloud_out2);
   pub->publish(cloud_out2);
+}
+
+void VineSLAM_ros::make6DofMarker(visualization_msgs::msg::InteractiveMarker& imarker, Pose pose,
+                                  std::string marker_name)
+{
+  // Convert euler to quaternion
+  tf2::Quaternion q;
+  q.setRPY(pose.R_, pose.P_, pose.Y_);
+
+  // Create and initialize the interactive marker
+  imarker.header.frame_id = params_.world_frame_id_;
+  imarker.pose.position.x = pose.x_;
+  imarker.pose.position.y = pose.y_;
+  imarker.pose.position.z = pose.z_;
+  imarker.pose.orientation.x = q.getX();
+  imarker.pose.orientation.y = q.getY();
+  imarker.pose.orientation.z = q.getZ();
+  imarker.pose.orientation.w = q.getW();
+  imarker.scale = 2;
+  imarker.name = marker_name;
+  imarker.description = "6-DoF interactive marker";
+
+  // Create and set controls
+  visualization_msgs::msg::InteractiveMarkerControl control;
+  control.always_visible = true;
+
+  visualization_msgs::msg::Marker marker_box;
+  marker_box.type = visualization_msgs::msg::Marker::SPHERE;
+  marker_box.scale.x = imarker.scale * 0.3;
+  marker_box.scale.y = imarker.scale * 0.3;
+  marker_box.scale.z = imarker.scale * 0.3;
+  marker_box.color.r = 1;
+  marker_box.color.b = 0;
+  marker_box.color.g = 0;
+  marker_box.color.a = 0.9;
+
+  control.markers.push_back(marker_box);
+  imarker.controls.push_back(control);
+  imarker.controls[0].interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::MOVE_ROTATE_3D;
+
+  control = visualization_msgs::msg::InteractiveMarkerControl();
+  control.orientation.w = 1;
+  control.orientation.x = 1;
+  control.orientation.y = 0;
+  control.orientation.z = 0;
+  control.name = "move_x";
+  control.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::MOVE_AXIS;
+  control.orientation_mode = visualization_msgs::msg::InteractiveMarkerControl::FIXED;
+  imarker.controls.push_back(control);
+
+  control = visualization_msgs::msg::InteractiveMarkerControl();
+  control.orientation.w = 1;
+  control.orientation.x = 1;
+  control.orientation.y = 0;
+  control.orientation.z = 0;
+  control.name = "rotate_x";
+  control.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::ROTATE_AXIS;
+  control.orientation_mode = visualization_msgs::msg::InteractiveMarkerControl::FIXED;
+  imarker.controls.push_back(control);
+
+  control = visualization_msgs::msg::InteractiveMarkerControl();
+  control.orientation.w = 1;
+  control.orientation.x = 0;
+  control.orientation.y = 0;
+  control.orientation.z = 1;
+  control.name = "move_y";
+  control.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::MOVE_AXIS;
+  control.orientation_mode = visualization_msgs::msg::InteractiveMarkerControl::FIXED;
+  imarker.controls.push_back(control);
+
+  control = visualization_msgs::msg::InteractiveMarkerControl();
+  control.orientation.w = 1;
+  control.orientation.x = 0;
+  control.orientation.y = 0;
+  control.orientation.z = 1;
+  control.name = "rotate_y";
+  control.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::ROTATE_AXIS;
+  control.orientation_mode = visualization_msgs::msg::InteractiveMarkerControl::FIXED;
+  imarker.controls.push_back(control);
+
+  control = visualization_msgs::msg::InteractiveMarkerControl();
+  control.orientation.w = 1;
+  control.orientation.x = 0;
+  control.orientation.y = 1;
+  control.orientation.z = 0;
+  control.name = "move_z";
+  control.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::MOVE_AXIS;
+  control.orientation_mode = visualization_msgs::msg::InteractiveMarkerControl::FIXED;
+  imarker.controls.push_back(control);
+
+  control = visualization_msgs::msg::InteractiveMarkerControl();
+  control.orientation.w = 1;
+  control.orientation.x = 0;
+  control.orientation.y = 1;
+  control.orientation.z = 0;
+  control.name = "rotate_z";
+  control.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::ROTATE_AXIS;
+  control.orientation_mode = visualization_msgs::msg::InteractiveMarkerControl::FIXED;
+  imarker.controls.push_back(control);
 }
 
 }  // namespace vineslam

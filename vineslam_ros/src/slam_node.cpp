@@ -28,7 +28,6 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
 
   // Initialize variables
   estimate_heading_ = true;
-  heading_counter_ = 1;
 
   // Declare the Mappers and Localizer objects
   localizer_ = new Localizer(params_);
@@ -562,8 +561,10 @@ void SLAMNode::process()
   float robot_latitude, robot_longitude;
   std::string datum_utm_zone;
   GNSS2UTM(params_.map_datum_lat_, params_.map_datum_long_, datum_utm_x, datum_utm_y, datum_utm_zone);
-  robot_utm_x = datum_utm_x + (robot_pose_.x_ * std::cos(heading_) - robot_pose_.y_ * std::sin(heading_));
-  robot_utm_y = datum_utm_y - (robot_pose_.x_ * std::sin(heading_) + robot_pose_.y_ * std::cos(heading_));
+  robot_utm_x = datum_utm_x + (robot_pose_.x_ * std::cos(params_.map_datum_head_) -
+                               robot_pose_.y_ * std::sin(params_.map_datum_head_));
+  robot_utm_y = datum_utm_y - (robot_pose_.x_ * std::sin(params_.map_datum_head_) +
+                               robot_pose_.y_ * std::cos(params_.map_datum_head_));
   UTMtoGNSS(robot_utm_x, robot_utm_y, datum_utm_zone, robot_latitude, robot_longitude);
 
   // ---------------------------------------------------------

@@ -224,9 +224,7 @@ public:
 
   // Satellite -> map compensation
   tf2::Transform map2robot_gnss_tf_;
-  float heading_;
   bool estimate_heading_;
-  float heading_counter_;
 
   // Initialization flags
   bool init_flag_;

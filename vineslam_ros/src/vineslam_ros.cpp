@@ -155,7 +155,7 @@ void VineSLAM_ros::gpsListener(const sensor_msgs::msg::NavSatFix::SharedPtr msg)
     }
 
     // Convert the gnss with the correct heading
-    Pose heading_pose(0, 0, 0, 0, 0, heading_);
+    Pose heading_pose(0, 0, 0, 0, 0, params_.map_datum_head_);
     Tf heading_tf = heading_pose.toTf();
     Point corrected_gnss_pose =
         Point(input_data_.gnss_raw_pose_.x_, input_data_.gnss_raw_pose_.y_, input_data_.gnss_raw_pose_.z_) *
@@ -163,8 +163,6 @@ void VineSLAM_ros::gpsListener(const sensor_msgs::msg::NavSatFix::SharedPtr msg)
     input_data_.gnss_pose_.x_ = corrected_gnss_pose.x_;
     input_data_.gnss_pose_.y_ = corrected_gnss_pose.y_;
     input_data_.gnss_pose_.z_ = corrected_gnss_pose.z_;
-
-    RCLCPP_INFO(this->get_logger(), "%f\n\n\n", heading_);
 
     // Set received flag to true
     input_data_.received_gnss_ = true;
@@ -183,83 +181,6 @@ void VineSLAM_ros::gpsListener(const sensor_msgs::msg::NavSatFix::SharedPtr msg)
     gps_pose_publisher_->publish(pose_stamped);
   }
 }
-
-// void VineSLAM_ros::gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
-//{
-//  header_ = msg->header;
-//
-//  if (init_gps_)
-//  {
-//    tf2_ros::Buffer tf_buffer(this->get_clock());
-//    tf2_ros::TransformListener tfListener(tf_buffer);
-//
-//    try
-//    {
-//      // Get base_link -> sn0 transformation
-//      satellite2base_msg_ =
-//          tf_buffer.lookupTransform("map_sn0", "base_link", rclcpp::Time(0), rclcpp::Duration(300000000));
-//
-//      // Get rtk z offset
-//      tf2::Stamped<tf2::Transform> satellite2base_tf;
-//      tf2::fromMsg(satellite2base_msg_, satellite2base_tf);
-//
-//      tf2::Quaternion q;
-//      q.setX(msg->pose.pose.orientation.x);
-//      q.setY(msg->pose.pose.orientation.y);
-//      q.setZ(msg->pose.pose.orientation.z);
-//      q.setW(msg->pose.pose.orientation.w);
-//
-//      tf2::Transform gps_raw_pose(
-//          q, tf2::Vector3(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z));
-//      tf2::Transform gps_pose = satellite2base_tf.inverse() * gps_raw_pose;
-//
-//      rtk_z_offset_ = gps_pose.getOrigin().z();
-//
-//      init_gps_ = false;
-//    }
-//    catch (tf2::TransformException& ex)
-//    {
-//      RCLCPP_WARN(this->get_logger(), "%s", ex.what());
-//    }
-//  }
-//  else
-//  {
-//    // Compute the rtk pose in sn0's reference frame
-//    tf2::Stamped<tf2::Transform> satellite2base_tf;
-//    tf2::fromMsg(satellite2base_msg_, satellite2base_tf);
-//
-//    tf2::Quaternion q;
-//    q.setX(msg->pose.pose.orientation.x);
-//    q.setY(msg->pose.pose.orientation.y);
-//    q.setZ(msg->pose.pose.orientation.z);
-//    q.setW(msg->pose.pose.orientation.w);
-//
-//    tf2::Transform gps_raw_pose(
-//        q, tf2::Vector3(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z));
-//    tf2::Transform gps_pose = map2robot_gnss_tf_ * (satellite2base_tf.inverse() * gps_raw_pose);
-//
-//    // Save pose
-//    input_data_.gnss_pose_.x_ = gps_pose.getOrigin().x();
-//    input_data_.gnss_pose_.y_ = gps_pose.getOrigin().y();
-//    input_data_.gnss_pose_.z_ = gps_pose.getOrigin().z() - static_cast<tf2Scalar>(rtk_z_offset_);
-//
-//    // Set received flag to true
-//    input_data_.received_gnss_ = true;
-//
-//    // Publish gps pose
-//    geometry_msgs::msg::PoseStamped pose_stamped;
-//    pose_stamped.header.stamp = header_.stamp;
-//    pose_stamped.header.frame_id = params_.world_frame_id_;
-//    pose_stamped.pose.position.x = input_data_.gnss_pose_.x_;
-//    pose_stamped.pose.position.y = input_data_.gnss_pose_.y_;
-//    pose_stamped.pose.position.z = input_data_.gnss_pose_.z_;
-//    pose_stamped.pose.orientation.x = 0;
-//    pose_stamped.pose.orientation.y = 0;
-//    pose_stamped.pose.orientation.z = 0;
-//    pose_stamped.pose.orientation.w = 1;
-//    gps_pose_publisher_->publish(pose_stamped);
-//  }
-//}
 
 void VineSLAM_ros::imuListener(const geometry_msgs::msg::Vector3Stamped::SharedPtr msg)
 {
@@ -339,21 +260,16 @@ void VineSLAM_ros::getGNSSHeading()
       if (dist < min_dist)
       {
         min_dist = dist;
-        //        heading_ =
-        //            (Const::normalizeAngle(phi * DEGREE_TO_RAD) + (heading_ * (heading_counter_ - 1))) /
-        //            (heading_counter_);
-        heading_ = Const::normalizeAngle(phi * DEGREE_TO_RAD);
+        params_.map_datum_head_ = Const::normalizeAngle(phi * DEGREE_TO_RAD);
       }
 
       phi += 0.1;
     }
-    heading_counter_++;
   }
   else if (robot_distance_traveleld >= 5.0)
   {
     localizer_->changeGPSFlag(true);  // Set the confidence of the use of gps in the particle filter now that we have
                                       // estimated heading.
-    params_.map_datum_head_ = heading_;
     estimate_heading_ = false;
   }
 }

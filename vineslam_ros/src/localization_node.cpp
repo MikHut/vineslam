@@ -461,7 +461,12 @@ void LocalizationNode::initializeOnMap()
   geodetic_converter_->geodetic2enu(params_.robot_datum_lat_, params_.robot_datum_long_, params_.robot_datum_alt_,
                                     robot_e, robot_n, robot_u);
 
-  robot_pose_ = Pose(robot_n, -robot_e, robot_u, 0, 0, 0);
+  // Rotate the obtained point considering the gnss heading
+  Pose heading_pose(0, 0, 0, 0, 0, -params_.map_datum_head_);
+  Tf heading_tf = heading_pose.toTf();
+  Point corrected_point = Point(robot_n, -robot_e, robot_u) * heading_tf;
+
+  robot_pose_ = Pose(corrected_point.x_, corrected_point.y_, corrected_point.z_, 0, 0, 0);
 
   // Set the map -> robot gnss transformation
   tf2::Quaternion q;

@@ -11,7 +11,7 @@ localization_node:
   robot:
     latitude: 41.16671663192795
     longitude: -7.555065558118306
-    heading: 1.198
+    altitude: 294.474870773967
 
   camera_info:
     baseline: 0.12 # meters

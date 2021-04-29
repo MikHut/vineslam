@@ -17,6 +17,7 @@ cache:
     - ccache
 
 before_script:
+  - which apk
   - apk update
   - apk add --update bash coreutils tar
   - apk add --no-cache --upgrade grep

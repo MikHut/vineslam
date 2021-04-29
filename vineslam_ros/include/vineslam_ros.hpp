@@ -103,6 +103,9 @@ public:
   // GNSS heading estimation
   void getGNSSHeading();
 
+  // Compute the motion increment by fusing different sources of information
+  void computeInnovation(const Pose& wheel_odom_inc, const Pose& imu_rot_inc, Pose& output_pose);
+
   // ROS node
   rclcpp::Node::SharedPtr nh_;
 

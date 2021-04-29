@@ -208,9 +208,6 @@ void VineSLAM_ros::imuDataListener(const sensor_msgs::msg::Imu::SharedPtr msg)
     input_data_.imu_data_pose_.R_ += msg->angular_velocity.x * (d / 1000);
     input_data_.imu_data_pose_.P_ += msg->angular_velocity.y * (d / 1000);
     input_data_.imu_data_pose_.Y_ += msg->angular_velocity.z * (d / 1000);
-
-    RCLCPP_INFO(this->get_logger(), "%f, %f, %f, %f\n", d, input_data_.imu_data_pose_.R_ * RAD_TO_DEGREE,
-                input_data_.imu_data_pose_.P_ * RAD_TO_DEGREE, input_data_.imu_data_pose_.Y_ * RAD_TO_DEGREE);
   }
 
   p_imu_observation_timestamp_ = c_imu_observation_timestamp;
@@ -261,6 +258,32 @@ void VineSLAM_ros::publishReport() const
   report.use_image_features.data = params_.use_image_features_;
   report.use_gps.data = params_.use_gps_;
   vineslam_report_publisher_->publish(report);
+}
+
+void VineSLAM_ros::computeInnovation(const Pose& wheel_odom_inc, const Pose& imu_rot_inc, Pose& output_pose)
+{
+  double diff_yaw = std::fabs(wheel_odom_inc.Y_ - imu_rot_inc.Y_);
+  double imu_weight = 0;
+  if (diff_yaw < (0.5 * DEGREE_TO_RAD))
+  {
+    imu_weight = 0.5;
+  }
+  else if (diff_yaw > (0.5 * DEGREE_TO_RAD) && diff_yaw < (1.5 * DEGREE_TO_RAD))
+  {
+    imu_weight = 0.8;
+  }
+  else
+  {
+    imu_weight = 1.0;
+  }
+
+  double s_odom_Y = std::sin(wheel_odom_inc.Y_) * (1 - imu_weight);
+  double c_odom_Y = std::cos(wheel_odom_inc.Y_) * (1 - imu_weight);
+  double s_imu_Y = std::sin(imu_rot_inc.Y_) * imu_weight;
+  double c_imu_Y = std::cos(imu_rot_inc.Y_) * imu_weight;
+  double hat_yaw = std::atan2(s_odom_Y + s_imu_Y, c_odom_Y + c_imu_Y);
+
+  output_pose = Pose(wheel_odom_inc.x_, wheel_odom_inc.y_, 0, imu_rot_inc.R_, imu_rot_inc.P_, hat_yaw);
 }
 
 void VineSLAM_ros::getGNSSHeading()

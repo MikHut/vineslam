@@ -526,6 +526,10 @@ void SLAMNode::process()
   input_data_.p_wheel_odom_pose_ = input_data_.wheel_odom_pose_;
   odom_inc.normalize();
 
+  // Fuse odometry and gyroscope to get the innovation pose
+  Pose innovation;
+  computeInnovation(odom_inc, input_data_.imu_data_pose_, innovation);
+
   timer_->tick("localizer::process()");
   localizer_->process(odom_inc, obsv_, grid_map_);
   robot_pose_ = localizer_->getPose();

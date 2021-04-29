@@ -15,8 +15,6 @@ cache:
     - ccache
 
 before_script:
-  - sudo usermod -aG docker gitlab-runner
-  - sudo service docker restart
   - git clone --quiet --depth 1 https://github.com/ros-industrial/industrial_ci .industrial_ci -b master --single-branch
 
 .foxy:

@@ -42,6 +42,7 @@
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
+#include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <tf2_ros/transform_listener.h>
@@ -92,8 +93,9 @@ public:
   void gpsListener(const sensor_msgs::msg::NavSatFix::SharedPtr msg);
   //  void gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
 
-  // IMU callback function
+  // IMU callback functions
   void imuListener(const geometry_msgs::msg::Vector3Stamped::SharedPtr msg);
+  void imuDataListener(const sensor_msgs::msg::Imu::SharedPtr msg);
 
   // Services callbacks
   bool saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr, vineslam_ros::srv::SaveMap::Response::SharedPtr);
@@ -165,8 +167,9 @@ public:
     // GNSS pose
     Pose gnss_pose_;
     Pose gnss_raw_pose_;
-    // IMU pose
+    // IMU poses
     Pose imu_pose_;
+    Pose imu_data_pose_;
 
     // LiDAR scan points
     std::vector<Point> scan_pts_;
@@ -218,12 +221,10 @@ public:
   Pose init_gps_pose_;
   Pose robot_pose_;
 
-  // base -> satellite pose variables
-  //  geometry_msgs::msg::TransformStamped satellite2base_msg_;
-  //  float rtk_z_offset_;
+  // Timestamps
+  std::chrono::time_point<std::chrono::high_resolution_clock> p_imu_observation_timestamp_;
 
   // Satellite -> map compensation
-  tf2::Transform map2robot_gnss_tf_;
   bool estimate_heading_;
 
   // Initialization flags

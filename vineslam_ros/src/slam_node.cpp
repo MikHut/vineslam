@@ -56,13 +56,13 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   gps_subscriber_ = this->create_subscription<sensor_msgs::msg::NavSatFix>(
       "/gps_topic", 10,
       std::bind(&VineSLAM_ros::gpsListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
-  //  gps_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
-  //      "/gps_topic", 10,
-  //      std::bind(&VineSLAM_ros::gpsListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
-  // IMU subscription
+  // IMU subscriptions
   imu_subscriber_ = this->create_subscription<geometry_msgs::msg::Vector3Stamped>(
       "/imu_topic", 10,
       std::bind(&VineSLAM_ros::imuListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
+  imu_data_subscriber_ = this->create_subscription<sensor_msgs::msg::Imu>(
+      "/imu_data_topic", 10,
+      std::bind(&VineSLAM_ros::imuDataListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
 
   // Publish maps and particle filter
   vineslam_report_publisher_ = this->create_publisher<vineslam_msgs::msg::Report>("/vineslam/report", 10);
@@ -145,10 +145,6 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   t = vel2base.getOrigin();
   vel2base.getBasis().getRPY(roll, pitch, yaw);
   lid_mapper_->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
-
-  // Set the satellite -> map compensation to the identity since we are mapping (the origin of the robot is at the
-  // origin of the map)
-  map2robot_gnss_tf_.setIdentity();
 
   // Initialize tf broadcaster
   tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
@@ -534,6 +530,11 @@ void SLAMNode::process()
   localizer_->process(odom_inc, obsv_, grid_map_);
   robot_pose_ = localizer_->getPose();
   timer_->tock();
+
+  // ---------------------------------------------------------
+  // ----- Reset IMU gyroscope angular integrators
+  // ---------------------------------------------------------
+  input_data_.imu_data_pose_ = Pose(0, 0, 0, 0, 0, 0);
 
   // ---------------------------------------------------------
   // ----- Register multi-layer map (if performing SLAM)

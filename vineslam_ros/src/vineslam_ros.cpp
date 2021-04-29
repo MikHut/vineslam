@@ -192,6 +192,30 @@ void VineSLAM_ros::imuListener(const geometry_msgs::msg::Vector3Stamped::SharedP
   input_data_.imu_pose_.Y_ = 0;
 }
 
+void VineSLAM_ros::imuDataListener(const sensor_msgs::msg::Imu::SharedPtr msg)
+{
+  auto c_imu_observation_timestamp = std::chrono::high_resolution_clock::now();
+
+  if (!init_flag_)
+  {
+    double d = std::chrono::duration_cast<std::chrono::milliseconds>(c_imu_observation_timestamp -
+                                                                     p_imu_observation_timestamp_)
+                   .count();
+
+    input_data_.imu_data_pose_.x_ = 0;
+    input_data_.imu_data_pose_.y_ = 0;
+    input_data_.imu_data_pose_.z_ = 0;
+    input_data_.imu_data_pose_.R_ += msg->angular_velocity.x * (d / 1000);
+    input_data_.imu_data_pose_.P_ += msg->angular_velocity.y * (d / 1000);
+    input_data_.imu_data_pose_.Y_ += msg->angular_velocity.z * (d / 1000);
+
+    RCLCPP_INFO(this->get_logger(), "%f, %f, %f, %f\n", d, input_data_.imu_data_pose_.R_ * RAD_TO_DEGREE,
+                input_data_.imu_data_pose_.P_ * RAD_TO_DEGREE, input_data_.imu_data_pose_.Y_ * RAD_TO_DEGREE);
+  }
+
+  p_imu_observation_timestamp_ = c_imu_observation_timestamp;
+}
+
 void VineSLAM_ros::publishReport() const
 {
   // Publish particle poses (after and before resampling)

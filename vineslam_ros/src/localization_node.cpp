@@ -58,13 +58,13 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
   gps_subscriber_ = this->create_subscription<sensor_msgs::msg::NavSatFix>(
       "/gps_topic", 10,
       std::bind(&VineSLAM_ros::gpsListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
-  //  gps_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
-  //      "/gps_topic", 10,
-  //      std::bind(&VineSLAM_ros::gpsListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
-  // IMU subscription
+  // IMU subscriptions
   imu_subscriber_ = this->create_subscription<geometry_msgs::msg::Vector3Stamped>(
       "/imu_topic", 10,
       std::bind(&VineSLAM_ros::imuListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
+  imu_data_subscriber_ = this->create_subscription<sensor_msgs::msg::Imu>(
+      "/imu_data_topic", 10,
+      std::bind(&VineSLAM_ros::imuDataListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
 
   // Publish maps and particle filter
   vineslam_report_publisher_ = this->create_publisher<vineslam_msgs::msg::Report>("/vineslam/report", 10);
@@ -471,7 +471,6 @@ void LocalizationNode::initializeOnMap()
   // Set the map -> robot gnss transformation
   tf2::Quaternion q;
   q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
-  map2robot_gnss_tf_ = tf2::Transform(q, tf2::Vector3(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_));
 
   // Create the interactive marker menu entries
   im_menu_handler_ = interactive_markers::MenuHandler();
@@ -570,6 +569,11 @@ void LocalizationNode::process()
   localizer_->process(odom_inc, obsv_, grid_map_);
   robot_pose_ = localizer_->getPose();
   timer_->tock();
+
+  // ---------------------------------------------------------
+  // ----- Reset IMU gyroscope angular integrators
+  // ---------------------------------------------------------
+  input_data_.imu_data_pose_ = Pose(0, 0, 0, 0, 0, 0);
 
   // ---------------------------------------------------------
   // ----- Conversion of pose into latitude and longitude
@@ -762,8 +766,6 @@ void LocalizationNode::iMenuCallback(const visualization_msgs::msg::InteractiveM
     init();
     RCLCPP_INFO(this->get_logger(), "Initialization performed! Starting execution.");
     init_flag_ = false;
-
-    map2robot_gnss_tf_.setOrigin(tf2::Vector3(robot_pose_.x_, robot_pose_.y_, 0));
   }
   else if (feedback->menu_entry_id == 3)
   {

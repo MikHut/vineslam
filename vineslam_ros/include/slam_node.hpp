@@ -32,8 +32,8 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr scan_subscriber_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_subscriber_;
   rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr gps_subscriber_;
-  //  rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr gps_subscriber_;
   rclcpp::Subscription<geometry_msgs::msg::Vector3Stamped>::SharedPtr imu_subscriber_;
+  rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_data_subscriber_;
 
   // ROS services
   rclcpp::Service<vineslam_ros::srv::SaveMap>::SharedPtr save_map_srv_;

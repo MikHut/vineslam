@@ -59,7 +59,8 @@ def generate_launch_description():
         parameters=[config],
         remappings=[
             ('/odom_topic', '/white/husky_velocity_controller/odom'),
-            ('/gps_topic', '/white/piksi/enu_pose_best_fix'),
+            # ('/gps_topic', '/white/piksi/enu_pose_best_fix'),
+            ('/gps_topic', '/white/piksi/navsatfix_best_fix'),
             ('/imu_topic', '/white/imu_7/rpy'),
             ('/features_topic', '/image_feature_array'),
             ('/detections_topic', '/tpu/detections'),

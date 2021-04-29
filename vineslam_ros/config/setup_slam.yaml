@@ -7,12 +7,6 @@ slam_node:
   use_gps: True
   use_imu: True
 
-  # WARNING (!): this is not the datum of the RTK base, but the datum of the robot initial position
-  datum:
-    latitude: 41.16666453372342
-    longitude: -7.555095358663023
-    heading: 4.4561
-
   camera_info:
     baseline: 0.12 # meters
     fx: 692.95849609375  # pixels
@@ -24,14 +18,20 @@ slam_node:
     z: 0.90 # meters
 
   multilayer_mapping:
+    # Datum
+    datum:
+      latitude: 41.16666452664269
+      longitude: -7.5550953842432085
+      altitude: 294.75472108864517
+
     # Grid map definitions
     grid_map:
       origin:
-        x: -90.0
-        y: -90.0
+        x: -110.0
+        y: -110.0
         z: -18.0
-      width: 180.0
-      lenght: 180.0
+      width: 220.0
+      lenght: 220.0
       height: 25.0
       resolution: 0.25 # meters
       output_folder: "/home/andresaguiar/Desktop/"

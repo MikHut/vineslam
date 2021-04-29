@@ -26,7 +26,6 @@ before_script:
     VERBOSE_TESTS: "true"
     NOT_TEST_BUILD: "true"
     NOT_TEST_DOWNSTREAM: "true"
-    DOCKER_IMAGE: "ros:foxy"
 
 foxy:build:
   extends: .foxy

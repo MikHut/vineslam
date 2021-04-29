@@ -8,8 +8,6 @@ variables:
   TMPDIR: "${CI_PROJECT_DIR}.tmp" #
   CCACHE_DIR: ${CI_PROJECT_DIR}/ccache
   PARALLEL_BUILDS: 1
-  VERBOSE_OUTPUT: "true"
-  VERBOSE_TESTS: "true"
 
 cache:
   key: "${CI_JOB_NAME}"
@@ -17,8 +15,6 @@ cache:
     - ccache
 
 before_script:
-  - which apk
-  - apk update
   - apk add --update bash coreutils tar
   - apk add --no-cache --upgrade grep
   - git clone --quiet --depth 1 https://github.com/ros-industrial/industrial_ci .industrial_ci -b master --single-branch

@@ -1,0 +1,3 @@
+post_processing_node:
+  grid_map_file: /home/andresaguiar/Documents/maps/VineSLAM/map_28_04_2021/map_1619620348.xml
+  elevation_map_file: /home/andresaguiar/Documents/maps/VineSLAM/map_28_04_2021/elevation_map_1619620348.xml

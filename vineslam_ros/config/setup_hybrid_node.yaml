@@ -1,0 +1,42 @@
+hybrid_node:
+  robot_model: rocha  # {agrob, rocha}
+  world_frame_id: map_nn2
+  use_semantic_features: False
+  use_lidar_features: True
+  use_image_features: False
+  use_gps: True
+  use_imu: True
+
+  # Robot initial guess position in polar coordinates
+  robot:
+    latitude: 41.16671663192795
+    longitude: -7.555065558118306
+    altitude: 294.474870773967
+
+  camera_info:
+    baseline: 0.12 # meters
+    fx: 692.95849609375  # pixels
+    cx: 692.95849609375  # pixels
+
+  robot_dimensions:
+    x: 1.00 # meters
+    y: 0.68 # meters
+    z: 0.90 # meters
+
+  multilayer_mapping:
+    # Grid map definitions
+    grid_map:
+      map_file_path: "/home/andresaguiar/Documents/maps/VineSLAM/map_28_04_2021/map_1619620348.xml"
+      elevation_map_file_path: "/home/andresaguiar/Documents/maps/VineSLAM/map_28_04_2021/elevation_map_1619620348.xml"
+      output_folder: "/home/andresaguiar/Documents/maps/VineSLAM/"
+
+  pf:
+    n_particles: 500
+
+    # Particles innovation
+    sigma_xx: 1.0 # meters
+    sigma_yy: 1.0 # meters
+    sigma_zz: 0.7 # meters
+    sigma_RR: 0.7 # radians
+    sigma_PP: 0.7 # radians
+    sigma_YY: 1.0 # radians

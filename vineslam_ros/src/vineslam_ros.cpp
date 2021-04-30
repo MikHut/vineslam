@@ -334,11 +334,11 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
   // ----------------------------------------------------
   std::time_t timestamp = std::time(nullptr);
 
-  //  MapWriter mw(params_, timestamp);
-  //  mw.writeToFile(grid_map_, params_);
-  //
-  //  ElevationMapWriter ew(params_, timestamp);
-  //  ew.writeToFile(elevation_map_, params_);
+  MapWriter mw(params_, timestamp);
+  mw.writeToFile(grid_map_, params_);
+
+  ElevationMapWriter ew(params_, timestamp);
+  ew.writeToFile(elevation_map_, params_);
 
   // ----------------------------------------------------
   // ------ Export geo-referenced map images and info
@@ -388,13 +388,13 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
   Point left_upper_corner_ll, right_upper_corner_ll, left_bottom_corner_ll, right_bottom_corner_ll;
 
   Convertions::UTMtoGNSS(left_upper_corner.x_, left_upper_corner.y_, datum_utm_zone, left_upper_corner_ll.x_,
-            left_upper_corner_ll.y_);
+                         left_upper_corner_ll.y_);
   Convertions::UTMtoGNSS(right_upper_corner.x_, right_upper_corner.y_, datum_utm_zone, right_upper_corner_ll.x_,
-            right_upper_corner_ll.y_);
+                         right_upper_corner_ll.y_);
   Convertions::UTMtoGNSS(left_bottom_corner.x_, left_bottom_corner.y_, datum_utm_zone, left_bottom_corner_ll.x_,
-            left_bottom_corner_ll.y_);
+                         left_bottom_corner_ll.y_);
   Convertions::UTMtoGNSS(right_bottom_corner.x_, right_bottom_corner.y_, datum_utm_zone, right_bottom_corner_ll.x_,
-            right_bottom_corner_ll.y_);
+                         right_bottom_corner_ll.y_);
 
   infofile << "left_upper:\n";
   infofile << std::setprecision(8) << "   latitude: " << left_upper_corner_ll.x_ << "\n"

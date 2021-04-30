@@ -45,7 +45,10 @@ public:
   MapLayer(const Parameters& params, const Pose& origin_offset);
 
   // Copy contructor
-  MapLayer(const MapLayer& grid_map);
+  explicit MapLayer(const MapLayer& grid_map);
+
+  // Assignment operator
+  MapLayer& operator=(const MapLayer& grid_map);
 
   // 2D grid map direct access to cell coordinates
   Cell& operator()(int i, int j)
@@ -289,6 +292,8 @@ public:
   // - initializes the multi-layer grid map given the input parameters
   OccupancyMap(const Parameters& params, const Pose& origin_offset, const uint32_t& min_planar_obsvs,
                const uint32_t& min_corner_obsvs);
+
+  ~OccupancyMap() = default;
 
   // Copy constructor
   OccupancyMap(const OccupancyMap& grid_map);

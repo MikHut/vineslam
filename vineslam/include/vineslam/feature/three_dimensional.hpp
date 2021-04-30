@@ -201,8 +201,8 @@ struct SemiPlane : public Plane
     area_ = std::fabs(a / 2);
   }
 
-  uint32_t n_occurences_;
-  uint32_t n_correspondences_;
+  int n_occurences_;
+  int n_correspondences_;
   std::vector<Point> extremas_;
   float area_{};
 };

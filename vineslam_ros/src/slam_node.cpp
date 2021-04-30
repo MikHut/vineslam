@@ -565,12 +565,12 @@ void SLAMNode::process()
   double datum_utm_x, datum_utm_y, robot_utm_x, robot_utm_y;
   float robot_latitude, robot_longitude;
   std::string datum_utm_zone;
-  GNSS2UTM(params_.map_datum_lat_, params_.map_datum_long_, datum_utm_x, datum_utm_y, datum_utm_zone);
+  Convertions::GNSS2UTM(params_.map_datum_lat_, params_.map_datum_long_, datum_utm_x, datum_utm_y, datum_utm_zone);
   robot_utm_x = datum_utm_x + (robot_pose_.x_ * std::cos(params_.map_datum_head_) -
                                robot_pose_.y_ * std::sin(params_.map_datum_head_));
   robot_utm_y = datum_utm_y - (robot_pose_.x_ * std::sin(params_.map_datum_head_) +
                                robot_pose_.y_ * std::cos(params_.map_datum_head_));
-  UTMtoGNSS(robot_utm_x, robot_utm_y, datum_utm_zone, robot_latitude, robot_longitude);
+  Convertions::UTMtoGNSS(robot_utm_x, robot_utm_y, datum_utm_zone, robot_latitude, robot_longitude);
 
   // ---------------------------------------------------------
   // ----- ROS publishers and tf broadcasting
@@ -586,7 +586,7 @@ void SLAMNode::process()
   base2map_msg.child_frame_id = "base_link";
   q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
   q.normalize();
-  pose2TransformStamped(q, tf2::Vector3(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_), base2map_msg);
+  Convertions::pose2TransformStamped(q, tf2::Vector3(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_), base2map_msg);
 
   if (params_.robot_model_ == "agrob")  // in this configuration we broadcast a map->base_link tf
   {
@@ -599,7 +599,7 @@ void SLAMNode::process()
     map2odom_msg.child_frame_id = params_.world_frame_id_;
     q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
     q.normalize();
-    pose2TransformStamped(q, tf2::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_), map2odom_msg);
+    Convertions::pose2TransformStamped(q, tf2::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_), map2odom_msg);
     tf_broadcaster_->sendTransform(map2odom_msg);
     // ----
   }
@@ -627,7 +627,7 @@ void SLAMNode::process()
     tf2::Transform t = odom2base_tf * base2map_tf.inverse();
     odom2map_tf.setRotation(t.getRotation());
     odom2map_tf.setOrigin(t.getOrigin());
-    pose2TransformStamped(odom2map_tf.getRotation(), odom2map_tf.getOrigin(), odom2map_msg);
+    Convertions::pose2TransformStamped(odom2map_tf.getRotation(), odom2map_tf.getOrigin(), odom2map_msg);
 
     odom2map_msg.header.stamp = header_.stamp;
     odom2map_msg.header.frame_id = "odom";

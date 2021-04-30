@@ -288,7 +288,6 @@ void VineSLAM_ros::computeInnovation(const Pose& wheel_odom_inc, const Pose& imu
 
 void VineSLAM_ros::getGNSSHeading()
 {
-  uint32_t mil_secs = static_cast<uint32_t>((1 / 3) * 1e3);
   float robot_distance_traveleld = robot_pose_.norm3D();
 
   if (robot_distance_traveleld > 0.1 && robot_distance_traveleld < 5.0)
@@ -351,7 +350,7 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
   // Compute polar coordinates of center and corners of the map image
   double datum_utm_x, datum_utm_y;
   std::string datum_utm_zone;
-  GNSS2UTM(params_.map_datum_lat_, params_.map_datum_long_, datum_utm_x, datum_utm_y, datum_utm_zone);
+  Convertions::GNSS2UTM(params_.map_datum_lat_, params_.map_datum_long_, datum_utm_x, datum_utm_y, datum_utm_zone);
 
   Point referenced_map_center(datum_utm_x + (grid_map_->width_ / 2 + grid_map_->origin_.x_),
                               datum_utm_y + (grid_map_->lenght_ / 2 + grid_map_->origin_.y_), 0);
@@ -388,13 +387,13 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
   // Compute GNSS location of the four corners
   Point left_upper_corner_ll, right_upper_corner_ll, left_bottom_corner_ll, right_bottom_corner_ll;
 
-  UTMtoGNSS(left_upper_corner.x_, left_upper_corner.y_, datum_utm_zone, left_upper_corner_ll.x_,
+  Convertions::UTMtoGNSS(left_upper_corner.x_, left_upper_corner.y_, datum_utm_zone, left_upper_corner_ll.x_,
             left_upper_corner_ll.y_);
-  UTMtoGNSS(right_upper_corner.x_, right_upper_corner.y_, datum_utm_zone, right_upper_corner_ll.x_,
+  Convertions::UTMtoGNSS(right_upper_corner.x_, right_upper_corner.y_, datum_utm_zone, right_upper_corner_ll.x_,
             right_upper_corner_ll.y_);
-  UTMtoGNSS(left_bottom_corner.x_, left_bottom_corner.y_, datum_utm_zone, left_bottom_corner_ll.x_,
+  Convertions::UTMtoGNSS(left_bottom_corner.x_, left_bottom_corner.y_, datum_utm_zone, left_bottom_corner_ll.x_,
             left_bottom_corner_ll.y_);
-  UTMtoGNSS(right_bottom_corner.x_, right_bottom_corner.y_, datum_utm_zone, right_bottom_corner_ll.x_,
+  Convertions::UTMtoGNSS(right_bottom_corner.x_, right_bottom_corner.y_, datum_utm_zone, right_bottom_corner_ll.x_,
             right_bottom_corner_ll.y_);
 
   infofile << "left_upper:\n";

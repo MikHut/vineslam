@@ -37,6 +37,9 @@ struct Gaussian
   // Default constructor
   Gaussian() = default;
 
+  // Default destructor
+  ~Gaussian() = default;
+
   // Mean & Covariance constructor
   Gaussian(const T1& m_mean, const T2& m_stdev)
   {
@@ -52,16 +55,15 @@ struct Gaussian
     theta_ = m_theta;
   }
 
-  // Assignment operator
-  Gaussian& operator=(const Gaussian& other)
-  {
-    mean_ = other.mean_;
-    stdev_ = other.stdev_;
-    theta_ = other.theta_;
-
-    return *this;
-  }
-
+  //  // Assignment operator
+  //  Gaussian& operator=(const Gaussian& other)
+  //  {
+  //    mean_ = other.mean_;
+  //    stdev_ = other.stdev_;
+  //    theta_ = other.theta_;
+  //
+  //    return *this;
+  //  }
 
   T1 mean_;
   T2 stdev_;

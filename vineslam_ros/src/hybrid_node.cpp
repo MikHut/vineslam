@@ -87,6 +87,8 @@ HybridNode::HybridNode() : VineSLAM_ros("HybridNode")
   grid_map_publisher_ =
       this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/debug/grid_map_limits", 10);
   robot_box_publisher_ = this->create_publisher<visualization_msgs::msg::Marker>("/vineslam/debug/robot_box", 10);
+  unoccupied_zone_publisher_ =
+      this->create_publisher<visualization_msgs::msg::Marker>("/vineslam/debug/unoccupied_zone", 10);
 
   save_map_srv_ = this->create_service<vineslam_ros::srv::SaveMap>(
       "/vineslam/save_map", std::bind(&VineSLAM_ros::saveMap, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1,
@@ -556,7 +558,7 @@ void HybridNode::process()
   obsv_.imu_pose_ = input_data_.imu_pose_;
 
   // ---------------------------------------------------------
-  // ----- HybridNode procedure
+  // ----- Localization procedure
   // ---------------------------------------------------------
   Tf p_odom_tf = input_data_.p_wheel_odom_pose_.toTf();
   Tf c_odom_tf = input_data_.wheel_odom_pose_.toTf();
@@ -593,6 +595,17 @@ void HybridNode::process()
   Convertions::UTMtoGNSS(robot_utm_x, robot_utm_y, datum_utm_zone, robot_latitude, robot_longitude);
 
   // ---------------------------------------------------------
+  // ----- Map refinement
+  // ---------------------------------------------------------
+  if (params_.use_lidar_features_)
+  {
+    std::vector<Point> rectangle;
+    lid_mapper_->computeUnoccupiedZone(input_data_.scan_pts_, rectangle);
+    lid_mapper_->filterWithinZone(robot_pose_, rectangle, *grid_map_, *elevation_map_);
+    publishUnoccupiedZone(rectangle);
+  }
+
+  // ---------------------------------------------------------
   // ----- ROS publishers
   // ---------------------------------------------------------
   tf2::Quaternion q;
@@ -619,8 +632,6 @@ void HybridNode::process()
   pose_ll.latitude = robot_latitude;
   pose_ll.longitude = robot_longitude;
   gps_fix_publisher_->publish(pose_ll);
-
-  publish3DMap(l_planars, planars_local_publisher_);
 }
 
 void HybridNode::broadcastTfs()
@@ -651,7 +662,8 @@ void HybridNode::broadcastTfs()
       map2odom_msg.child_frame_id = params_.world_frame_id_;
       q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
       q.normalize();
-      Convertions::pose2TransformStamped(q, tf2::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_), map2odom_msg);
+      Convertions::pose2TransformStamped(q, tf2::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_),
+                                         map2odom_msg);
       tf_broadcaster_->sendTransform(map2odom_msg);
       // ----
     }
@@ -692,8 +704,7 @@ void HybridNode::broadcastTfs()
   }
 }
 
-void HybridNode::iMarkerCallback(
-    const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr& feedback)
+void HybridNode::iMarkerCallback(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr& feedback)
 {
   // Save the robot initial pose set by the user
   tf2::Quaternion q(feedback->pose.orientation.x, feedback->pose.orientation.y, feedback->pose.orientation.z,
@@ -774,6 +785,43 @@ void HybridNode::iMenuCallback(const visualization_msgs::msg::InteractiveMarkerF
   else if (feedback->menu_entry_id == 3)
   {
   }
+}
+
+void HybridNode::publishUnoccupiedZone(const std::vector<Point>& rectangle)
+{
+  // Robot pose orientation to quaternion
+  tf2::Quaternion q;
+  q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
+
+  if (rectangle.size() != 2)
+  {
+    RCLCPP_ERROR(this->get_logger(), "Invalid unoccupied zone rectangle");
+    return;
+  }
+
+  // Set robot original box corners
+  visualization_msgs::msg::Marker unoccupied_zone_marker;
+  unoccupied_zone_marker.header.frame_id = params_.world_frame_id_;
+  unoccupied_zone_marker.header.stamp = rclcpp::Time();
+  unoccupied_zone_marker.id = 0;
+  unoccupied_zone_marker.type = visualization_msgs::msg::Marker::CUBE;
+  unoccupied_zone_marker.action = visualization_msgs::msg::Marker::ADD;
+  unoccupied_zone_marker.color.a = 0.7;
+  unoccupied_zone_marker.color.r = 1;
+  unoccupied_zone_marker.color.g = 0;
+  unoccupied_zone_marker.color.b = 0;
+  unoccupied_zone_marker.scale.x = std::fabs(rectangle[0].x_ - rectangle[1].x_);
+  unoccupied_zone_marker.scale.y = std::fabs(rectangle[0].y_ - rectangle[1].y_);
+  unoccupied_zone_marker.scale.z = 0.2;
+  unoccupied_zone_marker.pose.position.x = robot_pose_.x_;
+  unoccupied_zone_marker.pose.position.y = robot_pose_.y_;
+  unoccupied_zone_marker.pose.position.z = robot_pose_.z_ + params_.robot_dim_z_ / 2;
+  unoccupied_zone_marker.pose.orientation.x = q.getX();
+  unoccupied_zone_marker.pose.orientation.y = q.getY();
+  unoccupied_zone_marker.pose.orientation.z = q.getZ();
+  unoccupied_zone_marker.pose.orientation.w = q.getW();
+
+  unoccupied_zone_publisher_->publish(unoccupied_zone_marker);
 }
 
 HybridNode::~HybridNode() = default;

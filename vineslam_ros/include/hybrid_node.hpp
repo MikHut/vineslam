@@ -38,6 +38,9 @@ private:
   void iMarkerCallback(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr& feedback);
   void iMenuCallback(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr& feedback);
 
+  // Publish unoccupied zone
+  void publishUnoccupiedZone(const std::vector<Point>& rectangle);
+
   // Interactive marker for initialization variables
   interactive_markers::MenuHandler im_menu_handler_;
   std::unique_ptr<interactive_markers::InteractiveMarkerServer> im_server_;
@@ -50,6 +53,9 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr gps_subscriber_;
   rclcpp::Subscription<geometry_msgs::msg::Vector3Stamped>::SharedPtr imu_subscriber_;
   rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_data_subscriber_;
+
+  // ROS publishers
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr unoccupied_zone_publisher_;
 
   // ROS services
   rclcpp::Service<vineslam_ros::srv::SaveMap>::SharedPtr save_map_srv_;

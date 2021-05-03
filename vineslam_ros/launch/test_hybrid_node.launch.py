@@ -24,7 +24,7 @@ def generate_launch_description():
     rviz_path = os.path.join(
         get_package_share_directory('vineslam_ros'),
         'config',
-        'test_localization.rviz')
+        'test_hybrid_node.rviz')
 
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)

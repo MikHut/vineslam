@@ -159,6 +159,12 @@ struct Point
     return std::sqrt(std::pow(x_, 2) + std::pow(y_, 2) + std::pow(z_, 2));
   }
 
+  // 2D point norm
+  float norm2D() const
+  {
+    return std::sqrt(std::pow(x_, 2) + std::pow(y_, 2));
+  }
+
   // Convert point to Eigen 3D vector
   Eigen::VectorXf toEig2D() const
   {

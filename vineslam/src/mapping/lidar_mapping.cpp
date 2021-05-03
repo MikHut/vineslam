@@ -431,7 +431,7 @@ void LidarMapper::globalPlaneMap(const Pose& robot_pose, const std::vector<SemiP
     {
       point = point * tf;  // Convert plane boundaries
     }
-    l_plane.centroid_ = l_plane.centroid_ * tf;                                       // Convert the centroid
+    l_plane.centroid_ = l_plane.centroid_ * tf;                                               // Convert the centroid
     Ransac::estimateNormal(l_plane.points_, l_plane.a_, l_plane.b_, l_plane.c_, l_plane.d_);  // Convert plane normal
     l_plane.setLocalRefFrame();
 
@@ -1167,4 +1167,125 @@ void LidarMapper::extractFeatures(const std::vector<PlanePoint>& in_plane_pts, s
     out_planars.insert(out_planars.end(), planar_points_less_flat.begin(), planar_points_less_flat.end());
   }
 }
+
+void LidarMapper::computeUnoccupiedZone(const std::vector<Point>& in_pts, std::vector<Point>& rectangle)
+{
+  // Compute an unoccupied rectangle around the robot
+  // Creterias:
+  //    - use only 50% of the minimum distance observed (works as an erosion)
+  //    - limit the maximum size of the rectangle
+
+  float right_min_y = std::numeric_limits<float>::max();
+  float left_min_y = std::numeric_limits<float>::max();
+  float front_min_x = std::numeric_limits<float>::max();
+  float back_min_x = std::numeric_limits<float>::max();
+
+  for (const auto& pt : in_pts)
+  {
+    if (std::fabs(pt.x_) < 1.5 || std::fabs(pt.y_) < 0.5)
+    {
+      continue;
+    }
+
+    if (pt.x_ < 0 && std::fabs(pt.x_) < back_min_x)
+    {
+      back_min_x = pt.x_;
+    }
+    if (pt.x_ > 0 && std::fabs(pt.x_) < front_min_x)
+    {
+      front_min_x = pt.x_;
+    }
+    if (pt.y_ < 0 && std::fabs(pt.y_) < left_min_y)
+    {
+      left_min_y = pt.y_;
+    }
+    if (pt.y_ > 0 && std::fabs(pt.y_) < right_min_y)
+    {
+      right_min_y = pt.y_;
+    }
+  }
+
+  back_min_x = (std::fabs(back_min_x) < 6) ? (back_min_x * 0.5) : (-6 * 0.5);
+  front_min_x = (std::fabs(front_min_x) < 6) ? (front_min_x * 0.5) : (6 * 0.5);
+  left_min_y = (std::fabs(left_min_y) < 2) ? (left_min_y * 0.5) : (-2 * 0.5);
+  right_min_y = (std::fabs(right_min_y) < 2) ? (right_min_y * 0.5) : (-2 * 0.5);
+
+  // Create rectangle with the computed limit values
+  Point left_upper(front_min_x, left_min_y);
+  Point right_upper(front_min_x, right_min_y);
+  Point left_bottom(back_min_x, left_min_y);
+  Point right_bottom(back_min_x, right_min_y);
+
+  // Save the rectangle
+  rectangle.push_back(left_bottom);
+  rectangle.push_back(right_upper);
+}
+
+void LidarMapper::filterWithinZone(const Pose& robot_pose, const std::vector<Point>& rectangle, OccupancyMap& grid_map,
+                                   ElevationMap& elevation_map)
+{
+  if (rectangle.size() != 2)
+  {
+    return;
+  }
+
+  // ----------------------------------------------------------------------------
+  // ------ Convert robot pose into homogeneous transformation
+  // ----------------------------------------------------------------------------
+  std::array<float, 9> Rot{};
+  robot_pose.toRotMatrix(Rot);
+  std::array<float, 3> trans = { robot_pose.x_, robot_pose.y_, robot_pose.z_ };
+  Tf tf(Rot, trans);
+
+  // ----------------------------------------------------------------------------
+  // ------ Access the grid map cells inside the rectangle and filter
+  // ------ We consider that the rectangle is [left_bottom, right_upper]
+  // ----------------------------------------------------------------------------
+  float z_min = robot_pose.z_ + 0.2;
+  float z_max = robot_pose.z_ + 1.9;
+  for (float i = rectangle[0].x_; i <= rectangle[1].x_;)
+  {
+    for (float j = rectangle[0].y_; j <= rectangle[1].y_;)
+    {
+      Point pt(i + 0.49, j + 0.49, 0);
+      Point projected_pt = pt * tf;
+
+      for (float z = z_min; z <= z_max;)
+      {
+        Cell* c = &(grid_map)(projected_pt.x_, projected_pt.y_, z);
+        if (c->data == nullptr)
+        {
+          z += grid_map.resolution_z_;
+          continue;
+        }
+        std::vector<Planar>* l_planars = c->data->planar_features_;
+        std::vector<Corner>* l_corners = c->data->corner_features_;
+        if (l_corners != nullptr)
+        {
+          // Now we filter (!)
+          // First, check if the point is close to the ground. If so, we do not remove it
+          for (size_t l = 0; l < l_corners->size(); l++)
+          {
+              l_corners->erase(l_corners->begin() + l);
+          }
+        }
+        if (l_planars != nullptr)
+        {
+          // Now we filter (!)
+          // First, check if the point is close to the ground. If so, we do not remove it
+          for (size_t l = 0; l < l_planars->size(); l++)
+          {
+              l_planars->erase(l_planars->begin() + l);
+          }
+        }
+
+        z += grid_map.resolution_z_;
+      }
+
+      j += grid_map.resolution_;
+    }
+    i += grid_map.resolution_;
+  }
+}
+
 }  // namespace vineslam

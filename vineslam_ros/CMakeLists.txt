@@ -69,16 +69,10 @@ ament_target_dependencies(hybrid_node ${dependencies})
 rosidl_target_interfaces(hybrid_node ${PROJECT_NAME} "rosidl_typesupport_cpp")
 target_link_libraries(hybrid_node ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
 
-add_executable(post_processing_node src/offline/post_processing_node.cpp)
-ament_target_dependencies(post_processing_node ${dependencies})
-rosidl_target_interfaces(post_processing_node ${PROJECT_NAME} "rosidl_typesupport_cpp")
-target_link_libraries(post_processing_node ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
-
 install(TARGETS
         slam_node
         localization_node
         hybrid_node
-        post_processing_node
         DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY

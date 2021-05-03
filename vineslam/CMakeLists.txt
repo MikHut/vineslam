@@ -23,7 +23,6 @@ add_library(vineslam
         src/mapping/occupancy_map.cpp
         src/mapping/topological_map.cpp
         src/mapping/elevation_map.cpp
-        src/mapping/post_processing.cpp
         src/localization/localizer.cpp
         src/localization/pf.cpp
         src/map_io/map_writer.cpp

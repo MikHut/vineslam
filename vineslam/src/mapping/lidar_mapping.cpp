@@ -1221,8 +1221,7 @@ void LidarMapper::computeUnoccupiedZone(const std::vector<Point>& in_pts, std::v
   rectangle.push_back(right_upper);
 }
 
-void LidarMapper::filterWithinZone(const Pose& robot_pose, const std::vector<Point>& rectangle, OccupancyMap& grid_map,
-                                   ElevationMap& elevation_map)
+void LidarMapper::filterWithinZone(const Pose& robot_pose, const std::vector<Point>& rectangle, OccupancyMap& grid_map)
 {
   if (rectangle.size() != 2)
   {

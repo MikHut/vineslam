@@ -601,7 +601,7 @@ void HybridNode::process()
   {
     std::vector<Point> rectangle;
     lid_mapper_->computeUnoccupiedZone(input_data_.scan_pts_, rectangle);
-    lid_mapper_->filterWithinZone(robot_pose_, rectangle, *grid_map_, *elevation_map_);
+    lid_mapper_->filterWithinZone(robot_pose_, rectangle, *grid_map_);
     publishUnoccupiedZone(rectangle);
   }
 

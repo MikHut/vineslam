@@ -77,8 +77,7 @@ public:
   // Routine to compute the unoccupied zone around the robot used to refine the previously built map
   void computeUnoccupiedZone(const std::vector<Point>& in_pts, std::vector<Point>& rectangle);
   // Routine to filter the map using the unoccupied computed zone
-  void filterWithinZone(const Pose& robot_pose, const std::vector<Point>& rectangle, OccupancyMap& grid_map,
-                        ElevationMap& elevation_map);
+  void filterWithinZone(const Pose& robot_pose, const std::vector<Point>& rectangle, OccupancyMap& grid_map);
 
   // Public vars
   float lidar_height;

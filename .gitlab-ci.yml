@@ -15,6 +15,8 @@ cache:
     - ccache
 
 before_script:
+  - apk add --update bash coreutils tar
+  - apk add --no-cache --upgrade grep
   - git clone --quiet --depth 1 https://github.com/ros-industrial/industrial_ci .industrial_ci -b master --single-branch
 
 .foxy:

@@ -6,13 +6,7 @@ variables:
   ROS_DISTRO: "foxy"
   DOCKER_TLS_CERTDIR: "/certs"
   TMPDIR: "${CI_PROJECT_DIR}.tmp" #
-  CCACHE_DIR: ${CI_PROJECT_DIR}/ccache
   PARALLEL_BUILDS: 1
-
-cache:
-  key: "${CI_JOB_NAME}"
-  paths:
-    - ccache
 
 before_script:
   - apk update

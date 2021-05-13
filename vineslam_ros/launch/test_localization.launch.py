@@ -44,25 +44,17 @@ def generate_launch_description():
         executable='static_transform_publisher',
         name='cam2base',
         arguments=['0.343', '0.079', '0.820', '-0.002', '0.100', '-0.004', '0.995', 'base_link',
-                   'zed_camera_left_optical_frame']
+                   config['localization_node']['camera_sensor_frame']]
     )
     ld.add_action(tf1)
-    if config['slam_node']['lidar_sensor'] == 'velodyne':
-        tf2 = Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='velodyne2base',
-            arguments=['0.000', '0.000', '0.942', '-0.000', '0.000', '-0.000', '1.000', 'base_link', 'velodyne']
-        )
-        ld.add_action(tf2)
-    elif config['slam_node']['lidar_sensor'] == 'livox':
-        tf2 = Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='livox2base',
-            arguments=['0.000', '0.000', '0.500', '-0.000', '0.000', '-0.000', '1.000', 'base_link', 'livox_frame']
-        )
-        ld.add_action(tf2)
+    tf2 = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='velodyne2base',
+        arguments=['0.000', '0.000', '0.942', '-0.000', '0.000', '-0.000', '1.000', 'base_link',
+                   config['localization_node']['lidar_sensor_frame']]
+    )
+    ld.add_action(tf2)
 
     # VineSLAM node
     logger = LaunchConfiguration("log_level")

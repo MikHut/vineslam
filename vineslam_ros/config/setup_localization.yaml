@@ -8,6 +8,9 @@ localization_node:
   use_gps: True
   use_imu: True
 
+  lidar_sensor_frame: velodyne
+  camera_sensor_frame: zed_camera_left_optical_frame
+
   # Robot initial guess position in polar coordinates
   robot:
     latitude: 41.16671663192795

@@ -8,6 +8,9 @@ slam_node:
   use_gps: False
   use_imu: True
 
+  lidar_sensor_frame: livox_frame
+  camera_sensor_frame: zed_camera_left_optical_frame
+
   camera_info:
     baseline: 0.12 # meters
     fx: 692.95849609375  # pixels

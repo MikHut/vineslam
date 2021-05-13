@@ -67,6 +67,8 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
 
+#define LIDAR_SENSOR velodyne
+
 namespace vineslam
 {
 class VineSLAM_ros : public rclcpp::Node
@@ -211,7 +213,9 @@ public:
   OccupancyMap* grid_map_;
   LandmarkMapper* land_mapper_;
   VisualMapper* vis_mapper_;
-  LidarMapper* lid_mapper_;
+#if LIDAR_SENSOR == velodyne
+  VelodyneMapper* lid_mapper_;
+#endif
   Timer* timer_;
   Geodetic* geodetic_converter_;
   Observation obsv_;

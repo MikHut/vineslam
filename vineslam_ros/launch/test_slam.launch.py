@@ -40,25 +40,17 @@ def generate_launch_description():
         executable='static_transform_publisher',
         name='cam2base',
         arguments=['0.343', '0.079', '0.820', '-0.002', '0.100', '-0.004', '0.995', 'base_link',
-                   'zed_camera_left_optical_frame']
+                   config['slam_node']['camera_sensor_frame']]
     )
     ld.add_action(tf1)
-    if config['slam_node']['lidar_sensor'] == 'velodyne':
-        tf2 = Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='velodyne2base',
-            arguments=['0.000', '0.000', '0.942', '-0.000', '0.000', '-0.000', '1.000', 'base_link', 'velodyne']
-        )
-        ld.add_action(tf2)
-    elif config['slam_node']['lidar_sensor'] == 'livox':
-        tf2 = Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='livox2base',
-            arguments=['0.000', '0.000', '0.500', '-0.000', '0.000', '-0.000', '1.000', 'base_link', 'livox_frame']
-        )
-        ld.add_action(tf2)
+    tf2 = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='velodyne2base',
+        arguments=['0.000', '0.000', '0.942', '-0.000', '0.000', '-0.000', '1.000', 'base_link',
+                   config['slam_node']['lidar_sensor_frame']]
+    )
+    ld.add_action(tf2)
 
     # VineSLAM node
     vineslam = Node(
@@ -92,7 +84,6 @@ def generate_launch_description():
     ld.add_action(vineslam)
 
     if config['slam_node']['use_semantic_features'] == True or config['slam_node']['use_image_features']:
-
         depth_topic = '/zed/zed_node/depth/depth_registered'
         image_topic = '/zed/zed_node/left/image'
 
@@ -113,8 +104,10 @@ def generate_launch_description():
             executable='run_detection_model',
             name='run_detection_model',
             parameters=[
-                {'model_file': '/home/andresaguiar/ROS/ros2_ws/src/tpu-object-detection/object_detection/models/mv1/edgetpu_cpp_model_output_tflite_graph_edgetpu.tflite'},
-                {'labels_file': '/home/andresaguiar/ROS/ros2_ws/src/tpu-object-detection/object_detection/models/mv1/edgetpu_cpp_model_labels.txt'}
+                {
+                    'model_file': '/home/andresaguiar/ROS/ros2_ws/src/tpu-object-detection/object_detection/models/mv1/edgetpu_cpp_model_output_tflite_graph_edgetpu.tflite'},
+                {
+                    'labels_file': '/home/andresaguiar/ROS/ros2_ws/src/tpu-object-detection/object_detection/models/mv1/edgetpu_cpp_model_labels.txt'}
             ],
             remappings=[
                 ('/input_rgb_image', image_topic),
@@ -154,6 +147,5 @@ def generate_launch_description():
         arguments=['-d', rviz_path, '--ros-args', '--log-level', 'INFO'],
     )
     ld.add_action(rviz)
-
 
     return ld

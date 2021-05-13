@@ -1,12 +1,14 @@
 hybrid_node:
   robot_model: rocha  # {agrob, rocha}
-  lidar_sensor: livox  # {velodyne, livox, ...}
   world_frame_id: map_nn2
   use_semantic_features: False
   use_lidar_features: True
   use_image_features: False
   use_gps: True
   use_imu: True
+
+  lidar_sensor_frame: livox_frame
+  camera_sensor_frame: zed_camera_left_optical_frame
 
   # Robot initial guess position in polar coordinates
   robot:

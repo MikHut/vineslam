@@ -19,8 +19,60 @@
 
 namespace vineslam
 {
-// --------------------------------------------------------------------------------
-// -- UTILS FOR CLOUD SEGMENTATION AND FEATURE EXTRACTION
+
+class LidarMapper
+{
+public:
+  // Class constructor - receives and saves the system
+  // parameters
+  explicit LidarMapper();
+
+  void registerMaps(const Pose& robot_pose, const std::vector<Corner>& corners, const std::vector<Planar>& planars,
+                    const std::vector<SemiPlane>& planes, const SemiPlane& ground, OccupancyMap& grid_map,
+                    ElevationMap& elevation_map);
+  void registerMaps(const Pose& robot_pose, const std::vector<Corner>& corners, const std::vector<Planar>& planars,
+                    const std::vector<SemiPlane>& planes, const SemiPlane& ground, OccupancyMap& grid_map);
+
+  // Routine to compute the unoccupied zone around the robot used to refine the previously built map
+  void computeUnoccupiedZone(const std::vector<Point>& in_pts, std::vector<Point>& rectangle);
+  // Routine to filter the map using the unoccupied computed zone
+  void filterWithinZone(const Pose& robot_pose, const std::vector<Point>& rectangle, OccupancyMap& grid_map);
+
+  // Public vars
+  float lidar_height;
+
+  // Previous robot pose
+  Pose prev_robot_pose_;
+
+  // Robot dimensions vars
+  float robot_dim_x_;
+  float robot_dim_y_;
+  float robot_dim_z_;
+
+  // Mapper iterator
+  int it_{};
+  // Plane filter frequency
+  int filter_frequency_{};
+
+private:
+  // -------------------------------------------------------------------------------
+  // ---- 3D pointcloud feature map
+  // -------------------------------------------------------------------------------
+  // Adds the corner features to the global map
+  static void globalCornerMap(const Pose& robot_pose, const std::vector<Corner>& corners, OccupancyMap& grid_map);
+  // Adds the planar features to the global map
+  static void globalPlanarMap(const Pose& robot_pose, const std::vector<Planar>& planars, OccupancyMap& grid_map);
+  // Adds the plane features to the global map
+  void globalPlaneMap(const Pose& robot_pose, const std::vector<SemiPlane>& planes, OccupancyMap& grid_map);
+  // Adds new altemetry measures to the elevation map
+  void globalElevationMap(const Pose& robot_pose, const Plane& ground_plane, ElevationMap& elevation_map);
+
+};
+
+// ----------------------------------------------
+// ---------- Velodyne
+// ----------------------------------------------
+
 struct SegPCL
 {
   std::vector<bool> is_ground;
@@ -44,18 +96,10 @@ struct by_value
   }
 };
 
-class LidarMapper
+class VelodyneMapper : public LidarMapper
 {
 public:
-  // Class constructor - receives and saves the system
-  // parameters
-  explicit LidarMapper(const Parameters& params);
-
-  void registerMaps(const Pose& robot_pose, const std::vector<Corner>& corners, const std::vector<Planar>& planars,
-                    const std::vector<SemiPlane>& planes, const SemiPlane& ground, OccupancyMap& grid_map,
-                    ElevationMap& elevation_map);
-  void registerMaps(const Pose& robot_pose, const std::vector<Corner>& corners, const std::vector<Planar>& planars,
-                    const std::vector<SemiPlane>& planes, const SemiPlane& ground, OccupancyMap& grid_map);
+  VelodyneMapper(const Parameters& params);
 
   // -------------------------------------------------------------------------------
   // ---- 3D pointcloud feature map
@@ -74,27 +118,7 @@ public:
     vel2base_yaw_ = yaw;
   }
 
-  // Routine to compute the unoccupied zone around the robot used to refine the previously built map
-  void computeUnoccupiedZone(const std::vector<Point>& in_pts, std::vector<Point>& rectangle);
-  // Routine to filter the map using the unoccupied computed zone
-  void filterWithinZone(const Pose& robot_pose, const std::vector<Point>& rectangle, OccupancyMap& grid_map);
-
-  // Public vars
-  float lidar_height;
-
 private:
-  // -------------------------------------------------------------------------------
-  // ---- 3D pointcloud feature map
-  // -------------------------------------------------------------------------------
-  // Adds the corner features to the global map
-  static void globalCornerMap(const Pose& robot_pose, const std::vector<Corner>& corners, OccupancyMap& grid_map);
-  // Adds the planar features to the global map
-  static void globalPlanarMap(const Pose& robot_pose, const std::vector<Planar>& planars, OccupancyMap& grid_map);
-  // Adds the plane features to the global map
-  void globalPlaneMap(const Pose& robot_pose, const std::vector<SemiPlane>& planes, OccupancyMap& grid_map);
-  // Adds new altemetry measures to the elevation map
-  void globalElevationMap(const Pose& robot_pose, const Plane& ground_plane, ElevationMap& elevation_map);
-
   // Method to reset all the global variables and members
   void reset();
 
@@ -117,34 +141,6 @@ private:
   void extractFeatures(const std::vector<PlanePoint>& in_plane_pts, std::vector<Corner>& out_corners,
                        std::vector<Planar>& out_planars);
 
-  // Previous robot pose
-  Pose prev_robot_pose_;
-
-  // Robot dimensions vars
-  float robot_dim_x_;
-  float robot_dim_y_;
-  float robot_dim_z_;
-
-  // 3D cloud feature parameters
-  float planes_th_{};
-  float ground_th_{};
-  float edge_threshold_{};
-  float planar_threshold_{};
-  // ----------------------------
-  int picked_num_{};
-  int vertical_scans_{};
-  int horizontal_scans_{};
-  int ground_scan_idx_{};
-  int segment_valid_point_num_{};
-  int segment_valid_line_num_{};
-  float vertical_angle_bottom_{};
-  float ang_res_x_{};
-  float ang_res_y_{};
-  int filter_frequency_{};
-
-  // Mapper iterator
-  int it_{};
-
   // Transformation parameters
   float vel2base_x_{}, vel2base_y_{}, vel2base_z_{}, vel2base_roll_{}, vel2base_pitch_{}, vel2base_yaw_{};
 
@@ -154,6 +150,33 @@ private:
   Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic> label_mat_;
   // Cloud segmentation & feature extraction structure
   SegPCL seg_pcl_;
+
+  // 3D cloud feature parameters
+  float planes_th_{};
+  float ground_th_{};
+  float edge_threshold_{};
+  float planar_threshold_{};
+  int picked_num_{};
+  int vertical_scans_{};
+  int horizontal_scans_{};
+  int ground_scan_idx_{};
+  int segment_valid_point_num_{};
+  int segment_valid_line_num_{};
+  float vertical_angle_bottom_{};
+  float ang_res_x_{};
+  float ang_res_y_{};
 };
+
+class LivoxMapper : public LidarMapper
+{
+public:
+  LivoxMapper(const Parameters& params);
+private:
+};
+
+// ----------------------------------------------
+// ---------- Livox
+// ----------------------------------------------
+
 
 }  // namespace vineslam

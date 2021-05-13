@@ -2,33 +2,11 @@
 
 namespace vineslam
 {
-LidarMapper::LidarMapper(const Parameters& params)
+
+LidarMapper::LidarMapper()
 {
-  // Set velodyne configuration parameters
-  picked_num_ = 2;
-  planes_th_ = static_cast<float>(60.) * DEGREE_TO_RAD;
-  ground_th_ = static_cast<float>(3.) * DEGREE_TO_RAD;
-  edge_threshold_ = 0.1;
-  planar_threshold_ = 0.1;
-  vertical_scans_ = 16;
-  horizontal_scans_ = 1800;
-  ground_scan_idx_ = 7;
-  segment_valid_point_num_ = 5;
-  segment_valid_line_num_ = 3;
-  vertical_angle_bottom_ = static_cast<float>(15. + 0.1) * DEGREE_TO_RAD;
-  ang_res_x_ = static_cast<float>(0.2) * DEGREE_TO_RAD;
-  ang_res_y_ = static_cast<float>(2.) * DEGREE_TO_RAD;
-  lidar_height = 1.20;
   filter_frequency_ = 30;
   it_ = 0;
-
-  // Set robot dimensions for elevation map computation
-  robot_dim_x_ = params.robot_dim_x_;
-  robot_dim_y_ = params.robot_dim_y_;
-  robot_dim_z_ = params.robot_dim_z_;
-
-  // Set previous robot pose handler
-  prev_robot_pose_ = Pose(0, 0, 0, 0, 0, 0);
 }
 
 void LidarMapper::registerMaps(const Pose& robot_pose, const std::vector<Corner>& corners,
@@ -71,160 +49,6 @@ void LidarMapper::registerMaps(const Pose& robot_pose, const std::vector<Corner>
   it_++;
 }
 
-// -------------------------------------------------------------------------------
-// ---- 3D pointcloud feature map functions
-// -------------------------------------------------------------------------------
-
-void LidarMapper::reset()
-{
-  range_mat_.resize(vertical_scans_, horizontal_scans_);
-  ground_mat_.resize(vertical_scans_, horizontal_scans_);
-  label_mat_.resize(vertical_scans_, horizontal_scans_);
-  range_mat_.fill(-1);
-  ground_mat_.setZero();
-  label_mat_.setZero();
-
-  int cloud_size = vertical_scans_ * horizontal_scans_;
-
-  seg_pcl_.start_col_idx.assign(vertical_scans_, 0);
-  seg_pcl_.end_col_idx.assign(vertical_scans_, 0);
-  seg_pcl_.is_ground.assign(cloud_size, false);
-  seg_pcl_.col_idx.assign(cloud_size, 0);
-  seg_pcl_.range.assign(cloud_size, 0);
-}
-
-void LidarMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& out_corners,
-                           std::vector<Planar>& out_planars, std::vector<SemiPlane>& out_planes,
-                           SemiPlane& out_groundplane)
-{
-  // Build velodyne to base_link transformation matrix
-  Pose tf_pose(vel2base_x_, vel2base_y_, vel2base_z_, vel2base_roll_, vel2base_pitch_, vel2base_yaw_);
-  Tf tf;
-  std::array<float, 9> tf_rot{};
-  tf_pose.toRotMatrix(tf_rot);
-  tf = Tf(tf_rot, std::array<float, 3>{ tf_pose.x_, tf_pose.y_, tf_pose.z_ });
-
-  // Reset global variables and members
-  reset();
-
-  // Range image projection
-  const size_t cloud_size = pcl.size();
-  std::vector<Point> transformed_pcl(vertical_scans_ * horizontal_scans_);
-  for (size_t i = 0; i < cloud_size; ++i)
-  {
-    Point l_pt = pcl[i];
-
-    float range = l_pt.norm3D();
-
-    // find the row and column index in the image for this point
-    float vertical_angle = std::atan2(l_pt.z_, std::sqrt(l_pt.x_ * l_pt.x_ + l_pt.y_ * l_pt.y_));
-
-    int row_idx = static_cast<int>((vertical_angle + vertical_angle_bottom_) / ang_res_y_);
-    if (row_idx < 0 || row_idx >= vertical_scans_)
-    {
-      continue;
-    }
-
-    float horizon_angle = std::atan2(l_pt.x_, l_pt.y_);  // this is not an error
-
-    int column_idx = static_cast<int>(-round((horizon_angle - M_PI_2) / ang_res_x_) + horizontal_scans_ / 2.);
-
-    if (column_idx >= horizontal_scans_)
-    {
-      column_idx -= horizontal_scans_;
-    }
-
-    if (column_idx < 0 || column_idx >= horizontal_scans_)
-    {
-      continue;
-    }
-
-    if (range > 50.0 || (std::fabs(l_pt.x_) < 0.9 && std::fabs(l_pt.y_) < 0.4))
-    {
-      continue;
-    }
-
-    range_mat_(row_idx, column_idx) = range;
-
-    size_t idx = column_idx + row_idx * horizontal_scans_;
-    transformed_pcl[idx] = l_pt;
-  }
-
-  // - Ground plane processing
-  Plane unfiltered_gplane, filtered_gplane;
-  // A - Extraction
-  flatGroundRemoval(transformed_pcl, unfiltered_gplane);
-  // B - Filtering
-  Ransac::process(unfiltered_gplane.points_, filtered_gplane, 100, 0.01, true);
-  // C - Centroid calculation
-  for (const auto& pt : filtered_gplane.points_)
-  {
-    filtered_gplane.centroid_ = filtered_gplane.centroid_ + pt;
-  }
-  filtered_gplane.centroid_ = filtered_gplane.centroid_ / static_cast<float>(filtered_gplane.points_.size());
-  // D - Bounding polygon
-  ConvexHull::process(filtered_gplane, out_groundplane);
-  for (auto& pt : out_groundplane.points_)
-  {
-    pt = pt * tf.inverse();
-  }
-  for (auto& pt : out_groundplane.extremas_)
-  {
-    pt = pt * tf.inverse();
-  }
-  out_groundplane.centroid_ = out_groundplane.centroid_ * tf.inverse();
-  // E - Check plane consistency (set to null if not consistent)
-  if (out_groundplane.area_ < 4.)
-  {
-    out_groundplane = SemiPlane();
-  }
-
-  // -------------------------------------------------------------------------------
-  // ----- Mark raw ground points
-  // -------------------------------------------------------------------------------
-  Plane non_flat_ground;
-  groundRemoval(transformed_pcl, non_flat_ground);
-  for (const auto& index : non_flat_ground.indexes_)
-  {
-    int i = static_cast<int>(index.x_);
-    int j = static_cast<int>(index.y_);
-
-    ground_mat_(i, j) = 1;
-    label_mat_(i, j) = -1;
-  }
-
-  // - Planes that are not the ground
-  std::vector<PlanePoint> cloud_seg;
-  cloudSegmentation(transformed_pcl, cloud_seg);
-
-  // - Extract high level planes, and then convert them to semi-planes
-  extractHighLevelPlanes(transformed_pcl, out_groundplane, out_planes);
-
-  //- Corners feature extraction
-  extractFeatures(cloud_seg, out_corners, out_planars);
-
-  // - Convert local maps to base link
-  for (auto& corner : out_corners)
-  {
-    corner.pos_ = corner.pos_ * tf.inverse();
-  }
-  for (auto& planar : out_planars)
-  {
-    planar.pos_ = planar.pos_ * tf.inverse();
-  }
-  for (auto& plane : out_planes)
-  {
-    for (auto& pt : plane.points_)
-    {
-      pt = pt * tf.inverse();
-    }
-    for (auto& pt : plane.extremas_)
-    {
-      pt = pt * tf.inverse();
-    }
-    plane.centroid_ = plane.centroid_ * tf.inverse();
-  }
-}
 
 void LidarMapper::globalCornerMap(const Pose& robot_pose, const std::vector<Corner>& corners, OccupancyMap& grid_map)
 {
@@ -601,7 +425,158 @@ void LidarMapper::globalElevationMap(const Pose& robot_pose, const Plane& ground
   }
 }
 
-void LidarMapper::flatGroundRemoval(const std::vector<Point>& in_pts, Plane& out_pcl)
+void LidarMapper::computeUnoccupiedZone(const std::vector<Point>& in_pts, std::vector<Point>& rectangle)
+{
+  // Compute an unoccupied rectangle around the robot
+  // Creterias:
+  //    - use only 50% of the minimum distance observed (works as an erosion)
+  //    - limit the maximum size of the rectangle
+
+  float right_min_y = std::numeric_limits<float>::max();
+  float left_min_y = std::numeric_limits<float>::max();
+  float front_min_x = std::numeric_limits<float>::max();
+  float back_min_x = std::numeric_limits<float>::max();
+
+  for (const auto& pt : in_pts)
+  {
+    if (std::fabs(pt.x_) < 1.5 || std::fabs(pt.y_) < 0.5)
+    {
+      continue;
+    }
+
+    if (pt.x_ < 0 && std::fabs(pt.x_) < back_min_x)
+    {
+      back_min_x = pt.x_;
+    }
+    if (pt.x_ > 0 && std::fabs(pt.x_) < front_min_x)
+    {
+      front_min_x = pt.x_;
+    }
+    if (pt.y_ < 0 && std::fabs(pt.y_) < left_min_y)
+    {
+      left_min_y = pt.y_;
+    }
+    if (pt.y_ > 0 && std::fabs(pt.y_) < right_min_y)
+    {
+      right_min_y = pt.y_;
+    }
+  }
+
+  back_min_x = (std::fabs(back_min_x) < 6) ? (back_min_x * 0.5) : (-6 * 0.5);
+  front_min_x = (std::fabs(front_min_x) < 6) ? (front_min_x * 0.5) : (6 * 0.5);
+  left_min_y = (std::fabs(left_min_y) < 2) ? (left_min_y * 0.5) : (-2 * 0.5);
+  right_min_y = (std::fabs(right_min_y) < 2) ? (right_min_y * 0.5) : (-2 * 0.5);
+
+  // Create rectangle with the computed limit values
+  Point left_upper(front_min_x, left_min_y);
+  Point right_upper(front_min_x, right_min_y);
+  Point left_bottom(back_min_x, left_min_y);
+  Point right_bottom(back_min_x, right_min_y);
+
+  // Save the rectangle
+  rectangle.push_back(left_bottom);
+  rectangle.push_back(right_upper);
+}
+
+void LidarMapper::filterWithinZone(const Pose& robot_pose, const std::vector<Point>& rectangle, OccupancyMap& grid_map)
+{
+  if (rectangle.size() != 2)
+  {
+    return;
+  }
+
+  // ----------------------------------------------------------------------------
+  // ------ Convert robot pose into homogeneous transformation
+  // ----------------------------------------------------------------------------
+  std::array<float, 9> Rot{};
+  robot_pose.toRotMatrix(Rot);
+  std::array<float, 3> trans = { robot_pose.x_, robot_pose.y_, robot_pose.z_ };
+  Tf tf(Rot, trans);
+
+  // ----------------------------------------------------------------------------
+  // ------ Access the grid map cells inside the rectangle and filter
+  // ------ We consider that the rectangle is [left_bottom, right_upper]
+  // ----------------------------------------------------------------------------
+  float z_min = robot_pose.z_ + 0.2;
+  float z_max = robot_pose.z_ + 1.9;
+  for (float i = rectangle[0].x_; i <= rectangle[1].x_;)
+  {
+    for (float j = rectangle[0].y_; j <= rectangle[1].y_;)
+    {
+      Point pt(i + 0.49, j + 0.49, 0);
+      Point projected_pt = pt * tf;
+
+      for (float z = z_min; z <= z_max;)
+      {
+        Cell* c = &(grid_map)(projected_pt.x_, projected_pt.y_, z);
+        if (c->data == nullptr)
+        {
+          z += grid_map.resolution_z_;
+          continue;
+        }
+        std::vector<Planar>* l_planars = c->data->planar_features_;
+        std::vector<Corner>* l_corners = c->data->corner_features_;
+        if (l_corners != nullptr)
+        {
+          // Now we filter (!)
+          // First, check if the point is close to the ground. If so, we do not remove it
+          for (size_t l = 0; l < l_corners->size(); l++)
+          {
+              l_corners->erase(l_corners->begin() + l);
+          }
+        }
+        if (l_planars != nullptr)
+        {
+          // Now we filter (!)
+          // First, check if the point is close to the ground. If so, we do not remove it
+          for (size_t l = 0; l < l_planars->size(); l++)
+          {
+              l_planars->erase(l_planars->begin() + l);
+          }
+        }
+
+        z += grid_map.resolution_z_;
+      }
+
+      j += grid_map.resolution_;
+    }
+    i += grid_map.resolution_;
+  }
+}
+
+// -------------------------------------------------------------------
+// ----- Velodyne functions
+// -------------------------------------------------------------------
+
+VelodyneMapper::VelodyneMapper(const Parameters& params)
+{
+  // Set velodyne configuration parameters
+  picked_num_ = 2;
+  planes_th_ = static_cast<float>(60.) * DEGREE_TO_RAD;
+  ground_th_ = static_cast<float>(3.) * DEGREE_TO_RAD;
+  edge_threshold_ = 0.1;
+  planar_threshold_ = 0.1;
+  vertical_scans_ = 16;
+  horizontal_scans_ = 1800;
+  ground_scan_idx_ = 7;
+  segment_valid_point_num_ = 5;
+  segment_valid_line_num_ = 3;
+  vertical_angle_bottom_ = static_cast<float>(15. + 0.1) * DEGREE_TO_RAD;
+  ang_res_x_ = static_cast<float>(0.2) * DEGREE_TO_RAD;
+  ang_res_y_ = static_cast<float>(2.) * DEGREE_TO_RAD;
+  lidar_height = 1.20;
+
+  // Set robot dimensions for elevation map computation
+  robot_dim_x_ = params.robot_dim_x_;
+  robot_dim_y_ = params.robot_dim_y_;
+  robot_dim_z_ = params.robot_dim_z_;
+
+  // Set previous robot pose handler
+  prev_robot_pose_ = Pose(0, 0, 0, 0, 0, 0);
+}
+
+
+void VelodyneMapper::flatGroundRemoval(const std::vector<Point>& in_pts, Plane& out_pcl)
 {
   // _ground_mat
   // -1, no valid info to check if ground of not
@@ -642,7 +617,7 @@ void LidarMapper::flatGroundRemoval(const std::vector<Point>& in_pts, Plane& out
   }
 }
 
-void LidarMapper::groundRemoval(const std::vector<Point>& in_pts, Plane& out_pcl)
+void VelodyneMapper::groundRemoval(const std::vector<Point>& in_pts, Plane& out_pcl)
 {
   // _ground_mat
   // -1, no valid info to check if ground of not
@@ -682,7 +657,7 @@ void LidarMapper::groundRemoval(const std::vector<Point>& in_pts, Plane& out_pcl
   }
 }
 
-void LidarMapper::cloudSegmentation(const std::vector<Point>& in_pts, std::vector<PlanePoint>& cloud_seg)
+void VelodyneMapper::cloudSegmentation(const std::vector<Point>& in_pts, std::vector<PlanePoint>& cloud_seg)
 {
   // Segmentation process
   int label = 1;
@@ -737,7 +712,7 @@ void LidarMapper::cloudSegmentation(const std::vector<Point>& in_pts, std::vecto
   }
 }
 
-void LidarMapper::labelComponents(const int& row, const int& col, int& label)
+void VelodyneMapper::labelComponents(const int& row, const int& col, int& label)
 {
   using Coord2D = Eigen::Vector2i;
   std::deque<Coord2D> queue;
@@ -834,7 +809,7 @@ void LidarMapper::labelComponents(const int& row, const int& col, int& label)
   }
 }
 
-void LidarMapper::extractHighLevelPlanes(const std::vector<Point>& in_pts, const SemiPlane& ground_plane,
+void VelodyneMapper::extractHighLevelPlanes(const std::vector<Point>& in_pts, const SemiPlane& ground_plane,
                                          std::vector<SemiPlane>& out_planes)
 {
   Tf tf;
@@ -922,7 +897,7 @@ void LidarMapper::extractHighLevelPlanes(const std::vector<Point>& in_pts, const
   }
 }
 
-bool LidarMapper::checkPlaneConsistency(const SemiPlane& plane, const SemiPlane& ground_plane)
+bool VelodyneMapper::checkPlaneConsistency(const SemiPlane& plane, const SemiPlane& ground_plane)
 {
   // A - Check semiplane area
   if (plane.area_ < 4)
@@ -978,7 +953,7 @@ bool LidarMapper::checkPlaneConsistency(const SemiPlane& plane, const SemiPlane&
   return true;
 }
 
-void LidarMapper::extractFeatures(const std::vector<PlanePoint>& in_plane_pts, std::vector<Corner>& out_corners,
+void VelodyneMapper::extractFeatures(const std::vector<PlanePoint>& in_plane_pts, std::vector<Corner>& out_corners,
                                   std::vector<Planar>& out_planars)
 
 {
@@ -1167,124 +1142,160 @@ void LidarMapper::extractFeatures(const std::vector<PlanePoint>& in_plane_pts, s
     out_planars.insert(out_planars.end(), planar_points_less_flat.begin(), planar_points_less_flat.end());
   }
 }
-
-void LidarMapper::computeUnoccupiedZone(const std::vector<Point>& in_pts, std::vector<Point>& rectangle)
+void VelodyneMapper::reset()
 {
-  // Compute an unoccupied rectangle around the robot
-  // Creterias:
-  //    - use only 50% of the minimum distance observed (works as an erosion)
-  //    - limit the maximum size of the rectangle
+  range_mat_.resize(vertical_scans_, horizontal_scans_);
+  ground_mat_.resize(vertical_scans_, horizontal_scans_);
+  label_mat_.resize(vertical_scans_, horizontal_scans_);
+  range_mat_.fill(-1);
+  ground_mat_.setZero();
+  label_mat_.setZero();
 
-  float right_min_y = std::numeric_limits<float>::max();
-  float left_min_y = std::numeric_limits<float>::max();
-  float front_min_x = std::numeric_limits<float>::max();
-  float back_min_x = std::numeric_limits<float>::max();
+  int cloud_size = vertical_scans_ * horizontal_scans_;
 
-  for (const auto& pt : in_pts)
+  seg_pcl_.start_col_idx.assign(vertical_scans_, 0);
+  seg_pcl_.end_col_idx.assign(vertical_scans_, 0);
+  seg_pcl_.is_ground.assign(cloud_size, false);
+  seg_pcl_.col_idx.assign(cloud_size, 0);
+  seg_pcl_.range.assign(cloud_size, 0);
+}
+
+void VelodyneMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& out_corners,
+                           std::vector<Planar>& out_planars, std::vector<SemiPlane>& out_planes,
+                           SemiPlane& out_groundplane)
+{
+  // Build velodyne to base_link transformation matrix
+  Pose tf_pose(vel2base_x_, vel2base_y_, vel2base_z_, vel2base_roll_, vel2base_pitch_, vel2base_yaw_);
+  Tf tf;
+  std::array<float, 9> tf_rot{};
+  tf_pose.toRotMatrix(tf_rot);
+  tf = Tf(tf_rot, std::array<float, 3>{ tf_pose.x_, tf_pose.y_, tf_pose.z_ });
+
+  // Reset global variables and members
+  reset();
+
+  // Range image projection
+  const size_t cloud_size = pcl.size();
+  std::vector<Point> transformed_pcl(vertical_scans_ * horizontal_scans_);
+  for (size_t i = 0; i < cloud_size; ++i)
   {
-    if (std::fabs(pt.x_) < 1.5 || std::fabs(pt.y_) < 0.5)
+    Point l_pt = pcl[i];
+
+    float range = l_pt.norm3D();
+
+    // find the row and column index in the image for this point
+    float vertical_angle = std::atan2(l_pt.z_, std::sqrt(l_pt.x_ * l_pt.x_ + l_pt.y_ * l_pt.y_));
+
+    int row_idx = static_cast<int>((vertical_angle + vertical_angle_bottom_) / ang_res_y_);
+    if (row_idx < 0 || row_idx >= vertical_scans_)
     {
       continue;
     }
 
-    if (pt.x_ < 0 && std::fabs(pt.x_) < back_min_x)
+    float horizon_angle = std::atan2(l_pt.x_, l_pt.y_);  // this is not an error
+
+    int column_idx = static_cast<int>(-round((horizon_angle - M_PI_2) / ang_res_x_) + horizontal_scans_ / 2.);
+
+    if (column_idx >= horizontal_scans_)
     {
-      back_min_x = pt.x_;
+      column_idx -= horizontal_scans_;
     }
-    if (pt.x_ > 0 && std::fabs(pt.x_) < front_min_x)
+
+    if (column_idx < 0 || column_idx >= horizontal_scans_)
     {
-      front_min_x = pt.x_;
+      continue;
     }
-    if (pt.y_ < 0 && std::fabs(pt.y_) < left_min_y)
+
+    if (range > 50.0 || (std::fabs(l_pt.x_) < 0.9 && std::fabs(l_pt.y_) < 0.4))
     {
-      left_min_y = pt.y_;
+      continue;
     }
-    if (pt.y_ > 0 && std::fabs(pt.y_) < right_min_y)
-    {
-      right_min_y = pt.y_;
-    }
+
+    range_mat_(row_idx, column_idx) = range;
+
+    size_t idx = column_idx + row_idx * horizontal_scans_;
+    transformed_pcl[idx] = l_pt;
   }
 
-  back_min_x = (std::fabs(back_min_x) < 6) ? (back_min_x * 0.5) : (-6 * 0.5);
-  front_min_x = (std::fabs(front_min_x) < 6) ? (front_min_x * 0.5) : (6 * 0.5);
-  left_min_y = (std::fabs(left_min_y) < 2) ? (left_min_y * 0.5) : (-2 * 0.5);
-  right_min_y = (std::fabs(right_min_y) < 2) ? (right_min_y * 0.5) : (-2 * 0.5);
+  // - Ground plane processing
+  Plane unfiltered_gplane, filtered_gplane;
+  // A - Extraction
+  flatGroundRemoval(transformed_pcl, unfiltered_gplane);
+  // B - Filtering
+  Ransac::process(unfiltered_gplane.points_, filtered_gplane, 100, 0.01, true);
+  // C - Centroid calculation
+  for (const auto& pt : filtered_gplane.points_)
+  {
+    filtered_gplane.centroid_ = filtered_gplane.centroid_ + pt;
+  }
+  filtered_gplane.centroid_ = filtered_gplane.centroid_ / static_cast<float>(filtered_gplane.points_.size());
+  // D - Bounding polygon
+  ConvexHull::process(filtered_gplane, out_groundplane);
+  for (auto& pt : out_groundplane.points_)
+  {
+    pt = pt * tf.inverse();
+  }
+  for (auto& pt : out_groundplane.extremas_)
+  {
+    pt = pt * tf.inverse();
+  }
+  out_groundplane.centroid_ = out_groundplane.centroid_ * tf.inverse();
+  // E - Check plane consistency (set to null if not consistent)
+  if (out_groundplane.area_ < 4.)
+  {
+    out_groundplane = SemiPlane();
+  }
 
-  // Create rectangle with the computed limit values
-  Point left_upper(front_min_x, left_min_y);
-  Point right_upper(front_min_x, right_min_y);
-  Point left_bottom(back_min_x, left_min_y);
-  Point right_bottom(back_min_x, right_min_y);
+  // -------------------------------------------------------------------------------
+  // ----- Mark raw ground points
+  // -------------------------------------------------------------------------------
+  Plane non_flat_ground;
+  groundRemoval(transformed_pcl, non_flat_ground);
+  for (const auto& index : non_flat_ground.indexes_)
+  {
+    int i = static_cast<int>(index.x_);
+    int j = static_cast<int>(index.y_);
 
-  // Save the rectangle
-  rectangle.push_back(left_bottom);
-  rectangle.push_back(right_upper);
+    ground_mat_(i, j) = 1;
+    label_mat_(i, j) = -1;
+  }
+
+  // - Planes that are not the ground
+  std::vector<PlanePoint> cloud_seg;
+  cloudSegmentation(transformed_pcl, cloud_seg);
+
+  // - Extract high level planes, and then convert them to semi-planes
+  extractHighLevelPlanes(transformed_pcl, out_groundplane, out_planes);
+
+  //- Corners feature extraction
+  extractFeatures(cloud_seg, out_corners, out_planars);
+
+  // - Convert local maps to base link
+  for (auto& corner : out_corners)
+  {
+    corner.pos_ = corner.pos_ * tf.inverse();
+  }
+  for (auto& planar : out_planars)
+  {
+    planar.pos_ = planar.pos_ * tf.inverse();
+  }
+  for (auto& plane : out_planes)
+  {
+    for (auto& pt : plane.points_)
+    {
+      pt = pt * tf.inverse();
+    }
+    for (auto& pt : plane.extremas_)
+    {
+      pt = pt * tf.inverse();
+    }
+    plane.centroid_ = plane.centroid_ * tf.inverse();
+  }
 }
 
-void LidarMapper::filterWithinZone(const Pose& robot_pose, const std::vector<Point>& rectangle, OccupancyMap& grid_map)
-{
-  if (rectangle.size() != 2)
-  {
-    return;
-  }
 
-  // ----------------------------------------------------------------------------
-  // ------ Convert robot pose into homogeneous transformation
-  // ----------------------------------------------------------------------------
-  std::array<float, 9> Rot{};
-  robot_pose.toRotMatrix(Rot);
-  std::array<float, 3> trans = { robot_pose.x_, robot_pose.y_, robot_pose.z_ };
-  Tf tf(Rot, trans);
-
-  // ----------------------------------------------------------------------------
-  // ------ Access the grid map cells inside the rectangle and filter
-  // ------ We consider that the rectangle is [left_bottom, right_upper]
-  // ----------------------------------------------------------------------------
-  float z_min = robot_pose.z_ + 0.2;
-  float z_max = robot_pose.z_ + 1.9;
-  for (float i = rectangle[0].x_; i <= rectangle[1].x_;)
-  {
-    for (float j = rectangle[0].y_; j <= rectangle[1].y_;)
-    {
-      Point pt(i + 0.49, j + 0.49, 0);
-      Point projected_pt = pt * tf;
-
-      for (float z = z_min; z <= z_max;)
-      {
-        Cell* c = &(grid_map)(projected_pt.x_, projected_pt.y_, z);
-        if (c->data == nullptr)
-        {
-          z += grid_map.resolution_z_;
-          continue;
-        }
-        std::vector<Planar>* l_planars = c->data->planar_features_;
-        std::vector<Corner>* l_corners = c->data->corner_features_;
-        if (l_corners != nullptr)
-        {
-          // Now we filter (!)
-          // First, check if the point is close to the ground. If so, we do not remove it
-          for (size_t l = 0; l < l_corners->size(); l++)
-          {
-              l_corners->erase(l_corners->begin() + l);
-          }
-        }
-        if (l_planars != nullptr)
-        {
-          // Now we filter (!)
-          // First, check if the point is close to the ground. If so, we do not remove it
-          for (size_t l = 0; l < l_planars->size(); l++)
-          {
-              l_planars->erase(l_planars->begin() + l);
-          }
-        }
-
-        z += grid_map.resolution_z_;
-      }
-
-      j += grid_map.resolution_;
-    }
-    i += grid_map.resolution_;
-  }
-}
+// -------------------------------------------------------------------
+// ----- Livox functions
+// -------------------------------------------------------------------
 
 }  // namespace vineslam

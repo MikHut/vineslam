@@ -93,6 +93,7 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
 
   // Static transforms
   RCLCPP_INFO(this->get_logger(), "Waiting for static transforms...");
+  std::string lidar_sensor_frame = (params_.lidar_sensor_ == "velodyne") ? "velodyne" : "livox_frame";
   tf2_ros::Buffer tf_buffer(this->get_clock());
   tf2_ros::TransformListener tfListener(tf_buffer);
   geometry_msgs::msg::TransformStamped cam2base_msg, vel2base_msg;
@@ -115,7 +116,7 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   {
     try
     {
-      vel2base_msg = tf_buffer.lookupTransform("velodyne", "base_link", rclcpp::Time(0));
+      vel2base_msg = tf_buffer.lookupTransform(lidar_sensor_frame, "base_link", rclcpp::Time(0));
     }
     catch (tf2::TransformException& ex)
     {
@@ -171,6 +172,12 @@ void SLAMNode::loadParameters(Parameters& params)
   param = prefix + ".robot_model";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.robot_model_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".lidar_sensor";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.lidar_sensor_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
@@ -396,8 +403,8 @@ void SLAMNode::loopOnce()
     l_timer.tick("vineslam_ros::process()");
     process();
     l_timer.tock();
-    //    l_timer.getLog();
-    //    l_timer.clearLog();
+    l_timer.getLog();
+    l_timer.clearLog();
   }
 
   // Reset information flags
@@ -407,8 +414,8 @@ void SLAMNode::loopOnce()
   input_data_.received_odometry_ = false;
   input_data_.received_gnss_ = false;
 
-  //  timer_->getLog();
-  //  timer_->clearLog();
+  timer_->getLog();
+  timer_->clearLog();
 }
 
 void SLAMNode::init()
@@ -440,7 +447,7 @@ void SLAMNode::init()
   if (params_.use_lidar_features_)
   {
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
-    l_planes = {};
+    //    l_planes = {};
   }
 
   // - 3D image feature map estimation
@@ -487,9 +494,11 @@ void SLAMNode::process()
   {
     timer_->tick("lidar_mapper::localMap()");
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
-    l_planes = {};
+    //    l_planes = {};
     timer_->tock();
   }
+
+  std::cout << "\n---\n" << l_corners.size() << ", " << l_planars.size() << "\n";
 
   // - Compute 3D image features on robot's referential frame
   std::vector<ImageFeature> l_surf_features;
@@ -528,10 +537,17 @@ void SLAMNode::process()
 
   // Fuse odometry and gyroscope to get the innovation pose
   Pose innovation;
-  computeInnovation(odom_inc, input_data_.imu_data_pose_, innovation);
+  if (params_.use_imu_)
+  {
+    computeInnovation(odom_inc, input_data_.imu_data_pose_, innovation);
+  }
+  else
+  {
+    innovation = odom_inc;
+  }
 
   timer_->tick("localizer::process()");
-  localizer_->process(odom_inc, obsv_, grid_map_);
+  localizer_->process(innovation, obsv_, grid_map_);
   robot_pose_ = localizer_->getPose();
   timer_->tock();
 
@@ -588,6 +604,7 @@ void SLAMNode::process()
   q.normalize();
   Convertions::pose2TransformStamped(q, tf2::Vector3(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_), base2map_msg);
 
+  timer_->tick("publishers()");
   if (params_.robot_model_ == "agrob")  // in this configuration we broadcast a map->base_link tf
   {
     tf_broadcaster_->sendTransform(base2map_msg);
@@ -599,7 +616,8 @@ void SLAMNode::process()
     map2odom_msg.child_frame_id = params_.world_frame_id_;
     q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
     q.normalize();
-    Convertions::pose2TransformStamped(q, tf2::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_), map2odom_msg);
+    Convertions::pose2TransformStamped(q, tf2::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_),
+                                       map2odom_msg);
     tf_broadcaster_->sendTransform(map2odom_msg);
     // ----
   }
@@ -635,6 +653,7 @@ void SLAMNode::process()
 
     tf_broadcaster_->sendTransform(odom2map_msg);
   }
+  timer_->tock();
 
   // Convert vineslam pose to ROS pose and publish it
   geometry_msgs::msg::PoseStamped pose_stamped;

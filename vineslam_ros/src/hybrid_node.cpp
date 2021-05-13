@@ -96,6 +96,7 @@ HybridNode::HybridNode() : VineSLAM_ros("HybridNode")
 
   // Static transforms
   RCLCPP_INFO(this->get_logger(), "Waiting for static transforms...");
+  std::string lidar_sensor_frame = (params_.lidar_sensor_ == "velodyne") ? "velodyne" : "livox_frame";
   tf2_ros::Buffer tf_buffer(this->get_clock());
   tf2_ros::TransformListener tfListener(tf_buffer);
   geometry_msgs::msg::TransformStamped cam2base_msg, vel2base_msg;
@@ -118,7 +119,7 @@ HybridNode::HybridNode() : VineSLAM_ros("HybridNode")
   {
     try
     {
-      vel2base_msg = tf_buffer.lookupTransform("velodyne", "base_link", rclcpp::Time(0));
+      vel2base_msg = tf_buffer.lookupTransform(lidar_sensor_frame, "base_link", rclcpp::Time(0));
     }
     catch (tf2::TransformException& ex)
     {
@@ -208,6 +209,12 @@ void HybridNode::loadParameters(Parameters& params)
   param = prefix + ".world_frame_id";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.world_frame_id_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".lidar_sensor";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.lidar_sensor_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
@@ -503,7 +510,7 @@ void HybridNode::process()
 {
   // -------------------------------------------------------------------------------
   // -------------------------------------------------------------------------------
-  // ---- HybridNode and mapping procedures
+  // ---- Localization and mapping procedures
   // -------------------------------------------------------------------------------
   // -------------------------------------------------------------------------------
 

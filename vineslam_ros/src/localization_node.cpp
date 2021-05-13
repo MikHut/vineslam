@@ -94,6 +94,7 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
 
   // Static transforms
   RCLCPP_INFO(this->get_logger(), "Waiting for static transforms...");
+  std::string lidar_sensor_frame = (params_.lidar_sensor_ == "velodyne") ? "velodyne" : "livox_frame";
   tf2_ros::Buffer tf_buffer(this->get_clock());
   tf2_ros::TransformListener tfListener(tf_buffer);
   geometry_msgs::msg::TransformStamped cam2base_msg, vel2base_msg;
@@ -116,7 +117,7 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
   {
     try
     {
-      vel2base_msg = tf_buffer.lookupTransform("velodyne", "base_link", rclcpp::Time(0));
+      vel2base_msg = tf_buffer.lookupTransform(lidar_sensor_frame, "base_link", rclcpp::Time(0));
     }
     catch (tf2::TransformException& ex)
     {
@@ -200,6 +201,12 @@ void LocalizationNode::loadParameters(Parameters& params)
   param = prefix + ".robot_model";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.robot_model_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".lidar_sensor";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.lidar_sensor_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
@@ -567,7 +574,14 @@ void LocalizationNode::process()
 
   // Fuse odometry and gyroscope to get the innovation pose
   Pose innovation;
-  computeInnovation(odom_inc, input_data_.imu_data_pose_, innovation);
+  if (params_.use_imu_)
+  {
+    computeInnovation(odom_inc, input_data_.imu_data_pose_, innovation);
+  }
+  else
+  {
+    innovation = odom_inc;
+  }
 
   timer_->tick("localizer::process()");
   localizer_->process(innovation, obsv_, grid_map_);

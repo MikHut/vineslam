@@ -240,8 +240,8 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
     w_sum_ += particle.w_;
   }
 
-  //  t_->getLog();
-  //  t_->clearLog();
+  t_->getLog();
+  t_->clearLog();
 }
 
 void PF::updateModel(const float& z_k, const float& z_k_asterisc, const float& z_dist, const float& sigma_hit,

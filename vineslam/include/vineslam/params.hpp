@@ -12,6 +12,7 @@ struct Parameters
   // -----------------------------------
   std::string robot_model_;
   std::string world_frame_id_;
+  std::string lidar_sensor_;
 
   // -----------------------------------
   // ------ System flags

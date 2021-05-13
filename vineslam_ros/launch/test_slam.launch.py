@@ -43,13 +43,22 @@ def generate_launch_description():
                    'zed_camera_left_optical_frame']
     )
     ld.add_action(tf1)
-    tf2 = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='velodyne2base',
-        arguments=['0.000', '0.000', '0.942', '-0.000', '0.000', '-0.000', '1.000', 'base_link', 'velodyne']
-    )
-    ld.add_action(tf2)
+    if config['slam_node']['lidar_sensor'] == 'velodyne':
+        tf2 = Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            name='velodyne2base',
+            arguments=['0.000', '0.000', '0.942', '-0.000', '0.000', '-0.000', '1.000', 'base_link', 'velodyne']
+        )
+        ld.add_action(tf2)
+    elif config['slam_node']['lidar_sensor'] == 'livox':
+        tf2 = Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            name='livox2base',
+            arguments=['0.000', '0.000', '0.500', '-0.000', '0.000', '-0.000', '1.000', 'base_link', 'livox_frame']
+        )
+        ld.add_action(tf2)
 
     # VineSLAM node
     vineslam = Node(
@@ -58,13 +67,22 @@ def generate_launch_description():
         name='slam_node',
         parameters=[config],
         remappings=[
-            ('/odom_topic', '/white/husky_velocity_controller/odom'),
-            ('/gps_topic', '/white/piksi/navsatfix_best_fix'),
-            ('/imu_topic', '/white/imu_7/rpy'),
-            ('/imu_data_topic', '/white/imu_7/data'),
+            ('/odom_topic', '/twist_can_pkg_node/odom'),
+            # ('/odom_topic', '/agrobv18/husky_velocity_controller/odom'),
+            # ('/odom_topic', '/white/husky_velocity_controller/odom'),
+            ('/gps_topic', '/agrobv18/gps/fix'),
+            # ('/gps_topic', '/white/piksi/navsatfix_best_fix'),
+            ('/imu_topic', '/imu_um7/rpy'),
+            # ('/imu_topic', '/agrobv18/imu_um6/rpy'),
+            # ('/imu_topic', '/white/imu_7/rpy'),
+            ('/imu_data_topic', '/imu_um7/data'),
+            # ('/imu_data_topic', '/agrobv18/imu_um6/data'),
+            # ('/imu_data_topic', '/white/imu_7/data'),
             ('/features_topic', '/image_feature_array'),
             ('/detections_topic', '/tpu/detections'),
-            ('/scan_topic', '/white/velodyne_points'),
+            ('/scan_topic', '/livox/lidar'),
+            # ('/scan_topic', '/agrobv18/velodyne_points'),
+            # ('/scan_topic', '/white/velodyne_points'),
         ],
         output={
             'stdout': 'screen',

@@ -8,7 +8,7 @@ localization_node:
   use_gps: True
   use_imu: True
 
-  lidar_sensor_frame: velodyne
+  lidar_sensor_frame: livox_frame
   camera_sensor_frame: zed_camera_left_optical_frame
 
   # Robot initial guess position in polar coordinates

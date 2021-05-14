@@ -2,7 +2,6 @@
 
 namespace vineslam
 {
-
 LidarMapper::LidarMapper()
 {
   filter_frequency_ = 30;
@@ -48,7 +47,6 @@ void LidarMapper::registerMaps(const Pose& robot_pose, const std::vector<Corner>
   // Increment mapper iterator
   it_++;
 }
-
 
 void LidarMapper::globalCornerMap(const Pose& robot_pose, const std::vector<Corner>& corners, OccupancyMap& grid_map)
 {
@@ -522,7 +520,7 @@ void LidarMapper::filterWithinZone(const Pose& robot_pose, const std::vector<Poi
           // First, check if the point is close to the ground. If so, we do not remove it
           for (size_t l = 0; l < l_corners->size(); l++)
           {
-              l_corners->erase(l_corners->begin() + l);
+            l_corners->erase(l_corners->begin() + l);
           }
         }
         if (l_planars != nullptr)
@@ -531,7 +529,7 @@ void LidarMapper::filterWithinZone(const Pose& robot_pose, const std::vector<Poi
           // First, check if the point is close to the ground. If so, we do not remove it
           for (size_t l = 0; l < l_planars->size(); l++)
           {
-              l_planars->erase(l_planars->begin() + l);
+            l_planars->erase(l_planars->begin() + l);
           }
         }
 
@@ -574,7 +572,6 @@ VelodyneMapper::VelodyneMapper(const Parameters& params)
   // Set previous robot pose handler
   prev_robot_pose_ = Pose(0, 0, 0, 0, 0, 0);
 }
-
 
 void VelodyneMapper::flatGroundRemoval(const std::vector<Point>& in_pts, Plane& out_pcl)
 {
@@ -810,7 +807,7 @@ void VelodyneMapper::labelComponents(const int& row, const int& col, int& label)
 }
 
 void VelodyneMapper::extractHighLevelPlanes(const std::vector<Point>& in_pts, const SemiPlane& ground_plane,
-                                         std::vector<SemiPlane>& out_planes)
+                                            std::vector<SemiPlane>& out_planes)
 {
   Tf tf;
   std::array<float, 9> tf_rot{};
@@ -954,7 +951,7 @@ bool VelodyneMapper::checkPlaneConsistency(const SemiPlane& plane, const SemiPla
 }
 
 void VelodyneMapper::extractFeatures(const std::vector<PlanePoint>& in_plane_pts, std::vector<Corner>& out_corners,
-                                  std::vector<Planar>& out_planars)
+                                     std::vector<Planar>& out_planars)
 
 {
   // -------------------------------------------------------------------------------
@@ -1161,8 +1158,8 @@ void VelodyneMapper::reset()
 }
 
 void VelodyneMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& out_corners,
-                           std::vector<Planar>& out_planars, std::vector<SemiPlane>& out_planes,
-                           SemiPlane& out_groundplane)
+                              std::vector<Planar>& out_planars, std::vector<SemiPlane>& out_planes,
+                              SemiPlane& out_groundplane)
 {
   // Build velodyne to base_link transformation matrix
   Pose tf_pose(vel2base_x_, vel2base_y_, vel2base_z_, vel2base_roll_, vel2base_pitch_, vel2base_yaw_);
@@ -1293,9 +1290,544 @@ void VelodyneMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>
   }
 }
 
-
 // -------------------------------------------------------------------
 // ----- Livox functions
 // -------------------------------------------------------------------
+
+LivoxMapper::LivoxMapper(const Parameters& params)
+{
+  // Set Livox configuration parameters
+  pcl_data_save_index_ = 0;
+  max_fov_ = 17;  // Edge of circle to main axis
+  max_edge_polar_pos_ = 0;
+  time_internal_pts_ = 1.0e-5;  // 10us = 1e-5
+  cx_ = 0;
+  cy_ = 0;
+  if_save_pcd_file_ = 0;
+  first_receive_time_ = -1;
+  thr_corner_curvature_ = 0.05;
+  thr_surface_curvature_ = 0.01;
+  minimum_view_angle_ = 10;
+  livox_min_allow_dis_ = 1.0;
+  livox_min_sigma_ = 7e-3;
+
+  // Set robot dimensions for elevation map computation
+  robot_dim_x_ = params.robot_dim_x_;
+  robot_dim_y_ = params.robot_dim_y_;
+  robot_dim_z_ = params.robot_dim_z_;
+
+  // Set previous robot pose handler
+  prev_robot_pose_ = Pose(0, 0, 0, 0, 0, 0);
+}
+
+Pt_infos* LivoxMapper::findPtInfo(const PointXYZI& pt)
+{
+  map_pt_idx_it_ = map_pt_idx_.find(pt);
+  if (map_pt_idx_it_ == map_pt_idx_.end())
+  {
+    assert(map_pt_idx_it_ != map_pt_idx_.end());  // else, there must be something error happened before.
+  }
+  return map_pt_idx_it_->second;
+}
+
+void LivoxMapper::getFeatures(std::vector<PointXYZI>& pc_corners, std::vector<PointXYZI>& pc_surface,
+                              std::vector<PointXYZI>& pc_full_res, float minimum_blur, float maximum_blur)
+{
+  int corner_num = 0;
+  int surface_num = 0;
+  int full_num = 0;
+  pc_corners.resize(pts_info_vec_.size());
+  pc_surface.resize(pts_info_vec_.size());
+  pc_full_res.resize(pts_info_vec_.size());
+  float maximum_idx = maximum_blur * pts_info_vec_.size();
+  float minimum_idx = minimum_blur * pts_info_vec_.size();
+  int pt_critical_rm_mask = e_pt_000 | e_pt_nan | e_pt_too_near;
+  for (size_t i = 0; i < pts_info_vec_.size(); i++)
+  {
+    if (pts_info_vec_[i].idx_ > maximum_idx || pts_info_vec_[i].idx_ < minimum_idx)
+      continue;
+
+    if ((pts_info_vec_[i].pt_type_ & pt_critical_rm_mask) == 0)
+    {
+      if (pts_info_vec_[i].pt_label_ & e_label_corner)
+      {
+        if (pts_info_vec_[i].pt_type_ != e_pt_normal)
+          continue;
+        if (pts_info_vec_[i].depth_sq2_ < std::pow(30, 2))
+        {
+          pc_corners[corner_num] = raw_pts_vec_[i];
+          // set_intensity( pc_corners[ corner_num ], e_I_motion_blur );
+          pc_corners[corner_num].intensity = pts_info_vec_[i].time_stamp_;
+          corner_num++;
+        }
+      }
+      if (pts_info_vec_[i].pt_label_ & e_label_surface)
+      {
+        if (pts_info_vec_[i].depth_sq2_ < std::pow(1000, 2))
+        {
+          pc_surface[surface_num] = raw_pts_vec_[i];
+          pc_surface[surface_num].intensity = float(pts_info_vec_[i].time_stamp_);
+          // set_intensity( pc_surface[ surface_num ], e_I_motion_blur );
+          surface_num++;
+        }
+      }
+    }
+    pc_full_res[full_num] = raw_pts_vec_[i];
+    pc_full_res[full_num].intensity = pts_info_vec_[i].time_stamp_;
+    full_num++;
+  }
+
+  // printf("Get_features , corner num = %d, suface num = %d, blur from %.2f~%.2f\r\n", corner_num, surface_num,
+  // minimum_blur, maximum_blur);
+  pc_corners.resize(corner_num);
+  pc_surface.resize(surface_num);
+  pc_full_res.resize(full_num);
+}
+
+void LivoxMapper::setIntensity(PointXYZI& pt, const E_intensity_type& i_type)
+{
+  Pt_infos* pt_info = findPtInfo(pt);
+  switch (i_type)
+  {
+    case (e_I_raw):
+      pt.intensity = pt_info->raw_intensity_;
+      break;
+    case (e_I_motion_blur):
+      pt.intensity = ((float)pt_info->idx_) / (float)input_points_size_;
+      assert(pt.intensity <= 1.0 && pt.intensity >= 0.0);
+      break;
+    case (e_I_motion_mix):
+      pt.intensity = 0.1 * ((float)pt_info->idx_ + 1) / (float)input_points_size_ + (int)(pt_info->raw_intensity_);
+      break;
+    case (e_I_scan_angle):
+      pt.intensity = pt_info->polar_angle_;
+      break;
+    case (e_I_curvature):
+      pt.intensity = pt_info->curvature_;
+      break;
+    case (e_I_view_angle):
+      pt.intensity = pt_info->view_angle_;
+      break;
+    case (e_I_time_stamp):
+      pt.intensity = pt_info->time_stamp_;
+      break;
+    default:
+      pt.intensity = ((float)pt_info->idx_ + 1) / (float)input_points_size_;
+      break;
+  }
+  return;
+}
+
+void LivoxMapper::addMaskOfPoint(Pt_infos* pt_infos, const E_point_type& pt_type_, int neighbor_count)
+{
+  int idx = pt_infos->idx_;
+  pt_infos->pt_type_ |= pt_type_;
+
+  if (neighbor_count > 0)
+  {
+    for (int i = -neighbor_count; i < neighbor_count; i++)
+    {
+      idx = pt_infos->idx_ + i;
+
+      if (i != 0 && (idx >= 0) && (idx < (int)pts_info_vec_.size()))
+      {
+        pts_info_vec_[idx].pt_type_ |= pt_type_;
+      }
+    }
+  }
+}
+
+void LivoxMapper::evalPoint(Pt_infos* pt_info)
+{
+  if (pt_info->depth_sq2_ < livox_min_allow_dis_ * livox_min_allow_dis_)  // to close
+  {
+    addMaskOfPoint(pt_info, e_pt_too_near);
+  }
+
+  pt_info->sigma_ = pt_info->raw_intensity_ / pt_info->polar_dis_sq2_;
+
+  if (pt_info->sigma_ < livox_min_sigma_)
+  {
+    addMaskOfPoint(pt_info, e_pt_reflectivity_low);
+  }
+}
+
+template <typename T>
+T LivoxMapper::vector_angle(const Eigen::Matrix<T, 3, 1>& vec_a, const Eigen::Matrix<T, 3, 1>& vec_b,
+                            int if_force_sharp_angle)
+{
+  T vec_a_norm = vec_a.norm();
+  T vec_b_norm = vec_b.norm();
+  if (vec_a_norm == 0 || vec_b_norm == 0)  // zero vector is pararrel to any vector.
+  {
+    return 0.0;
+  }
+  else
+  {
+    if (if_force_sharp_angle)
+    {
+      // return acos( abs( vec_a.dot( vec_b ) )*0.9999 / ( vec_a_norm * vec_b_norm ) );
+      return acos(abs(vec_a.dot(vec_b)) / (vec_a_norm * vec_b_norm));
+    }
+    else
+    {
+      // return acos( (vec_a.dot(vec_b))*0.9999 / (vec_a_norm*vec_b_norm));
+      return acos((vec_a.dot(vec_b)) / (vec_a_norm * vec_b_norm));
+    }
+  }
+}
+
+void LivoxMapper::computeFeatures()
+{
+  unsigned int pts_size = raw_pts_vec_.size();
+  size_t curvature_ssd_size = 2;
+  int critical_rm_point = e_pt_000 | e_pt_nan;
+  float neighbor_accumulate_xyz[3] = { 0.0, 0.0, 0.0 };
+
+  for (size_t idx = curvature_ssd_size; idx < pts_size - curvature_ssd_size; idx++)
+  {
+    if (pts_info_vec_[idx].pt_type_ & critical_rm_point)
+    {
+      continue;
+    }
+
+    // Compute curvature
+    neighbor_accumulate_xyz[0] = 0.0;
+    neighbor_accumulate_xyz[1] = 0.0;
+    neighbor_accumulate_xyz[2] = 0.0;
+
+    for (size_t i = 1; i <= curvature_ssd_size; i++)
+    {
+      if ((pts_info_vec_[idx + i].pt_type_ & e_pt_000) || (pts_info_vec_[idx - i].pt_type_ & e_pt_000))
+      {
+        if (i == 1)
+        {
+          pts_info_vec_[idx].pt_label_ |= e_label_near_zero;
+        }
+        else
+        {
+          pts_info_vec_[idx].pt_label_ = e_label_invalid;
+        }
+        break;
+      }
+      else if ((pts_info_vec_[idx + i].pt_type_ & e_pt_nan) || (pts_info_vec_[idx - i].pt_type_ & e_pt_nan))
+      {
+        if (i == 1)
+        {
+          pts_info_vec_[idx].pt_label_ |= e_label_near_nan;
+        }
+        else
+        {
+          pts_info_vec_[idx].pt_label_ = e_label_invalid;
+        }
+        break;
+      }
+      else
+      {
+        neighbor_accumulate_xyz[0] += raw_pts_vec_[idx + i].x_ + raw_pts_vec_[idx - i].x_;
+        neighbor_accumulate_xyz[1] += raw_pts_vec_[idx + i].y_ + raw_pts_vec_[idx - i].y_;
+        neighbor_accumulate_xyz[2] += raw_pts_vec_[idx + i].z_ + raw_pts_vec_[idx - i].z_;
+      }
+    }
+
+    if (pts_info_vec_[idx].pt_label_ == e_label_invalid)
+    {
+      continue;
+    }
+
+    neighbor_accumulate_xyz[0] -= curvature_ssd_size * 2 * raw_pts_vec_[idx].x_;
+    neighbor_accumulate_xyz[1] -= curvature_ssd_size * 2 * raw_pts_vec_[idx].y_;
+    neighbor_accumulate_xyz[2] -= curvature_ssd_size * 2 * raw_pts_vec_[idx].z_;
+    pts_info_vec_[idx].curvature_ = neighbor_accumulate_xyz[0] * neighbor_accumulate_xyz[0] +
+                                    neighbor_accumulate_xyz[1] * neighbor_accumulate_xyz[1] +
+                                    neighbor_accumulate_xyz[2] * neighbor_accumulate_xyz[2];
+
+    // Compute plane angle
+    Eigen::Matrix<float, 3, 1> vec_a(raw_pts_vec_[idx].x_, raw_pts_vec_[idx].y_, raw_pts_vec_[idx].z_);
+    Eigen::Matrix<float, 3, 1> vec_b(
+        raw_pts_vec_[idx + curvature_ssd_size].x_ - raw_pts_vec_[idx - curvature_ssd_size].x_,
+        raw_pts_vec_[idx + curvature_ssd_size].y_ - raw_pts_vec_[idx - curvature_ssd_size].y_,
+        raw_pts_vec_[idx + curvature_ssd_size].z_ - raw_pts_vec_[idx - curvature_ssd_size].z_);
+    pts_info_vec_[idx].view_angle_ = vector_angle(vec_a, vec_b, 1) * 57.3;
+
+    if (pts_info_vec_[idx].view_angle_ > minimum_view_angle_)
+    {
+      if (pts_info_vec_[idx].curvature_ < thr_surface_curvature_)
+      {
+        pts_info_vec_[idx].pt_label_ |= e_label_surface;
+      }
+
+      float sq2_diff = 0.1;
+
+      if (pts_info_vec_[idx].curvature_ > thr_corner_curvature_)
+      {
+        if (pts_info_vec_[idx].depth_sq2_ <= pts_info_vec_[idx - curvature_ssd_size].depth_sq2_ &&
+            pts_info_vec_[idx].depth_sq2_ <= pts_info_vec_[idx + curvature_ssd_size].depth_sq2_)
+        {
+          if (abs(pts_info_vec_[idx].depth_sq2_ - pts_info_vec_[idx - curvature_ssd_size].depth_sq2_) <
+                  sq2_diff * pts_info_vec_[idx].depth_sq2_ ||
+              abs(pts_info_vec_[idx].depth_sq2_ - pts_info_vec_[idx + curvature_ssd_size].depth_sq2_) <
+                  sq2_diff * pts_info_vec_[idx].depth_sq2_)
+            pts_info_vec_[idx].pt_label_ |= e_label_corner;
+        }
+      }
+    }
+  }
+}
+
+int LivoxMapper::projectionScan3d2d(std::vector<PointXYZI>& laser_cloud_in, std::vector<float>& scan_id_index)
+{
+  unsigned int pts_size = laser_cloud_in.size();
+  pts_info_vec_.clear();
+  pts_info_vec_.resize(pts_size);
+  raw_pts_vec_.resize(pts_size);
+  std::vector<int> edge_idx;
+  std::vector<int> split_idx;
+  scan_id_index.resize(pts_size);
+  map_pt_idx_.clear();
+  map_pt_idx_.reserve(pts_size);
+  std::vector<int> zero_idx;
+
+  input_points_size_ = 0;
+
+  for (unsigned int idx = 0; idx < pts_size; idx++)
+  {
+    raw_pts_vec_[idx] = laser_cloud_in[idx];
+    Pt_infos* pt_info = &pts_info_vec_[idx];
+    map_pt_idx_.insert(std::make_pair(laser_cloud_in[idx], pt_info));
+    pt_info->raw_intensity_ = laser_cloud_in[idx].intensity;
+    pt_info->idx_ = idx;
+    pt_info->time_stamp_ = current_time_ + ((float)idx) * time_internal_pts_;
+    last_maximum_time_stamp_ = pt_info->time_stamp_;
+    input_points_size_++;
+
+    if (!std::isfinite(laser_cloud_in[idx].x_) || !std::isfinite(laser_cloud_in[idx].y_) ||
+        !std::isfinite(laser_cloud_in[idx].z_))
+    {
+      addMaskOfPoint(pt_info, e_pt_nan);
+      continue;
+    }
+
+    if (laser_cloud_in[idx].x_ == 0)
+    {
+      if (idx == 0)
+      {
+        // TODO: handle this case.
+
+        pt_info->pt_2d_img_ << 0.01, 0.01;
+        pt_info->polar_dis_sq2_ = 0.0001;
+        addMaskOfPoint(pt_info, e_pt_000);
+        // return 0;
+      }
+      else
+      {
+        pt_info->pt_2d_img_ = pts_info_vec_[idx - 1].pt_2d_img_;
+        pt_info->polar_dis_sq2_ = pts_info_vec_[idx - 1].polar_dis_sq2_;
+        addMaskOfPoint(pt_info, e_pt_000);
+        continue;
+      }
+    }
+
+    map_pt_idx_.insert(std::make_pair(laser_cloud_in[idx], pt_info));
+
+    pt_info->depth_sq2_ = laser_cloud_in[idx].norm3D();
+
+    pt_info->pt_2d_img_ << laser_cloud_in[idx].y_ / laser_cloud_in[idx].x_,
+        laser_cloud_in[idx].z_ / laser_cloud_in[idx].x_;
+    pt_info->polar_dis_sq2_ =
+        pt_info->pt_2d_img_(0) * pt_info->pt_2d_img_(0) + pt_info->pt_2d_img_(1) * pt_info->pt_2d_img_(1);
+
+    evalPoint(pt_info);
+
+    if (pt_info->polar_dis_sq2_ > max_edge_polar_pos_)
+    {
+      addMaskOfPoint(pt_info, e_pt_circle_edge, 2);
+    }
+
+    // Split scans
+    if (idx >= 1)
+    {
+      float dis_incre = pt_info->polar_dis_sq2_ - pts_info_vec_[idx - 1].polar_dis_sq2_;
+
+      if (dis_incre > 0)  // far away from zero
+      {
+        pt_info->polar_direction_ = 1;
+      }
+
+      if (dis_incre < 0)  // move toward zero
+      {
+        pt_info->polar_direction_ = -1;
+      }
+
+      if (pt_info->polar_direction_ == -1 && pts_info_vec_[idx - 1].polar_direction_ == 1)
+      {
+        if (edge_idx.size() == 0 || (idx - split_idx[split_idx.size() - 1]) > 50)
+        {
+          split_idx.push_back(idx);
+          edge_idx.push_back(idx);
+          continue;
+        }
+      }
+
+      if (pt_info->polar_direction_ == 1 && pts_info_vec_[idx - 1].polar_direction_ == -1)
+      {
+        if (zero_idx.size() == 0 || (idx - split_idx[split_idx.size() - 1]) > 50)
+        {
+          split_idx.push_back(idx);
+
+          zero_idx.push_back(idx);
+          continue;
+        }
+      }
+    }
+  }
+  split_idx.push_back(pts_size - 1);
+
+  int val_index = 0;
+  int pt_angle_index = 0;
+  float scan_angle = 0;
+  int internal_size = 0;
+
+  if (split_idx.size() < 6)  // minimum 3 petal of scan.
+    return 0;
+
+  for (int idx = 0; idx < (int)pts_size; idx++)
+  {
+    if (val_index < (int)split_idx.size() - 2)
+    {
+      if (idx == 0 || idx > split_idx[val_index + 1])
+      {
+        if (idx > split_idx[val_index + 1])
+        {
+          val_index++;
+        }
+
+        internal_size = split_idx[val_index + 1] - split_idx[val_index];
+
+        if (pts_info_vec_[split_idx[val_index + 1]].polar_dis_sq2_ > 10000)
+        {
+          pt_angle_index = split_idx[val_index + 1] - (int)(internal_size * 0.20);
+          scan_angle =
+              atan2(pts_info_vec_[pt_angle_index].pt_2d_img_(1), pts_info_vec_[pt_angle_index].pt_2d_img_(0)) * 57.3;
+          scan_angle = scan_angle + 180.0;
+        }
+        else
+        {
+          pt_angle_index = split_idx[val_index + 1] - (int)(internal_size * 0.80);
+          scan_angle =
+              atan2(pts_info_vec_[pt_angle_index].pt_2d_img_(1), pts_info_vec_[pt_angle_index].pt_2d_img_(0)) * 57.3;
+          scan_angle = scan_angle + 180.0;
+        }
+      }
+    }
+    pts_info_vec_[idx].polar_angle_ = scan_angle;
+    scan_id_index[idx] = scan_angle;
+  }
+
+  return split_idx.size() - 1;
+}
+
+// Split whole point cloud into scans.
+void LivoxMapper::splitLaserScan(const int clutter_size, const std::vector<PointXYZI>& laser_cloud_in,
+                                 const std::vector<float>& scan_id_index,
+                                 std::vector<std::vector<PointXYZI>>& laser_cloud_scans)
+{
+  std::vector<std::vector<int>> pts_mask;
+  laser_cloud_scans.resize(clutter_size);
+  pts_mask.resize(clutter_size);
+  PointXYZI point;
+  int scan_idx = 0;
+
+  for (unsigned int i = 0; i < laser_cloud_in.size(); i++)
+  {
+    point = laser_cloud_in[i];
+
+    if (i > 0 && ((scan_id_index[i]) != (scan_id_index[i - 1])))
+    {
+      scan_idx = scan_idx + 1;
+      pts_mask[scan_idx].reserve(5000);
+    }
+
+    laser_cloud_scans[scan_idx].push_back(point);
+    pts_mask[scan_idx].push_back(pts_info_vec_[i].pt_type_);
+  }
+  laser_cloud_scans.resize(scan_idx);
+
+  int remove_point_pt_type_ = e_pt_000 | e_pt_too_near | e_pt_nan;
+  int scan_avail_num = 0;
+  std::vector<std::vector<PointXYZI>> res_laser_cloud_scan;
+  for (unsigned int i = 0; i < laser_cloud_scans.size(); i++)
+  {
+    scan_avail_num = 0;
+    std::vector<PointXYZI> laser_clour_per_scan;
+    for (unsigned int idx = 0; idx < laser_cloud_scans[i].size(); idx++)
+    {
+      if ((pts_mask[i][idx] & remove_point_pt_type_) == 0)
+      {
+        if (laser_cloud_scans[i][idx].x_ == 0)
+        {
+          assert(laser_cloud_scans[i][idx].x_ != 0);
+          continue;
+        }
+        auto temp_pt = laser_cloud_scans[i][idx];
+        setIntensity(temp_pt, default_return_intensity_type_);
+        laser_clour_per_scan.push_back(temp_pt);
+        scan_avail_num++;
+      }
+    }
+
+    if (scan_avail_num)
+    {
+      res_laser_cloud_scan.push_back(laser_clour_per_scan);
+    }
+  }
+  laser_cloud_scans = res_laser_cloud_scan;
+}
+
+std::vector<std::vector<PointXYZI>> LivoxMapper::extractLaserFeatures(std::vector<PointXYZI>& laser_cloud_in,
+                                                                      double time_stamp)
+{
+  assert(time_stamp >= 0.0);
+  if (time_stamp <= 0.0000001 || (time_stamp < last_maximum_time_stamp_))  // old firmware, without timestamp
+  {
+    current_time_ = last_maximum_time_stamp_;
+  }
+  else
+  {
+    current_time_ = time_stamp - first_receive_time_;
+  }
+  if (first_receive_time_ <= 0)
+  {
+    first_receive_time_ = time_stamp;
+  }
+
+  std::vector<std::vector<PointXYZI>> laser_cloud_scans, temp_laser_scans;
+  std::vector<float> scan_id_index;
+  laser_cloud_scans.clear();
+  map_pt_idx_.clear();
+  pts_info_vec_.clear();
+  raw_pts_vec_.clear();
+
+  //  if (if_save_pcd_file)
+  //  {
+  //    stringstream ss;
+  //    ss << PCL_DATA_SAVE_DIR << "/pc_" << pcl_data_save_index_ << ".pcd" << endl;
+  //    pcl_data_save_index_ = pcl_data_save_index_ + 1;
+  //    screen_out << "Save file = " << ss.str() << endl;
+  //    pcl::io::savePCDFileASCII(ss.str(), laser_cloud_in);
+  //  }
+
+  int clutter_size = projectionScan3d2d(laser_cloud_in, scan_id_index);
+  computeFeatures();
+  if (clutter_size == 0)
+  {
+    return laser_cloud_scans;
+  }
+  else
+  {
+    splitLaserScan(clutter_size, laser_cloud_in, scan_id_index, laser_cloud_scans);
+    return laser_cloud_scans;
+  }
+}
 
 }  // namespace vineslam

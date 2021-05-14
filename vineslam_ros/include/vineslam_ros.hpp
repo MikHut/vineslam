@@ -67,7 +67,7 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
 
-#define LIDAR_SENSOR velodyne
+#define LIDAR_SENSOR 1 // 0 - velodyne; 1 - livox
 
 namespace vineslam
 {
@@ -213,8 +213,10 @@ public:
   OccupancyMap* grid_map_;
   LandmarkMapper* land_mapper_;
   VisualMapper* vis_mapper_;
-#if LIDAR_SENSOR == velodyne
+#if LIDAR_SENSOR == 0
   VelodyneMapper* lid_mapper_;
+#elif LIDAR_SENSOR == 1
+  LivoxMapper* lid_mapper_;
 #endif
   Timer* timer_;
   Geodetic* geodetic_converter_;

@@ -1162,7 +1162,7 @@ void VelodyneMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>
                               SemiPlane& out_groundplane)
 {
   // Build velodyne to base_link transformation matrix
-  Pose tf_pose(vel2base_x_, vel2base_y_, vel2base_z_, vel2base_roll_, vel2base_pitch_, vel2base_yaw_);
+  Pose tf_pose(laser2base_x_, laser2base_y_, laser2base_z_, laser2base_roll_, laser2base_pitch_, laser2base_yaw_);
   Tf tf;
   std::array<float, 9> tf_rot{};
   tf_pose.toRotMatrix(tf_rot);
@@ -1305,11 +1305,11 @@ LivoxMapper::LivoxMapper(const Parameters& params)
   cy_ = 0;
   if_save_pcd_file_ = 0;
   first_receive_time_ = -1;
-  thr_corner_curvature_ = 0.05;
-  thr_surface_curvature_ = 0.01;
-  minimum_view_angle_ = 10;
-  livox_min_allow_dis_ = 1.0;
-  livox_min_sigma_ = 7e-3;
+  thr_corner_curvature_ = 0.1;
+  thr_surface_curvature_ = 0.005;
+  minimum_view_angle_ = 5;
+  livox_min_allow_dis_ = 0.1;
+  livox_min_sigma_ = 7e-4;
 
   // Set robot dimensions for elevation map computation
   robot_dim_x_ = params.robot_dim_x_;
@@ -1320,7 +1320,38 @@ LivoxMapper::LivoxMapper(const Parameters& params)
   prev_robot_pose_ = Pose(0, 0, 0, 0, 0, 0);
 }
 
-Pt_infos* LivoxMapper::findPtInfo(const PointXYZI& pt)
+void LivoxMapper::localMap(const std::vector<Point>& pcl, const double& time_stamp,
+                           std::vector<Corner>& out_corners, std::vector<Planar>& out_planars,
+                           std::vector<SemiPlane>& out_planes, SemiPlane& out_groundplane)
+{
+  // Build velodyne to base_link transformation matrix
+  Pose tf_pose(laser2base_x_, laser2base_y_, laser2base_z_, laser2base_roll_, laser2base_pitch_, laser2base_yaw_);
+  Tf tf;
+  std::array<float, 9> tf_rot{};
+  tf_pose.toRotMatrix(tf_rot);
+  tf = Tf(tf_rot, std::array<float, 3>{ tf_pose.x_, tf_pose.y_, tf_pose.z_ });
+
+  // Extract livox features
+  std::vector<std::vector<Point>> laser_cloud_scans = extractLaserFeatures(pcl, time_stamp);
+  std::vector<Point> tmp_corners, tmp_planars, tmp_full;
+  getFeatures(tmp_corners, tmp_planars, tmp_full);
+
+  // Convert features to VineSLAM type
+  for (const auto& pt : tmp_corners)
+  {
+    Corner c(Point(pt.x_, pt.y_, pt.z_), 0);
+    c.pos_ = c.pos_ * tf.inverse();
+    out_corners.push_back(c);
+  }
+  for (const auto& pt : tmp_planars)
+  {
+    Planar p(Point(pt.x_, pt.y_, pt.z_), 0);
+    p.pos_ = p.pos_ * tf.inverse();
+    out_planars.push_back(p);
+  }
+}
+
+Pt_infos* LivoxMapper::findPtInfo(const Point& pt)
 {
   map_pt_idx_it_ = map_pt_idx_.find(pt);
   if (map_pt_idx_it_ == map_pt_idx_.end())
@@ -1330,8 +1361,8 @@ Pt_infos* LivoxMapper::findPtInfo(const PointXYZI& pt)
   return map_pt_idx_it_->second;
 }
 
-void LivoxMapper::getFeatures(std::vector<PointXYZI>& pc_corners, std::vector<PointXYZI>& pc_surface,
-                              std::vector<PointXYZI>& pc_full_res, float minimum_blur, float maximum_blur)
+void LivoxMapper::getFeatures(std::vector<Point>& pc_corners, std::vector<Point>& pc_surface,
+                              std::vector<Point>& pc_full_res, float minimum_blur, float maximum_blur)
 {
   int corner_num = 0;
   int surface_num = 0;
@@ -1351,13 +1382,13 @@ void LivoxMapper::getFeatures(std::vector<PointXYZI>& pc_corners, std::vector<Po
     {
       if (pts_info_vec_[i].pt_label_ & e_label_corner)
       {
-        if (pts_info_vec_[i].pt_type_ != e_pt_normal)
-          continue;
+//        if (pts_info_vec_[i].pt_type_ != e_pt_normal)
+//          continue;
         if (pts_info_vec_[i].depth_sq2_ < std::pow(30, 2))
         {
           pc_corners[corner_num] = raw_pts_vec_[i];
           // set_intensity( pc_corners[ corner_num ], e_I_motion_blur );
-          pc_corners[corner_num].intensity = pts_info_vec_[i].time_stamp_;
+          pc_corners[corner_num].intensity_ = pts_info_vec_[i].time_stamp_;
           corner_num++;
         }
       }
@@ -1366,14 +1397,14 @@ void LivoxMapper::getFeatures(std::vector<PointXYZI>& pc_corners, std::vector<Po
         if (pts_info_vec_[i].depth_sq2_ < std::pow(1000, 2))
         {
           pc_surface[surface_num] = raw_pts_vec_[i];
-          pc_surface[surface_num].intensity = float(pts_info_vec_[i].time_stamp_);
+          pc_surface[surface_num].intensity_ = float(pts_info_vec_[i].time_stamp_);
           // set_intensity( pc_surface[ surface_num ], e_I_motion_blur );
           surface_num++;
         }
       }
     }
     pc_full_res[full_num] = raw_pts_vec_[i];
-    pc_full_res[full_num].intensity = pts_info_vec_[i].time_stamp_;
+    pc_full_res[full_num].intensity_ = pts_info_vec_[i].time_stamp_;
     full_num++;
   }
 
@@ -1384,35 +1415,35 @@ void LivoxMapper::getFeatures(std::vector<PointXYZI>& pc_corners, std::vector<Po
   pc_full_res.resize(full_num);
 }
 
-void LivoxMapper::setIntensity(PointXYZI& pt, const E_intensity_type& i_type)
+void LivoxMapper::setIntensity(Point& pt, const E_intensity_type& i_type)
 {
   Pt_infos* pt_info = findPtInfo(pt);
   switch (i_type)
   {
     case (e_I_raw):
-      pt.intensity = pt_info->raw_intensity_;
+      pt.intensity_ = pt_info->raw_intensity_;
       break;
     case (e_I_motion_blur):
-      pt.intensity = ((float)pt_info->idx_) / (float)input_points_size_;
-      assert(pt.intensity <= 1.0 && pt.intensity >= 0.0);
+      pt.intensity_ = ((float)pt_info->idx_) / (float)input_points_size_;
+      assert(pt.intensity_ <= 1.0 && pt.intensity_ >= 0.0);
       break;
     case (e_I_motion_mix):
-      pt.intensity = 0.1 * ((float)pt_info->idx_ + 1) / (float)input_points_size_ + (int)(pt_info->raw_intensity_);
+      pt.intensity_ = 0.1 * ((float)pt_info->idx_ + 1) / (float)input_points_size_ + (int)(pt_info->raw_intensity_);
       break;
     case (e_I_scan_angle):
-      pt.intensity = pt_info->polar_angle_;
+      pt.intensity_ = pt_info->polar_angle_;
       break;
     case (e_I_curvature):
-      pt.intensity = pt_info->curvature_;
+      pt.intensity_ = pt_info->curvature_;
       break;
     case (e_I_view_angle):
-      pt.intensity = pt_info->view_angle_;
+      pt.intensity_ = pt_info->view_angle_;
       break;
     case (e_I_time_stamp):
-      pt.intensity = pt_info->time_stamp_;
+      pt.intensity_ = pt_info->time_stamp_;
       break;
     default:
-      pt.intensity = ((float)pt_info->idx_ + 1) / (float)input_points_size_;
+      pt.intensity_ = ((float)pt_info->idx_ + 1) / (float)input_points_size_;
       break;
   }
   return;
@@ -1575,7 +1606,7 @@ void LivoxMapper::computeFeatures()
   }
 }
 
-int LivoxMapper::projectionScan3d2d(std::vector<PointXYZI>& laser_cloud_in, std::vector<float>& scan_id_index)
+int LivoxMapper::projectionScan3d2d(const std::vector<Point>& laser_cloud_in, std::vector<float>& scan_id_index)
 {
   unsigned int pts_size = laser_cloud_in.size();
   pts_info_vec_.clear();
@@ -1595,7 +1626,7 @@ int LivoxMapper::projectionScan3d2d(std::vector<PointXYZI>& laser_cloud_in, std:
     raw_pts_vec_[idx] = laser_cloud_in[idx];
     Pt_infos* pt_info = &pts_info_vec_[idx];
     map_pt_idx_.insert(std::make_pair(laser_cloud_in[idx], pt_info));
-    pt_info->raw_intensity_ = laser_cloud_in[idx].intensity;
+    pt_info->raw_intensity_ = laser_cloud_in[idx].intensity_;
     pt_info->idx_ = idx;
     pt_info->time_stamp_ = current_time_ + ((float)idx) * time_internal_pts_;
     last_maximum_time_stamp_ = pt_info->time_stamp_;
@@ -1728,14 +1759,14 @@ int LivoxMapper::projectionScan3d2d(std::vector<PointXYZI>& laser_cloud_in, std:
 }
 
 // Split whole point cloud into scans.
-void LivoxMapper::splitLaserScan(const int clutter_size, const std::vector<PointXYZI>& laser_cloud_in,
+void LivoxMapper::splitLaserScan(const int clutter_size, const std::vector<Point>& laser_cloud_in,
                                  const std::vector<float>& scan_id_index,
-                                 std::vector<std::vector<PointXYZI>>& laser_cloud_scans)
+                                 std::vector<std::vector<Point>>& laser_cloud_scans)
 {
   std::vector<std::vector<int>> pts_mask;
   laser_cloud_scans.resize(clutter_size);
   pts_mask.resize(clutter_size);
-  PointXYZI point;
+  Point point;
   int scan_idx = 0;
 
   for (unsigned int i = 0; i < laser_cloud_in.size(); i++)
@@ -1755,11 +1786,11 @@ void LivoxMapper::splitLaserScan(const int clutter_size, const std::vector<Point
 
   int remove_point_pt_type_ = e_pt_000 | e_pt_too_near | e_pt_nan;
   int scan_avail_num = 0;
-  std::vector<std::vector<PointXYZI>> res_laser_cloud_scan;
+  std::vector<std::vector<Point>> res_laser_cloud_scan;
   for (unsigned int i = 0; i < laser_cloud_scans.size(); i++)
   {
     scan_avail_num = 0;
-    std::vector<PointXYZI> laser_clour_per_scan;
+    std::vector<Point> laser_clour_per_scan;
     for (unsigned int idx = 0; idx < laser_cloud_scans[i].size(); idx++)
     {
       if ((pts_mask[i][idx] & remove_point_pt_type_) == 0)
@@ -1784,7 +1815,7 @@ void LivoxMapper::splitLaserScan(const int clutter_size, const std::vector<Point
   laser_cloud_scans = res_laser_cloud_scan;
 }
 
-std::vector<std::vector<PointXYZI>> LivoxMapper::extractLaserFeatures(std::vector<PointXYZI>& laser_cloud_in,
+std::vector<std::vector<Point>> LivoxMapper::extractLaserFeatures(const std::vector<Point>& laser_cloud_in,
                                                                       double time_stamp)
 {
   assert(time_stamp >= 0.0);
@@ -1801,7 +1832,7 @@ std::vector<std::vector<PointXYZI>> LivoxMapper::extractLaserFeatures(std::vecto
     first_receive_time_ = time_stamp;
   }
 
-  std::vector<std::vector<PointXYZI>> laser_cloud_scans, temp_laser_scans;
+  std::vector<std::vector<Point>> laser_cloud_scans, temp_laser_scans;
   std::vector<float> scan_id_index;
   laser_cloud_scans.clear();
   map_pt_idx_.clear();

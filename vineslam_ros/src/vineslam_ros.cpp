@@ -73,7 +73,7 @@ void VineSLAM_ros::scanListener(const sensor_msgs::msg::PointCloud2::SharedPtr m
   input_data_.scan_pts_.clear();
   for (const auto& pt : *velodyne_pcl)
   {
-    Point l_pt(pt.x, pt.y, pt.z);
+    Point l_pt(pt.x, pt.y, pt.z, pt.intensity);
     input_data_.scan_pts_.push_back(l_pt);
   }
 

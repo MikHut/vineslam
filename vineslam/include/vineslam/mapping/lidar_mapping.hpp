@@ -38,6 +38,17 @@ public:
   // Routine to filter the map using the unoccupied computed zone
   void filterWithinZone(const Pose& robot_pose, const std::vector<Point>& rectangle, OccupancyMap& grid_map);
 
+  void setLaser2Base(const float& x, const float& y, const float& z, const float& roll, const float& pitch,
+                     const float& yaw)
+  {
+    laser2base_x_ = x;
+    laser2base_y_ = y;
+    laser2base_z_ = z;
+    laser2base_roll_ = roll;
+    laser2base_pitch_ = pitch;
+    laser2base_yaw_ = yaw;
+  }
+
   // Public vars
   float lidar_height;
 
@@ -53,6 +64,9 @@ public:
   int it_{};
   // Plane filter frequency
   int filter_frequency_{};
+
+  // Transformation parameters
+  float laser2base_x_{}, laser2base_y_{}, laser2base_z_{}, laser2base_roll_{}, laser2base_pitch_{}, laser2base_yaw_{};
 
 private:
   // -------------------------------------------------------------------------------
@@ -106,16 +120,6 @@ public:
   // Builds local map given the current 3D point cloud - for velodyne
   void localMap(const std::vector<Point>& pcl, std::vector<Corner>& out_corners, std::vector<Planar>& out_planars,
                 std::vector<SemiPlane>& out_planes, SemiPlane& out_groundplane);
-  void setVel2Base(const float& x, const float& y, const float& z, const float& roll, const float& pitch,
-                   const float& yaw)
-  {
-    vel2base_x_ = x;
-    vel2base_y_ = y;
-    vel2base_z_ = z;
-    vel2base_roll_ = roll;
-    vel2base_pitch_ = pitch;
-    vel2base_yaw_ = yaw;
-  }
 
 private:
   // Method to reset all the global variables and members
@@ -139,9 +143,6 @@ private:
   // 3D feature extraction from a point cloud
   void extractFeatures(const std::vector<PlanePoint>& in_plane_pts, std::vector<Corner>& out_corners,
                        std::vector<Planar>& out_planars);
-
-  // Transformation parameters
-  float vel2base_x_{}, vel2base_y_{}, vel2base_z_{}, vel2base_roll_{}, vel2base_pitch_{}, vel2base_yaw_{};
 
   // Cloud segmentation matrices
   Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> range_mat_;
@@ -223,19 +224,14 @@ struct Pt_infos
   Eigen::Matrix<float, 2, 1> pt_2d_img_;  // project to X==1 plane
 };
 
-struct PointXYZI : public Point
-{
-  float intensity;
-};
-
 struct Pt_compare
 {
-  inline bool operator()(const PointXYZI& a, const PointXYZI& b)
+  inline bool operator()(const Point& a, const Point& b)
   {
     return ((a.x_ < b.x_) || (a.x_ == b.x_ && a.y_ < b.y_) || ((a.x_ == b.x_) && (a.y_ == b.y_) && (a.z_ < b.z_)));
   }
 
-  bool operator()(const PointXYZI& a, const PointXYZI& b) const
+  bool operator()(const Point& a, const Point& b) const
   {
     return (a.x_ == b.x_) && (a.y_ == b.y_) && (a.z_ == b.z_);
   }
@@ -243,7 +239,7 @@ struct Pt_compare
 
 struct Pt_hasher
 {
-  std::size_t operator()(const PointXYZI& k) const
+  std::size_t operator()(const Point& k) const
   {
     return ((std::hash<float>()(k.x_) ^ (std::hash<float>()(k.y_) << 1)) >> 1) ^ (std::hash<float>()(k.z_) << 1);
   }
@@ -254,19 +250,25 @@ class LivoxMapper : public LidarMapper
 public:
   LivoxMapper(const Parameters& params);
 
-  void computeFeatures();
+  // -------------------------------------------------------------------------------
+  // ---- 3D pointcloud feature map
+  // -------------------------------------------------------------------------------
+  // Builds local map given the current 3D point cloud - for velodyne
+  void localMap(const std::vector<Point>& pcl, const double& time_stamp, std::vector<Corner>& out_corners,
+                std::vector<Planar>& out_planars, std::vector<SemiPlane>& out_planes, SemiPlane& out_groundplane);
 
 private:
-  Pt_infos* findPtInfo(const PointXYZI& pt);
-  void getFeatures(std::vector<PointXYZI>& pc_corners, std::vector<PointXYZI>& pc_surface,
-                   std::vector<PointXYZI>& pc_full_res, float minimum_blur = 0.0, float maximum_blur = 0.3);
-  void setIntensity(PointXYZI& pt, const E_intensity_type& i_type = e_I_motion_blur);
-  std::vector<std::vector<PointXYZI>> extractLaserFeatures(std::vector<PointXYZI>& laser_cloud_in, double time_stamp);
+  Pt_infos* findPtInfo(const Point& pt);
+  void getFeatures(std::vector<Point>& pc_corners, std::vector<Point>& pc_surface,
+                   std::vector<Point>& pc_full_res, float minimum_blur = 0.0, float maximum_blur = 0.3);
+  void setIntensity(Point& pt, const E_intensity_type& i_type = e_I_motion_blur);
+  std::vector<std::vector<Point>> extractLaserFeatures(const std::vector<Point>& laser_cloud_in, double time_stamp);
   void addMaskOfPoint(Pt_infos* pt_infos, const E_point_type& pt_type, int neighbor_count = 0);
   void evalPoint(Pt_infos* pt_info);
-  int projectionScan3d2d(std::vector<PointXYZI>& laser_cloud_in, std::vector<float>& scan_id_index);
-  void splitLaserScan(const int clutter_size, const std::vector<PointXYZI>& laser_cloud_in,
-                      const std::vector<float>& scan_id_index, std::vector<std::vector<PointXYZI>>& laser_cloud_scans);
+  int projectionScan3d2d(const std::vector<Point>& laser_cloud_in, std::vector<float>& scan_id_index);
+  void splitLaserScan(const int clutter_size, const std::vector<Point>& laser_cloud_in,
+                      const std::vector<float>& scan_id_index, std::vector<std::vector<Point>>& laser_cloud_scans);
+  void computeFeatures();
 
   template <typename T>
   T vector_angle(const Eigen::Matrix<T, 3, 1>& vec_a, const Eigen::Matrix<T, 3, 1>& vec_b,
@@ -289,14 +291,10 @@ private:
   float thr_surface_curvature_;
   float minimum_view_angle_;
   std::vector<Pt_infos> pts_info_vec_;
-  std::vector<PointXYZI> raw_pts_vec_;
-  //#if USE_HASH
-  std::unordered_map<PointXYZI, Pt_infos*, Pt_hasher, Pt_compare> map_pt_idx_;  // using hash_map
-  std::unordered_map<PointXYZI, Pt_infos*, Pt_hasher, Pt_compare>::iterator map_pt_idx_it_;
-  //#else
-  //  std::map<PointXYZI, Pt_infos*, Pt_compare> map_pt_idx_;
-  //  std::map<PointXYZI, Pt_infos*, Pt_compare>::iterator map_pt_idx_it_;
-  //#endif
+  std::vector<Point> raw_pts_vec_;
+
+  std::unordered_map<Point, Pt_infos*, Pt_hasher, Pt_compare> map_pt_idx_;  // using hash_map
+  std::unordered_map<Point, Pt_infos*, Pt_hasher, Pt_compare>::iterator map_pt_idx_it_;
 
   float livox_min_allow_dis_;
   float livox_min_sigma_;

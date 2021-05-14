@@ -33,8 +33,10 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   localizer_ = new Localizer(params_);
   land_mapper_ = new LandmarkMapper(params_);
   vis_mapper_ = new VisualMapper();
-#if LIDAR_SENSOR == velodyne
+#if LIDAR_SENSOR == 0
   lid_mapper_ = new VelodyneMapper(params_);
+#elif LIDAR_SENSOR == 1
+  lid_mapper_ = new LivoxMapper(params_);
 #endif
   timer_ = new Timer("VineSLAM subfunctions");
 
@@ -97,8 +99,8 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   RCLCPP_INFO(this->get_logger(), "Waiting for static transforms...");
   tf2_ros::Buffer tf_buffer(this->get_clock());
   tf2_ros::TransformListener tfListener(tf_buffer);
-  geometry_msgs::msg::TransformStamped cam2base_msg, vel2base_msg;
-  bool got_cam2base = false, got_vel2base = false;
+  geometry_msgs::msg::TransformStamped cam2base_msg, laser2base_msg;
+  bool got_cam2base = false, got_laser2base = false;
   while (!got_cam2base && rclcpp::ok())
   {
     try
@@ -113,11 +115,11 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
     }
     got_cam2base = true;
   }
-  while (!got_vel2base && rclcpp::ok())
+  while (!got_laser2base && rclcpp::ok())
   {
     try
     {
-      vel2base_msg = tf_buffer.lookupTransform(params_.lidar_sensor_frame_, "base_link", rclcpp::Time(0));
+      laser2base_msg = tf_buffer.lookupTransform(params_.lidar_sensor_frame_, "base_link", rclcpp::Time(0));
     }
     catch (tf2::TransformException& ex)
     {
@@ -125,7 +127,7 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
       rclcpp::sleep_for(std::chrono::nanoseconds(1000000000));
       continue;
     }
-    got_vel2base = true;
+    got_laser2base = true;
   }
   RCLCPP_INFO(this->get_logger(), "Received!");
 
@@ -140,15 +142,14 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   vis_mapper_->setCam2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
   land_mapper_->setCamPitch(pitch);
 
-  tf2::Stamped<tf2::Transform> vel2base_stamped;
-  tf2::fromMsg(vel2base_msg, vel2base_stamped);
+  tf2::Stamped<tf2::Transform> laser2base_stamped;
+  tf2::fromMsg(laser2base_msg, laser2base_stamped);
 
-  tf2::Transform vel2base = vel2base_stamped;  //.inverse();
-  t = vel2base.getOrigin();
-  vel2base.getBasis().getRPY(roll, pitch, yaw);
-#if LIDAR_SENSOR == velodyne
-  lid_mapper_->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
-#endif
+  tf2::Transform laser2base = laser2base_stamped;  //.inverse();
+  t = laser2base.getOrigin();
+  laser2base.getBasis().getRPY(roll, pitch, yaw);
+
+  lid_mapper_->setLaser2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
 
   // Initialize tf broadcaster
   tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
@@ -455,8 +456,10 @@ void SLAMNode::init()
   SemiPlane l_ground_plane;
   if (params_.use_lidar_features_)
   {
-#if LIDAR_SENSOR == velodyne
+#if LIDAR_SENSOR == 0
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+#elif LIDAR_SENSOR == 1
+    lid_mapper_->localMap(input_data_.scan_pts_, header_.stamp.sec, l_corners, l_planars, l_planes, l_ground_plane);
 #endif
     //    l_planes = {};
   }
@@ -470,7 +473,7 @@ void SLAMNode::init()
 
   // - Register 3D maps
   vis_mapper_->registerMaps(robot_pose_, l_surf_features, *grid_map_);
-#if LIDAR_SENSOR == velodyne
+#if LIDAR_SENSOR == 0
   lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, l_ground_plane, *grid_map_, *elevation_map_);
 #endif
   grid_map_->downsamplePlanars();
@@ -506,8 +509,10 @@ void SLAMNode::process()
   if (params_.use_lidar_features_)
   {
     timer_->tick("lidar_mapper::localMap()");
-#if LIDAR_SENSOR == velodyne
+#if LIDAR_SENSOR == 0
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+#elif LIDAR_SENSOR == 1
+    lid_mapper_->localMap(input_data_.scan_pts_, header_.stamp.sec, l_corners, l_planars, l_planes, l_ground_plane);
 #endif
     //    l_planes = {};
     timer_->tock();
@@ -547,6 +552,7 @@ void SLAMNode::process()
   Tf c_odom_tf = input_data_.wheel_odom_pose_.toTf();
   Tf odom_inc_tf = p_odom_tf.inverse() * c_odom_tf;
   Pose odom_inc(odom_inc_tf.R_array_, odom_inc_tf.t_array_);
+  odom_inc.x_ = -odom_inc.x_;
   input_data_.p_wheel_odom_pose_ = input_data_.wheel_odom_pose_;
   odom_inc.normalize();
 
@@ -583,9 +589,7 @@ void SLAMNode::process()
   timer_->tock();
 
   timer_->tick("lidar_mapper::registerMaps()");
-#if LIDAR_SENSOR == velodyne
   lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, l_ground_plane, *grid_map_, *elevation_map_);
-#endif
   timer_->tock();
 
   timer_->tick("grid_map::downsamplePlanars()");

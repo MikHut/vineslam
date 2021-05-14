@@ -28,6 +28,15 @@ struct Point
     z_ = z;
   }
 
+  // Construct with 3D values and intensity
+  Point(const float& x, const float& y, const float& z, const float& intensity)
+  {
+    x_ = x;
+    y_ = y;
+    z_ = z;
+    intensity_ = intensity;
+  }
+
   // Construct with 2D values
   Point(const float& x, const float& y)
   {
@@ -185,6 +194,8 @@ struct Point
   float x_;
   float y_;
   float z_;
+
+  float intensity_; // used for feature extraction purposes
 };
 
 }  // namespace vineslam

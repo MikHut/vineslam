@@ -35,7 +35,7 @@ HybridNode::HybridNode() : VineSLAM_ros("HybridNode")
   localizer_ = new Localizer(params_);
   land_mapper_ = new LandmarkMapper(params_);
   vis_mapper_ = new VisualMapper();
-#if LIDAR_SENSOR == velodyne
+#if LIDAR_SENSOR == 0
   lid_mapper_ = new VelodyneMapper(params_);
 #endif
   timer_ = new Timer("VineSLAM subfunctions");
@@ -100,8 +100,8 @@ HybridNode::HybridNode() : VineSLAM_ros("HybridNode")
   RCLCPP_INFO(this->get_logger(), "Waiting for static transforms...");
   tf2_ros::Buffer tf_buffer(this->get_clock());
   tf2_ros::TransformListener tfListener(tf_buffer);
-  geometry_msgs::msg::TransformStamped cam2base_msg, vel2base_msg;
-  bool got_cam2base = false, got_vel2base = false;
+  geometry_msgs::msg::TransformStamped cam2base_msg, laser2base_msg;
+  bool got_cam2base = false, got_laser2base = false;
   while (!got_cam2base && rclcpp::ok())
   {
     try
@@ -116,11 +116,11 @@ HybridNode::HybridNode() : VineSLAM_ros("HybridNode")
     }
     got_cam2base = true;
   }
-  while (!got_vel2base && rclcpp::ok())
+  while (!got_laser2base && rclcpp::ok())
   {
     try
     {
-      vel2base_msg = tf_buffer.lookupTransform(params_.lidar_sensor_frame_, "base_link", rclcpp::Time(0));
+      laser2base_msg = tf_buffer.lookupTransform(params_.lidar_sensor_frame_, "base_link", rclcpp::Time(0));
     }
     catch (tf2::TransformException& ex)
     {
@@ -128,7 +128,7 @@ HybridNode::HybridNode() : VineSLAM_ros("HybridNode")
       rclcpp::sleep_for(std::chrono::nanoseconds(1000000000));
       continue;
     }
-    got_vel2base = true;
+    got_laser2base = true;
   }
   RCLCPP_INFO(this->get_logger(), "Received!");
 
@@ -143,15 +143,14 @@ HybridNode::HybridNode() : VineSLAM_ros("HybridNode")
   vis_mapper_->setCam2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
   land_mapper_->setCamPitch(pitch);
 
-  tf2::Stamped<tf2::Transform> vel2base_stamped;
-  tf2::fromMsg(vel2base_msg, vel2base_stamped);
+  tf2::Stamped<tf2::Transform> laser2base_stamped;
+  tf2::fromMsg(laser2base_msg, laser2base_stamped);
 
-  tf2::Transform vel2base = vel2base_stamped;  //.inverse();
-  t = vel2base.getOrigin();
-  vel2base.getBasis().getRPY(roll, pitch, yaw);
-#if LIDAR_SENSOR == velodyne
-  lid_mapper_->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
-#endif
+  tf2::Transform laser2base = laser2base_stamped;  //.inverse();
+  t = laser2base.getOrigin();
+  laser2base.getBasis().getRPY(roll, pitch, yaw);
+
+  lid_mapper_->setLaser2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
 
   // Initialize tf broadcaster
   tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
@@ -454,7 +453,7 @@ void HybridNode::init()
   SemiPlane l_ground_plane;
   if (params_.use_lidar_features_)
   {
-#if LIDAR_SENSOR == velodyne
+#if LIDAR_SENSOR == 0
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
 #endif
     l_planes = {};
@@ -545,7 +544,7 @@ void HybridNode::process()
   if (params_.use_lidar_features_)
   {
     timer_->tick("lidar_mapper::localMap()");
-#if LIDAR_SENSOR == velodyne
+#if LIDAR_SENSOR == 0
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
 #endif
     l_planes = {};
@@ -620,7 +619,7 @@ void HybridNode::process()
   if (params_.use_lidar_features_)
   {
     std::vector<Point> rectangle;
-#if LIDAR_SENSOR == velodyne
+#if LIDAR_SENSOR == 0
     lid_mapper_->computeUnoccupiedZone(input_data_.scan_pts_, rectangle);
     lid_mapper_->filterWithinZone(robot_pose_, rectangle, *grid_map_);
 #endif
@@ -769,7 +768,7 @@ void HybridNode::iMenuCallback(const visualization_msgs::msg::InteractiveMarkerF
     SemiPlane l_ground_plane;
     if (params_.use_lidar_features_)
     {
-#if LIDAR_SENSOR == velodyne
+#if LIDAR_SENSOR == 0
       lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
 #endif
     }

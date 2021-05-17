@@ -562,7 +562,7 @@ VelodyneMapper::VelodyneMapper(const Parameters& params)
   vertical_angle_bottom_ = static_cast<float>(15. + 0.1) * DEGREE_TO_RAD;
   ang_res_x_ = static_cast<float>(0.2) * DEGREE_TO_RAD;
   ang_res_y_ = static_cast<float>(2.) * DEGREE_TO_RAD;
-  lidar_height = 1.20;
+  lidar_height_ = 1.20;
 
   // Set robot dimensions for elevation map computation
   robot_dim_x_ = params.robot_dim_x_;
@@ -602,8 +602,8 @@ void VelodyneMapper::flatGroundRemoval(const std::vector<Point>& in_pts, Plane& 
 
       float vertical_angle = std::atan2(dZ, std::sqrt(dX * dX + dY * dY + dZ * dZ));
 
-      if (vertical_angle <= ground_th_ && std::fabs(lower_pt.z_) > lidar_height / 2 &&
-          std::fabs(upper_pt.z_) > lidar_height / 2)
+      if (vertical_angle <= ground_th_ && std::fabs(lower_pt.z_) > lidar_height_ / 2 &&
+          std::fabs(upper_pt.z_) > lidar_height_ / 2)
       {
         out_pcl.points_.push_back(lower_pt);
         out_pcl.points_.push_back(upper_pt);
@@ -1184,6 +1184,7 @@ void VelodyneMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>
     float vertical_angle = std::atan2(l_pt.z_, std::sqrt(l_pt.x_ * l_pt.x_ + l_pt.y_ * l_pt.y_));
 
     int row_idx = static_cast<int>((vertical_angle + vertical_angle_bottom_) / ang_res_y_);
+    ang_res_y_ = static_cast<float>(2.) * DEGREE_TO_RAD;
     if (row_idx < 0 || row_idx >= vertical_scans_)
     {
       continue;
@@ -1311,6 +1312,17 @@ LivoxMapper::LivoxMapper(const Parameters& params)
   livox_min_allow_dis_ = 0.1;
   livox_min_sigma_ = 7e-4;
 
+  // Set ground plane settings
+  ground_th_ = static_cast<float>(3.) * DEGREE_TO_RAD;
+  horizontal_scans_ = 1800;
+  ground_scan_idx_ = 7;
+  lidar_height_ = 1.20;
+  vertical_scans_ = 16;
+  horizontal_scans_ = 1800;
+  vertical_angle_bottom_ = static_cast<float>(15. + 0.1) * DEGREE_TO_RAD;
+  ang_res_x_ = static_cast<float>(0.2) * DEGREE_TO_RAD;
+  ang_res_y_ = static_cast<float>(2.) * DEGREE_TO_RAD;
+
   // Set robot dimensions for elevation map computation
   robot_dim_x_ = params.robot_dim_x_;
   robot_dim_y_ = params.robot_dim_y_;
@@ -1320,9 +1332,9 @@ LivoxMapper::LivoxMapper(const Parameters& params)
   prev_robot_pose_ = Pose(0, 0, 0, 0, 0, 0);
 }
 
-void LivoxMapper::localMap(const std::vector<Point>& pcl, const double& time_stamp,
-                           std::vector<Corner>& out_corners, std::vector<Planar>& out_planars,
-                           std::vector<SemiPlane>& out_planes, SemiPlane& out_groundplane)
+void LivoxMapper::localMap(const std::vector<Point>& pcl, const double& time_stamp, std::vector<Corner>& out_corners,
+                           std::vector<Planar>& out_planars, std::vector<SemiPlane>& out_planes,
+                           SemiPlane& out_groundplane)
 {
   // Build velodyne to base_link transformation matrix
   Pose tf_pose(laser2base_x_, laser2base_y_, laser2base_z_, laser2base_roll_, laser2base_pitch_, laser2base_yaw_);
@@ -1336,7 +1348,65 @@ void LivoxMapper::localMap(const std::vector<Point>& pcl, const double& time_sta
   std::vector<Point> tmp_corners, tmp_planars, tmp_full;
   getFeatures(tmp_corners, tmp_planars, tmp_full);
 
-  // Convert features to VineSLAM type
+  // Range image projection
+  const size_t cloud_size = pcl.size();
+  std::vector<Point> transformed_pcl(vertical_scans_ * horizontal_scans_);
+  for (size_t i = 0; i < cloud_size; ++i)
+  {
+    Point l_pt = pcl[i];
+
+    float range = l_pt.norm3D();
+
+    // find the row and column index in the image for this point
+    float vertical_angle = std::atan2(l_pt.z_, std::sqrt(l_pt.x_ * l_pt.x_ + l_pt.y_ * l_pt.y_));
+
+    int row_idx = static_cast<int>((vertical_angle + vertical_angle_bottom_) / ang_res_y_);
+    if (row_idx < 0 || row_idx >= vertical_scans_)
+    {
+      continue;
+    }
+
+    float horizon_angle = std::atan2(l_pt.x_, l_pt.y_);  // this is not an error
+
+    int column_idx = static_cast<int>(-round((horizon_angle - M_PI_2) / ang_res_x_) + horizontal_scans_ / 2.);
+
+    if (column_idx >= horizontal_scans_)
+    {
+      column_idx -= horizontal_scans_;
+    }
+
+    if (column_idx < 0 || column_idx >= horizontal_scans_)
+    {
+      continue;
+    }
+
+    if (range > 50.0 || (std::fabs(l_pt.x_) < 0.9 && std::fabs(l_pt.y_) < 0.4))
+    {
+      continue;
+    }
+
+    size_t idx = column_idx + row_idx * horizontal_scans_;
+    transformed_pcl[idx] = l_pt;
+  }
+
+  // Extract ground plane
+  Plane unfiltered_gplane, filtered_gplane;
+  flatGroundRemoval(transformed_pcl, unfiltered_gplane);
+  // B - Filtering
+  Ransac::process(unfiltered_gplane.points_, filtered_gplane, 100, 0.01, true);
+  // C - Centroid calculation
+  for (const auto& pt : filtered_gplane.points_)
+  {
+    filtered_gplane.centroid_ = filtered_gplane.centroid_ + pt;
+  }
+  filtered_gplane.centroid_ = filtered_gplane.centroid_ / static_cast<float>(filtered_gplane.points_.size());
+  // D - Bounding polygon
+  ConvexHull::process(filtered_gplane, out_groundplane);
+
+  // - Extract high level planes, and then convert them to semi-planes
+  extractHighLevelPlanes(transformed_pcl, out_groundplane, out_planes);
+
+  // Convert features to VineSLAM type and project them to the base_link
   for (const auto& pt : tmp_corners)
   {
     Corner c(Point(pt.x_, pt.y_, pt.z_), 0);
@@ -1348,6 +1418,32 @@ void LivoxMapper::localMap(const std::vector<Point>& pcl, const double& time_sta
     Planar p(Point(pt.x_, pt.y_, pt.z_), 0);
     p.pos_ = p.pos_ * tf.inverse();
     out_planars.push_back(p);
+  }
+  for (auto& pt : out_groundplane.points_)
+  {
+    pt = pt * tf.inverse();
+  }
+  for (auto& pt : out_groundplane.extremas_)
+  {
+    pt = pt * tf.inverse();
+  }
+  out_groundplane.centroid_ = out_groundplane.centroid_ * tf.inverse();
+  // E - Check plane consistency (set to null if not consistent)
+  if (out_groundplane.area_ < 4.)
+  {
+    out_groundplane = SemiPlane();
+  }
+  for (auto& plane : out_planes)
+  {
+    for (auto& pt : plane.points_)
+    {
+      pt = pt * tf.inverse();
+    }
+    for (auto& pt : plane.extremas_)
+    {
+      pt = pt * tf.inverse();
+    }
+    plane.centroid_ = plane.centroid_ * tf.inverse();
   }
 }
 
@@ -1382,8 +1478,8 @@ void LivoxMapper::getFeatures(std::vector<Point>& pc_corners, std::vector<Point>
     {
       if (pts_info_vec_[i].pt_label_ & e_label_corner)
       {
-//        if (pts_info_vec_[i].pt_type_ != e_pt_normal)
-//          continue;
+        //        if (pts_info_vec_[i].pt_type_ != e_pt_normal)
+        //          continue;
         if (pts_info_vec_[i].depth_sq2_ < std::pow(30, 2))
         {
           pc_corners[corner_num] = raw_pts_vec_[i];
@@ -1816,7 +1912,7 @@ void LivoxMapper::splitLaserScan(const int clutter_size, const std::vector<Point
 }
 
 std::vector<std::vector<Point>> LivoxMapper::extractLaserFeatures(const std::vector<Point>& laser_cloud_in,
-                                                                      double time_stamp)
+                                                                  double time_stamp)
 {
   assert(time_stamp >= 0.0);
   if (time_stamp <= 0.0000001 || (time_stamp < last_maximum_time_stamp_))  // old firmware, without timestamp
@@ -1859,6 +1955,191 @@ std::vector<std::vector<Point>> LivoxMapper::extractLaserFeatures(const std::vec
     splitLaserScan(clutter_size, laser_cloud_in, scan_id_index, laser_cloud_scans);
     return laser_cloud_scans;
   }
+}
+
+void LivoxMapper::flatGroundRemoval(const std::vector<Point>& in_pts, Plane& out_pcl)
+{
+  // _ground_mat
+  // -1, no valid info to check if ground of not
+  //  0, initial value, after validation, means not ground
+  //  1, ground
+  for (int j = 0; j < horizontal_scans_; j++)
+  {
+    for (int i = 0; i < ground_scan_idx_; i++)
+    {
+      int lower_idx = j + i * horizontal_scans_;
+      int upper_idx = j + (i + 1) * horizontal_scans_;
+
+      Point upper_pt = in_pts[upper_idx];
+      Point lower_pt = in_pts[lower_idx];
+
+      //      if (range_mat_(i, j) == -1 || range_mat_(i + 1, j) == -1)
+      //      {
+      //        // no info to check, invalid points
+      //        //        ground_mat_(i, j) = -1;
+      //        continue;
+      //      }
+
+      float dX = upper_pt.x_ - lower_pt.x_;
+      float dY = upper_pt.y_ - lower_pt.y_;
+      float dZ = upper_pt.z_ - lower_pt.z_;
+
+      float vertical_angle = std::atan2(dZ, std::sqrt(dX * dX + dY * dY + dZ * dZ));
+
+      if (vertical_angle <= ground_th_ && std::fabs(lower_pt.z_) > lidar_height_ / 2 &&
+          std::fabs(upper_pt.z_) > lidar_height_ / 2)
+      {
+        out_pcl.points_.push_back(lower_pt);
+        out_pcl.points_.push_back(upper_pt);
+        out_pcl.indexes_.emplace_back(i, j);
+        out_pcl.indexes_.emplace_back(i + 1, j);
+      }
+    }
+  }
+}
+
+void LivoxMapper::extractHighLevelPlanes(const std::vector<Point>& in_pts, const SemiPlane& ground_plane,
+                                         std::vector<SemiPlane>& out_planes)
+{
+  Tf tf;
+  std::array<float, 9> tf_rot{};
+  prev_robot_pose_.toRotMatrix(tf_rot);
+  tf = Tf(tf_rot, std::array<float, 3>{ 0, 0, 0 });
+
+  // Remove ground and null points from the set of input points
+  std::vector<Point> non_ground{};
+  for (const auto& pt : in_pts)
+  {
+    if (ground_plane.point2Plane(pt) > 0.2 && pt != Point(0, 0, 0))
+    {
+      non_ground.push_back(pt);
+    }
+  }
+
+  // -------------------------------------------------------------------------------
+  // ----- Segment plane points in two different sets
+  // -------------------------------------------------------------------------------
+  // - Start by computing the average of the y component of all points
+  float y_mean = 0.;
+  for (auto const& plane_pt : non_ground)
+    y_mean += plane_pt.y_;
+  y_mean /= static_cast<float>(non_ground.size());
+
+  // - Cluster points using the y mean threshold
+  Plane side_plane_a, side_plane_b;
+  for (auto const& plane_pt : non_ground)
+  {
+    Point rotated_to_map_pt = plane_pt * tf;
+    PlanePoint m_plane_pt;
+
+    m_plane_pt.pos_ = plane_pt;
+    m_plane_pt.which_plane_ = (rotated_to_map_pt.y_ < y_mean) ? 0 : 1;
+
+    if (m_plane_pt.which_plane_ == 0)
+    {
+      side_plane_a.points_.push_back(m_plane_pt.pos_);
+    }
+    else
+    {
+      side_plane_b.points_.push_back(m_plane_pt.pos_);
+    }
+  }
+
+  // - Remove outliers using RANSAC
+  std::vector<Plane> planes = {};
+  Plane side_plane_a_filtered, side_plane_b_filtered;
+  if (Ransac::process(side_plane_a.points_, side_plane_a_filtered, 300, 0.10, true) &&
+      side_plane_a_filtered.points_.size() < 7000 &&
+      side_plane_a_filtered.points_.size() > 75)  // prevent dense planes and slow convex hulls
+  {
+    side_plane_a_filtered.id_ = 0;
+    planes.push_back(side_plane_a_filtered);
+  }
+  if (Ransac::process(side_plane_b.points_, side_plane_b_filtered, 300, 0.10, true) &&
+      side_plane_b_filtered.points_.size() < 7000 &&
+      side_plane_b_filtered.points_.size() > 75)  // prevent dense planes and slow convex hulls
+  {
+    side_plane_b_filtered.id_ = 1;
+    planes.push_back(side_plane_b_filtered);
+  }
+
+  // -------------------------------------------------------------------------------
+  // ----- Check the validity of the extracted planes
+  // -------------------------------------------------------------------------------
+  for (auto& plane : planes)
+  {
+    // Check if the plane have a minimum number of points
+    plane.centroid_ = Point(0, 0, 0);
+    for (const auto& pt : plane.points_)
+    {
+      plane.centroid_ = plane.centroid_ + pt;
+    }
+    plane.centroid_ = plane.centroid_ / static_cast<float>(plane.points_.size());
+    plane.setLocalRefFrame();
+
+    SemiPlane l_semi_plane;
+    bool ch = ConvexHull::process(plane, l_semi_plane);
+    if (ch && checkPlaneConsistency(l_semi_plane, ground_plane))
+    {
+      out_planes.push_back(l_semi_plane);
+    }
+  }
+}
+
+bool LivoxMapper::checkPlaneConsistency(const SemiPlane& plane, const SemiPlane& ground_plane)
+{
+  // A - Check semiplane area
+  if (plane.area_ < 4)
+  {
+    return false;
+  }
+
+  // B - Check if the points belonging to the semiplane are continuous
+  //  Point p0;
+  //  if (plane.points_.empty())
+  //  {
+  //    return false;
+  //  }
+  //  else
+  //  {
+  //    p0 = plane.points_[0];
+  //  }
+  //  std::vector<Point> pts = plane.points_;
+  //  float d0 = 0;
+  //  while (pts.size() >= 2)  // Find nearest neighbor of p0, pop it from the vector, compare distances computed
+  //                           // between iterations, find holes by large variations on the distance measured
+  //  {
+  //    float d1, min_dist = std::numeric_limits<float>::max();
+  //    uint32_t idx = 0;
+  //    for (uint32_t i = 0; i < pts.size(); ++i)
+  //    {
+  //      d1 = p0.distance(pts[i]);
+  //      if (d1 != 0 && d1 < min_dist)
+  //      {
+  //        min_dist = d1;
+  //        idx = i;
+  //      }
+  //    }
+  //    d1 = min_dist;
+  //    if (std::fabs(d1 - d0) > 0.2 && d0 != 0)  // We found a hole in this case ...
+  //    {
+  //      return false;
+  //    }
+  //    else
+  //    {
+  //      pts.erase(pts.begin() + idx);
+  //      d0 = d1;
+  //    }
+  //  }
+
+  // C - Make sure that the plane is not horizontal
+  float dot = Vec(plane.a_, plane.b_, plane.c_).dot(Vec(ground_plane.a_, ground_plane.b_, ground_plane.c_));
+  if (std::fabs(dot) > 1.0)
+  {
+    return false;
+  }
+
+  return true;
 }
 
 }  // namespace vineslam

@@ -163,8 +163,10 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   // Call execution threads
   std::thread th1(&SLAMNode::loop, this);
   std::thread th2(&SLAMNode::publishDenseInfo, this, 1.);  // Publish dense info at 1Hz
+  std::thread th3(&SLAMNode::broadcastTfs, this);
   th1.detach();
   th2.detach();
+  th3.detach();
 }
 
 void SLAMNode::loadParameters(Parameters& params)
@@ -393,8 +395,8 @@ void SLAMNode::loopOnce()
   // Check if we have all the necessary data
   bool can_continue = (input_data_.received_image_features_ || (!params_.use_image_features_)) &&
                       input_data_.received_scans_ &&
-                      (input_data_.received_landmarks_ || !params_.use_semantic_features_) &&
-                      (input_data_.received_gnss_ || !params_.use_gps_);
+                      (input_data_.received_landmarks_ || !params_.use_semantic_features_);  // &&
+  //(input_data_.received_gnss_ || !params_.use_gps_);
 
   if (!can_continue)
     return;
@@ -473,9 +475,7 @@ void SLAMNode::init()
 
   // - Register 3D maps
   vis_mapper_->registerMaps(robot_pose_, l_surf_features, *grid_map_);
-#if LIDAR_SENSOR == 0
   lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, l_ground_plane, *grid_map_, *elevation_map_);
-#endif
   grid_map_->downsamplePlanars();
 
   RCLCPP_INFO(this->get_logger(), "Localization and Mapping has started.");
@@ -542,7 +542,15 @@ void SLAMNode::process()
   obsv_.ground_plane_ = l_ground_plane;
   obsv_.planes_ = l_planes;
   obsv_.surf_features_ = l_surf_features;
-  obsv_.gps_pose_ = input_data_.gnss_pose_;
+  if (input_data_.received_gnss_ && localizer_->pf_->use_gps_ == true)
+  {
+    localizer_->pf_->use_gps_ = true;
+    obsv_.gps_pose_ = input_data_.gnss_pose_;
+  }
+  else
+  {
+    localizer_->pf_->use_gps_ = false;
+  }
   obsv_.imu_pose_ = input_data_.imu_pose_;
 
   // ---------------------------------------------------------
@@ -552,7 +560,7 @@ void SLAMNode::process()
   Tf c_odom_tf = input_data_.wheel_odom_pose_.toTf();
   Tf odom_inc_tf = p_odom_tf.inverse() * c_odom_tf;
   Pose odom_inc(odom_inc_tf.R_array_, odom_inc_tf.t_array_);
-  odom_inc.x_ = -odom_inc.x_;
+  //  odom_inc.x_ = -odom_inc.x_;
   input_data_.p_wheel_odom_pose_ = input_data_.wheel_odom_pose_;
   odom_inc.normalize();
 
@@ -610,71 +618,11 @@ void SLAMNode::process()
   Convertions::UTMtoGNSS(robot_utm_x, robot_utm_y, datum_utm_zone, robot_latitude, robot_longitude);
 
   // ---------------------------------------------------------
-  // ----- ROS publishers and tf broadcasting
+  // ----- ROS publishers
   // ---------------------------------------------------------
-
-  // Publish tf::Transforms
   tf2::Quaternion q;
-
-  // ---- base2map
-  geometry_msgs::msg::TransformStamped base2map_msg;
-  base2map_msg.header.stamp = header_.stamp;
-  base2map_msg.header.frame_id = params_.world_frame_id_;
-  base2map_msg.child_frame_id = "base_link";
   q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
   q.normalize();
-  Convertions::pose2TransformStamped(q, tf2::Vector3(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_), base2map_msg);
-
-  timer_->tick("publishers()");
-  if (params_.robot_model_ == "agrob")  // in this configuration we broadcast a map->base_link tf
-  {
-    tf_broadcaster_->sendTransform(base2map_msg);
-
-    // ---- odom2map
-    geometry_msgs::msg::TransformStamped map2odom_msg;
-    map2odom_msg.header.stamp = header_.stamp;
-    map2odom_msg.header.frame_id = "odom";
-    map2odom_msg.child_frame_id = params_.world_frame_id_;
-    q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
-    q.normalize();
-    Convertions::pose2TransformStamped(q, tf2::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_),
-                                       map2odom_msg);
-    tf_broadcaster_->sendTransform(map2odom_msg);
-    // ----
-  }
-  else  // in this configuration we broadcast a odom->map tf
-  {
-    geometry_msgs::msg::TransformStamped odom2base_msg;
-    tf2_ros::Buffer tf_buffer(this->get_clock());
-    tf2_ros::TransformListener tfListener(tf_buffer);
-
-    try
-    {
-      odom2base_msg = tf_buffer.lookupTransform("odom", "base_link", rclcpp::Time(0), rclcpp::Duration(300000000));
-    }
-    catch (tf2::TransformException& ex)
-    {
-      RCLCPP_WARN(this->get_logger(), "%s", ex.what());
-    }
-
-    tf2::Stamped<tf2::Transform> odom2base_tf, base2map_tf, odom2map_tf;
-    tf2::fromMsg(odom2base_msg, odom2base_tf);
-    tf2::fromMsg(base2map_msg, base2map_tf);
-
-    geometry_msgs::msg::TransformStamped odom2map_msg;
-
-    tf2::Transform t = odom2base_tf * base2map_tf.inverse();
-    odom2map_tf.setRotation(t.getRotation());
-    odom2map_tf.setOrigin(t.getOrigin());
-    Convertions::pose2TransformStamped(odom2map_tf.getRotation(), odom2map_tf.getOrigin(), odom2map_msg);
-
-    odom2map_msg.header.stamp = header_.stamp;
-    odom2map_msg.header.frame_id = "odom";
-    odom2map_msg.child_frame_id = params_.world_frame_id_;
-
-    tf_broadcaster_->sendTransform(odom2map_msg);
-  }
-  timer_->tock();
 
   // Convert vineslam pose to ROS pose and publish it
   geometry_msgs::msg::PoseStamped pose_stamped;
@@ -711,6 +659,76 @@ void SLAMNode::process()
   l_planes.push_back(l_ground_plane);
   publish3DMap(l_planes, planes_local_publisher_);
   publishRobotBox(robot_pose_);
+}
+
+void SLAMNode::broadcastTfs()
+{
+  uint32_t mil_secs = static_cast<uint32_t>((1 / 10) * 1e3);
+
+  while (rclcpp::ok())
+  {
+    tf2::Quaternion q;
+
+    // ---- base2map
+    geometry_msgs::msg::TransformStamped base2map_msg;
+    base2map_msg.header.stamp = header_.stamp;
+    base2map_msg.header.frame_id = params_.world_frame_id_;
+    base2map_msg.child_frame_id = "base_link";
+    q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
+    q.normalize();
+    Convertions::pose2TransformStamped(q, tf2::Vector3(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_), base2map_msg);
+
+    if (params_.robot_model_ == "agrob")  // in this configuration we broadcast a map->base_link tf
+    {
+      tf_broadcaster_->sendTransform(base2map_msg);
+
+      // ---- odom2map
+      geometry_msgs::msg::TransformStamped map2odom_msg;
+      map2odom_msg.header.stamp = header_.stamp;
+      map2odom_msg.header.frame_id = "odom";
+      map2odom_msg.child_frame_id = params_.world_frame_id_;
+      q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
+      q.normalize();
+      Convertions::pose2TransformStamped(q, tf2::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_),
+                                         map2odom_msg);
+      tf_broadcaster_->sendTransform(map2odom_msg);
+      // ----
+    }
+    else  // in this configuration we broadcast a odom->map tf
+    {
+      geometry_msgs::msg::TransformStamped odom2base_msg;
+      tf2_ros::Buffer tf_buffer(this->get_clock());
+      tf2_ros::TransformListener tfListener(tf_buffer);
+
+      try
+      {
+        odom2base_msg = tf_buffer.lookupTransform("odom", "base_link", rclcpp::Time(0), rclcpp::Duration(300000000));
+
+        tf2::Stamped<tf2::Transform> odom2base_tf, base2map_tf, odom2map_tf;
+        tf2::fromMsg(odom2base_msg, odom2base_tf);
+        tf2::fromMsg(base2map_msg, base2map_tf);
+
+        geometry_msgs::msg::TransformStamped odom2map_msg;
+
+        tf2::Transform t = odom2base_tf * base2map_tf.inverse();
+        odom2map_tf.setRotation(t.getRotation());
+        odom2map_tf.setOrigin(t.getOrigin());
+        Convertions::pose2TransformStamped(odom2map_tf.getRotation(), odom2map_tf.getOrigin(), odom2map_msg);
+
+        odom2map_msg.header.stamp = header_.stamp;
+        odom2map_msg.header.frame_id = "odom";
+        odom2map_msg.child_frame_id = params_.world_frame_id_;
+
+        tf_broadcaster_->sendTransform(odom2map_msg);
+      }
+      catch (tf2::TransformException& ex)
+      {
+        RCLCPP_WARN(this->get_logger(), "%s", ex.what());
+      }
+    }
+
+    rclcpp::sleep_for(std::chrono::milliseconds(mil_secs));
+  }
 }
 
 SLAMNode::~SLAMNode() = default;

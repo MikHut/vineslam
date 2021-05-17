@@ -50,7 +50,7 @@ public:
   }
 
   // Public vars
-  float lidar_height;
+  float lidar_height_;
 
   // Previous robot pose
   Pose prev_robot_pose_;
@@ -274,6 +274,13 @@ private:
   T vector_angle(const Eigen::Matrix<T, 3, 1>& vec_a, const Eigen::Matrix<T, 3, 1>& vec_b,
                  int if_force_sharp_angle = 0);
 
+  // Method that extracts the ground plane of an input point cloud
+  void flatGroundRemoval(const std::vector<Point>& in_pts, Plane& out_pcl);
+  // Extract a couple of semiplanes
+  void extractHighLevelPlanes(const std::vector<Point>& in_plane_pts, const SemiPlane& ground_plane,
+                              std::vector<SemiPlane>& out_planes);
+  bool checkPlaneConsistency(const SemiPlane& plane, const SemiPlane& ground_plane);
+
   E_intensity_type default_return_intensity_type_;
 
   int pcl_data_save_index_;
@@ -298,6 +305,15 @@ private:
 
   float livox_min_allow_dis_;
   float livox_min_sigma_;
+
+  float lidar_height_;
+  int horizontal_scans_{};
+  int vertical_scans_{};
+  int ground_scan_idx_{};
+  float ground_th_{};
+  float vertical_angle_bottom_;
+  float ang_res_x_;
+  float ang_res_y_;
 };
 
 }  // namespace vineslam

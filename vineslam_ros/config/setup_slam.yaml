@@ -6,7 +6,7 @@ slam_node:
   use_lidar_features: True
   use_image_features: False
   use_gps: False
-  use_imu: True
+  use_imu: False
 
   lidar_sensor_frame: livox_frame
   camera_sensor_frame: zed_camera_left_optical_frame
@@ -24,9 +24,9 @@ slam_node:
   multilayer_mapping:
     # Datum
     datum:
-      latitude: 41.16666452664269
-      longitude: -7.5550953842432085
-      altitude: 294.75472108864517
+      latitude: 41.2055204
+      longitude: -8.307482
+      altitude: 255.632
 
     # Grid map definitions
     grid_map:

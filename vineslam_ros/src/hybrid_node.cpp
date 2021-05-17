@@ -37,6 +37,8 @@ HybridNode::HybridNode() : VineSLAM_ros("HybridNode")
   vis_mapper_ = new VisualMapper();
 #if LIDAR_SENSOR == 0
   lid_mapper_ = new VelodyneMapper(params_);
+#elif LIDAR_SENSOR == 1
+  lid_mapper_ = new LivoxMapper(params_);
 #endif
   timer_ = new Timer("VineSLAM subfunctions");
 
@@ -455,6 +457,8 @@ void HybridNode::init()
   {
 #if LIDAR_SENSOR == 0
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+#elif LIDAR_SENSOR == 1
+    lid_mapper_->localMap(input_data_.scan_pts_, header_.stamp.sec, l_corners, l_planars, l_planes, l_ground_plane);
 #endif
     l_planes = {};
   }
@@ -546,6 +550,8 @@ void HybridNode::process()
     timer_->tick("lidar_mapper::localMap()");
 #if LIDAR_SENSOR == 0
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+#elif LIDAR_SENSOR == 1
+    lid_mapper_->localMap(input_data_.scan_pts_, header_.stamp.sec, l_corners, l_planars, l_planes, l_ground_plane);
 #endif
     l_planes = {};
     timer_->tock();
@@ -573,7 +579,15 @@ void HybridNode::process()
   obsv_.ground_plane_ = l_ground_plane;
   obsv_.planes_ = l_planes;
   obsv_.surf_features_ = l_surf_features;
-  obsv_.gps_pose_ = input_data_.gnss_pose_;
+  if (input_data_.received_gnss_ && localizer_->pf_->use_gps_ == true)
+  {
+    localizer_->pf_->use_gps_ = true;
+    obsv_.gps_pose_ = input_data_.gnss_pose_;
+  }
+  else
+  {
+    localizer_->pf_->use_gps_ = false;
+  }
   obsv_.imu_pose_ = input_data_.imu_pose_;
 
   // ---------------------------------------------------------

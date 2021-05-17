@@ -26,6 +26,9 @@ private:
   void loopOnce();
   void process();
 
+  // Thread to publish the tfs exported by the localization node
+  void broadcastTfs();
+
   // ROS subscribers
   rclcpp::Subscription<vineslam_msgs::msg::FeatureArray>::SharedPtr feature_subscriber_;
   rclcpp::Subscription<vision_msgs::msg::Detection3DArray>::SharedPtr landmark_subscriber_;

@@ -67,7 +67,7 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
 
-#define LIDAR_SENSOR 1 // 0 - velodyne; 1 - livox
+#define LIDAR_SENSOR 0 // 0 - velodyne; 1 - livox
 
 namespace vineslam
 {

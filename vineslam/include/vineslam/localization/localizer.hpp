@@ -60,13 +60,13 @@ public:
   // Localization logs
   std::string logs_;
 
+  // Particle filter object
+  PF* pf_{};
 private:
   // Average particles pose
   Pose average_pose_;
   Pose last_update_pose_;
   Pose p_odom_;
-  // Particle filter object
-  PF* pf_{};
 
   // Particles before resampling
   std::vector<Particle> m_particles_;

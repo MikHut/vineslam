@@ -21,6 +21,7 @@ before_script:
     #- .industrial_ci/gitlab.sh
     - pwd
     - ls -l
+    - sleep 60
   variables:
     ROS_DISTRO: "foxy"
     VERBOSE_OUTPUT: "true"

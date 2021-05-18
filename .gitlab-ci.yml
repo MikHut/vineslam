@@ -21,7 +21,9 @@ before_script:
     #- .industrial_ci/gitlab.sh
     - pwd
     - ls -l
-    - sleep 60
+    #- sleep 60
+    - cd /var/lib/docker/volumes/runner-wh1uep-a-project-1999-concurrent-0-cache-c33bcaa1fd2c77edfc3893b41966cea8/_data/agrob/vineslam_stack/vineslam
+    - .industrial_ci/gitlab.sh
   variables:
     ROS_DISTRO: "foxy"
     VERBOSE_OUTPUT: "true"

@@ -1,10 +1,12 @@
-#include "../include/slam_node.hpp"
+#include "../include/hybrid_node.hpp"
+#include "../include/convertions.hpp"
 
 int main(int argc, char** argv)
 {
   // Initialize ROS node
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<vineslam::SLAMNode>());
+
+  rclcpp::spin(std::make_shared<vineslam::HybridNode>());
   rclcpp::shutdown();
 
   return 0;
@@ -16,7 +18,7 @@ namespace vineslam
 // ----- Constructor and destructor
 // --------------------------------------------------------------------------------
 
-SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
+HybridNode::HybridNode() : VineSLAM_ros("HybridNode")
 {
   // Load params
   loadParameters(params_);
@@ -27,7 +29,7 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   init_odom_ = true;
 
   // Initialize variables
-  estimate_heading_ = true;
+  estimate_heading_ = false;
 
   // Declare the Mappers and Localizer objects
   localizer_ = new Localizer(params_);
@@ -89,8 +91,9 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   grid_map_publisher_ =
       this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/debug/grid_map_limits", 10);
   robot_box_publisher_ = this->create_publisher<visualization_msgs::msg::Marker>("/vineslam/debug/robot_box", 10);
+  unoccupied_zone_publisher_ =
+      this->create_publisher<visualization_msgs::msg::Marker>("/vineslam/debug/unoccupied_zone", 10);
 
-  // ROS services
   save_map_srv_ = this->create_service<vineslam_ros::srv::SaveMap>(
       "/vineslam/save_map", std::bind(&VineSLAM_ros::saveMap, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1,
                                       std::placeholders::_2));
@@ -131,7 +134,7 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   }
   RCLCPP_INFO(this->get_logger(), "Received!");
 
-  // Save sensors to map transformation
+  // Save tfs
   tf2::Stamped<tf2::Transform> cam2base_stamped;
   tf2::fromMsg(cam2base_msg, cam2base_stamped);
 
@@ -154,22 +157,48 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   // Initialize tf broadcaster
   tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
 
-  // Allocate map memory
-  RCLCPP_INFO(this->get_logger(), "Allocating map memory!");
-  grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0), 20, 10);
-  elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
-  RCLCPP_INFO(this->get_logger(), "Done!");
+  // ---------------------------------------------------------
+  // ----- Load map dimensions and initialize it
+  // ---------------------------------------------------------
+  ElevationMapParser elevation_map_parser(params_);
+  MapParser map_parser(params_);
+  if (!map_parser.parseHeader(&params_))
+  {
+    RCLCPP_ERROR(this->get_logger(), "Map input file not found.");
+    return;
+  }
+  else
+  {
+    grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0), 1, 1);
+    elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
+  }
 
-  // Call execution threads
-  std::thread th1(&SLAMNode::loop, this);
-  std::thread th2(&SLAMNode::publishDenseInfo, this, 1.);  // Publish dense info at 1Hz
-  std::thread th3(&SLAMNode::broadcastTfs, this);
+  // ---------------------------------------------------------
+  // ----- Load the map from the xml input file
+  // ---------------------------------------------------------
+  if (!map_parser.parseFile(&(*grid_map_)))
+  {
+    RCLCPP_ERROR(this->get_logger(), "Map input file not found.");
+    return;
+  }
+  if (!elevation_map_parser.parseFile(&(*elevation_map_)))
+  {
+    RCLCPP_ERROR(this->get_logger(), "Map input file not found.");
+    return;
+  }
+
+  RCLCPP_INFO(this->get_logger(), "Ready for execution...");
+
+  // Call execution thread
+  std::thread th1(&HybridNode::loop, this);
+  std::thread th2(&HybridNode::publishDenseInfo, this, 1.0);  // Publish dense info at 1.0Hz
+  std::thread th3(&HybridNode::broadcastTfs, this);
   th1.detach();
   th2.detach();
   th3.detach();
 }
 
-void SLAMNode::loadParameters(Parameters& params)
+void HybridNode::loadParameters(Parameters& params)
 {
   std::string prefix = this->get_name();
   std::string param;
@@ -178,6 +207,12 @@ void SLAMNode::loadParameters(Parameters& params)
   param = prefix + ".robot_model";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.robot_model_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".world_frame_id";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.world_frame_id_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
@@ -190,12 +225,6 @@ void SLAMNode::loadParameters(Parameters& params)
   param = prefix + ".lidar_sensor_frame";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.lidar_sensor_frame_))
-  {
-    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
-  }
-  param = prefix + ".world_frame_id";
-  this->declare_parameter(param);
-  if (!this->get_parameter(param, params.world_frame_id_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
@@ -229,21 +258,21 @@ void SLAMNode::loadParameters(Parameters& params)
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
-  param = prefix + ".multilayer_mapping.datum.latitude";
+  param = prefix + ".robot.latitude";
   this->declare_parameter(param);
-  if (!this->get_parameter(param, params.map_datum_lat_))
+  if (!this->get_parameter(param, params.robot_datum_lat_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
-  param = prefix + ".multilayer_mapping.datum.longitude";
+  param = prefix + ".robot.longitude";
   this->declare_parameter(param);
-  if (!this->get_parameter(param, params.map_datum_long_))
+  if (!this->get_parameter(param, params.robot_datum_long_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
-  param = prefix + ".multilayer_mapping.datum.altitude";
+  param = prefix + ".robot.altitude";
   this->declare_parameter(param);
-  if (!this->get_parameter(param, params.map_datum_alt_))
+  if (!this->get_parameter(param, params.robot_datum_alt_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
@@ -283,51 +312,21 @@ void SLAMNode::loadParameters(Parameters& params)
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
-  param = prefix + ".multilayer_mapping.grid_map.origin.x";
+  param = prefix + ".multilayer_mapping.grid_map.map_file_path";
   this->declare_parameter(param);
-  if (!this->get_parameter(param, params.gridmap_origin_x_))
-  {
-    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
-  }
-  param = prefix + ".multilayer_mapping.grid_map.origin.y";
-  this->declare_parameter(param);
-  if (!this->get_parameter(param, params.gridmap_origin_y_))
-  {
-    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
-  }
-  param = prefix + ".multilayer_mapping.grid_map.origin.z";
-  this->declare_parameter(param);
-  if (!this->get_parameter(param, params.gridmap_origin_z_))
-  {
-    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
-  }
-  param = prefix + ".multilayer_mapping.grid_map.width";
-  this->declare_parameter(param);
-  if (!this->get_parameter(param, params.gridmap_width_))
-  {
-    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
-  }
-  param = prefix + ".multilayer_mapping.grid_map.lenght";
-  this->declare_parameter(param);
-  if (!this->get_parameter(param, params.gridmap_lenght_))
-  {
-    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
-  }
-  param = prefix + ".multilayer_mapping.grid_map.height";
-  this->declare_parameter(param);
-  if (!this->get_parameter(param, params.gridmap_height_))
-  {
-    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
-  }
-  param = prefix + ".multilayer_mapping.grid_map.resolution";
-  this->declare_parameter(param);
-  if (!this->get_parameter(param, params.gridmap_resolution_))
+  if (!this->get_parameter(param, params.map_input_file_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
   param = prefix + ".multilayer_mapping.grid_map.output_folder";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.map_output_folder_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".multilayer_mapping.grid_map.elevation_map_file_path";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.elevation_map_input_file_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
@@ -375,7 +374,7 @@ void SLAMNode::loadParameters(Parameters& params)
   }
 }
 
-void SLAMNode::loop()
+void HybridNode::loop()
 {
   // Reset information flags
   input_data_.received_image_features_ = false;
@@ -383,6 +382,13 @@ void SLAMNode::loop()
   input_data_.received_landmarks_ = false;
   input_data_.received_odometry_ = false;
   input_data_.received_gnss_ = false;
+
+  // ---------------------------------------------------------
+  // ----- Declare the interactive marker that will initialize
+  // ----- the robot pose on the map
+  // ---------------------------------------------------------
+  publish3DMap();
+  initializeOnMap();
 
   while (rclcpp::ok())
   {
@@ -390,33 +396,26 @@ void SLAMNode::loop()
   }
 }
 
-void SLAMNode::loopOnce()
+void HybridNode::loopOnce()
 {
   // Check if we have all the necessary data
   bool can_continue = (input_data_.received_image_features_ || (!params_.use_image_features_)) &&
                       input_data_.received_scans_ &&
-                      (input_data_.received_landmarks_ || !params_.use_semantic_features_);  // &&
-  //(input_data_.received_gnss_ || !params_.use_gps_);
+                      (input_data_.received_landmarks_ || !params_.use_semantic_features_) &&
+                      (input_data_.received_gnss_ || !params_.use_gps_);
 
   if (!can_continue)
     return;
 
   // VineSLAM main loop
-  if (init_flag_)
-  {
-    RCLCPP_INFO(this->get_logger(), "Initializing system...");
-    init();
-    RCLCPP_INFO(this->get_logger(), "Initialization performed! Starting execution.");
-    init_flag_ = false;
-  }
-  else
+  if (!init_flag_)
   {
     Timer l_timer("VineSLAM main loop");
     l_timer.tick("vineslam_ros::process()");
     process();
     l_timer.tock();
-    l_timer.getLog();
-    l_timer.clearLog();
+    //    l_timer.getLog();
+    //    l_timer.clearLog();
   }
 
   // Reset information flags
@@ -426,18 +425,16 @@ void SLAMNode::loopOnce()
   input_data_.received_odometry_ = false;
   input_data_.received_gnss_ = false;
 
-  timer_->getLog();
-  timer_->clearLog();
+  //  timer_->getLog();
+  //  timer_->clearLog();
 }
 
-void SLAMNode::init()
+void HybridNode::init()
 {
   // ---------------------------------------------------------
   // ----- Initialize the localizer and get first particles distribution
   // ---------------------------------------------------------
-  localizer_->init(Pose(0, 0, 0, 0, 0, 0));
-  localizer_->changeGPSFlag(false);  // We do not trust the GPS at the beginning since we still have to estimate
-                                     // heading
+  localizer_->init(robot_pose_);
   robot_pose_ = localizer_->getPose();
 
   // ---------------------------------------------------------
@@ -463,7 +460,7 @@ void SLAMNode::init()
 #elif LIDAR_SENSOR == 1
     lid_mapper_->localMap(input_data_.scan_pts_, header_.stamp.sec, l_corners, l_planars, l_planes, l_ground_plane);
 #endif
-    //    l_planes = {};
+    l_planes = {};
   }
 
   // - 3D image feature map estimation
@@ -473,15 +470,57 @@ void SLAMNode::init()
     vis_mapper_->localMap(input_data_.image_features_, l_surf_features);
   }
 
-  // - Register 3D maps
-  vis_mapper_->registerMaps(robot_pose_, l_surf_features, *grid_map_);
-  lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, l_ground_plane, *grid_map_, *elevation_map_);
-  grid_map_->downsamplePlanars();
-
-  RCLCPP_INFO(this->get_logger(), "Localization and Mapping has started.");
+  RCLCPP_INFO(this->get_logger(), "HybridNode has started.");
 }
 
-void SLAMNode::process()
+void HybridNode::initializeOnMap()
+{
+  // -------------------------------------------------------------------------------
+  // ------ Compute the difference between map's and robot's datums
+  // -------------------------------------------------------------------------------
+  geodetic_converter_ = new Geodetic(params_.map_datum_lat_, params_.map_datum_long_, params_.map_datum_alt_);
+
+  double robot_e, robot_n, robot_u;
+  geodetic_converter_->geodetic2enu(params_.robot_datum_lat_, params_.robot_datum_long_, params_.robot_datum_alt_,
+                                    robot_e, robot_n, robot_u);
+
+  // Rotate the obtained point considering the gnss heading
+  Pose heading_pose(0, 0, 0, 0, 0, -params_.map_datum_head_);
+  Tf heading_tf = heading_pose.toTf();
+  Point corrected_point = Point(robot_n, -robot_e, robot_u) * heading_tf;
+
+  robot_pose_ = Pose(corrected_point.x_, corrected_point.y_, corrected_point.z_, 0, 0, 0);
+
+  // Set the map -> robot gnss transformation
+  tf2::Quaternion q;
+  q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
+
+  // Create the interactive marker menu entries
+  im_menu_handler_ = interactive_markers::MenuHandler();
+  im_menu_handler_.insert("Call matcher", std::bind(&HybridNode::iMenuCallback, this, std::placeholders::_1));
+  im_menu_handler_.insert("Set pose", std::bind(&HybridNode::iMenuCallback, this, std::placeholders::_1));
+  im_menu_handler_.insert("Reset pose", std::bind(&HybridNode::iMenuCallback, this, std::placeholders::_1));
+
+  // Declare the interactive marker server
+  im_server_ = std::make_unique<interactive_markers::InteractiveMarkerServer>(
+      "/vineslam/initialization_marker", get_node_base_interface(), get_node_clock_interface(),
+      get_node_logging_interface(), get_node_topics_interface(), get_node_services_interface());
+
+  // Create the 6-DoF interactive marker
+  std::string marker_name = "initialization_markers";
+  visualization_msgs::msg::InteractiveMarker imarker;
+  make6DofMarker(imarker, robot_pose_, marker_name);
+
+  // Insert the interactive marker and menu into the server and associate them with the corresponding callback functions
+  im_server_->insert(imarker);
+  im_server_->setCallback(imarker.name, std::bind(&HybridNode::iMarkerCallback, this, std::placeholders::_1));
+  im_menu_handler_.apply(*im_server_, imarker.name);
+
+  // 'Commit' changes and send to all clients
+  im_server_->applyChanges();
+}
+
+void HybridNode::process()
 {
   // -------------------------------------------------------------------------------
   // -------------------------------------------------------------------------------
@@ -514,11 +553,9 @@ void SLAMNode::process()
 #elif LIDAR_SENSOR == 1
     lid_mapper_->localMap(input_data_.scan_pts_, header_.stamp.sec, l_corners, l_planars, l_planes, l_ground_plane);
 #endif
-    //    l_planes = {};
+    l_planes = {};
     timer_->tock();
   }
-
-  std::cout << "\n---\n" << l_corners.size() << ", " << l_planars.size() << "\n";
 
   // - Compute 3D image features on robot's referential frame
   std::vector<ImageFeature> l_surf_features;
@@ -560,20 +597,12 @@ void SLAMNode::process()
   Tf c_odom_tf = input_data_.wheel_odom_pose_.toTf();
   Tf odom_inc_tf = p_odom_tf.inverse() * c_odom_tf;
   Pose odom_inc(odom_inc_tf.R_array_, odom_inc_tf.t_array_);
-  odom_inc.x_ = -odom_inc.x_;
   input_data_.p_wheel_odom_pose_ = input_data_.wheel_odom_pose_;
   odom_inc.normalize();
 
   // Fuse odometry and gyroscope to get the innovation pose
   Pose innovation;
-  if (params_.use_imu_)
-  {
-    computeInnovation(odom_inc, input_data_.imu_data_pose_, innovation);
-  }
-  else
-  {
-    innovation = odom_inc;
-  }
+  computeInnovation(odom_inc, input_data_.imu_data_pose_, innovation);
 
   timer_->tick("localizer::process()");
   localizer_->process(innovation, obsv_, grid_map_);
@@ -584,25 +613,6 @@ void SLAMNode::process()
   // ----- Reset IMU gyroscope angular integrators
   // ---------------------------------------------------------
   input_data_.imu_data_pose_ = Pose(0, 0, 0, 0, 0, 0);
-
-  // ---------------------------------------------------------
-  // ----- Register multi-layer map (if performing SLAM)
-  // ---------------------------------------------------------
-  timer_->tick("landmark_mapper::process()");
-  land_mapper_->process(robot_pose_, l_landmarks, input_data_.land_labels_, *grid_map_);
-  timer_->tock();
-
-  timer_->tick("visual_mapper::registerMaps()");
-  vis_mapper_->registerMaps(robot_pose_, l_surf_features, *grid_map_);
-  timer_->tock();
-
-  timer_->tick("lidar_mapper::registerMaps()");
-  lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, l_ground_plane, *grid_map_, *elevation_map_);
-  timer_->tock();
-
-  timer_->tick("grid_map::downsamplePlanars()");
-  grid_map_->downsamplePlanars();
-  timer_->tock();
 
   // ---------------------------------------------------------
   // ----- Conversion of pose into latitude and longitude
@@ -616,6 +626,19 @@ void SLAMNode::process()
   robot_utm_y = datum_utm_y - (robot_pose_.x_ * std::sin(params_.map_datum_head_) +
                                robot_pose_.y_ * std::cos(params_.map_datum_head_));
   Convertions::UTMtoGNSS(robot_utm_x, robot_utm_y, datum_utm_zone, robot_latitude, robot_longitude);
+
+  // ---------------------------------------------------------
+  // ----- Map refinement
+  // ---------------------------------------------------------
+  if (params_.use_lidar_features_)
+  {
+    std::vector<Point> rectangle;
+#if LIDAR_SENSOR == 0
+    lid_mapper_->computeUnoccupiedZone(input_data_.scan_pts_, rectangle);
+    lid_mapper_->filterWithinZone(robot_pose_, rectangle, *grid_map_);
+#endif
+    publishUnoccupiedZone(rectangle);
+  }
 
   // ---------------------------------------------------------
   // ----- ROS publishers
@@ -637,14 +660,6 @@ void SLAMNode::process()
   pose_stamped.pose.orientation.w = q.w();
   pose_publisher_->publish(pose_stamped);
 
-  // Push back the current pose to the path container and publish it
-  path_.push_back(pose_stamped);
-  nav_msgs::msg::Path ros_path;
-  ros_path.header.stamp = rclcpp::Time();
-  ros_path.header.frame_id = params_.world_frame_id_;
-  ros_path.poses = path_;
-  path_publisher_->publish(ros_path);
-
   // Publish robot pose in GNSS polar coordinates
   sensor_msgs::msg::NavSatFix pose_ll;
   pose_ll.header.stamp = header_.stamp;
@@ -652,16 +667,9 @@ void SLAMNode::process()
   pose_ll.latitude = robot_latitude;
   pose_ll.longitude = robot_longitude;
   gps_fix_publisher_->publish(pose_ll);
-
-  // Non-dense publishers
-  publish3DMap(l_corners, corners_local_publisher_);
-  publish3DMap(l_planars, planars_local_publisher_);
-  l_planes.push_back(l_ground_plane);
-  publish3DMap(l_planes, planes_local_publisher_);
-  publishRobotBox(robot_pose_);
 }
 
-void SLAMNode::broadcastTfs()
+void HybridNode::broadcastTfs()
 {
   uint32_t mil_secs = static_cast<uint32_t>((1 / 10) * 1e3);
 
@@ -731,6 +739,128 @@ void SLAMNode::broadcastTfs()
   }
 }
 
-SLAMNode::~SLAMNode() = default;
+void HybridNode::iMarkerCallback(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr& feedback)
+{
+  // Save the robot initial pose set by the user
+  tf2::Quaternion q(feedback->pose.orientation.x, feedback->pose.orientation.y, feedback->pose.orientation.z,
+                    feedback->pose.orientation.w);
+  tf2Scalar R, P, Y;
+  tf2::Matrix3x3(q).getRPY(R, P, Y);
+
+  robot_pose_.x_ = feedback->pose.position.x;
+  robot_pose_.y_ = feedback->pose.position.y;
+  robot_pose_.z_ = feedback->pose.position.z;
+  robot_pose_.R_ = static_cast<float>(R);
+  robot_pose_.P_ = static_cast<float>(P);
+  robot_pose_.Y_ = static_cast<float>(Y);
+}
+
+void HybridNode::iMenuCallback(const visualization_msgs::msg::InteractiveMarkerFeedback::ConstSharedPtr& feedback)
+{
+  if (feedback->menu_entry_id == 1)
+  {
+    // Save the marker pose as initial guess for the matcher
+    tf2::Quaternion q(feedback->pose.orientation.x, feedback->pose.orientation.y, feedback->pose.orientation.z,
+                      feedback->pose.orientation.w);
+    tf2Scalar R, P, Y;
+    tf2::Matrix3x3(q).getRPY(R, P, Y);
+
+    Pose initial_guess;
+    initial_guess.x_ = feedback->pose.position.x;
+    initial_guess.y_ = feedback->pose.position.y;
+    initial_guess.z_ = feedback->pose.position.z;
+    initial_guess.R_ = static_cast<float>(R);
+    initial_guess.P_ = static_cast<float>(P);
+    initial_guess.Y_ = static_cast<float>(Y);
+
+    Tf initial_guess_tf = initial_guess.toTf();
+
+    // Compute the planar features to use
+    std::vector<Corner> l_corners;
+    std::vector<Planar> l_planars;
+    std::vector<SemiPlane> l_planes;
+    SemiPlane l_ground_plane;
+    if (params_.use_lidar_features_)
+    {
+#if LIDAR_SENSOR == 0
+      lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+#endif
+    }
+
+    // Prepare and call the matcher
+    ICP<Planar> initialization_matcher;
+    initialization_matcher.setTolerance(1e-5);
+    initialization_matcher.setMaxIterations(500);
+    initialization_matcher.setRejectOutliersFlag(false);
+    initialization_matcher.setInputTarget(grid_map_);
+    initialization_matcher.setInputSource(l_planars);
+
+    std::vector<Planar> aligned;
+    float rms_error;
+    if (initialization_matcher.align(initial_guess_tf, rms_error, aligned))
+    {
+      // Get homogeneous transformation result
+      Tf result;
+      initialization_matcher.getTransform(result);
+
+      // Save the result into the robot pose
+      robot_pose_ = Pose(result.R_array_, result.t_array_);
+    }
+    else
+    {
+      RCLCPP_ERROR(this->get_logger(), "The matcher failed, please try again with another initial guess.");
+    }
+  }
+  else if (feedback->menu_entry_id == 2)
+  {
+    // Initialize the localization system
+    RCLCPP_INFO(this->get_logger(), "Initializing system...");
+    init();
+    RCLCPP_INFO(this->get_logger(), "Initialization performed! Starting execution.");
+    init_flag_ = false;
+  }
+  else if (feedback->menu_entry_id == 3)
+  {
+  }
+}
+
+void HybridNode::publishUnoccupiedZone(const std::vector<Point>& rectangle)
+{
+  // Robot pose orientation to quaternion
+  tf2::Quaternion q;
+  q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
+
+  if (rectangle.size() != 2)
+  {
+    RCLCPP_ERROR(this->get_logger(), "Invalid unoccupied zone rectangle");
+    return;
+  }
+
+  // Set robot original box corners
+  visualization_msgs::msg::Marker unoccupied_zone_marker;
+  unoccupied_zone_marker.header.frame_id = params_.world_frame_id_;
+  unoccupied_zone_marker.header.stamp = rclcpp::Time();
+  unoccupied_zone_marker.id = 0;
+  unoccupied_zone_marker.type = visualization_msgs::msg::Marker::CUBE;
+  unoccupied_zone_marker.action = visualization_msgs::msg::Marker::ADD;
+  unoccupied_zone_marker.color.a = 0.7;
+  unoccupied_zone_marker.color.r = 1;
+  unoccupied_zone_marker.color.g = 0;
+  unoccupied_zone_marker.color.b = 0;
+  unoccupied_zone_marker.scale.x = std::fabs(rectangle[0].x_ - rectangle[1].x_);
+  unoccupied_zone_marker.scale.y = std::fabs(rectangle[0].y_ - rectangle[1].y_);
+  unoccupied_zone_marker.scale.z = 0.2;
+  unoccupied_zone_marker.pose.position.x = robot_pose_.x_;
+  unoccupied_zone_marker.pose.position.y = robot_pose_.y_;
+  unoccupied_zone_marker.pose.position.z = robot_pose_.z_ + params_.robot_dim_z_ / 2;
+  unoccupied_zone_marker.pose.orientation.x = q.getX();
+  unoccupied_zone_marker.pose.orientation.y = q.getY();
+  unoccupied_zone_marker.pose.orientation.z = q.getZ();
+  unoccupied_zone_marker.pose.orientation.w = q.getW();
+
+  unoccupied_zone_publisher_->publish(unoccupied_zone_marker);
+}
+
+HybridNode::~HybridNode() = default;
 
 }  // namespace vineslam

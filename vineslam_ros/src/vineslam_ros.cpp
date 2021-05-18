@@ -73,7 +73,7 @@ void VineSLAM_ros::scanListener(const sensor_msgs::msg::PointCloud2::SharedPtr m
   input_data_.scan_pts_.clear();
   for (const auto& pt : *velodyne_pcl)
   {
-    Point l_pt(pt.x, pt.y, pt.z);
+    Point l_pt(pt.x, pt.y, pt.z, pt.intensity);
     input_data_.scan_pts_.push_back(l_pt);
   }
 
@@ -192,6 +192,27 @@ void VineSLAM_ros::imuListener(const geometry_msgs::msg::Vector3Stamped::SharedP
   input_data_.imu_pose_.Y_ = 0;
 }
 
+void VineSLAM_ros::imuDataListener(const sensor_msgs::msg::Imu::SharedPtr msg)
+{
+  auto c_imu_observation_timestamp = std::chrono::high_resolution_clock::now();
+
+  if (!init_flag_)
+  {
+    double d = std::chrono::duration_cast<std::chrono::milliseconds>(c_imu_observation_timestamp -
+                                                                     p_imu_observation_timestamp_)
+                   .count();
+
+    input_data_.imu_data_pose_.x_ = 0;
+    input_data_.imu_data_pose_.y_ = 0;
+    input_data_.imu_data_pose_.z_ = 0;
+    input_data_.imu_data_pose_.R_ += msg->angular_velocity.x * (d / 1000);
+    input_data_.imu_data_pose_.P_ += msg->angular_velocity.y * (d / 1000);
+    input_data_.imu_data_pose_.Y_ += msg->angular_velocity.z * (d / 1000);
+  }
+
+  p_imu_observation_timestamp_ = c_imu_observation_timestamp;
+}
+
 void VineSLAM_ros::publishReport() const
 {
   // Publish particle poses (after and before resampling)
@@ -239,9 +260,34 @@ void VineSLAM_ros::publishReport() const
   vineslam_report_publisher_->publish(report);
 }
 
+void VineSLAM_ros::computeInnovation(const Pose& wheel_odom_inc, const Pose& imu_rot_inc, Pose& output_pose)
+{
+  double diff_yaw = std::fabs(wheel_odom_inc.Y_ - imu_rot_inc.Y_);
+  double imu_weight = 0;
+  if (diff_yaw < (0.5 * DEGREE_TO_RAD))
+  {
+    imu_weight = 0.5;
+  }
+  else if (diff_yaw > (0.5 * DEGREE_TO_RAD) && diff_yaw < (1.5 * DEGREE_TO_RAD))
+  {
+    imu_weight = 0.8;
+  }
+  else
+  {
+    imu_weight = 1.0;
+  }
+
+  double s_odom_Y = std::sin(wheel_odom_inc.Y_) * (1 - imu_weight);
+  double c_odom_Y = std::cos(wheel_odom_inc.Y_) * (1 - imu_weight);
+  double s_imu_Y = std::sin(imu_rot_inc.Y_) * imu_weight;
+  double c_imu_Y = std::cos(imu_rot_inc.Y_) * imu_weight;
+  double hat_yaw = std::atan2(s_odom_Y + s_imu_Y, c_odom_Y + c_imu_Y);
+
+  output_pose = Pose(wheel_odom_inc.x_, wheel_odom_inc.y_, 0, imu_rot_inc.R_, imu_rot_inc.P_, hat_yaw);
+}
+
 void VineSLAM_ros::getGNSSHeading()
 {
-  uint32_t mil_secs = static_cast<uint32_t>((1 / 3) * 1e3);
   float robot_distance_traveleld = robot_pose_.norm3D();
 
   if (robot_distance_traveleld > 0.1 && robot_distance_traveleld < 5.0)
@@ -288,11 +334,11 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
   // ----------------------------------------------------
   std::time_t timestamp = std::time(nullptr);
 
-  //  MapWriter mw(params_, timestamp);
-  //  mw.writeToFile(grid_map_, params_);
-  //
-  //  ElevationMapWriter ew(params_, timestamp);
-  //  ew.writeToFile(elevation_map_, params_);
+  MapWriter mw(params_, timestamp);
+  mw.writeToFile(grid_map_, params_);
+
+  ElevationMapWriter ew(params_, timestamp);
+  ew.writeToFile(elevation_map_, params_);
 
   // ----------------------------------------------------
   // ------ Export geo-referenced map images and info
@@ -304,7 +350,7 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
   // Compute polar coordinates of center and corners of the map image
   double datum_utm_x, datum_utm_y;
   std::string datum_utm_zone;
-  GNSS2UTM(params_.map_datum_lat_, params_.map_datum_long_, datum_utm_x, datum_utm_y, datum_utm_zone);
+  Convertions::GNSS2UTM(params_.map_datum_lat_, params_.map_datum_long_, datum_utm_x, datum_utm_y, datum_utm_zone);
 
   Point referenced_map_center(datum_utm_x + (grid_map_->width_ / 2 + grid_map_->origin_.x_),
                               datum_utm_y + (grid_map_->lenght_ / 2 + grid_map_->origin_.y_), 0);
@@ -341,14 +387,14 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
   // Compute GNSS location of the four corners
   Point left_upper_corner_ll, right_upper_corner_ll, left_bottom_corner_ll, right_bottom_corner_ll;
 
-  UTMtoGNSS(left_upper_corner.x_, left_upper_corner.y_, datum_utm_zone, left_upper_corner_ll.x_,
-            left_upper_corner_ll.y_);
-  UTMtoGNSS(right_upper_corner.x_, right_upper_corner.y_, datum_utm_zone, right_upper_corner_ll.x_,
-            right_upper_corner_ll.y_);
-  UTMtoGNSS(left_bottom_corner.x_, left_bottom_corner.y_, datum_utm_zone, left_bottom_corner_ll.x_,
-            left_bottom_corner_ll.y_);
-  UTMtoGNSS(right_bottom_corner.x_, right_bottom_corner.y_, datum_utm_zone, right_bottom_corner_ll.x_,
-            right_bottom_corner_ll.y_);
+  Convertions::UTMtoGNSS(left_upper_corner.x_, left_upper_corner.y_, datum_utm_zone, left_upper_corner_ll.x_,
+                         left_upper_corner_ll.y_);
+  Convertions::UTMtoGNSS(right_upper_corner.x_, right_upper_corner.y_, datum_utm_zone, right_upper_corner_ll.x_,
+                         right_upper_corner_ll.y_);
+  Convertions::UTMtoGNSS(left_bottom_corner.x_, left_bottom_corner.y_, datum_utm_zone, left_bottom_corner_ll.x_,
+                         left_bottom_corner_ll.y_);
+  Convertions::UTMtoGNSS(right_bottom_corner.x_, right_bottom_corner.y_, datum_utm_zone, right_bottom_corner_ll.x_,
+                         right_bottom_corner_ll.y_);
 
   infofile << "left_upper:\n";
   infofile << std::setprecision(8) << "   latitude: " << left_upper_corner_ll.x_ << "\n"
@@ -451,7 +497,34 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
   cv::imwrite(params_.map_output_folder_ + "planars_map_" + std::to_string(timestamp) + ".png", pi);
   cv::imwrite(params_.map_output_folder_ + "elevation_map_" + std::to_string(timestamp) + ".png", ei);
 
-  RCLCPP_INFO(this->get_logger(), "Map saved.");
+  // ----------------------------------------------------
+  // ------ Export 3D maps to pcd
+  // ----------------------------------------------------
+  pcl::PointCloud<pcl::PointXYZ> corners_cloud;
+  for (const auto& c : corners)
+  {
+    pcl::PointXYZ pt;
+    pt.x = c.pos_.x_;
+    pt.y = c.pos_.y_;
+    pt.z = c.pos_.z_;
+    corners_cloud.push_back(pt);
+  }
+  pcl::io::savePCDFileASCII(params_.map_output_folder_ + "corners_map_" + std::to_string(timestamp) + ".pcd",
+                            corners_cloud);
+
+  pcl::PointCloud<pcl::PointXYZ> planars_cloud;
+  for (const auto& p : planars)
+  {
+    pcl::PointXYZ pt;
+    pt.x = p.pos_.x_;
+    pt.y = p.pos_.y_;
+    pt.z = p.pos_.z_;
+    planars_cloud.push_back(pt);
+  }
+  pcl::io::savePCDFileASCII(params_.map_output_folder_ + "planars_map_" + std::to_string(timestamp) + ".pcd",
+                            planars_cloud);
+
+  RCLCPP_INFO(this->get_logger(), "Maps saved.");
 
   return true;
 }

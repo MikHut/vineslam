@@ -36,6 +36,23 @@ MapLayer::MapLayer(const MapLayer& grid_map)
   this->min_corner_obsvs_ = grid_map.min_corner_obsvs_;
 }
 
+MapLayer& MapLayer::operator=(const MapLayer& grid_map)
+{
+  this->cell_vec_ = grid_map.cell_vec_;
+  this->n_corner_features_ = grid_map.n_corner_features_;
+  this->n_planar_features_ = grid_map.n_planar_features_;
+  this->n_surf_features_ = grid_map.n_surf_features_;
+  this->n_landmarks_ = grid_map.n_landmarks_;
+  this->resolution_ = grid_map.resolution_;
+  this->origin_ = grid_map.origin_;
+  this->lenght_ = grid_map.lenght_;
+  this->width_ = grid_map.width_;
+  this->min_planar_obsvs_ = grid_map.min_planar_obsvs_;
+  this->min_corner_obsvs_ = grid_map.min_corner_obsvs_;
+
+  return *this;
+}
+
 bool MapLayer::insert(const SemanticFeature& l_landmark, const int& id, const int& i, const int& j)
 {
   try

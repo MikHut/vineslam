@@ -64,9 +64,15 @@ ament_target_dependencies(localization_node ${dependencies})
 rosidl_target_interfaces(localization_node ${PROJECT_NAME} "rosidl_typesupport_cpp")
 target_link_libraries(localization_node ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
 
+add_executable(hybrid_node src/hybrid_node.cpp src/vineslam_ros.cpp src/visualization.cpp)
+ament_target_dependencies(hybrid_node ${dependencies})
+rosidl_target_interfaces(hybrid_node ${PROJECT_NAME} "rosidl_typesupport_cpp")
+target_link_libraries(hybrid_node ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
+
 install(TARGETS
         slam_node
         localization_node
+        hybrid_node
         DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY

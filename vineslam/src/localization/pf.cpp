@@ -88,7 +88,6 @@ float PF::sampleGaussian(const float& sigma, const unsigned long int& S)
 void PF::motionModel(const Pose& odom_inc)
 {
   float d_trans = odom_inc.norm3D();
-  float d_rot = Const::normalizeAngle(odom_inc.Y_);
 
   // Innovate particles
   for (auto& particle : particles_)
@@ -241,8 +240,8 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
     w_sum_ += particle.w_;
   }
 
-  //  t_->getLog();
-  //  t_->clearLog();
+  t_->getLog();
+  t_->clearLog();
 }
 
 void PF::updateModel(const float& z_k, const float& z_k_asterisc, const float& z_dist, const float& sigma_hit,

@@ -28,6 +28,15 @@ struct Point
     z_ = z;
   }
 
+  // Construct with 3D values and intensity
+  Point(const float& x, const float& y, const float& z, const float& intensity)
+  {
+    x_ = x;
+    y_ = y;
+    z_ = z;
+    intensity_ = intensity;
+  }
+
   // Construct with 2D values
   Point(const float& x, const float& y)
   {
@@ -159,6 +168,12 @@ struct Point
     return std::sqrt(std::pow(x_, 2) + std::pow(y_, 2) + std::pow(z_, 2));
   }
 
+  // 2D point norm
+  float norm2D() const
+  {
+    return std::sqrt(std::pow(x_, 2) + std::pow(y_, 2));
+  }
+
   // Convert point to Eigen 3D vector
   Eigen::VectorXf toEig2D() const
   {
@@ -179,6 +194,8 @@ struct Point
   float x_;
   float y_;
   float z_;
+
+  float intensity_; // used for feature extraction purposes
 };
 
 }  // namespace vineslam

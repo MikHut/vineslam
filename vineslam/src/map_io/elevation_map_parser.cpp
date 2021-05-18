@@ -33,9 +33,25 @@ bool ElevationMapParser::parseHeader(Parameters* params)
     std::string tag = getTag(line);
     tag.erase(std::remove_if(tag.begin(), tag.end(), isspace), tag.end());
 
-    if (tag == openTag(INFO) || tag == openTag(ORIGIN))
+    if (tag == openTag(INFO) || tag == openTag(ORIGIN) || tag == openTag(DATUM))
     {
       continue;
+    }
+    else if (tag == openTag(LATITUDE))
+    {
+      params->map_datum_lat_ = getFloat(line);
+    }
+    else if (tag == openTag(LONGITUDE))
+    {
+      params->map_datum_long_ = getFloat(line);
+    }
+    else if (tag == openTag(ALTITUDE))
+    {
+      params->map_datum_alt_ = getFloat(line);
+    }
+    else if (tag == openTag(HEADING))
+    {
+      params->map_datum_head_ = getFloat(line);
     }
     else if (tag == openTag(X_COORDINATE))
     {
@@ -45,9 +61,17 @@ bool ElevationMapParser::parseHeader(Parameters* params)
     {
       params->gridmap_origin_y_ = getFloat(line);
     }
+    else if (tag == openTag(Z_COORDINATE))
+    {
+      params->gridmap_origin_z_ = getFloat(line);
+    }
     else if (tag == openTag((WIDTH)))
     {
       params->gridmap_width_ = getFloat(line);
+    }
+    else if (tag == openTag(HEIGHT))
+    {
+      params->gridmap_height_ = getFloat(line);
     }
     else if (tag == openTag(LENGHT))
     {

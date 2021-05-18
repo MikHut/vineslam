@@ -3,6 +3,7 @@ import yaml
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
+from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 
 
@@ -12,23 +13,26 @@ def generate_launch_description():
     # ------------------------------------------------------------
 
     # Simulated time
-    use_sim_time = LaunchConfiguration('use_sim_time', default='true')
+    use_sim_time = LaunchConfiguration('use_sim_time', default='false')
 
     config_path = os.path.join(
         get_package_share_directory('vineslam_ros'),
         'config',
-        'setup_slam.yaml'
+        'setup_hybrid_node.yaml'
     )
 
     rviz_path = os.path.join(
         get_package_share_directory('vineslam_ros'),
         'config',
-        'test.rviz')
+        'test_hybrid_node.rviz')
 
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
 
     ld = LaunchDescription()
+
+    log_level = DeclareLaunchArgument("log_level", default_value=["info"], description="Logging level")
+    ld.add_action(log_level)
 
     # ------------------------------------------------------------
     # ---- Declare ros nodes
@@ -40,7 +44,7 @@ def generate_launch_description():
         executable='static_transform_publisher',
         name='cam2base',
         arguments=['0.343', '0.079', '0.820', '-0.002', '0.100', '-0.004', '0.995', 'base_link',
-                   config['slam_node']['camera_sensor_frame']]
+                   config['hybrid_node']['camera_sensor_frame']]
     )
     ld.add_action(tf1)
     tf2 = Node(
@@ -48,33 +52,32 @@ def generate_launch_description():
         executable='static_transform_publisher',
         name='velodyne2base',
         arguments=['0.000', '0.000', '0.942', '-0.000', '0.000', '-0.000', '1.000', 'base_link',
-                   config['slam_node']['lidar_sensor_frame']]
+                   config['hybrid_node']['lidar_sensor_frame']]
     )
     ld.add_action(tf2)
 
     # VineSLAM node
+    logger = LaunchConfiguration("log_level")
     vineslam = Node(
         package='vineslam_ros',
-        executable='slam_node',
-        name='slam_node',
+        executable='hybrid_node',
+        name='hybrid_node',
         parameters=[config],
         remappings=[
-            ('/odom_topic', '/twist_can_pkg_node/odom'),
-            ('/gps_topic', '/gps_rover/fix'),
-            ('/imu_topic', '/imu_um7/rpy'),
-            ('/imu_data_topic', '/imu_um7/data'),
+            ('/odom_topic', '/white/husky_velocity_controller/odom'),
+            ('/gps_topic', '/white/piksi/navsatfix_best_fix'),
+            ('/imu_topic', '/white/imu_7/rpy'),
+            ('/imu_data_topic', '/white/imu_7/data'),
             ('/features_topic', '/image_feature_array'),
             ('/detections_topic', '/tpu/detections'),
-            ('/scan_topic', '/livox/lidar'),
+            ('/scan_topic', '/white/velodyne_points'),
         ],
-        output={
-            'stdout': 'screen',
-            'stderr': 'screen',
-        },
+        arguments=['--ros-args', '--log-level', logger]
     )
     ld.add_action(vineslam)
 
-    if config['slam_node']['use_semantic_features'] == True or config['slam_node']['use_image_features']:
+    if config['hybrid_node']['use_semantic_features'] == True or config['hybrid_node'][
+        'use_image_features']:
         depth_topic = '/zed/zed_node/depth/depth_registered'
         image_topic = '/zed/zed_node/left/image'
 
@@ -87,7 +90,7 @@ def generate_launch_description():
         )
         ld.add_action(republish)
 
-    if config['slam_node']['use_semantic_features']:
+    if config['hybrid_node']['use_semantic_features']:
         # Detector node
 
         detector = Node(
@@ -107,7 +110,7 @@ def generate_launch_description():
         )
         ld.add_action(detector)
 
-    if config['slam_node']['use_image_features']:
+    if config['hybrid_node']['use_image_features']:
         vfe_config_path = os.path.join(
             get_package_share_directory('vfe'),
             'config',

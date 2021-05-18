@@ -1,11 +1,15 @@
 slam_node:
   robot_model: rocha  # {agrob, rocha}
+  lidar_sensor: livox  # {velodyne, livox, ...}
   world_frame_id: map_nn2
   use_semantic_features: False
   use_lidar_features: True
   use_image_features: False
-  use_gps: True
-  use_imu: True
+  use_gps: False
+  use_imu: False
+
+  lidar_sensor_frame: livox_frame
+  camera_sensor_frame: zed_camera_left_optical_frame
 
   camera_info:
     baseline: 0.12 # meters
@@ -20,9 +24,9 @@ slam_node:
   multilayer_mapping:
     # Datum
     datum:
-      latitude: 41.16666452664269
-      longitude: -7.5550953842432085
-      altitude: 294.75472108864517
+      latitude: 41.2055204
+      longitude: -8.307482
+      altitude: 255.632
 
     # Grid map definitions
     grid_map:
@@ -45,4 +49,4 @@ slam_node:
     sigma_zz: 0.3 # meters
     sigma_RR: 0.3 # radians
     sigma_PP: 0.3 # radians
-    sigma_YY: 0.7 # radians
+    sigma_YY: 1.5 # radians

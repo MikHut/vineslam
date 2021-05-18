@@ -35,7 +35,11 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
   localizer_ = new Localizer(params_);
   land_mapper_ = new LandmarkMapper(params_);
   vis_mapper_ = new VisualMapper();
-  lid_mapper_ = new LidarMapper(params_);
+#if LIDAR_SENSOR == 0
+  lid_mapper_ = new VelodyneMapper(params_);
+#elif LIDAR_SENSOR == 1
+  lid_mapper_ = new LivoxMapper(params_);
+#endif
   timer_ = new Timer("VineSLAM subfunctions");
 
   // Image feature subscription
@@ -58,13 +62,13 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
   gps_subscriber_ = this->create_subscription<sensor_msgs::msg::NavSatFix>(
       "/gps_topic", 10,
       std::bind(&VineSLAM_ros::gpsListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
-  //  gps_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
-  //      "/gps_topic", 10,
-  //      std::bind(&VineSLAM_ros::gpsListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
-  // IMU subscription
+  // IMU subscriptions
   imu_subscriber_ = this->create_subscription<geometry_msgs::msg::Vector3Stamped>(
       "/imu_topic", 10,
       std::bind(&VineSLAM_ros::imuListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
+  imu_data_subscriber_ = this->create_subscription<sensor_msgs::msg::Imu>(
+      "/imu_data_topic", 10,
+      std::bind(&VineSLAM_ros::imuDataListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
 
   // Publish maps and particle filter
   vineslam_report_publisher_ = this->create_publisher<vineslam_msgs::msg::Report>("/vineslam/report", 10);
@@ -96,13 +100,13 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
   RCLCPP_INFO(this->get_logger(), "Waiting for static transforms...");
   tf2_ros::Buffer tf_buffer(this->get_clock());
   tf2_ros::TransformListener tfListener(tf_buffer);
-  geometry_msgs::msg::TransformStamped cam2base_msg, vel2base_msg;
-  bool got_cam2base = false, got_vel2base = false;
+  geometry_msgs::msg::TransformStamped cam2base_msg, laser2base_msg;
+  bool got_cam2base = false, got_laser2base = false;
   while (!got_cam2base && rclcpp::ok())
   {
     try
     {
-      cam2base_msg = tf_buffer.lookupTransform("zed_camera_left_optical_frame", "base_link", rclcpp::Time(0));
+      cam2base_msg = tf_buffer.lookupTransform(params_.camera_sensor_frame_, "base_link", rclcpp::Time(0));
     }
     catch (tf2::TransformException& ex)
     {
@@ -112,11 +116,11 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
     }
     got_cam2base = true;
   }
-  while (!got_vel2base && rclcpp::ok())
+  while (!got_laser2base && rclcpp::ok())
   {
     try
     {
-      vel2base_msg = tf_buffer.lookupTransform("velodyne", "base_link", rclcpp::Time(0));
+      laser2base_msg = tf_buffer.lookupTransform(params_.lidar_sensor_frame_, "base_link", rclcpp::Time(0));
     }
     catch (tf2::TransformException& ex)
     {
@@ -124,7 +128,7 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
       rclcpp::sleep_for(std::chrono::nanoseconds(1000000000));
       continue;
     }
-    got_vel2base = true;
+    got_laser2base = true;
   }
   RCLCPP_INFO(this->get_logger(), "Received!");
 
@@ -139,13 +143,14 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
   vis_mapper_->setCam2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
   land_mapper_->setCamPitch(pitch);
 
-  tf2::Stamped<tf2::Transform> vel2base_stamped;
-  tf2::fromMsg(vel2base_msg, vel2base_stamped);
+  tf2::Stamped<tf2::Transform> laser2base_stamped;
+  tf2::fromMsg(laser2base_msg, laser2base_stamped);
 
-  tf2::Transform vel2base = vel2base_stamped;  //.inverse();
-  t = vel2base.getOrigin();
-  vel2base.getBasis().getRPY(roll, pitch, yaw);
-  lid_mapper_->setVel2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
+  tf2::Transform laser2base = laser2base_stamped;  //.inverse();
+  t = laser2base.getOrigin();
+  laser2base.getBasis().getRPY(roll, pitch, yaw);
+
+  lid_mapper_->setLaser2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
 
   // Initialize tf broadcaster
   tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
@@ -200,6 +205,18 @@ void LocalizationNode::loadParameters(Parameters& params)
   param = prefix + ".robot_model";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.robot_model_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".camera_sensor_frame";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.camera_sensor_frame_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".lidar_sensor_frame";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.lidar_sensor_frame_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
@@ -436,7 +453,11 @@ void LocalizationNode::init()
   SemiPlane l_ground_plane;
   if (params_.use_lidar_features_)
   {
+#if LIDAR_SENSOR == 0
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+#elif LIDAR_SENSOR == 1
+    lid_mapper_->localMap(input_data_.scan_pts_, header_.stamp.sec, l_corners, l_planars, l_planes, l_ground_plane);
+#endif
     l_planes = {};
   }
 
@@ -471,7 +492,6 @@ void LocalizationNode::initializeOnMap()
   // Set the map -> robot gnss transformation
   tf2::Quaternion q;
   q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
-  map2robot_gnss_tf_ = tf2::Transform(q, tf2::Vector3(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_));
 
   // Create the interactive marker menu entries
   im_menu_handler_ = interactive_markers::MenuHandler();
@@ -526,7 +546,11 @@ void LocalizationNode::process()
   if (params_.use_lidar_features_)
   {
     timer_->tick("lidar_mapper::localMap()");
+#if LIDAR_SENSOR == 0
     lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+#elif LIDAR_SENSOR == 1
+    lid_mapper_->localMap(input_data_.scan_pts_, header_.stamp.sec, l_corners, l_planars, l_planes, l_ground_plane);
+#endif
     l_planes = {};
     timer_->tock();
   }
@@ -553,7 +577,15 @@ void LocalizationNode::process()
   obsv_.ground_plane_ = l_ground_plane;
   obsv_.planes_ = l_planes;
   obsv_.surf_features_ = l_surf_features;
-  obsv_.gps_pose_ = input_data_.gnss_pose_;
+  if (input_data_.received_gnss_ && localizer_->pf_->use_gps_ == true)
+  {
+    localizer_->pf_->use_gps_ = true;
+    obsv_.gps_pose_ = input_data_.gnss_pose_;
+  }
+  else
+  {
+    localizer_->pf_->use_gps_ = false;
+  }
   obsv_.imu_pose_ = input_data_.imu_pose_;
 
   // ---------------------------------------------------------
@@ -566,10 +598,26 @@ void LocalizationNode::process()
   input_data_.p_wheel_odom_pose_ = input_data_.wheel_odom_pose_;
   odom_inc.normalize();
 
+  // Fuse odometry and gyroscope to get the innovation pose
+  Pose innovation;
+  if (params_.use_imu_)
+  {
+    computeInnovation(odom_inc, input_data_.imu_data_pose_, innovation);
+  }
+  else
+  {
+    innovation = odom_inc;
+  }
+
   timer_->tick("localizer::process()");
-  localizer_->process(odom_inc, obsv_, grid_map_);
+  localizer_->process(innovation, obsv_, grid_map_);
   robot_pose_ = localizer_->getPose();
   timer_->tock();
+
+  // ---------------------------------------------------------
+  // ----- Reset IMU gyroscope angular integrators
+  // ---------------------------------------------------------
+  input_data_.imu_data_pose_ = Pose(0, 0, 0, 0, 0, 0);
 
   // ---------------------------------------------------------
   // ----- Conversion of pose into latitude and longitude
@@ -577,12 +625,12 @@ void LocalizationNode::process()
   double datum_utm_x, datum_utm_y, robot_utm_x, robot_utm_y;
   float robot_latitude, robot_longitude;
   std::string datum_utm_zone;
-  GNSS2UTM(params_.map_datum_lat_, params_.map_datum_long_, datum_utm_x, datum_utm_y, datum_utm_zone);
+  Convertions::GNSS2UTM(params_.map_datum_lat_, params_.map_datum_long_, datum_utm_x, datum_utm_y, datum_utm_zone);
   robot_utm_x = datum_utm_x + (robot_pose_.x_ * std::cos(params_.map_datum_head_) -
                                robot_pose_.y_ * std::sin(params_.map_datum_head_));
   robot_utm_y = datum_utm_y - (robot_pose_.x_ * std::sin(params_.map_datum_head_) +
                                robot_pose_.y_ * std::cos(params_.map_datum_head_));
-  UTMtoGNSS(robot_utm_x, robot_utm_y, datum_utm_zone, robot_latitude, robot_longitude);
+  Convertions::UTMtoGNSS(robot_utm_x, robot_utm_y, datum_utm_zone, robot_latitude, robot_longitude);
 
   // ---------------------------------------------------------
   // ----- ROS publishers
@@ -630,7 +678,7 @@ void LocalizationNode::broadcastTfs()
     base2map_msg.child_frame_id = "base_link";
     q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
     q.normalize();
-    pose2TransformStamped(q, tf2::Vector3(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_), base2map_msg);
+    Convertions::pose2TransformStamped(q, tf2::Vector3(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_), base2map_msg);
 
     if (params_.robot_model_ == "agrob")  // in this configuration we broadcast a map->base_link tf
     {
@@ -643,7 +691,7 @@ void LocalizationNode::broadcastTfs()
       map2odom_msg.child_frame_id = params_.world_frame_id_;
       q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
       q.normalize();
-      pose2TransformStamped(q, tf2::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_), map2odom_msg);
+      Convertions::pose2TransformStamped(q, tf2::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_), map2odom_msg);
       tf_broadcaster_->sendTransform(map2odom_msg);
       // ----
     }
@@ -666,7 +714,7 @@ void LocalizationNode::broadcastTfs()
         tf2::Transform t = odom2base_tf * base2map_tf.inverse();
         odom2map_tf.setRotation(t.getRotation());
         odom2map_tf.setOrigin(t.getOrigin());
-        pose2TransformStamped(odom2map_tf.getRotation(), odom2map_tf.getOrigin(), odom2map_msg);
+        Convertions::pose2TransformStamped(odom2map_tf.getRotation(), odom2map_tf.getOrigin(), odom2map_msg);
 
         odom2map_msg.header.stamp = header_.stamp;
         odom2map_msg.header.frame_id = "odom";
@@ -728,7 +776,9 @@ void LocalizationNode::iMenuCallback(const visualization_msgs::msg::InteractiveM
     SemiPlane l_ground_plane;
     if (params_.use_lidar_features_)
     {
+#if LIDAR_SENSOR == 0
       lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+#endif
     }
 
     // Prepare and call the matcher
@@ -762,8 +812,6 @@ void LocalizationNode::iMenuCallback(const visualization_msgs::msg::InteractiveM
     init();
     RCLCPP_INFO(this->get_logger(), "Initialization performed! Starting execution.");
     init_flag_ = false;
-
-    map2robot_gnss_tf_.setOrigin(tf2::Vector3(robot_pose_.x_, robot_pose_.y_, 0));
   }
   else if (feedback->menu_entry_id == 3)
   {

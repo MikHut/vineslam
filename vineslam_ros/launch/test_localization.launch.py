@@ -44,14 +44,15 @@ def generate_launch_description():
         executable='static_transform_publisher',
         name='cam2base',
         arguments=['0.343', '0.079', '0.820', '-0.002', '0.100', '-0.004', '0.995', 'base_link',
-                   'zed_camera_left_optical_frame']
+                   config['localization_node']['camera_sensor_frame']]
     )
     ld.add_action(tf1)
     tf2 = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='velodyne2base',
-        arguments=['0.000', '0.000', '0.942', '-0.000', '0.000', '-0.000', '1.000', 'base_link', 'velodyne']
+        arguments=['0.000', '0.000', '0.942', '-0.000', '0.000', '-0.000', '1.000', 'base_link',
+                   config['localization_node']['lidar_sensor_frame']]
     )
     ld.add_action(tf2)
 
@@ -64,9 +65,9 @@ def generate_launch_description():
         parameters=[config],
         remappings=[
             ('/odom_topic', '/white/husky_velocity_controller/odom'),
-            # ('/gps_topic', '/white/piksi/enu_pose_best_fix'),
             ('/gps_topic', '/white/piksi/navsatfix_best_fix'),
             ('/imu_topic', '/white/imu_7/rpy'),
+            ('/imu_data_topic', '/white/imu_7/data'),
             ('/features_topic', '/image_feature_array'),
             ('/detections_topic', '/tpu/detections'),
             ('/scan_topic', '/white/velodyne_points'),

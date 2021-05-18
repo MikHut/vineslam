@@ -9,10 +9,11 @@ variables:
   PARALLEL_BUILDS: 1
 
 before_script:
-#  - apk update
-#  - apk add bash coreutils tar
-#  - apk add --no-cache --upgrade grep
-  - apk update && apk upgrade && apk add bash grep git curl coreutils tar
+  #- apk update
+  #- apk add bash coreutils tar
+  #- apk add --no-cache --upgrade grep
+  #- apk update && apk upgrade && apk add bash grep git curl coreutils tar
+  - apk update && apk add bash grep git curl coreutils tar
   - git clone --quiet --depth 1 https://github.com/ros-industrial/industrial_ci .industrial_ci -b master --single-branch
 
 .foxy:

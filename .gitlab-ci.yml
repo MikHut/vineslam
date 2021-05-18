@@ -25,7 +25,7 @@ before_script:
     - cd .industrial_ci
     - pwd
     - ls -l
-    - ./gitlab.sh
+    - gitlab.sh
   variables:
     ROS_DISTRO: "foxy"
     VERBOSE_OUTPUT: "true"

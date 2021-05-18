@@ -11,6 +11,9 @@ slam_node:
   lidar_sensor_frame: livox_frame
   camera_sensor_frame: zed_camera_left_optical_frame
 
+  save_logs: True
+  logs_folder: "/home/andresaguiar/Documents/vineslam_logs/"
+
   camera_info:
     baseline: 0.12 # meters
     fx: 692.95849609375  # pixels
@@ -49,4 +52,4 @@ slam_node:
     sigma_zz: 0.3 # meters
     sigma_RR: 0.3 # radians
     sigma_PP: 0.3 # radians
-    sigma_YY: 1.5 # radians
+    sigma_YY: 1.0 # radians

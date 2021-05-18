@@ -29,6 +29,11 @@ private:
   // Thread to publish the tfs exported by the localization node
   void broadcastTfs();
 
+  // Logs vars
+  uint32_t n_saved_logs_;
+  Pose p_saved_pose_;
+  std::ofstream logs_file_;
+
   // ROS subscribers
   rclcpp::Subscription<vineslam_msgs::msg::FeatureArray>::SharedPtr feature_subscriber_;
   rclcpp::Subscription<vision_msgs::msg::Detection3DArray>::SharedPtr landmark_subscriber_;

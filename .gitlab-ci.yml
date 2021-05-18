@@ -22,10 +22,10 @@ before_script:
     - pwd
     - ls -l
     #- sleep 60
-    - cd .industrial_ci
-    - pwd
-    - ls -l
-    - gitlab.sh
+    #- cd .industrial_ci
+    #- pwd
+    #- ls -l
+    #- gitlab.sh
     - cd .industrial_ci && bash gitlab.sh
   variables:
     ROS_DISTRO: "foxy"

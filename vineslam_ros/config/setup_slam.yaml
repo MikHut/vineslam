@@ -49,4 +49,4 @@ slam_node:
     sigma_zz: 0.3 # meters
     sigma_RR: 0.3 # radians
     sigma_PP: 0.3 # radians
-    sigma_YY: 0.7 # radians
+    sigma_YY: 1.5 # radians

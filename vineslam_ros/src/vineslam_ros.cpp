@@ -497,7 +497,34 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
   cv::imwrite(params_.map_output_folder_ + "planars_map_" + std::to_string(timestamp) + ".png", pi);
   cv::imwrite(params_.map_output_folder_ + "elevation_map_" + std::to_string(timestamp) + ".png", ei);
 
-  RCLCPP_INFO(this->get_logger(), "Map saved.");
+  // ----------------------------------------------------
+  // ------ Export 3D maps to pcd
+  // ----------------------------------------------------
+  pcl::PointCloud<pcl::PointXYZ> corners_cloud;
+  for (const auto& c : corners)
+  {
+    pcl::PointXYZ pt;
+    pt.x = c.pos_.x_;
+    pt.y = c.pos_.y_;
+    pt.z = c.pos_.z_;
+    corners_cloud.push_back(pt);
+  }
+  pcl::io::savePCDFileASCII(params_.map_output_folder_ + "corners_map_" + std::to_string(timestamp) + ".pcd",
+                            corners_cloud);
+
+  pcl::PointCloud<pcl::PointXYZ> planars_cloud;
+  for (const auto& p : planars)
+  {
+    pcl::PointXYZ pt;
+    pt.x = p.pos_.x_;
+    pt.y = p.pos_.y_;
+    pt.z = p.pos_.z_;
+    planars_cloud.push_back(pt);
+  }
+  pcl::io::savePCDFileASCII(params_.map_output_folder_ + "planars_map_" + std::to_string(timestamp) + ".pcd",
+                            planars_cloud);
+
+  RCLCPP_INFO(this->get_logger(), "Maps saved.");
 
   return true;
 }

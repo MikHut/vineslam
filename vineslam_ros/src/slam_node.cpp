@@ -156,7 +156,7 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
 
   // Allocate map memory
   RCLCPP_INFO(this->get_logger(), "Allocating map memory!");
-  grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0), 20, 5);
+  grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0), 20, 10);
   elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
   RCLCPP_INFO(this->get_logger(), "Done!");
 
@@ -560,7 +560,7 @@ void SLAMNode::process()
   Tf c_odom_tf = input_data_.wheel_odom_pose_.toTf();
   Tf odom_inc_tf = p_odom_tf.inverse() * c_odom_tf;
   Pose odom_inc(odom_inc_tf.R_array_, odom_inc_tf.t_array_);
-  //  odom_inc.x_ = -odom_inc.x_;
+  odom_inc.x_ = -odom_inc.x_;
   input_data_.p_wheel_odom_pose_ = input_data_.wheel_odom_pose_;
   odom_inc.normalize();
 

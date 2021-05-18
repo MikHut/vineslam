@@ -59,13 +59,13 @@ def generate_launch_description():
         name='slam_node',
         parameters=[config],
         remappings=[
-            ('/odom_topic', '/husky_velocity_controller/odom'),
-            ('/gps_topic', '/fix'),
-            ('/imu_topic', '/imu_um6/rpy'),
-            ('/imu_data_topic', '/imu_um6/data'),
+            ('/odom_topic', '/twist_can_pkg_node/odom'),
+            ('/gps_topic', '/gps_rover/fix'),
+            ('/imu_topic', '/imu_um7/rpy'),
+            ('/imu_data_topic', '/imu_um7/data'),
             ('/features_topic', '/image_feature_array'),
             ('/detections_topic', '/tpu/detections'),
-            ('/scan_topic', '/velodyne_points'),
+            ('/scan_topic', '/livox/lidar'),
         ],
         output={
             'stdout': 'screen',

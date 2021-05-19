@@ -1,4 +1,5 @@
 dense_mapping_node:
+  world_frame_id: map_nn2
   logs_folder: "/home/andresaguiar/Documents/vineslam_logs/"
 
   multilayer_mapping:

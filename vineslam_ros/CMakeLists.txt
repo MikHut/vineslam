@@ -69,7 +69,7 @@ ament_target_dependencies(hybrid_node ${dependencies})
 rosidl_target_interfaces(hybrid_node ${PROJECT_NAME} "rosidl_typesupport_cpp")
 target_link_libraries(hybrid_node ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
 
-add_executable(dense_mapping_node src/dense_mapping_node.cpp src/vineslam_ros.cpp src/visualization.cpp)
+add_executable(dense_mapping_node src/offline/dense_mapping_node.cpp src/vineslam_ros.cpp src/visualization.cpp)
 ament_target_dependencies(dense_mapping_node ${dependencies})
 rosidl_target_interfaces(dense_mapping_node ${PROJECT_NAME} "rosidl_typesupport_cpp")
 target_link_libraries(dense_mapping_node ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})

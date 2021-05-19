@@ -1,4 +1,4 @@
-#include "../include/dense_mapping_node.hpp"
+#include "../../include/offline/dense_mapping_node.hpp"
 
 int main(int argc, char** argv)
 {
@@ -29,7 +29,7 @@ MappingNode::MappingNode() : VineSLAM_ros("MappingNode")
   icp_->setRejectOutliersFlag(false);
 
   // Define publishers
-  map3D_features_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/dense_map3D", 10);
+  map3D_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/dense_map3D", 10);
 
   // Call the execution loop
   idx_ = 0;
@@ -127,15 +127,16 @@ void MappingNode::loop()
   while (rclcpp::ok() && std::getline(file, line))
   {
     std::stringstream lstream(line);
-    std::string val;
+
+    float val;
     std::vector<float> vals;
-    while (std::getline(lstream, val, ','))
+    while (lstream >> val)
     {
-      vals.push_back(std::stof(val));
+      vals.push_back(val);
     }
 
     // Save robot pose
-    if (vals.size() != 7)
+    if (vals.size() != 6)
     {
       RCLCPP_ERROR(this->get_logger(), "Problem reading input file, wrong number of inputs per line.");
       break;
@@ -152,7 +153,7 @@ void MappingNode::loop()
 
     // Read pcd file
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-    if (pcl::io::loadPCDFile<pcl::PointXYZ>(params_.logs_folder_ + "pcd_file_" + std::to_string(idx_) + ".pcd",
+    if (pcl::io::loadPCDFile<pcl::PointXYZ>(params_.logs_folder_ + "pcl_file_" + std::to_string(idx_) + ".pcd",
                                             *cloud) == -1)
     {
       RCLCPP_ERROR(this->get_logger(), "Could not read pcd file.");
@@ -178,6 +179,29 @@ void MappingNode::loop()
 
 void MappingNode::loopOnce(const std::vector<Planar>& points)
 {
+  // Insert points into the map
+  for (const auto& point : points)
+  {
+    grid_map_->insert(point);
+  }
+
+  // Publish cloud
+  pcl::PointCloud<pcl::PointXYZI>::Ptr planar_cloud(new pcl::PointCloud<pcl::PointXYZI>);
+  std::vector<Planar> all_points = grid_map_->getPlanars();
+  for (const auto& point : all_points)
+  {
+    pcl::PointXYZI l_pt(static_cast<float>(0));
+    l_pt.x = point.pos_.x_;
+    l_pt.y = point.pos_.y_;
+    l_pt.z = point.pos_.z_;
+
+    planar_cloud->points.push_back(l_pt);
+  }
+
+  planar_cloud->header.frame_id = params_.world_frame_id_;
+  sensor_msgs::msg::PointCloud2 planar_cloud2;
+  pcl::toROSMsg(*planar_cloud, planar_cloud2);
+  map3D_publisher_->publish(planar_cloud2);
 }
 
 }  // namespace vineslam

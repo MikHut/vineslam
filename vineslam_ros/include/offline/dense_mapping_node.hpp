@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vineslam_ros.hpp"
+#include "../vineslam_ros.hpp"
 #include <vineslam/matcher/icp.hpp>
 
 namespace vineslam

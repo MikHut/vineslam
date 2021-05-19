@@ -688,8 +688,8 @@ void SLAMNode::process()
       std::string pcl_file = "pcl_file_" + std::to_string(n_saved_logs_++) + ".pcd";
 
       // Write for the log file
-      logs_file_ << robot_pose_.x_ << "," << robot_pose_.y_ << "," << robot_pose_.z_ << "," << robot_pose_.R_ << ","
-                 << robot_pose_.P_ << "," << robot_pose_.Y_ << "," << pcl_file << "\n";
+      logs_file_ << robot_pose_.x_ << " " << robot_pose_.y_ << " " << robot_pose_.z_ << " " << robot_pose_.R_ << " "
+                 << robot_pose_.P_ << " " << robot_pose_.Y_ <<  "\n";
 
       // Save the pcl file
       pcl::PointCloud<pcl::PointXYZ> cloud;

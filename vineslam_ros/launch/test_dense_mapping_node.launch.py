@@ -17,13 +17,13 @@ def generate_launch_description():
 
     config_path = os.path.join(
         get_package_share_directory('vineslam_ros'),
-        'config',
+        'config/offline',
         'setup_dense_mapping_node.yaml'
     )
 
     rviz_path = os.path.join(
         get_package_share_directory('vineslam_ros'),
-        'config',
+        'config/offline',
         'test_dense_mapping_node.rviz')
 
     with open(config_path, 'r') as f:

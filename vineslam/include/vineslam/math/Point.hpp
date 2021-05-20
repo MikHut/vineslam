@@ -18,6 +18,7 @@ struct Point
     x_ = 0.;
     y_ = 0.;
     z_ = 0.;
+    intensity_ = 0.;
   }
 
   // Construct with 3D values
@@ -26,6 +27,7 @@ struct Point
     x_ = x;
     y_ = y;
     z_ = z;
+    intensity_ = 0.;
   }
 
   // Construct with 3D values and intensity
@@ -51,6 +53,7 @@ struct Point
     x_ = other.x_;
     y_ = other.y_;
     z_ = other.z_;
+    intensity_ = other.intensity_;
   }
 
   // Assignment operator
@@ -59,6 +62,7 @@ struct Point
     x_ = other.x_;
     y_ = other.y_;
     z_ = other.z_;
+    intensity_ = other.intensity_;
 
     return *this;
   }

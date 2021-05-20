@@ -21,6 +21,9 @@ private:
   void loop();
   void loopOnce(const std::vector<Planar>& points);
 
+  // Map register
+  void registerPoints(Pose robot_pose, const std::vector<Planar>& points, OccupancyMap& grid_map);
+
   // Iterative closest point member
   ICP<Planar>* icp_;
 

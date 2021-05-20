@@ -201,10 +201,12 @@ bool MapLayer::insert(const Corner& l_feature, const int& i, const int& j)
       l_pt.x_ += c1.pos_.x_;
       l_pt.y_ += c1.pos_.y_;
       l_pt.z_ += c1.pos_.z_;
+      l_pt.intensity_ += c1.pos_.intensity_;
     }
     l_pt.x_ /= n_candidates;
     l_pt.y_ /= n_candidates;
     l_pt.z_ /= n_candidates;
+    l_pt.intensity_ /= n_candidates;
 
     // Insert it in the map
     Corner l_corner(l_pt, 0);
@@ -288,10 +290,12 @@ bool MapLayer::insert(const Planar& l_feature, const int& i, const int& j)
       l_pt.x_ += p1.pos_.x_;
       l_pt.y_ += p1.pos_.y_;
       l_pt.z_ += p1.pos_.z_;
+      l_pt.intensity_ += p1.pos_.intensity_;
     }
     l_pt.x_ /= n_candidates;
     l_pt.y_ /= n_candidates;
     l_pt.z_ /= n_candidates;
+    l_pt.intensity_ /= n_candidates;
 
     // Insert it in the map
     Planar l_planar(l_pt, 0);

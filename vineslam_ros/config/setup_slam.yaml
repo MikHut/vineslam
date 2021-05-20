@@ -8,7 +8,7 @@ slam_node:
   use_gps: False
   use_imu: False
 
-  lidar_sensor_frame: livox_frame
+  lidar_sensor_frame: velodyne
   camera_sensor_frame: zed_camera_left_optical_frame
 
   save_logs: True
@@ -52,4 +52,4 @@ slam_node:
     sigma_zz: 0.3 # meters
     sigma_RR: 0.3 # radians
     sigma_PP: 0.3 # radians
-    sigma_YY: 1.0 # radians
+    sigma_YY: 1.5 # radians

@@ -156,7 +156,7 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
 
   // Allocate map memory
   RCLCPP_INFO(this->get_logger(), "Allocating map memory!");
-  grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0), 20, 10);
+  grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0), 20, 5);
   elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
   RCLCPP_INFO(this->get_logger(), "Done!");
 
@@ -682,29 +682,26 @@ void SLAMNode::process()
   // Save logs if desired
   if (params_.save_logs_)
   {
-    Pose delta_pose = robot_pose_ - p_saved_pose_;
-    if (delta_pose.norm3D() > 0.3)
+    std::string pcl_file = "pcl_file_" + std::to_string(n_saved_logs_++) + ".pcd";
+
+    // Write for the log file
+    logs_file_ << robot_pose_.x_ << " " << robot_pose_.y_ << " " << robot_pose_.z_ << " " << robot_pose_.R_ << " "
+               << robot_pose_.P_ << " " << robot_pose_.Y_ << "\n";
+
+    // Save the pcl file
+    pcl::PointCloud<pcl::PointXYZI> cloud;
+    for (const auto& pt : input_data_.scan_pts_)
     {
-      std::string pcl_file = "pcl_file_" + std::to_string(n_saved_logs_++) + ".pcd";
-
-      // Write for the log file
-      logs_file_ << robot_pose_.x_ << " " << robot_pose_.y_ << " " << robot_pose_.z_ << " " << robot_pose_.R_ << " "
-                 << robot_pose_.P_ << " " << robot_pose_.Y_ <<  "\n";
-
-      // Save the pcl file
-      pcl::PointCloud<pcl::PointXYZ> cloud;
-      for (const auto& pt : input_data_.scan_pts_)
-      {
-        pcl::PointXYZ pcl_pt;
-        pcl_pt.x = pt.x_;
-        pcl_pt.y = pt.y_;
-        pcl_pt.z = pt.z_;
-        cloud.push_back(pcl_pt);
-      }
-      pcl::io::savePCDFileASCII(params_.logs_folder_ + pcl_file, cloud);
-
-      p_saved_pose_ = robot_pose_;
+      pcl::PointXYZI pcl_pt;
+      pcl_pt.x = pt.x_;
+      pcl_pt.y = pt.y_;
+      pcl_pt.z = pt.z_;
+      pcl_pt.intensity = pt.intensity_;
+      cloud.push_back(pcl_pt);
     }
+    pcl::io::savePCDFileASCII(params_.logs_folder_ + pcl_file, cloud);
+
+    p_saved_pose_ = robot_pose_;
   }
 }
 

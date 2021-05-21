@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../vineslam_ros.hpp"
-#include <vineslam/matcher/icp.hpp>
 
 // Mesh converter
 #include <sensor_msgs/point_cloud2_iterator.hpp>
@@ -21,6 +20,15 @@
 #include <pcl_msgs/msg/polygon_mesh.hpp>
 #include <pcl/common/common.h>
 #include <pcl/point_types.h>
+
+// File exporter
+#include <pcl/io/pcd_io.h>
+#include <pcl/io/ply_io.h>
+#include <pcl/io/vtk_io.h>
+#include <pcl/io/io.h>
+#include <pcl/io/file_io.h>
+#include <pcl/io/ply/ply_parser.h>
+#include <pcl/io/ply/ply.h>
 
 namespace vineslam
 {
@@ -50,13 +58,11 @@ private:
   void meshToShapeMsg(const pcl::PolygonMesh& in, shape_msgs::msg::Mesh& mesh);
   void meshToMarkerMsg(const pcl::PolygonMesh& in, visualization_msgs::msg::Marker& marker);
 
-  // Iterative closest point member
-  ICP<Planar>* icp_;
-
   // Iteration id
   uint32_t idx_;
 
   // ROS publishers
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr poses_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map3D_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr mesh_publisher_;
 

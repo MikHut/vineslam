@@ -22,13 +22,8 @@ MappingNode::MappingNode() : VineSLAM_ros("MappingNode")
   grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0), 20, 1);
   RCLCPP_INFO(this->get_logger(), "Done!");
 
-  // Initialize ICP
-  icp_ = new ICP<Planar>();
-  icp_->setTolerance(1e-4);
-  icp_->setMaxIterations(200);
-  icp_->setRejectOutliersFlag(false);
-
   // Define publishers
+  poses_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/poses", 10);
   map3D_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/dense_map3D", 10);
   mesh_publisher_ = this->create_publisher<visualization_msgs::msg::Marker>("/vineslam/mesh", 10);
 
@@ -131,6 +126,22 @@ void MappingNode::loop()
   // Open input file and go through it
   std::ifstream file(params_.logs_folder_ + "vineslam_logs.txt");
   std::string line;
+
+  // Create markers to save poses
+  visualization_msgs::msg::MarkerArray marker_array;
+  visualization_msgs::msg::Marker marker;
+  marker.ns = "/poses";
+  marker.type = visualization_msgs::msg::Marker::ARROW;
+  marker.action = visualization_msgs::msg::Marker::ADD;
+  marker.color.r = 0.0;
+  marker.color.g = 0.0;
+  marker.color.b = 1.0;
+  marker.color.a = 1.0;
+  marker.scale.x = 0.4;
+  marker.scale.y = 0.1;
+  marker.scale.z = 0.1;
+  marker.header.frame_id = params_.world_frame_id_;
+
   while (rclcpp::ok() && std::getline(file, line))
   {
     RCLCPP_INFO(this->get_logger(), "Processing point cloud number %d.", idx_);
@@ -159,6 +170,21 @@ void MappingNode::loop()
       robot_pose_.P_ = vals[4];
       robot_pose_.Y_ = vals[5];
     }
+
+    // Publish pose
+    tf2::Quaternion q;
+    q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
+    q.normalize();
+    marker.id = idx_;
+    marker.pose.position.x = robot_pose_.x_;
+    marker.pose.position.y = robot_pose_.y_;
+    marker.pose.position.z = robot_pose_.z_;
+    marker.pose.orientation.x = q.getX();
+    marker.pose.orientation.y = q.getY();
+    marker.pose.orientation.z = q.getZ();
+    marker.pose.orientation.w = q.getW();
+    marker_array.markers.push_back(marker);
+    poses_publisher_->publish(marker_array);
 
     // Read pcd file
     pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZI>);
@@ -203,7 +229,11 @@ void MappingNode::loop()
   pcl::PolygonMesh mesh;
   cloudToMesh(map_xyz, mesh);
 
-  // Publish the map and mesh continuously
+  // Save point cloud and mesh to files
+  pcl::io::savePLYFileBinary(params_.map_output_folder_ + "mesh.ply", mesh);
+  pcl::io::savePLYFileBinary(params_.map_output_folder_ + "cloud.ply", *map);
+
+  // Publish the poses, map and mesh continuously
   visualization_msgs::msg::Marker ros_mesh;
   meshToMarkerMsg(mesh, ros_mesh);
 
@@ -214,6 +244,7 @@ void MappingNode::loop()
 
   while (rclcpp::ok())
   {
+    poses_publisher_->publish(marker_array);
     mesh_publisher_->publish(ros_mesh);
     map3D_publisher_->publish(map2);
     rclcpp::sleep_for(std::chrono::milliseconds(mil_secs));

@@ -17,6 +17,7 @@ find_package(vineslam_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(shape_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(interactive_markers REQUIRED)
@@ -26,6 +27,7 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(pcl_conversions REQUIRED)
+find_package(pcl_msgs REQUIRED)
 find_package(PCL REQUIRED)
 find_package(OpenCV REQUIRED)
 
@@ -45,6 +47,7 @@ set(dependencies
         "std_msgs"
         "sensor_msgs"
         "nav_msgs"
+        "shape_msgs"
         "visualization_msgs"
         "interactive_markers"
         "vision_msgs"
@@ -52,6 +55,7 @@ set(dependencies
         "tf2_ros"
         "tf2_geometry_msgs"
         "pcl_conversions"
+        "pcl_msgs"
         "geometry_msgs")
 
 add_executable(slam_node src/slam_node.cpp src/vineslam_ros.cpp src/visualization.cpp)

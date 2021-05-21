@@ -30,6 +30,7 @@ MappingNode::MappingNode() : VineSLAM_ros("MappingNode")
 
   // Define publishers
   map3D_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/dense_map3D", 10);
+  mesh_publisher_ = this->create_publisher<visualization_msgs::msg::Marker>("/vineslam/mesh", 10);
 
   // Call the execution loop
   idx_ = 0;
@@ -132,6 +133,8 @@ void MappingNode::loop()
   std::string line;
   while (rclcpp::ok() && std::getline(file, line))
   {
+    RCLCPP_INFO(this->get_logger(), "Processing point cloud number %d.", idx_);
+
     std::stringstream lstream(line);
 
     float val;
@@ -181,6 +184,39 @@ void MappingNode::loop()
     loopOnce(points);
     rclcpp::sleep_for(std::chrono::milliseconds(mil_secs));
     idx_++;
+  }
+
+  // Convert the map to a 3D mesh
+  std::vector<Planar> points = grid_map_->getPlanars();
+  pcl::PointCloud<pcl::PointXYZI>::Ptr map(new pcl::PointCloud<pcl::PointXYZI>);
+  for (const auto& pt : points)
+  {
+    pcl::PointXYZI pcl_pt;
+    pcl_pt.x = pt.pos_.x_;
+    pcl_pt.y = pt.pos_.y_;
+    pcl_pt.z = pt.pos_.z_;
+    pcl_pt.intensity = pt.pos_.intensity_;
+    map->push_back(pcl_pt);
+  }
+  pcl::PointCloud<pcl::PointXYZ>::Ptr map_xyz(new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::copyPointCloud(*map, *map_xyz);
+  pcl::PolygonMesh mesh;
+  cloudToMesh(map_xyz, mesh);
+
+  // Publish the map and mesh continuously
+  visualization_msgs::msg::Marker ros_mesh;
+  meshToMarkerMsg(mesh, ros_mesh);
+
+  map->header.frame_id = params_.world_frame_id_;
+  sensor_msgs::msg::PointCloud2 map2;
+  pcl::toROSMsg(*map, map2);
+  map3D_publisher_->publish(map2);
+
+  while (rclcpp::ok())
+  {
+    mesh_publisher_->publish(ros_mesh);
+    map3D_publisher_->publish(map2);
+    rclcpp::sleep_for(std::chrono::milliseconds(mil_secs));
   }
 }
 
@@ -277,6 +313,143 @@ void MappingNode::registerPoints(Pose robot_pose, const std::vector<Planar>& poi
   // Insert the new observations found
   for (const auto& point : new_points)
     grid_map.insert(point);
+}
+
+void MappingNode::cloudToMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PolygonMesh& mesh)
+{
+  //  pcl::PointCloud<pcl::PointXYZ>::Ptr filtered(new pcl::PointCloud<pcl::PointXYZ>());
+  //  pcl::PassThrough<pcl::PointXYZ> filter;
+  //  filter.setInputCloud(cloud);
+  //  filter.filter(*filtered);
+  //
+  //  pcl::NormalEstimationOMP<pcl::PointXYZ, pcl::Normal> ne;
+  //  ne.setNumberOfThreads(8);
+  //  ne.setInputCloud(filtered);
+  //  ne.setRadiusSearch(0.02);
+  //  Eigen::Vector4f centroid;
+  //  pcl::compute3DCentroid(*filtered, centroid);
+  //  ne.setViewPoint(centroid[0], centroid[1], centroid[2]);
+  //
+  //  pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>());
+  //  ne.compute(*cloud_normals);
+  //
+  //  for (size_t i = 0; i < cloud_normals->size(); ++i)
+  //  {
+  //    cloud_normals->points[i].normal_x *= -1;
+  //    cloud_normals->points[i].normal_y *= -1;
+  //    cloud_normals->points[i].normal_z *= -1;
+  //  }
+  //
+  //  pcl::PointCloud<pcl::PointNormal>::Ptr cloud_smoothed_normals(new pcl::PointCloud<pcl::PointNormal>());
+  //  pcl::concatenateFields(*filtered, *cloud_normals, *cloud_smoothed_normals);
+  //
+  //  pcl::Poisson<pcl::PointNormal> poisson;
+  //  poisson.setDepth(9);
+  //  poisson.setInputCloud(cloud_smoothed_normals);
+  //  poisson.reconstruct(mesh);
+
+  double voxel_size = 0.10;
+
+  boost::shared_ptr<pcl::PointCloud<pcl::PointNormal>> point_cloud_normal_voxelized(
+      new pcl::PointCloud<pcl::PointNormal>());
+
+  boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> pc_voxelized(new pcl::PointCloud<pcl::PointXYZ>());
+  pcl::VoxelGrid<pcl::PointXYZ> pre_filter;
+  pre_filter.setInputCloud(cloud);
+  pre_filter.setLeafSize(voxel_size, voxel_size, voxel_size);
+  pre_filter.filter(*pc_voxelized);
+
+  pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointNormal> mls;
+
+  mls.setSearchRadius(0.20);
+  mls.setPolynomialOrder(1);
+  mls.setComputeNormals(true);
+  mls.setInputCloud(pc_voxelized);
+
+  boost::shared_ptr<pcl::PointCloud<pcl::PointNormal>> point_cloud_mls_normal;
+  point_cloud_mls_normal.reset(new pcl::PointCloud<pcl::PointNormal>);
+  mls.process(*point_cloud_mls_normal);
+
+  pcl::VoxelGrid<pcl::PointNormal> filter;
+  filter.setInputCloud(point_cloud_mls_normal);
+  filter.setLeafSize(voxel_size, voxel_size, voxel_size);
+  filter.filter(*point_cloud_normal_voxelized);
+
+  boost::shared_ptr<pcl::search::KdTree<pcl::PointNormal>> tree2(new pcl::search::KdTree<pcl::PointNormal>);
+  tree2->setInputCloud(point_cloud_normal_voxelized);
+
+  pcl::GreedyProjectionTriangulation<pcl::PointNormal> greedy;
+  greedy.setSearchRadius(0.2);
+  greedy.setMu(2.5);
+  greedy.setMaximumNearestNeighbors(50);
+  greedy.setMinimumAngle(M_PI / 18);     // 10 degrees
+  greedy.setMaximumAngle(2 * M_PI / 3);  // 120 degrees
+  greedy.setNormalConsistency(true);
+  greedy.setConsistentVertexOrdering(true);
+
+  greedy.setSearchMethod(tree2);
+  greedy.setInputCloud(point_cloud_normal_voxelized);
+
+  greedy.reconstruct(mesh);
+}
+
+void MappingNode::meshToShapeMsg(const pcl::PolygonMesh& in, shape_msgs::msg::Mesh& mesh)
+{
+  pcl_msgs::msg::PolygonMesh pcl_msg_mesh;
+  pcl_conversions::fromPCL(in, pcl_msg_mesh);
+
+  sensor_msgs::PointCloud2Modifier pcd_modifier(pcl_msg_mesh.cloud);
+
+  size_t size = pcd_modifier.size();
+  mesh.vertices.resize(size);
+  sensor_msgs::PointCloud2ConstIterator<float> pt_iter(pcl_msg_mesh.cloud, "x");
+  for (size_t i = 0; i < size; i++, ++pt_iter)
+  {
+    mesh.vertices[i].x = pt_iter[0];
+    mesh.vertices[i].y = pt_iter[1];
+    mesh.vertices[i].z = pt_iter[2];
+  }
+
+  mesh.triangles.resize(in.polygons.size());
+  for (size_t i = 0; i < in.polygons.size(); ++i)
+  {
+    if (in.polygons[i].vertices.size() < 3)
+    {
+      RCLCPP_INFO(this->get_logger(), "Not enough points in polygon. Ignoring it.");
+      continue;
+    }
+
+    for (int j = 0; j < 3; ++j)
+      mesh.triangles[i].vertex_indices[j] = in.polygons[i].vertices[j];
+  }
+}
+
+void MappingNode::meshToMarkerMsg(const pcl::PolygonMesh& in, visualization_msgs::msg::Marker& marker)
+{
+  marker.type = visualization_msgs::msg::Marker::TRIANGLE_LIST;
+  marker.header.frame_id = params_.world_frame_id_;
+  marker.header.stamp = rclcpp::Time();
+  marker.color.r = 1.0;
+  marker.color.a = 1.0;
+  marker.scale.x = 1.0;
+  marker.scale.y = 1.0;
+  marker.scale.z = 1.0;
+  marker.id = 1;
+  marker.action = visualization_msgs::msg::Marker::ADD;
+
+  shape_msgs::msg::Mesh shape_msg_mesh;
+  meshToShapeMsg(in, shape_msg_mesh);
+
+  size_t size_triangles = shape_msg_mesh.triangles.size();
+  marker.points.resize(size_triangles * 3);
+  size_t i = 0;
+  for (size_t tri_index = 0; tri_index < size_triangles; ++tri_index)
+  {
+    marker.points[i] = shape_msg_mesh.vertices[shape_msg_mesh.triangles[tri_index].vertex_indices[0]];
+    marker.points[i + 1] = shape_msg_mesh.vertices[shape_msg_mesh.triangles[tri_index].vertex_indices[1]];
+    marker.points[i + 2] = shape_msg_mesh.vertices[shape_msg_mesh.triangles[tri_index].vertex_indices[2]];
+    i = i + 3;
+  }
 }
 
 }  // namespace vineslam

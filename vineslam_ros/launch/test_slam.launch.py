@@ -47,7 +47,7 @@ def generate_launch_description():
         package='tf2_ros',
         executable='static_transform_publisher',
         name='velodyne2base',
-        arguments=['0.000', '0.000', '0.700', '-0.000', '0.000', '-0.000', '1.000', 'base_link',
+        arguments=['0.000', '0.000', '0.650', '-0.000', '0.000', '-0.000', '1.000', 'base_link',
                    config['slam_node']['lidar_sensor_frame']]
     )
     ld.add_action(tf2)

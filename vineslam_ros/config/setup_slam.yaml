@@ -8,8 +8,11 @@ slam_node:
   use_gps: False
   use_imu: False
 
-  lidar_sensor_frame: livox_frame
+  lidar_sensor_frame: velodyne
   camera_sensor_frame: zed_camera_left_optical_frame
+
+  save_logs: True
+  logs_folder: "/home/andresaguiar/Documents/vineslam_logs/"
 
   camera_info:
     baseline: 0.12 # meters

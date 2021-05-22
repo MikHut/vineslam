@@ -156,7 +156,7 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
 
   // Allocate map memory
   RCLCPP_INFO(this->get_logger(), "Allocating map memory!");
-  grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0), 20, 10);
+  grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0), 20, 5);
   elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
   RCLCPP_INFO(this->get_logger(), "Done!");
 
@@ -226,6 +226,18 @@ void SLAMNode::loadParameters(Parameters& params)
   param = prefix + ".use_imu";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.use_imu_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".save_logs";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.save_logs_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".logs_folder";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.logs_folder_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
@@ -478,6 +490,13 @@ void SLAMNode::init()
   lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, l_ground_plane, *grid_map_, *elevation_map_);
   grid_map_->downsamplePlanars();
 
+  // Create logs file if desired
+  if (params_.save_logs_)
+  {
+    n_saved_logs_ = 0;
+    logs_file_.open(params_.logs_folder_ + "vineslam_logs.txt");
+  }
+
   RCLCPP_INFO(this->get_logger(), "Localization and Mapping has started.");
 }
 
@@ -659,6 +678,31 @@ void SLAMNode::process()
   l_planes.push_back(l_ground_plane);
   publish3DMap(l_planes, planes_local_publisher_);
   publishRobotBox(robot_pose_);
+
+  // Save logs if desired
+  if (params_.save_logs_)
+  {
+    std::string pcl_file = "pcl_file_" + std::to_string(n_saved_logs_++) + ".pcd";
+
+    // Write for the log file
+    logs_file_ << robot_pose_.x_ << " " << robot_pose_.y_ << " " << robot_pose_.z_ << " " << robot_pose_.R_ << " "
+               << robot_pose_.P_ << " " << robot_pose_.Y_ << "\n";
+
+    // Save the pcl file
+    pcl::PointCloud<pcl::PointXYZI> cloud;
+    for (const auto& pt : input_data_.scan_pts_)
+    {
+      pcl::PointXYZI pcl_pt;
+      pcl_pt.x = pt.x_;
+      pcl_pt.y = pt.y_;
+      pcl_pt.z = pt.z_;
+      pcl_pt.intensity = pt.intensity_;
+      cloud.push_back(pcl_pt);
+    }
+    pcl::io::savePCDFileASCII(params_.logs_folder_ + pcl_file, cloud);
+
+    p_saved_pose_ = robot_pose_;
+  }
 }
 
 void SLAMNode::broadcastTfs()

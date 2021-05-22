@@ -1,0 +1,22 @@
+dense_mapping_node:
+  world_frame_id: map_nn2
+  logs_folder: "/home/andresaguiar/Documents/vineslam_logs/aveleda-livox-11-05-2021/"
+
+  multilayer_mapping:
+    # Datum
+    datum:
+      latitude: 41.2055204
+      longitude: -8.307482
+      altitude: 255.632
+
+    # Grid map definitions
+    grid_map:
+      origin:
+        x: -110.0
+        y: -110.0
+        z: -18.0
+      width: 220.0
+      lenght: 220.0
+      height: 25.0
+      resolution: 0.25 # meters
+      output_folder: "/home/andresaguiar/Desktop/"

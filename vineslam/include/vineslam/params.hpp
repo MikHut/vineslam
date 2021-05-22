@@ -25,6 +25,12 @@ struct Parameters
   bool use_imu_{};
 
   // -----------------------------------
+  // ------ Logs
+  // -----------------------------------
+  bool save_logs_{};
+  std::string logs_folder_{};
+
+  // -----------------------------------
   // ------ Map origin - datum
   // -----------------------------------
   double map_datum_lat_{};

@@ -23,7 +23,8 @@ struct Parameters
   bool use_image_features_{};
   bool use_gps_{};
   bool use_imu_{};
-  bool register_maps_;
+  bool register_maps_{};
+  bool lightweight_version_{};
 
   // -----------------------------------
   // ------ Logs

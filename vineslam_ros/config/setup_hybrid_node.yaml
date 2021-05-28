@@ -4,7 +4,7 @@ hybrid_node:
   use_semantic_features: False
   use_lidar_features: True
   use_image_features: False
-  use_gps: True
+  use_gps: False
   use_imu: False
 
   register_maps: True # whether to register or not newly observed features

@@ -256,6 +256,12 @@ void LocalizationNode::loadParameters(Parameters& params)
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
+  param = prefix + ".lightweight_version";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.lightweight_version_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
   param = prefix + ".robot.latitude";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.robot_datum_lat_))
@@ -458,7 +464,11 @@ void LocalizationNode::init()
 #elif LIDAR_SENSOR == 1
     lid_mapper_->localMap(input_data_.scan_pts_, header_.stamp.sec, l_corners, l_planars, l_planes, l_ground_plane);
 #endif
-    l_planes = {};
+    if (params_.lightweight_version_ == true)
+    {
+      l_planars = std::vector<Planar>();
+    }
+    //    l_planes = {};
   }
 
   // - 3D image feature map estimation
@@ -551,7 +561,11 @@ void LocalizationNode::process()
 #elif LIDAR_SENSOR == 1
     lid_mapper_->localMap(input_data_.scan_pts_, header_.stamp.sec, l_corners, l_planars, l_planes, l_ground_plane);
 #endif
-    l_planes = {};
+    if (params_.lightweight_version_ == true)
+    {
+      l_planars = std::vector<Planar>();
+    }
+    //    l_planes = {};
     timer_->tock();
   }
 
@@ -683,7 +697,8 @@ void LocalizationNode::broadcastTfs()
       map2odom_msg.child_frame_id = params_.world_frame_id_;
       q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
       q.normalize();
-      Convertions::pose2TransformStamped(q, tf2::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_), map2odom_msg);
+      Convertions::pose2TransformStamped(q, tf2::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_),
+                                         map2odom_msg);
       tf_broadcaster_->sendTransform(map2odom_msg);
       // ----
     }

@@ -64,13 +64,13 @@ def generate_launch_description():
         name='localization_node',
         parameters=[config],
         remappings=[
-            ('/odom_topic', '/white/husky_velocity_controller/odom'),
-            ('/gps_topic', '/white/piksi/navsatfix_best_fix'),
-            ('/imu_topic', '/white/imu_7/rpy'),
-            ('/imu_data_topic', '/white/imu_7/data'),
+            ('/odom_topic', '/agrobv18/husky_velocity_controller/odom'),
+            ('/gps_topic', '/agrobv18/gps2/fix'),
+            ('/imu_topic', '/agrobv18/imu_um6/rpy'),
+            ('/imu_data_topic', '/agrobv18/imu_um6/data'),
             ('/features_topic', '/image_feature_array'),
             ('/detections_topic', '/tpu/detections'),
-            ('/scan_topic', '/white/velodyne_points'),
+            ('/scan_topic', '/agrobv18/velodyne_points'),
         ],
         arguments=['--ros-args', '--log-level', logger]
     )

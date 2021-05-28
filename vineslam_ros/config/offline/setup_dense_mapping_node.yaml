@@ -1,6 +1,6 @@
 dense_mapping_node:
   world_frame_id: map_nn2
-  logs_folder: "/home/andresaguiar/Documents/vineslam_logs/aveleda-livox-11-05-2021/"
+  logs_folder: "/home/andresaguiar/Documents/vineslam_logs/aveleda-velodyne-27-05-2021/"
 
   multilayer_mapping:
     # Datum

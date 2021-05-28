@@ -21,15 +21,6 @@
 #include <pcl/common/common.h>
 #include <pcl/point_types.h>
 
-// File exporter
-#include <pcl/io/pcd_io.h>
-#include <pcl/io/ply_io.h>
-#include <pcl/io/vtk_io.h>
-#include <pcl/io/io.h>
-#include <pcl/io/file_io.h>
-#include <pcl/io/ply/ply_parser.h>
-#include <pcl/io/ply/ply.h>
-
 namespace vineslam
 {
 class MappingNode : public VineSLAM_ros

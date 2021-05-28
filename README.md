@@ -93,7 +93,7 @@ A 3D map built with SURF features detected on the image.
 ## <a name="installation"/> Installation
 
 ```
-sudo apt-get install ros-foxy-vision-msgs
+sudo apt-get install ros-foxy-vision-msgs ros-foxy-shape-msgs
 
 cd <path_to_ros2_ws>/src
 git clone git@gitlab.inesctec.pt:agrob/vineslam.git -b master

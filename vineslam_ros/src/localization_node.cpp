@@ -577,15 +577,7 @@ void LocalizationNode::process()
   obsv_.ground_plane_ = l_ground_plane;
   obsv_.planes_ = l_planes;
   obsv_.surf_features_ = l_surf_features;
-  if (input_data_.received_gnss_ && localizer_->pf_->use_gps_ == true)
-  {
-    localizer_->pf_->use_gps_ = true;
-    obsv_.gps_pose_ = input_data_.gnss_pose_;
-  }
-  else
-  {
-    localizer_->pf_->use_gps_ = false;
-  }
+  obsv_.gps_pose_ = input_data_.gnss_pose_;
   obsv_.imu_pose_ = input_data_.imu_pose_;
 
   // ---------------------------------------------------------

@@ -169,7 +169,7 @@ HybridNode::HybridNode() : VineSLAM_ros("HybridNode")
   }
   else
   {
-    grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0), 1, 1);
+    grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0), 20, 5);
     elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
   }
 
@@ -255,6 +255,24 @@ void HybridNode::loadParameters(Parameters& params)
   param = prefix + ".use_imu";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.use_imu_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".register_maps";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.register_maps_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".save_logs";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.save_logs_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".logs_folder";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.logs_folder_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
@@ -460,7 +478,7 @@ void HybridNode::init()
 #elif LIDAR_SENSOR == 1
     lid_mapper_->localMap(input_data_.scan_pts_, header_.stamp.sec, l_corners, l_planars, l_planes, l_ground_plane);
 #endif
-    l_planes = {};
+    //    l_planes = {};
   }
 
   // - 3D image feature map estimation
@@ -468,6 +486,13 @@ void HybridNode::init()
   if (params_.use_image_features_)
   {
     vis_mapper_->localMap(input_data_.image_features_, l_surf_features);
+  }
+
+  // Create logs file if desired
+  if (params_.save_logs_)
+  {
+    n_saved_logs_ = 0;
+    logs_file_.open(params_.logs_folder_ + "vineslam_logs.txt");
   }
 
   RCLCPP_INFO(this->get_logger(), "HybridNode has started.");
@@ -553,7 +578,7 @@ void HybridNode::process()
 #elif LIDAR_SENSOR == 1
     lid_mapper_->localMap(input_data_.scan_pts_, header_.stamp.sec, l_corners, l_planars, l_planes, l_ground_plane);
 #endif
-    l_planes = {};
+    //    l_planes = {};
     timer_->tock();
   }
 
@@ -579,15 +604,7 @@ void HybridNode::process()
   obsv_.ground_plane_ = l_ground_plane;
   obsv_.planes_ = l_planes;
   obsv_.surf_features_ = l_surf_features;
-  if (input_data_.received_gnss_ && localizer_->pf_->use_gps_ == true)
-  {
-    localizer_->pf_->use_gps_ = true;
-    obsv_.gps_pose_ = input_data_.gnss_pose_;
-  }
-  else
-  {
-    localizer_->pf_->use_gps_ = false;
-  }
+  obsv_.gps_pose_ = input_data_.gnss_pose_;
   obsv_.imu_pose_ = input_data_.imu_pose_;
 
   // ---------------------------------------------------------
@@ -602,6 +619,16 @@ void HybridNode::process()
 
   // Fuse odometry and gyroscope to get the innovation pose
   Pose innovation;
+  if (params_.use_imu_)
+  {
+    computeInnovation(odom_inc, input_data_.imu_data_pose_, innovation);
+  }
+  else
+  {
+    innovation = odom_inc;
+  }
+
+  // Fuse odometry and gyroscope to get the innovation pose
   computeInnovation(odom_inc, input_data_.imu_data_pose_, innovation);
 
   timer_->tick("localizer::process()");
@@ -613,6 +640,17 @@ void HybridNode::process()
   // ----- Reset IMU gyroscope angular integrators
   // ---------------------------------------------------------
   input_data_.imu_data_pose_ = Pose(0, 0, 0, 0, 0, 0);
+
+  // ---------------------------------------------------------
+  // ----- Register multi-layer map (if performing SLAM)
+  // ---------------------------------------------------------
+  if (params_.register_maps_ == true)
+  {
+    land_mapper_->process(robot_pose_, l_landmarks, input_data_.land_labels_, *grid_map_);
+    vis_mapper_->registerMaps(robot_pose_, l_surf_features, *grid_map_);
+    lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, l_ground_plane, *grid_map_, *elevation_map_);
+    grid_map_->downsamplePlanars();
+  }
 
   // ---------------------------------------------------------
   // ----- Conversion of pose into latitude and longitude
@@ -667,6 +705,31 @@ void HybridNode::process()
   pose_ll.latitude = robot_latitude;
   pose_ll.longitude = robot_longitude;
   gps_fix_publisher_->publish(pose_ll);
+
+  // Save logs if desired
+  if (params_.save_logs_)
+  {
+    std::string pcl_file = "pcl_file_" + std::to_string(n_saved_logs_++) + ".pcd";
+
+    // Write for the log file
+    logs_file_ << robot_pose_.x_ << " " << robot_pose_.y_ << " " << robot_pose_.z_ << " " << robot_pose_.R_ << " "
+               << robot_pose_.P_ << " " << robot_pose_.Y_ << "\n";
+
+    // Save the pcl file
+    pcl::PointCloud<pcl::PointXYZI> cloud;
+    for (const auto& pt : input_data_.scan_pts_)
+    {
+      pcl::PointXYZI pcl_pt;
+      pcl_pt.x = pt.x_;
+      pcl_pt.y = pt.y_;
+      pcl_pt.z = pt.z_;
+      pcl_pt.intensity = pt.intensity_;
+      cloud.push_back(pcl_pt);
+    }
+    pcl::io::savePCDFileASCII(params_.logs_folder_ + pcl_file, cloud);
+
+    p_saved_pose_ = robot_pose_;
+  }
 }
 
 void HybridNode::broadcastTfs()

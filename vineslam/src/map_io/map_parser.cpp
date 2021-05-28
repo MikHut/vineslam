@@ -217,7 +217,7 @@ bool MapParser::parseFile(OccupancyMap* grid_map)
         }
         else if (tag == closeTag(CTAG))
         {
-          (*grid_map).insert(corner);
+          (*grid_map).directInsert(corner);
           state = 4;
         }
         break;
@@ -249,7 +249,7 @@ bool MapParser::parseFile(OccupancyMap* grid_map)
         }
         else if (tag == closeTag(PTAG))
         {
-          (*grid_map).insert(planar);
+          (*grid_map).directInsert(planar);
           state = 6;
         }
         break;

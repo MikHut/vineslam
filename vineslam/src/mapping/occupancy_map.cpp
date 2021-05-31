@@ -240,6 +240,56 @@ bool MapLayer::insert(const Corner& l_feature)
   return insert(l_feature, l_i, l_j);
 }
 
+bool MapLayer::directInsert(const Corner& l_feature, const int& i, const int& j)
+{
+  try
+  {
+    check(i, j);
+  }
+  catch (char const* msg)
+  {
+#if VERBOSE == 1
+    std::cout << "MapLayer::insert(Corner) --- " << msg;
+#endif
+    return false;
+  }
+
+  // Check if memory for cell is already allocated
+  Cell* c = &(*this)(i, j);
+  if (c->data == nullptr)
+  {
+    c->data = new CellData();
+  }
+
+  // Check if cell already has some corner feature
+  if (c->data->corner_features_ == nullptr)
+  {
+    c->data->corner_features_ = new std::vector<Corner>();
+    c->data->candidate_corner_features_ = new std::vector<Corner>();
+  }
+
+  c->data->corner_features_->push_back(l_feature);
+  n_corner_features_++;
+
+  // Mark cell as occupied in pointer array
+  int l_i = i - static_cast<int>(std::round(origin_.x_ / resolution_ + .49));
+  int l_j = j - static_cast<int>(std::round(origin_.y_ / resolution_ + .49));
+  int idx = l_i + l_j * static_cast<int>(std::round(width_ / resolution_ + .49));
+  corner_set_.insert(idx);
+
+  return true;
+}
+
+bool MapLayer::directInsert(const Corner& l_feature)
+{
+  // Compute grid coordinates for the floating point Feature location
+  // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+  int l_i = static_cast<int>(std::round(l_feature.pos_.x_ / resolution_ + .49));
+  int l_j = static_cast<int>(std::round(l_feature.pos_.y_ / resolution_ + .49));
+
+  return directInsert(l_feature, l_i, l_j);
+}
+
 bool MapLayer::insert(const Planar& l_feature, const int& i, const int& j)
 {
   try
@@ -327,6 +377,56 @@ bool MapLayer::insert(const Planar& l_feature)
   int l_j = static_cast<int>(std::round(l_feature.pos_.y_ / resolution_ + .49));
 
   return insert(l_feature, l_i, l_j);
+}
+
+bool MapLayer::directInsert(const Planar& l_feature, const int& i, const int& j)
+{
+  try
+  {
+    check(i, j);
+  }
+  catch (char const* msg)
+  {
+#if VERBOSE == 1
+    std::cout << "MapLayer::insert(Planar) --- " << msg;
+#endif
+    return false;
+  }
+
+  // Check if memory for cell is already allocated
+  Cell* c = &(*this)(i, j);
+  if (c->data == nullptr)
+  {
+    c->data = new CellData();
+  }
+
+  // Check if cell already has some planar feature
+  if (c->data->planar_features_ == nullptr)
+  {
+    c->data->planar_features_ = new std::vector<Planar>();
+    c->data->candidate_planar_features_ = new std::vector<Planar>();
+  }
+
+  c->data->planar_features_->push_back(l_feature);
+  n_planar_features_++;
+
+  // Mark cell as occupied in pointer array
+  int l_i = i - static_cast<int>(std::round(origin_.x_ / resolution_ + .49));
+  int l_j = j - static_cast<int>(std::round(origin_.y_ / resolution_ + .49));
+  int idx = l_i + l_j * static_cast<int>(std::round(width_ / resolution_ + .49));
+  planar_set_.insert(idx);
+
+  return true;
+}
+
+bool MapLayer::directInsert(const Planar& l_feature)
+{
+  // Compute grid coordinates for the floating point Feature location
+  // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
+  int l_i = static_cast<int>(std::round(l_feature.pos_.x_ / resolution_ + .49));
+  int l_j = static_cast<int>(std::round(l_feature.pos_.y_ / resolution_ + .49));
+
+  return directInsert(l_feature, l_i, l_j);
 }
 
 bool MapLayer::update(const SemanticFeature& new_landmark, const int& id, const float& i, const float& j)
@@ -1444,12 +1544,38 @@ bool OccupancyMap::insert(const Corner& l_feature)
   }
 }
 
+bool OccupancyMap::directInsert(const Corner& l_feature)
+{
+  int layer_num;
+  if (getLayerNumber(l_feature.pos_.z_, layer_num))
+  {
+    return layers_map_[layer_num].directInsert(l_feature);
+  }
+  else
+  {
+    return false;
+  }
+}
+
 bool OccupancyMap::insert(const Planar& l_feature)
 {
   int layer_num;
   if (getLayerNumber(l_feature.pos_.z_, layer_num))
   {
     return layers_map_[layer_num].insert(l_feature);
+  }
+  else
+  {
+    return false;
+  }
+}
+
+bool OccupancyMap::directInsert(const Planar& l_feature)
+{
+  int layer_num;
+  if (getLayerNumber(l_feature.pos_.z_, layer_num))
+  {
+    return layers_map_[layer_num].directInsert(l_feature);
   }
   else
   {

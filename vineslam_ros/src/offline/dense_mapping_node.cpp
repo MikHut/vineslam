@@ -229,10 +229,6 @@ void MappingNode::loop()
   pcl::PolygonMesh mesh;
   cloudToMesh(map_xyz, mesh);
 
-  // Save point cloud and mesh to files
-  pcl::io::savePLYFileBinary(params_.map_output_folder_ + "mesh.ply", mesh);
-  pcl::io::savePLYFileBinary(params_.map_output_folder_ + "cloud.ply", *map);
-
   // Publish the poses, map and mesh continuously
   visualization_msgs::msg::Marker ros_mesh;
   meshToMarkerMsg(mesh, ros_mesh);
@@ -348,37 +344,6 @@ void MappingNode::registerPoints(Pose robot_pose, const std::vector<Planar>& poi
 
 void MappingNode::cloudToMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PolygonMesh& mesh)
 {
-  //  pcl::PointCloud<pcl::PointXYZ>::Ptr filtered(new pcl::PointCloud<pcl::PointXYZ>());
-  //  pcl::PassThrough<pcl::PointXYZ> filter;
-  //  filter.setInputCloud(cloud);
-  //  filter.filter(*filtered);
-  //
-  //  pcl::NormalEstimationOMP<pcl::PointXYZ, pcl::Normal> ne;
-  //  ne.setNumberOfThreads(8);
-  //  ne.setInputCloud(filtered);
-  //  ne.setRadiusSearch(0.02);
-  //  Eigen::Vector4f centroid;
-  //  pcl::compute3DCentroid(*filtered, centroid);
-  //  ne.setViewPoint(centroid[0], centroid[1], centroid[2]);
-  //
-  //  pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>());
-  //  ne.compute(*cloud_normals);
-  //
-  //  for (size_t i = 0; i < cloud_normals->size(); ++i)
-  //  {
-  //    cloud_normals->points[i].normal_x *= -1;
-  //    cloud_normals->points[i].normal_y *= -1;
-  //    cloud_normals->points[i].normal_z *= -1;
-  //  }
-  //
-  //  pcl::PointCloud<pcl::PointNormal>::Ptr cloud_smoothed_normals(new pcl::PointCloud<pcl::PointNormal>());
-  //  pcl::concatenateFields(*filtered, *cloud_normals, *cloud_smoothed_normals);
-  //
-  //  pcl::Poisson<pcl::PointNormal> poisson;
-  //  poisson.setDepth(9);
-  //  poisson.setInputCloud(cloud_smoothed_normals);
-  //  poisson.reconstruct(mesh);
-
   double voxel_size = 0.10;
 
   boost::shared_ptr<pcl::PointCloud<pcl::PointNormal>> point_cloud_normal_voxelized(
@@ -392,7 +357,7 @@ void MappingNode::cloudToMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::Po
 
   pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointNormal> mls;
 
-  mls.setSearchRadius(0.20);
+  mls.setSearchRadius(0.25);
   mls.setPolynomialOrder(1);
   mls.setComputeNormals(true);
   mls.setInputCloud(pc_voxelized);
@@ -410,7 +375,7 @@ void MappingNode::cloudToMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::Po
   tree2->setInputCloud(point_cloud_normal_voxelized);
 
   pcl::GreedyProjectionTriangulation<pcl::PointNormal> greedy;
-  greedy.setSearchRadius(0.2);
+  greedy.setSearchRadius(0.25);
   greedy.setMu(2.5);
   greedy.setMaximumNearestNeighbors(50);
   greedy.setMinimumAngle(M_PI / 18);     // 10 degrees

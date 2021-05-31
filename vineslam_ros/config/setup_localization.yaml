@@ -1,21 +1,22 @@
 localization_node:
   robot_model: rocha  # {agrob, rocha}
-  lidar_sensor: livox  # {velodyne, livox, ...}
   world_frame_id: map_nn2
   use_semantic_features: False
   use_lidar_features: True
   use_image_features: False
   use_gps: True
-  use_imu: True
+  use_imu: False
 
-  lidar_sensor_frame: livox_frame
+  lightweight_version: True # it does not use planar features
+
+  lidar_sensor_frame: velodyne
   camera_sensor_frame: zed_camera_left_optical_frame
 
   # Robot initial guess position in polar coordinates
   robot:
-    latitude: 41.16671663192795
-    longitude: -7.555065558118306
-    altitude: 294.474870773967
+    latitude: 41.205507499999996
+    longitude: -8.3073997
+    altitude: 247.982
 
   camera_info:
     baseline: 0.12 # meters
@@ -27,20 +28,21 @@ localization_node:
     y: 0.68 # meters
     z: 0.90 # meters
 
+
   multilayer_mapping:
     # Grid map definitions
     grid_map:
-      map_file_path: "/home/andresaguiar/Documents/maps/VineSLAM/map_28_04_2021/map_1619620348.xml"
-      elevation_map_file_path: "/home/andresaguiar/Documents/maps/VineSLAM/map_28_04_2021/elevation_map_1619620348.xml"
-      output_folder: "/home/andresaguiar/Documents/maps/VineSLAM/"
+      map_file_path: "/home/andresaguiar/Desktop/map_aveleda_27_05_2021/map_1622207539.xml"
+      elevation_map_file_path: "/home/andresaguiar/Desktop/map_aveleda_27_05_2021/elevation_map_1622207539.xml"
+      output_folder: "/home/andresaguiar/Desktop/"
 
   pf:
     n_particles: 500
 
     # Particles innovation
-    sigma_xx: 1.0 # meters
-    sigma_yy: 1.0 # meters
-    sigma_zz: 0.7 # meters
-    sigma_RR: 0.7 # radians
-    sigma_PP: 0.7 # radians
-    sigma_YY: 1.0 # radians
+    sigma_xx: 0.5 # meters
+    sigma_yy: 0.5 # meters
+    sigma_zz: 0.3 # meters
+    sigma_RR: 0.3 # radians
+    sigma_PP: 0.3 # radians
+    sigma_YY: 0.5 # radians

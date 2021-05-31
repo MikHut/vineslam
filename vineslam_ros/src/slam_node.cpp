@@ -561,15 +561,7 @@ void SLAMNode::process()
   obsv_.ground_plane_ = l_ground_plane;
   obsv_.planes_ = l_planes;
   obsv_.surf_features_ = l_surf_features;
-  if (input_data_.received_gnss_ && localizer_->pf_->use_gps_ == true)
-  {
-    localizer_->pf_->use_gps_ = true;
-    obsv_.gps_pose_ = input_data_.gnss_pose_;
-  }
-  else
-  {
-    localizer_->pf_->use_gps_ = false;
-  }
+  obsv_.gps_pose_ = input_data_.gnss_pose_;
   obsv_.imu_pose_ = input_data_.imu_pose_;
 
   // ---------------------------------------------------------
@@ -579,7 +571,7 @@ void SLAMNode::process()
   Tf c_odom_tf = input_data_.wheel_odom_pose_.toTf();
   Tf odom_inc_tf = p_odom_tf.inverse() * c_odom_tf;
   Pose odom_inc(odom_inc_tf.R_array_, odom_inc_tf.t_array_);
-  odom_inc.x_ = -odom_inc.x_;
+  //  odom_inc.x_ = -odom_inc.x_;
   input_data_.p_wheel_odom_pose_ = input_data_.wheel_odom_pose_;
   odom_inc.normalize();
 

@@ -149,13 +149,17 @@ public:
 
   // Insert a Image Feature using the direct grid coordinates
   bool insert(const Corner& l_feature, const int& i, const int& j);
+  bool directInsert(const Corner& l_feature, const int& i, const int& j);
   // Insert a Image Feature given a Feature/Landmark location
   bool insert(const Corner& l_feature);
+  bool directInsert(const Corner& l_feature);
 
   // Insert a Image Feature using the direct grid coordinates
   bool insert(const Planar& l_feature, const int& i, const int& j);
+  bool directInsert(const Planar& l_feature, const int& i, const int& j);
   // Insert a Image Feature given a Feature/Landmark location
   bool insert(const Planar& l_feature);
+  bool directInsert(const Planar& l_feature);
 
   // Since Landmark map is built with a KF, Landmarks position change in each
   // iteration. This routine updates the position of a given Landmark
@@ -362,9 +366,11 @@ public:
 
   // Insert a corner given a Feature/Landmark location
   bool insert(const Corner& l_feature);
+  bool directInsert(const Corner& l_feature);
 
   // Insert a planar feature given a Feature/Landmark location
   bool insert(const Planar& l_feature);
+  bool directInsert(const Planar& l_feature);
 
   // Downsamples the corner map
   void downsampleCorners();

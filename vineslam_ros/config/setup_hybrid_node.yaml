@@ -4,17 +4,19 @@ hybrid_node:
   use_semantic_features: False
   use_lidar_features: True
   use_image_features: False
-  use_gps: True
-  use_imu: True
+  use_gps: False
+  use_imu: False
 
-  lidar_sensor_frame: livox_frame
+  register_maps: True # whether to register or not newly observed features
+
+  lidar_sensor_frame: velodyne
   camera_sensor_frame: zed_camera_left_optical_frame
 
   # Robot initial guess position in polar coordinates
   robot:
-    latitude: 41.16671663192795
-    longitude: -7.555065558118306
-    altitude: 294.474870773967
+    latitude: 41.205507499999996
+    longitude: -8.3073997
+    altitude: 247.982
 
   camera_info:
     baseline: 0.12 # meters
@@ -29,9 +31,9 @@ hybrid_node:
   multilayer_mapping:
     # Grid map definitions
     grid_map:
-      map_file_path: "/home/andresaguiar/Documents/maps/VineSLAM/map_28_04_2021/map_1619620348.xml"
-      elevation_map_file_path: "/home/andresaguiar/Documents/maps/VineSLAM/map_28_04_2021/elevation_map_1619620348.xml"
-      output_folder: "/home/andresaguiar/Documents/maps/VineSLAM/"
+      map_file_path: "/home/andresaguiar/Desktop/map_aveleda_27_05_2021/map_1622207539.xml"
+      elevation_map_file_path: "/home/andresaguiar/Desktop/map_aveleda_27_05_2021/elevation_map_1622207539.xml"
+      output_folder: "/home/andresaguiar/Desktop/"
 
   pf:
     n_particles: 500

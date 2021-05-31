@@ -1,11 +1,10 @@
 slam_node:
   robot_model: rocha  # {agrob, rocha}
-  lidar_sensor: livox  # {velodyne, livox, ...}
   world_frame_id: map_nn2
   use_semantic_features: False
   use_lidar_features: True
   use_image_features: False
-  use_gps: False
+  use_gps: True
   use_imu: False
 
   lidar_sensor_frame: velodyne
@@ -27,19 +26,19 @@ slam_node:
   multilayer_mapping:
     # Datum
     datum:
-      latitude: 41.2055204
-      longitude: -8.307482
-      altitude: 255.632
+      latitude: 41.205507499999996
+      longitude: -8.3073997
+      altitude: 247.982
 
     # Grid map definitions
     grid_map:
       origin:
-        x: -110.0
-        y: -110.0
-        z: -18.0
-      width: 220.0
-      lenght: 220.0
-      height: 25.0
+        x: -200.0
+        y: -200.0
+        z: -5.0
+      width: 400.0
+      lenght: 400.0
+      height: 10.0
       resolution: 0.25 # meters
       output_folder: "/home/andresaguiar/Desktop/"
 

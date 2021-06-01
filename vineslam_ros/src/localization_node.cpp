@@ -189,10 +189,10 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
 
   // Call execution thread
   std::thread th1(&LocalizationNode::loop, this);
-  //  std::thread th2(&LocalizationNode::publishDenseInfo, this, 1.0);  // Publish dense info at 1.0Hz
+  std::thread th2(&LocalizationNode::publishDenseInfo, this, 1.0);  // Publish dense info at 1.0Hz
   std::thread th3(&LocalizationNode::broadcastTfs, this);
   th1.detach();
-  //  th2.detach();
+  th2.detach();
   th3.detach();
 }
 
@@ -657,8 +657,8 @@ void LocalizationNode::process()
   //  pose_ll.latitude = robot_latitude;
   //  pose_ll.longitude = robot_longitude;
   //  gps_fix_publisher_->publish(pose_ll);
-  //
-  //  publish3DMap(l_planars, planars_local_publisher_);
+
+  publish3DMap(l_planars, planars_local_publisher_);
 }
 
 void LocalizationNode::broadcastTfs()

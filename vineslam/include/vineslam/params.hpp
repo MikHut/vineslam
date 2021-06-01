@@ -72,6 +72,7 @@ struct Parameters
   std::string map_output_folder_;
   std::string map_input_file_;
   std::string elevation_map_input_file_;
+  std::string topological_map_input_file_;
 
   // -----------------------------------
   // ------ Particle filter parameters

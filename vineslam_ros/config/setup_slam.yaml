@@ -7,6 +7,8 @@ slam_node:
   use_gps: True
   use_imu: False
 
+  lightweight_version: False
+
   lidar_sensor_frame: velodyne
   camera_sensor_frame: zed_camera_left_optical_frame
 

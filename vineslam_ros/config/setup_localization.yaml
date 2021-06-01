@@ -7,7 +7,7 @@ localization_node:
   use_gps: True
   use_imu: False
 
-  lightweight_version: True # it does not use planar features
+  lightweight_version: True
 
   lidar_sensor_frame: velodyne
   camera_sensor_frame: zed_camera_left_optical_frame
@@ -32,8 +32,8 @@ localization_node:
   multilayer_mapping:
     # Grid map definitions
     grid_map:
-      map_file_path: "/home/andresaguiar/Desktop/map_aveleda_27_05_2021/map_1622207539.xml"
-      elevation_map_file_path: "/home/andresaguiar/Desktop/map_aveleda_27_05_2021/elevation_map_1622207539.xml"
+      map_file_path: "/home/andresaguiar/Desktop/map_aveleda_27_05_2021_light/map_1622207539.xml"
+      elevation_map_file_path: "/home/andresaguiar/Desktop/map_aveleda_27_05_2021_light/elevation_map_1622207539.xml"
       output_folder: "/home/andresaguiar/Desktop/"
 
   pf:

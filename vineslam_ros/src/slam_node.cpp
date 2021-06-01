@@ -229,6 +229,12 @@ void SLAMNode::loadParameters(Parameters& params)
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
+  param = prefix + ".lightweight_version";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.lightweight_version_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
   param = prefix + ".save_logs";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.save_logs_))

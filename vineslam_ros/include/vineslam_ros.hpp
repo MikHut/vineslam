@@ -67,6 +67,8 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
 
+#define LIDAR_VERSION 0 // 0 -> velodyne, 1 -> livox
+
 namespace vineslam
 {
 class VineSLAM_ros : public rclcpp::Node

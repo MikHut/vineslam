@@ -550,7 +550,14 @@ VelodyneMapper::VelodyneMapper(const Parameters& params)
 {
   // Set velodyne configuration parameters
   picked_num_ = 2;
-  planes_th_ = static_cast<float>(60.) * DEGREE_TO_RAD;
+  if (params.lightweight_version_ == true)
+  {
+    planes_th_ = static_cast<float>(83.) * DEGREE_TO_RAD;
+  }
+  else
+  {
+    planes_th_ = static_cast<float>(60.) * DEGREE_TO_RAD;
+  }
   ground_th_ = static_cast<float>(3.) * DEGREE_TO_RAD;
   edge_threshold_ = 0.1;
   planar_threshold_ = 0.1;

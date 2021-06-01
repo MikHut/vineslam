@@ -524,6 +524,32 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
   pcl::io::savePCDFileASCII(params_.map_output_folder_ + "planars_map_" + std::to_string(timestamp) + ".pcd",
                             planars_cloud);
 
+  pcl::PointCloud<pcl::PointXYZ> elevation_cloud;
+  for (float i = xmin; i < xmax - elevation_map_->resolution_;)
+  {
+    for (float j = ymin; j < ymax - elevation_map_->resolution_;)
+    {
+      float z = (*elevation_map_)(i, j);
+      if (z == 0)
+      {
+        j += elevation_map_->resolution_;
+        continue;
+      }
+      else
+      {
+        pcl::PointXYZ pt;
+        pt.x = i + elevation_map_->resolution_ / 2;
+        pt.y = j + elevation_map_->resolution_ / 2;
+        pt.z = z;
+        elevation_cloud.push_back(pt);
+      }
+      j += elevation_map_->resolution_;
+    }
+    i += elevation_map_->resolution_;
+  }
+  pcl::io::savePCDFileASCII(params_.map_output_folder_ + "elevation_map_" + std::to_string(timestamp) + ".pcd",
+                            elevation_cloud);
+
   RCLCPP_INFO(this->get_logger(), "Maps saved.");
 
   return true;

@@ -1,10 +1,10 @@
 localization_node:
-  robot_model: agrob  # {agrob, rocha}
+  robot_model: rocha  # {agrob, rocha}
   world_frame_id: map_nn2
   use_semantic_features: False
   use_lidar_features: True
   use_image_features: False
-  use_gps: True
+  use_gps: False
   use_imu: False
 
   lightweight_version: True
@@ -32,8 +32,8 @@ localization_node:
   multilayer_mapping:
     # Grid map definitions
     grid_map:
-      map_file_path: "/home/andresaguiar/Desktop/map_aveleda_27_05_2021_light/map_1622207539.xml"
-      elevation_map_file_path: "/home/andresaguiar/Desktop/map_aveleda_27_05_2021_light/elevation_map_1622207539.xml"
+      map_file_path: "/home/andresaguiar/Desktop/map_feup/map_1622538912.xml"
+      elevation_map_file_path: "/home/andresaguiar/Desktop/map_feup/elevation_map_1622538912.xml"
       output_folder: "/home/andresaguiar/Desktop/"
 
   pf:
@@ -45,4 +45,4 @@ localization_node:
     sigma_zz: 0.3 # meters
     sigma_RR: 0.3 # radians
     sigma_PP: 0.3 # radians
-    sigma_YY: 1.0 # radians
+    sigma_YY: 0.1 # radians

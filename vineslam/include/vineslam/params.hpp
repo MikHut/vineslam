@@ -33,6 +33,12 @@ struct Parameters
   std::string logs_folder_{};
 
   // -----------------------------------
+  // ------ On-board sensors transformations to base link
+  // -----------------------------------
+  std::vector<float> cam2base_;
+  std::vector<float> vel2base_;
+
+  // -----------------------------------
   // ------ Map origin - datum
   // -----------------------------------
   double map_datum_lat_{};

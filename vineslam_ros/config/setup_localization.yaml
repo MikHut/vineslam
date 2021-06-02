@@ -11,6 +11,10 @@ lightweight_version: True
 lidar_sensor_frame: velodyne
 camera_sensor_frame: zed_camera_left_optical_frame
 
+# Sensors to base static tfs (x, y, z, qx, qy, qz, qw)
+cam2base: [0.343, 0.079, 0.820, -0.002, 0.100, -0.004, 0.995]
+vel2base: [0.000, 0.000, 0.942, -0.000, 0.000, -0.000, 1.000]
+
 # Robot initial guess position in polar coordinates
 robot:
   latitude: 41.205507499999996

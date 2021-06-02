@@ -79,58 +79,25 @@ LocalizationNode::LocalizationNode(int argc, char** argv) : VineSLAM_ros("Locali
   robot_box_publisher_ = nh.advertise<visualization_msgs::Marker>("/vineslam/debug/robot_box", 10);
 
   // Static transforms
-  ROS_INFO("Waiting for static transforms...");
-  tf2_ros::Buffer tf_buffer;
-  tf2_ros::TransformListener tfListener(tf_buffer);
-  geometry_msgs::TransformStamped cam2base_msg, laser2base_msg;
-  bool got_cam2base = false, got_laser2base = false;
-  while (!got_cam2base && ros::ok())
-  {
-    try
-    {
-      cam2base_msg = tf_buffer.lookupTransform(params_.camera_sensor_frame_, "base_link", ros::Time(0));
-    }
-    catch (tf2::TransformException& ex)
-    {
-      ROS_WARN("%s", ex.what());
-      ros::Duration(0.1).sleep();
-      continue;
-    }
-    got_cam2base = true;
-  }
-  while (!got_laser2base && ros::ok())
-  {
-    try
-    {
-      laser2base_msg = tf_buffer.lookupTransform(params_.lidar_sensor_frame_, "base_link", ros::Time(0));
-    }
-    catch (tf2::TransformException& ex)
-    {
-      ROS_WARN("%s", ex.what());
-      ros::Duration(0.1).sleep();
-      continue;
-    }
-    got_laser2base = true;
-  }
-  ROS_INFO("Received!");
-
-  // Save tfs
-  tf2::Stamped<tf2::Transform> cam2base_stamped;
-  tf2::fromMsg(cam2base_msg, cam2base_stamped);
-
-  tf2::Transform cam2base = cam2base_stamped;  //.inverse();
+  tf2::Transform cam2base;
+  cam2base.setRotation(
+      tf2::Quaternion(params_.cam2base_[3], params_.cam2base_[4], params_.cam2base_[5], params_.cam2base_[6]));
+  cam2base.setOrigin(tf2::Vector3(params_.cam2base_[0], params_.cam2base_[1], params_.cam2base_[2]));
+  cam2base = cam2base.inverse();
   tf2::Vector3 t = cam2base.getOrigin();
   tf2Scalar roll, pitch, yaw;
   cam2base.getBasis().getRPY(roll, pitch, yaw);
+
   vis_mapper_->setCam2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
   land_mapper_->setCamPitch(pitch);
 
-  tf2::Stamped<tf2::Transform> laser2base_stamped;
-  tf2::fromMsg(laser2base_msg, laser2base_stamped);
-
-  tf2::Transform laser2base = laser2base_stamped;  //.inverse();
-  t = laser2base.getOrigin();
-  laser2base.getBasis().getRPY(roll, pitch, yaw);
+  tf2::Transform vel2base;
+  vel2base.setRotation(
+      tf2::Quaternion(params_.vel2base_[3], params_.vel2base_[4], params_.vel2base_[5], params_.vel2base_[6]));
+  vel2base.setOrigin(tf2::Vector3(params_.vel2base_[0], params_.vel2base_[1], params_.vel2base_[2]));
+  vel2base = vel2base.inverse();
+  t = vel2base.getOrigin();
+  vel2base.getBasis().getRPY(roll, pitch, yaw);
 
   lid_mapper_->setLaser2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
 
@@ -249,6 +216,16 @@ void LocalizationNode::loadParameters(const ros::NodeHandle& nh, Parameters& par
   }
   param = prefix + "/robot/altitude";
   if (!nh.getParam(param, params.robot_datum_alt_))
+  {
+    ROS_WARN("%s not found.", param.c_str());
+  }
+  param = prefix + "/cam2base";
+  if (!nh.getParam(param, params.cam2base_))
+  {
+    ROS_WARN("%s not found.", param.c_str());
+  }
+  param = prefix + "/vel2base";
+  if (!nh.getParam(param, params.vel2base_))
   {
     ROS_WARN("%s not found.", param.c_str());
   }

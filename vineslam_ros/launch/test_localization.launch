@@ -2,8 +2,10 @@
     <param name="/use_sim_time" value="true"/>
 
     <!-- static transformations -->
-    <node pkg="tf" type="static_transform_publisher" name="cam2base" args="0.343 0.079 1.820 -0.002 0.100 -0.004 0.995 base_link zed_camera_left_optical_frame 100" />
-    <node pkg="tf" type="static_transform_publisher" name="vel2base" args="0.000 0.000 0.942 -0.000 0.000 -0.000 1.000 base_link velodyne 100" />
+    <node pkg="tf" type="static_transform_publisher" name="cam2base"
+          args="0.343 0.079 1.820 -0.002 0.100 -0.004 0.995 base_link zed_camera_left_optical_frame 100"/>
+    <node pkg="tf" type="static_transform_publisher" name="vel2base"
+          args="0.000 0.000 0.942 -0.000 0.000 -0.000 1.000 base_link velodyne 100"/>
 
     <!-- rviz -->
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find vineslam_ros)/config/config.rviz" required="false"/>

@@ -108,6 +108,8 @@ public:
 
   // Tf2 broadcaster
   tf2_ros::TransformBroadcaster* tf_broadcaster_;
+  tf2_ros::TransformListener* tf_listener_;
+  tf2_ros::Buffer* tf_buffer_;
 
   // Global thread to publish maps and other info
   void publishDenseInfo(const float& rate);

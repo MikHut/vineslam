@@ -101,8 +101,10 @@ LocalizationNode::LocalizationNode(int argc, char** argv) : VineSLAM_ros("Locali
 
   lid_mapper_->setLaser2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
 
-  // Initialize tf broadcaster
+  // Initialize tf broadcaster and listener
   tf_broadcaster_ = new tf2_ros::TransformBroadcaster();
+  tf_buffer_ = new tf2_ros::Buffer();
+  tf_listener_ = new tf2_ros::TransformListener(*tf_buffer_);
 
   // ---------------------------------------------------------
   // ----- Load map dimensions and initialize it
@@ -139,7 +141,7 @@ LocalizationNode::LocalizationNode(int argc, char** argv) : VineSLAM_ros("Locali
   // Call execution thread
   std::thread th1(&LocalizationNode::loop, this);
   std::thread th2(&LocalizationNode::publishDenseInfo, this, 1.0);  // Publish dense info at 1.0Hz
-  std::thread th3(&LocalizationNode::broadcastTfsUsingTopics, this);
+  std::thread th3(&LocalizationNode::broadcastTfs, this);
   th1.detach();
   th2.detach();
   th3.detach();
@@ -628,12 +630,10 @@ void LocalizationNode::broadcastTfs()
     else  // in this configuration we broadcast a odom->map tf
     {
       geometry_msgs::TransformStamped odom2base_msg;
-      tf2_ros::Buffer tf_buffer;
-      tf2_ros::TransformListener tfListener(tf_buffer);
 
       try
       {
-        odom2base_msg = tf_buffer.lookupTransform("odom", "base_link", ros::Time::now(), ros::Duration(0.05));
+        odom2base_msg = tf_buffer_->lookupTransform("odom", "base_link", ros::Time(0));
 
         tf2::Stamped<tf2::Transform> odom2base_tf, base2map_tf, odom2map_tf;
         tf2::fromMsg(odom2base_msg, odom2base_tf);
@@ -647,80 +647,6 @@ void LocalizationNode::broadcastTfs()
         Convertions::pose2TransformStamped(odom2map_tf.getRotation(), odom2map_tf.getOrigin(), odom2map_msg);
 
         odom2map_msg.header.stamp = header_.stamp;
-        odom2map_msg.header.frame_id = "odom";
-        odom2map_msg.child_frame_id = params_.world_frame_id_;
-
-        tf_broadcaster_->sendTransform(odom2map_msg);
-      }
-      catch (tf2::TransformException& ex)
-      {
-        ROS_WARN("%s", ex.what());
-      }
-    }
-
-    r.sleep();
-  }
-}
-
-void LocalizationNode::broadcastTfsUsingTopics()
-{
-  ros::Rate r(10);
-
-  while (ros::ok())
-  {
-    tf2::Quaternion q;
-
-    // ---- base2map
-    geometry_msgs::TransformStamped base2map_msg;
-    base2map_msg.header.stamp = ros::Time::now();
-    base2map_msg.header.frame_id = params_.world_frame_id_;
-    base2map_msg.child_frame_id = "base_link";
-    q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
-    q.normalize();
-    Convertions::pose2TransformStamped(q, tf2::Vector3(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_), base2map_msg);
-
-    if (params_.robot_model_ == "agrob")  // in this configuration we broadcast a map->base_link tf
-    {
-      tf_broadcaster_->sendTransform(base2map_msg);
-
-      // ---- odom2map
-      geometry_msgs::TransformStamped map2odom_msg;
-      map2odom_msg.header.stamp = header_.stamp;
-      map2odom_msg.header.frame_id = "odom";
-      map2odom_msg.child_frame_id = params_.world_frame_id_;
-      q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
-      q.normalize();
-      Convertions::pose2TransformStamped(q, tf2::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_),
-                                         map2odom_msg);
-      tf_broadcaster_->sendTransform(map2odom_msg);
-      // ----
-    }
-    else  // in this configuration we broadcast a odom->map tf
-    {
-      geometry_msgs::TransformStamped odom2base_msg;
-      tf2_ros::Buffer tf_buffer;
-      tf2_ros::TransformListener tfListener(tf_buffer);
-
-      try
-      {
-        tf2::Stamped<tf2::Transform> odom2map_tf, base2map_tf;
-        tf2::fromMsg(base2map_msg, base2map_tf);
-
-        tf2::Quaternion odom_quat;
-        odom_quat.setRPY(input_data_.wheel_odom_pose_.R_, input_data_.wheel_odom_pose_.P_,
-                         input_data_.wheel_odom_pose_.Y_);
-        tf2::Transform odom2base_tf(odom_quat,
-                                    tf2::Vector3(input_data_.wheel_odom_pose_.x_, input_data_.wheel_odom_pose_.y_,
-                                                 input_data_.wheel_odom_pose_.z_));
-
-        geometry_msgs::TransformStamped odom2map_msg;
-
-        tf2::Transform t = odom2base_tf * base2map_tf.inverse();
-        odom2map_tf.setRotation(t.getRotation());
-        odom2map_tf.setOrigin(t.getOrigin());
-        Convertions::pose2TransformStamped(odom2map_tf.getRotation(), odom2map_tf.getOrigin(), odom2map_msg);
-
-        odom2map_msg.header.stamp = ros::Time::now();
         odom2map_msg.header.frame_id = "odom";
         odom2map_msg.child_frame_id = params_.world_frame_id_;
 

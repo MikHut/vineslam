@@ -31,7 +31,6 @@ private:
   //       In the second case, if not in a thread, the tfs are only published when the used sends some feedback through
   //       the interactive marker.
   void broadcastTfs();
-  void broadcastTfsUsingTopics();
 
   // Routine to set the initial 6-DoF pose of the robot in relation with the previously built map
   void initializeOnMap();

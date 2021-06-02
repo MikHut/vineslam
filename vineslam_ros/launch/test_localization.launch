@@ -1,0 +1,24 @@
+<launch>
+    <param name="/use_sim_time" value="true"/>
+
+    <!-- static transformations -->
+    <node pkg="tf" type="static_transform_publisher" name="cam2base" args="0.343 0.079 1.820 -0.002 0.100 -0.004 0.995 base_link zed_camera_left_optical_frame 100" />
+    <node pkg="tf" type="static_transform_publisher" name="vel2base" args="0.000 0.000 0.942 -0.000 0.000 -0.000 1.000 base_link velodyne 100" />
+
+    <!-- rviz -->
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find vineslam_ros)/config/config.rviz" required="false"/>
+
+    <!-- slam node -->
+    <node pkg="vineslam_ros" type="localization_node" name="localization_node" output="screen">
+        <rosparam command="load" subst_value="True" file="$(find vineslam_ros)/config/setup_localization.yaml"/>
+
+        <remap from="/odom_topic" to="/white/husky_velocity_controller/odom"/>
+        <remap from="/gps_topic" to="/white/piksi/navsatfix_best_fix"/>
+        <remap from="/imu_topic" to="/white/imu_7/rpy"/>
+        <remap from="/imu_data_topic" to="/white/imu_7/data"/>
+        <remap from="/features_topic" to="/image_feature_array"/>
+        <remap from="/detections_topic" to="/tpu/detections"/>
+        <remap from="/scan_topic" to="/white/velodyne_points"/>
+    </node>
+
+</launch>

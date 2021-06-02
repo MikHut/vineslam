@@ -5,9 +5,9 @@
 #include <iostream>
 #include <vector>
 
-#include "stat.hpp"
+#include "Stat.hpp"
 #include "Point.hpp"
-#include "const.hpp"
+#include "Const.hpp"
 
 namespace vineslam
 {
@@ -228,9 +228,9 @@ struct Pose
   }
 
   // Function to get the gaussian distribution
-  Gaussian<Point, Point> getDist() const
+  void getDist(Gaussian<Point, Point>& dist) const
   {
-    return gaussian_dist_;
+    dist = gaussian_dist_;
   }
 
   // 3D euclidean distance
@@ -313,10 +313,4 @@ struct Pose
   Gaussian<Point, Point> gaussian_dist_;
 };
 
-// stdout operator
-static std::ostream& operator<<(std::ostream& out, Pose const& p)
-{
-  return out << "Pose (" << p.x_ << ' ' << p.y_ << ' ' << p.z_ << ' ' << p.R_ * RAD_TO_DEGREE << ' '
-             << p.P_ * RAD_TO_DEGREE << ' ' << p.Y_ * RAD_TO_DEGREE << ")\n";
-}
 }  // namespace vineslam

@@ -10,7 +10,7 @@
 #include "../localization/pf.hpp"
 #include "../math/Point.hpp"
 #include "../math/Pose.hpp"
-#include "../math/const.hpp"
+#include "../math/Const.hpp"
 
 // std, eigen
 #include <iostream>
@@ -22,13 +22,14 @@ namespace vineslam
 // Structure that stores  observations to use in the localization procedure
 struct Observation
 {
-  std::vector<SemanticFeature> landmarks;
-  std::vector<ImageFeature> surf_features;
-  std::vector<Planar> planars;
-  std::vector<Corner> corners;
-  std::vector<SemiPlane> planes;
-  SemiPlane ground_plane;
-  Pose gps_pose;
+  std::vector<SemanticFeature> landmarks_;
+  std::vector<ImageFeature> surf_features_;
+  std::vector<Planar> planars_;
+  std::vector<Corner> corners_;
+  std::vector<SemiPlane> planes_;
+  SemiPlane ground_plane_;
+  Pose gps_pose_;
+  Pose imu_pose_;
 };
 
 class Localizer
@@ -52,22 +53,20 @@ public:
   Pose getPose() const;
   // Export the all the poses referent to all the particles
   void getParticles(std::vector<Particle>& in) const;
-  void getParticlesBeforeResampling(std::vector<Particle>& in) const;
 
-  // Routine to change the observations to use in the localization procedure
-  void changeObservationsToUse(const bool& use_semantic_features, const bool& use_lidar_features,
-                               const bool& use_image_features, const bool& use_gps);
+  // Setters
+  void changeGPSFlag(const bool& val);
 
   // Localization logs
   std::string logs_;
 
+  // Particle filter object
+  PF* pf_{};
 private:
   // Average particles pose
   Pose average_pose_;
   Pose last_update_pose_;
   Pose p_odom_;
-  // Particle filter object
-  PF* pf_{};
 
   // Particles before resampling
   std::vector<Particle> m_particles_;

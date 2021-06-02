@@ -2,7 +2,7 @@
 
 namespace vineslam
 {
-KF::KF(const Parameters& params, const VectorXf& X0, const VectorXf& s, const VectorXf& g, const VectorXf& z)
+KF::KF(const Parameters& params, const VectorXf& X0, const VectorXf& g, const VectorXf& z)
   : X0_(X0), X_(X0)
 {
   fx_ = params.fx_;
@@ -10,18 +10,18 @@ KF::KF(const Parameters& params, const VectorXf& X0, const VectorXf& s, const Ve
   delta_d_ = 0.1;
 
   // Initialize the process covariance P
-  computeR(s, g, z);
+  computeR(g, z);
   P_ = R_;
 }
 
 void KF::process(const VectorXf& s, const VectorXf& g, const VectorXf& z)
 {
-  computeR(s, g, z);
+  computeR(g, z);
   predict();
   correct(s, z);
 }
 
-void KF::computeR(const VectorXf& s, const VectorXf& g, const VectorXf& z)
+void KF::computeR(const VectorXf& g, const VectorXf& z)
 {
   // Compute the covariance observations matrix based on
   // - more noise in depth to far observed landmarks
@@ -56,7 +56,7 @@ void KF::correct(const VectorXf& s, const VectorXf& z)
   float phi = std::atan2(X_[1] - s[1], X_[0] - s[0]) - s[2];
 
   VectorXf z_(2, 1);
-  z_ << d, normalizeAngle(phi);
+  z_ << d, Const::normalizeAngle(phi);
 
   // Compute the Jacobian of the non linear observation vector
   MatrixXf G(2, 2);
@@ -68,7 +68,7 @@ void KF::correct(const VectorXf& s, const VectorXf& z)
   // Compute the difference between the observation vector and the
   // output of the observation model
   VectorXf z_diff = z - z_;
-  z_diff[1] = normalizeAngle(z_diff[1]);
+  z_diff[1] = Const::normalizeAngle(z_diff[1]);
 
   // Update the state vector and the process covariance matrix
   X_ = X_ + K_ * z_diff;

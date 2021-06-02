@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Point.hpp"
-#include "const.hpp"
+#include "Const.hpp"
 
 #include <cmath>
 #include <eigen3/Eigen/Dense>

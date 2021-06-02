@@ -2,7 +2,7 @@
 
 namespace vineslam
 {
-VisualMapper::VisualMapper(const Parameters& params)
+VisualMapper::VisualMapper()
 {
 }
 
@@ -26,7 +26,6 @@ void VisualMapper::localMap(const std::vector<ImageFeature>& in_features, std::v
   }
 }
 
-
 void VisualMapper::globalMap(const std::vector<ImageFeature>& features, const Pose& robot_pose,
                              OccupancyMap& grid_map) const
 {
@@ -40,51 +39,59 @@ void VisualMapper::globalMap(const std::vector<ImageFeature>& features, const Po
   for (const auto& image_feature : features)
   {
     // - First convert them to map's referential using the robot pose
-    Point m_pt = image_feature.pos_ * tf;
+    Point l_pt = image_feature.pos_ * tf;
 
-    ImageFeature m_feature = image_feature;
-    m_feature.pos_ = m_pt;
+    ImageFeature l_feature = image_feature;
+    l_feature.pos_ = l_pt;
 
     // - Then, look for correspondences in the local map
     ImageFeature correspondence{};
     float best_correspondence = 0.02;
-    bool found = false;
-    for (const auto& m_image_feature : grid_map(m_pt.x_, m_pt.y_, m_pt.z_).surf_features_)
-    {
-      float dist_min = m_pt.distance(m_image_feature.pos_);
+    // bool found = false;
+    std::vector<ImageFeature>* l_image_features = { nullptr };
 
-      if (dist_min < best_correspondence)
-      {
-        correspondence = m_image_feature;
-        best_correspondence = dist_min;
-        found = true;
-      }
+    if (grid_map(l_pt.x_, l_pt.y_, l_pt.z_).data != nullptr)
+    {
+      l_image_features = grid_map(l_pt.x_, l_pt.y_, l_pt.z_).data->surf_features_;
     }
 
-    // Only search in the adjacent cells if we do not find in the source cell
-    if (!found)
-    {
-      std::vector<Cell> adjacents;
-      grid_map.getAdjacent(m_pt.x_, m_pt.y_, m_pt.z_, 2, adjacents);
-      for (const auto& m_cell : adjacents)
+    if (l_image_features != nullptr)
+      for (const auto& l_image_feature : *l_image_features)
       {
-        for (const auto& m_image_feature : m_cell.surf_features_)
+        float dist_min = l_pt.distance(l_image_feature.pos_);
+
+        if (dist_min < best_correspondence)
         {
-          float dist_min = m_pt.distance(m_image_feature.pos_);
-          if (dist_min < best_correspondence)
-          {
-            correspondence = m_image_feature;
-            best_correspondence = dist_min;
-            found = true;
-          }
+          correspondence = l_image_feature;
+          best_correspondence = dist_min;
+          // found = true;
         }
       }
-    }
+
+    //    // Only search in the adjacent cells if we do not find in the source cell
+    //    if (!found)
+    //    {
+    //      std::vector<Cell> adjacents;
+    //      grid_map.getAdjacent(l_pt.x_, l_pt.y_, l_pt.z_, 2, adjacents);
+    //      for (const auto& m_cell : adjacents)
+    //      {
+    //        for (const auto& m_image_feature : m_cell.data->surf_features_)
+    //        {
+    //          float dist_min = l_pt.distance(m_image_feature.pos_);
+    //          if (dist_min < best_correspondence)
+    //          {
+    //            correspondence = m_image_feature;
+    //            best_correspondence = dist_min;
+    //            found = true;
+    //          }
+    //        }
+    //      }
+    //    }
 
     // - Then, insert the image feature into the grid map
     //    if (found)
     //    {
-    //      Point new_pt = ((correspondence.pos_ * static_cast<float>(correspondence.n_observations_)) + m_pt) /
+    //      Point new_pt = ((correspondence.pos_ * static_cast<float>(correspondence.n_observations_)) + l_pt) /
     //                     static_cast<float>(correspondence.n_observations_ + 1);
     //      ImageFeature new_image_feature(image_feature.u_, image_feature.v_, image_feature.r_, image_feature.g_,
     //                                     image_feature.b_, new_pt);
@@ -96,14 +103,13 @@ void VisualMapper::globalMap(const std::vector<ImageFeature>& features, const Po
     //    else
     //    {
     ImageFeature new_image_feature(image_feature.u_, image_feature.v_, image_feature.r_, image_feature.g_,
-                                   image_feature.b_, m_pt);
+                                   image_feature.b_, l_pt);
     new_image_feature.laplacian_ = image_feature.laplacian_;
     new_image_feature.signature_ = image_feature.signature_;
     grid_map.insert(new_image_feature);
     //    }
   }
 }
-
 
 void VisualMapper::pixel2base(const Point& in_pt, Point& out_pt) const
 {

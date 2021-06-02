@@ -1,30 +1,47 @@
-# General system settings
-robot_model: agrob  # {agrob, rocha}
-world_frame_id: map
+robot_model: rocha  # {agrob, rocha}
+world_frame_id: map_nn2
 use_semantic_features: False
 use_lidar_features: True
 use_image_features: False
 use_gps: False
-use_wheel_odometry: True
+use_imu: False
 
-# Camera info
+lightweight_version: True
+
+lidar_sensor_frame: velodyne
+camera_sensor_frame: zed_camera_left_optical_frame
+
+# Robot initial guess position in polar coordinates
+robot:
+  latitude: 41.205507499999996
+  longitude: -8.3073997
+  altitude: 247.982
+
 camera_info:
   baseline: 0.12 # meters
   fx: 692.95849609375  # pixels
   cx: 692.95849609375  # pixels
 
-grid_map:
-  input_file: "/home/andresaguiar/map.xml"
+robot_dimensions:
+  x: 1.00 # meters
+  y: 0.68 # meters
+  z: 0.90 # meters
+
+
+multilayer_mapping:
+  # Grid map definitions
+  grid_map:
+    map_file_path: "/home/andresaguiar/Desktop/map_feup/map_1622538912.xml"
+    elevation_map_file_path: "/home/andresaguiar/Desktop/map_feup/elevation_map_1622538912.xml"
+    output_folder: "/home/andresaguiar/Desktop/"
 
 pf:
   n_particles: 500
 
   # Particles innovation
-  sigma_xx: 0.1 # meters
-  sigma_yy: 0.2 # meters
-  sigma_zz: 0.2 # meters
-  sigma_RR: 0.2 # radians
-  sigma_PP: 0.2 # radians
-  sigma_YY: 0.8 # radians
-
-  k_clusters: 3
+  sigma_xx: 0.5 # meters
+  sigma_yy: 0.5 # meters
+  sigma_zz: 0.3 # meters
+  sigma_RR: 0.3 # radians
+  sigma_PP: 0.3 # radians
+  sigma_YY: 0.1 # radians

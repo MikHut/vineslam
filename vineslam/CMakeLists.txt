@@ -2,11 +2,11 @@ cmake_minimum_required(VERSION 2.8.3)
 project(vineslam)
 
 if($ENV{ROS_DISTRO} STREQUAL "noetic")
-    set(CMAKE_CXX_STANDARD 14)
-    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+  set(CMAKE_CXX_STANDARD 14)
+  set(CMAKE_CXX_STANDARD_REQUIRED ON)
 else()
-    set(CMAKE_CXX_STANDARD 11)
-    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+  set(CMAKE_CXX_STANDARD 11)
+  set(CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
 
 find_package(catkin REQUIRED)
@@ -28,11 +28,14 @@ add_library(vineslam
         src/mapping/visual_mapping.cpp
         src/mapping/lidar_mapping.cpp
         src/mapping/occupancy_map.cpp
+        src/mapping/topological_map.cpp
         src/mapping/elevation_map.cpp
         src/localization/localizer.cpp
         src/localization/pf.cpp
-        src/mapxml/map_writer.cpp
-        src/mapxml/map_parser.cpp
+        src/map_io/map_writer.cpp
+        src/map_io/map_parser.cpp
+        src/map_io/elevation_map_writer.cpp
+        src/map_io/elevation_map_parser.cpp
         include/vineslam/extern/thread_pool.cpp)
 
 target_link_libraries(vineslam

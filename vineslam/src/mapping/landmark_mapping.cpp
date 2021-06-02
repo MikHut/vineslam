@@ -15,7 +15,8 @@ void LandmarkMapper::init(const Pose& pose, const std::vector<float>& bearings, 
                           const std::vector<int>& labels, OccupancyMap& grid_map)
 {
   int n_obsv = bearings.size();
-  Gaussian<Point, Point> robot_gauss = pose.getDist();
+  Gaussian<Point, Point> robot_gauss;
+  pose.getDist(robot_gauss);
 
   // Convert 6-DOF pose to homogenous transformation
   std::array<float, 9> Rot{};
@@ -35,7 +36,7 @@ void LandmarkMapper::init(const Pose& pose, const std::vector<float>& bearings, 
 
     // Calculate
     // - the initial estimation of the landmark on map's referential frame
-    float th = normalizeAngle(bearings[i]);
+    float th = Const::normalizeAngle(bearings[i]);
     Point X_cam(depths[i] * std::cos(th), depths[i] * std::sin(th), 0.);
     Point X;
     X.x_ = X_cam.x_ * Rot[0] + X_cam.y_ * Rot[1] + X_cam.z_ * Rot[2] + trans.x_;
@@ -43,7 +44,7 @@ void LandmarkMapper::init(const Pose& pose, const std::vector<float>& bearings, 
     X.z_ = 0.;
 
     // Push back a Kalman Filter object for the respective landmark
-    KF kf(params_, X.toEig2D(), pose.toEig2D(), robot_gauss.stdev_.toEig2D(), z);
+    KF kf(params_, X.toEig2D(), robot_gauss.stdev_.toEig2D(), z);
     filters.push_back(kf);
 
     // Insert the landmark on the map, with a single observation
@@ -113,7 +114,8 @@ void LandmarkMapper::predict(const Pose& pose, const std::vector<float>& bearing
                              const std::vector<int>& labels, OccupancyMap& grid_map)
 {
   int n_obsv = bearings.size();
-  Gaussian<Point, Point> robot_gauss = pose.getDist();
+  Gaussian<Point, Point> robot_gauss;
+  pose.getDist(robot_gauss);
 
   // Convert 6DOF pose to homogenous transformation
   std::array<float, 9> Rot{};
@@ -124,7 +126,7 @@ void LandmarkMapper::predict(const Pose& pose, const std::vector<float>& bearing
   {
     // Calculate the landmark position on map's referential frame
     // based on the ith observation
-    float th = normalizeAngle(bearings[i]);
+    float th = Const::normalizeAngle(bearings[i]);
     Point X_cam(depths[i] * std::cos(th), depths[i] * std::sin(th), 0.);
     Point X;
     X.x_ = X_cam.x_ * Rot[0] + X_cam.y_ * Rot[1] + X_cam.z_ * Rot[2] + trans.x_;
@@ -144,7 +146,7 @@ void LandmarkMapper::predict(const Pose& pose, const std::vector<float>& bearing
       Eigen::MatrixXd R(2, 2);
 
       // Initialize the Kalman Filter
-      KF kf(params_, X.toEig2D(), pose.toEig2D(), robot_gauss.stdev_.toEig2D(), z);
+      KF kf(params_, X.toEig2D(), robot_gauss.stdev_.toEig2D(), z);
       filters.push_back(kf);
 
       // Insert the landmark on the map, with a single observation
@@ -177,16 +179,26 @@ std::pair<int, Point> LandmarkMapper::findCorr(const Point& pos, OccupancyMap& g
 
   Point correspondence;
 
-  // Search on current cell first
-  for (const auto& m_landmark : grid_map(pos.x_, pos.y_, 0).landmarks_)
-  {
-    float dist = pos.distanceXY(m_landmark.second.pos_);
+  std::map<int, SemanticFeature>* l_landmarks = nullptr;
 
-    if (dist < best_aprox)
+  if (grid_map(pos.x_, pos.y_, 0).data != nullptr)
+  {
+    l_landmarks = grid_map(pos.x_, pos.y_, 0).data->landmarks_;
+  }
+
+  if (l_landmarks != nullptr)
+  {
+    // Search on current cell first
+    for (const auto& l_landmark : *l_landmarks)
     {
-      correspondence = m_landmark.second.pos_;
-      best_correspondence = m_landmark.first;
-      best_aprox = dist;
+      float dist = pos.distanceXY(l_landmark.second.pos_);
+
+      if (dist < best_aprox)
+      {
+        correspondence = l_landmark.second.pos_;
+        best_correspondence = l_landmark.first;
+        best_aprox = dist;
+      }
     }
   }
 
@@ -194,16 +206,26 @@ std::pair<int, Point> LandmarkMapper::findCorr(const Point& pos, OccupancyMap& g
   int number_layers = (best_correspondence == -1) ? 2 : 1;
   std::vector<Cell> adjacents;
   grid_map.getAdjacent(pos.x_, pos.y_, 0., number_layers, adjacents);
-  for (const auto& m_cell : adjacents)
+  for (const auto& l_cell : adjacents)
   {
-    for (const auto& m_landmark : m_cell.landmarks_)
+    std::map<int, SemanticFeature>* ll_landmarks = nullptr;
+
+    if (l_cell.data != nullptr)
     {
-      float dist = pos.distanceXY(m_landmark.second.pos_);
-      if (dist < best_aprox)
+      ll_landmarks = l_cell.data->landmarks_;
+    }
+
+    if (ll_landmarks != nullptr)
+    {
+      for (const auto& l_landmark : *ll_landmarks)
       {
-        correspondence = m_landmark.second.pos_;
-        best_correspondence = m_landmark.first;
-        best_aprox = dist;
+        float dist = pos.distanceXY(l_landmark.second.pos_);
+        if (dist < best_aprox)
+        {
+          correspondence = l_landmark.second.pos_;
+          best_correspondence = l_landmark.first;
+          best_aprox = dist;
+        }
       }
     }
   }
@@ -223,7 +245,7 @@ void LandmarkMapper::localMap(const std::vector<float>& bearings, const std::vec
   {
     // Calculate the estimation of the landmark position on
     // camera's referential frame
-    float th = normalizeAngle(bearings[i]);
+    float th = Const::normalizeAngle(bearings[i]);
     Point X_cam(depths[i] * std::cos(th), depths[i] * std::sin(th), 0.);
 
     // Compensate camera inclination
@@ -241,16 +263,14 @@ void LandmarkMapper::filter(OccupancyMap& grid_map) const
 {
   int old_limit = grid_map(0).n_landmarks_ - (grid_map(0).n_landmarks_ / 10);
 
-  for (auto& cell : grid_map(0))
+  std::map<int, SemanticFeature> l_landmarks = grid_map(0).getLandmarks();
+
+  for (const auto& l_landmark : l_landmarks)
   {
-    std::map<int, SemanticFeature> m_landmarks = cell.landmarks_;
-    for (const auto& m_landmark : m_landmarks)
+    if (l_landmark.first < old_limit && (l_landmark.second.gauss_.stdev_.x_ > stdev_threshold_ ||
+                                         l_landmark.second.gauss_.stdev_.y_ > stdev_threshold_))
     {
-      if (m_landmark.first < old_limit && (m_landmark.second.gauss_.stdev_.x_ > stdev_threshold_ ||
-                                           m_landmark.second.gauss_.stdev_.y_ > stdev_threshold_))
-      {
-        cell.landmarks_.erase(m_landmark.first);
-      }
+      grid_map(l_landmark.second.pos_.x_, l_landmark.second.pos_.y_, 0).data->landmarks_->erase(l_landmark.first);
     }
   }
 }

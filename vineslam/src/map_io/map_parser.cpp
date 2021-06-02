@@ -1,4 +1,4 @@
-#include "../../include/vineslam/mapxml/map_parser.hpp"
+#include "../../include/vineslam/map_io/map_parser.hpp"
 
 namespace vineslam
 {
@@ -7,9 +7,15 @@ MapParser::MapParser(const Parameters& params)
   file_path_ = params.map_input_file_;
 }
 
-void MapParser::parseHeader(Parameters* params)
+bool MapParser::parseHeader(Parameters* params)
 {
   std::ifstream xmlfile(file_path_);
+
+  if (!xmlfile.is_open())
+  {
+    return false;
+  }
+
   bool readinginfo = true;
 
   // Read xml header
@@ -27,9 +33,25 @@ void MapParser::parseHeader(Parameters* params)
     std::string tag = getTag(line);
     tag.erase(std::remove_if(tag.begin(), tag.end(), isspace), tag.end());
 
-    if (tag == openTag(INFO) || tag == openTag(ORIGIN))
+    if (tag == openTag(INFO) || tag == openTag(ORIGIN) || tag == openTag(DATUM))
     {
       continue;
+    }
+    else if (tag == openTag(LATITUDE))
+    {
+      params->map_datum_lat_ = getFloat(line);
+    }
+    else if (tag == openTag(LONGITUDE))
+    {
+      params->map_datum_long_ = getFloat(line);
+    }
+    else if (tag == openTag(ALTITUDE))
+    {
+      params->map_datum_alt_ = getFloat(line);
+    }
+    else if (tag == openTag(HEADING))
+    {
+      params->map_datum_head_ = getFloat(line);
     }
     else if (tag == openTag(X_COORDINATE))
     {
@@ -61,21 +83,29 @@ void MapParser::parseHeader(Parameters* params)
       readinginfo = false;
     }
   }
+
+  return true;
 }
 
-void MapParser::parseFile(OccupancyMap* grid_map)
+bool MapParser::parseFile(OccupancyMap* grid_map)
 {
   std::ifstream xmlfile(file_path_);
+
+  if (!xmlfile.is_open())
+  {
+    return false;
+  }
 
   // Read map data, and fill the occupancy grid
   bool readingdata = true;
   int state = 0;
-  float x, y, z;
   int landmark_id;
   SemanticFeature semantic_feature;
   Corner corner;
   Planar planar;
   ImageFeature surf_feature;
+  SemiPlane semi_plane;
+  Point pt;
 
   // Read map data
   while (readingdata)
@@ -90,10 +120,14 @@ void MapParser::parseFile(OccupancyMap* grid_map)
 
     switch (state)
     {
-      case 0:  // new cell
-        if (tag == openTag(CELL))
+      case 0:
+        if (tag == openTag(CELL))  // new cell
         {
           state = 1;
+        }
+        else if (tag == openTag(PLANES))  // read planes
+        {
+          state = 11;
         }
         else if (tag == closeTag(DATA_))
         {
@@ -101,17 +135,8 @@ void MapParser::parseFile(OccupancyMap* grid_map)
         }
         break;
       case 1:  // reading cell position
-        if (tag == openTag(X_COORDINATE))
+        if (tag == openTag(Z_COORDINATE))
         {
-          x = getFloat(line);
-        }
-        else if (tag == openTag(Y_COORDINATE))
-        {
-          y = getFloat(line);
-        }
-        else if (tag == openTag(Z_COORDINATE))
-        {
-          z = getFloat(line);
           state = 2;
         }
         break;
@@ -122,7 +147,10 @@ void MapParser::parseFile(OccupancyMap* grid_map)
           state = 3;
         }
         else if (tag == closeTag(SEMANTICF))
+        {
           state = 4;
+        }
+        break;
       case 3:  // reading a new landmark
         if (tag == openTag(ID_))
         {
@@ -189,7 +217,7 @@ void MapParser::parseFile(OccupancyMap* grid_map)
         }
         else if (tag == closeTag(CTAG))
         {
-          (*grid_map).insert(corner);
+          (*grid_map).directInsert(corner);
           state = 4;
         }
         break;
@@ -221,7 +249,7 @@ void MapParser::parseFile(OccupancyMap* grid_map)
         }
         else if (tag == closeTag(PTAG))
         {
-          (*grid_map).insert(planar);
+          (*grid_map).directInsert(planar);
           state = 6;
         }
         break;
@@ -289,11 +317,116 @@ void MapParser::parseFile(OccupancyMap* grid_map)
           state = 9;
         }
         break;
+      case 11:  // we will start to read a plane
+        if (tag == openTag(PLANE))
+        {
+          semi_plane = SemiPlane();
+          state = 12;
+        }
+        else if (tag == closeTag(PLANES))
+          state = 0;
+        break;
+      case 12:  // we are reading the general arguments of a plane
+        if (tag == openTag(COEF_A))
+        {
+          semi_plane.a_ = getFloat(line);
+        }
+        else if (tag == openTag(COEF_B))
+        {
+          semi_plane.b_ = getFloat(line);
+        }
+        else if (tag == openTag(COEF_C))
+        {
+          semi_plane.c_ = getFloat(line);
+        }
+        else if (tag == openTag(COEF_D))
+        {
+          semi_plane.d_ = getFloat(line);
+        }
+        else if (tag == openTag(CENTROID))
+        {
+          state = 13;
+        }
+        else if (tag == openTag(POINT))
+        {
+          pt = Point();
+          state = 14;
+        }
+        else if (tag == openTag(EXTREMA))
+        {
+          pt = Point();
+          state = 15;
+        }
+        else if (tag == closeTag(PLANE))
+        {
+          grid_map->planes_.push_back(semi_plane);
+          state = 11;
+        }
+        break;
+      case 13:  // reading the plane centroid
+        if (tag == openTag(X_COORDINATE))
+        {
+          semi_plane.centroid_.x_ = getFloat(line);
+        }
+        else if (tag == openTag(Y_COORDINATE))
+        {
+          semi_plane.centroid_.y_ = getFloat(line);
+        }
+        else if (tag == openTag(Z_COORDINATE))
+        {
+          semi_plane.centroid_.z_ = getFloat(line);
+        }
+        else if (tag == closeTag(CENTROID))
+        {
+          state = 12;
+        }
+        break;
+      case 14:  // reading the plane points
+        if (tag == openTag(X_COORDINATE))
+        {
+          pt.x_ = getFloat(line);
+        }
+        else if (tag == openTag(Y_COORDINATE))
+        {
+          pt.y_ = getFloat(line);
+        }
+        else if (tag == openTag(Z_COORDINATE))
+        {
+          pt.z_ = getFloat(line);
+        }
+        else if (tag == closeTag(POINT))
+        {
+          semi_plane.points_.push_back(pt);
+          state = 12;
+        }
+        break;
+      case 15:  // reading the plane extremas
+        if (tag == openTag(X_COORDINATE))
+        {
+          pt.x_ = getFloat(line);
+        }
+        else if (tag == openTag(Y_COORDINATE))
+        {
+          pt.y_ = getFloat(line);
+        }
+        else if (tag == openTag(Z_COORDINATE))
+        {
+          pt.z_ = getFloat(line);
+        }
+        else if (tag == closeTag(EXTREMA))
+        {
+          semi_plane.extremas_.push_back(pt);
+          state = 12;
+        }
+        break;
+
       default:
         readingdata = false;
         break;
     }
   }
+
+  return true;
 }
 
 std::string MapParser::openTag(const std::string& m_tag)

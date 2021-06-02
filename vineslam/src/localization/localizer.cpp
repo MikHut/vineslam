@@ -40,7 +40,7 @@ void Localizer::process(const Pose& wheel_odom_inc, const Observation& obsv, Occ
   // ------------------------------------------------------------------------------
   // ---------------- Draw particles using odometry motion model
   // ------------------------------------------------------------------------------
-  pf_->motionModel(odom_inc, p_odom_);
+  pf_->motionModel(odom_inc);
   // - Save not resampled particles
   m_particles_.clear();
   for (const auto& particle : pf_->particles_)
@@ -56,8 +56,8 @@ void Localizer::process(const Pose& wheel_odom_inc, const Observation& obsv, Occ
     // ------------------------------------------------------------------------------
     // ---------------- Update particles weights using multi-layer map
     // ------------------------------------------------------------------------------
-    pf_->update(obsv.landmarks, obsv.corners, obsv.planars, obsv.planes, obsv.ground_plane, obsv.surf_features,
-                obsv.gps_pose, grid_map);
+    pf_->update(obsv.landmarks_, obsv.corners_, obsv.planars_, obsv.planes_, obsv.ground_plane_, obsv.surf_features_,
+                obsv.gps_pose_, obsv.imu_pose_, grid_map);
 
     // ------------------------------------------------------------------------------
     // ---------------- Normalize particle weights
@@ -101,20 +101,9 @@ void Localizer::getParticles(std::vector<Particle>& in) const
     in[i] = pf_->particles_[i];
 }
 
-void Localizer::getParticlesBeforeResampling(std::vector<Particle>& in) const
+void Localizer::changeGPSFlag(const bool& val)
 {
-  in.resize(m_particles_.size());
-  for (size_t i = 0; i < in.size(); i++)
-    in[i] = m_particles_[i];
-}
-
-void Localizer::changeObservationsToUse(const bool& use_semantic_features, const bool& use_lidar_features,
-                                        const bool& use_image_features, const bool& use_gps)
-{
-  pf_->use_semantic_features_ = use_semantic_features;
-  pf_->use_lidar_features_ = use_lidar_features;
-  pf_->use_image_features_ = use_image_features;
-  pf_->use_gps_ = use_gps;
+  pf_->use_gps_ = val;
 }
 
 }  // namespace vineslam

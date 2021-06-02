@@ -78,8 +78,6 @@ LocalizationNode::LocalizationNode(int argc, char** argv) : VineSLAM_ros("Locali
   grid_map_publisher_ = nh.advertise<visualization_msgs::MarkerArray>("/vineslam/debug/grid_map_limits", 10);
   robot_box_publisher_ = nh.advertise<visualization_msgs::Marker>("/vineslam/debug/robot_box", 10);
 
-  save_map_srv_ = nh.advertiseService("/vineslam/save_map", &VineSLAM_ros::saveMap, dynamic_cast<VineSLAM_ros*>(this));
-
   // Static transforms
   ROS_INFO("Waiting for static transforms...");
   tf2_ros::Buffer tf_buffer;

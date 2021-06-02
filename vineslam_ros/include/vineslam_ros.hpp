@@ -26,8 +26,6 @@
 #include <vineslam_msgs/Feature.h>
 #include <vineslam_msgs/FeatureArray.h>
 // ----------------------------
-#include <vineslam_ros/save_map.h>
-// ----------------------------
 
 // std
 #include <iostream>
@@ -98,9 +96,6 @@ public:
   // IMU callback functions
   void imuListener(const geometry_msgs::Vector3StampedConstPtr& msg);
   void imuDataListener(const sensor_msgs::ImuConstPtr& msg);
-
-  // Services callbacks
-  bool saveMap(vineslam_ros::save_map::Request&, vineslam_ros::save_map::Response&);
 
   // GNSS heading estimation
   void getGNSSHeading();

@@ -563,6 +563,7 @@ void LocalizationNode::process()
                                robot_pose_.y_ * std::cos(params_.map_datum_head_));
   Convertions::UTMtoGNSS(robot_utm_x, robot_utm_y, datum_utm_zone, robot_latitude, robot_longitude);
 
+
   // ---------------------------------------------------------
   // ----- ROS publishers
   // ---------------------------------------------------------

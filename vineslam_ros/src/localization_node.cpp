@@ -140,10 +140,10 @@ LocalizationNode::LocalizationNode(int argc, char** argv) : VineSLAM_ros("Locali
 
   // Call execution thread
   std::thread th1(&LocalizationNode::loop, this);
-  std::thread th2(&LocalizationNode::publishDenseInfo, this, 1.0);  // Publish dense info at 1.0Hz
+  //  std::thread th2(&LocalizationNode::publishDenseInfo, this, 1.0);  // Publish dense info at 1.0Hz
   std::thread th3(&LocalizationNode::broadcastTfs, this);
   th1.detach();
-  th2.detach();
+  //  th2.detach();
   th3.detach();
 
   // Spin
@@ -566,32 +566,32 @@ void LocalizationNode::process()
   // ---------------------------------------------------------
   // ----- ROS publishers
   // ---------------------------------------------------------
-  tf2::Quaternion q;
-  q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
-  q.normalize();
-
-  // Convert vineslam pose to ROS pose and publish it
-  geometry_msgs::PoseStamped pose_stamped;
-  pose_stamped.header.stamp = header_.stamp;
-  pose_stamped.header.frame_id = params_.world_frame_id_;
-  pose_stamped.pose.position.x = robot_pose_.x_;
-  pose_stamped.pose.position.y = robot_pose_.y_;
-  pose_stamped.pose.position.z = robot_pose_.z_;
-  pose_stamped.pose.orientation.x = q.x();
-  pose_stamped.pose.orientation.y = q.y();
-  pose_stamped.pose.orientation.z = q.z();
-  pose_stamped.pose.orientation.w = q.w();
-  pose_publisher_.publish(pose_stamped);
-
-  // Publish robot pose in GNSS polar coordinates
-  sensor_msgs::NavSatFix pose_ll;
-  pose_ll.header.stamp = header_.stamp;
-  pose_ll.header.frame_id = "gps";
-  pose_ll.latitude = robot_latitude;
-  pose_ll.longitude = robot_longitude;
-  gps_fix_publisher_.publish(pose_ll);
-
-  publish3DMap(l_planars, planars_local_publisher_);
+  //  tf2::Quaternion q;
+  //  q.setRPY(robot_pose_.R_, robot_pose_.P_, robot_pose_.Y_);
+  //  q.normalize();
+  //
+  //  // Convert vineslam pose to ROS pose and publish it
+  //  geometry_msgs::PoseStamped pose_stamped;
+  //  pose_stamped.header.stamp = header_.stamp;
+  //  pose_stamped.header.frame_id = params_.world_frame_id_;
+  //  pose_stamped.pose.position.x = robot_pose_.x_;
+  //  pose_stamped.pose.position.y = robot_pose_.y_;
+  //  pose_stamped.pose.position.z = robot_pose_.z_;
+  //  pose_stamped.pose.orientation.x = q.x();
+  //  pose_stamped.pose.orientation.y = q.y();
+  //  pose_stamped.pose.orientation.z = q.z();
+  //  pose_stamped.pose.orientation.w = q.w();
+  //  pose_publisher_.publish(pose_stamped);
+  //
+  //  // Publish robot pose in GNSS polar coordinates
+  //  sensor_msgs::NavSatFix pose_ll;
+  //  pose_ll.header.stamp = header_.stamp;
+  //  pose_ll.header.frame_id = "gps";
+  //  pose_ll.latitude = robot_latitude;
+  //  pose_ll.longitude = robot_longitude;
+  //  gps_fix_publisher_.publish(pose_ll);
+  //
+  //  publish3DMap(l_planars, planars_local_publisher_);
 }
 
 void LocalizationNode::broadcastTfs()

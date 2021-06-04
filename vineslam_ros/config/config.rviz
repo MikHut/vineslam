@@ -6,13 +6,10 @@ Panels:
       Expanded:
         - /Global Options1
         - /TF1/Frames1
-        - /Global Maps1
         - /Global Maps1/Global Map 5 - Planes1/Namespaces1
-        - /Local Maps1
-        - /Debug1
-        - /Sensors1
         - /Sensors1/Wheel Odometry1/Shape1
-      Splitter Ratio: 0.6777042150497437
+        - /Sensors1/Velodyne1
+      Splitter Ratio: 0.6247240900993347
     Tree Height: 797
   - Class: rviz/Selection
     Name: Selection
@@ -67,54 +64,10 @@ Visualization Manager:
           Value: false
         Vertex/10:
           Value: false
-        Vertex/10000:
-          Value: true
-        Vertex/10001:
-          Value: true
-        Vertex/10003:
-          Value: true
-        Vertex/10005:
-          Value: true
-        Vertex/10007:
-          Value: true
-        Vertex/10010:
-          Value: true
-        Vertex/10012:
-          Value: true
-        Vertex/10014:
-          Value: true
-        Vertex/10016:
-          Value: true
-        Vertex/10018:
-          Value: true
-        Vertex/10020:
-          Value: true
-        Vertex/10022:
-          Value: true
-        Vertex/10024:
-          Value: true
-        Vertex/10026:
-          Value: true
-        Vertex/10028:
-          Value: true
-        Vertex/10030:
-          Value: true
-        Vertex/10032:
-          Value: true
-        Vertex/10033:
-          Value: true
-        Vertex/10036:
-          Value: true
-        Vertex/10038:
-          Value: true
-        Vertex/10040:
-          Value: true
-        Vertex/10042:
-          Value: true
-        Vertex/10044:
-          Value: true
-        Vertex/10045:
-          Value: true
+        Vertex/100:
+          Value: false
+        Vertex/1000:
+          Value: false
         Vertex/11:
           Value: false
         Vertex/12:
@@ -175,32 +128,26 @@ Visualization Manager:
           Value: false
         imu_link:
           Value: false
+        imu_link_um7:
+          Value: false
         inertial_link:
           Value: false
         map_nn0:
           Value: false
         map_nn2:
-          Value: true
-        map_sn1:
-          Value: true
-        oak-d_frame:
-          Value: true
-        oak_camera_center:
-          Value: true
-        oak_left_camera_frame:
-          Value: true
-        oak_left_camera_optical_frame:
-          Value: true
-        oak_rgb_camera_frame:
-          Value: true
-        oak_rgb_camera_optical_frame:
-          Value: true
-        oak_right_camera_frame:
-          Value: true
-        oak_right_camera_optical_frame:
-          Value: true
+          Value: false
+        map_sn0:
+          Value: false
         odom:
-          Value: true
+          Value: false
+        radio0_frame_id:
+          Value: false
+        radio1_frame_id:
+          Value: false
+        radio2_frame_id:
+          Value: false
+        radio3_frame_id:
+          Value: false
         rear_bumper_link:
           Value: false
         rear_left_wheel_link:
@@ -220,7 +167,7 @@ Visualization Manager:
         velodyne:
           Value: false
         zed_camera_left_optical_frame:
-          Value: true
+          Value: false
       Marker Alpha: 1
       Marker Scale: 5
       Name: TF
@@ -228,6 +175,9 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
+        map_nn2:
+          Vertex/100:
+            {}
         odom:
           base_link:
             base_footprint:
@@ -242,57 +192,18 @@ Visualization Manager:
               {}
             imu_link:
               {}
+            imu_link_um7:
+              {}
             inertial_link:
               {}
-            map_sn1:
-              Vertex/10000:
-                {}
-              Vertex/10001:
-                {}
-              Vertex/10003:
-                {}
-              Vertex/10005:
-                {}
-              Vertex/10007:
-                {}
-              Vertex/10010:
-                {}
-              Vertex/10012:
-                {}
-              Vertex/10014:
-                {}
-              Vertex/10016:
-                {}
-              Vertex/10018:
-                {}
-              Vertex/10020:
-                {}
-              Vertex/10022:
-                {}
-              Vertex/10024:
-                {}
-              Vertex/10026:
-                {}
-              Vertex/10028:
-                {}
-              Vertex/10030:
-                {}
-              Vertex/10032:
-                {}
-              Vertex/10033:
-                {}
-              Vertex/10036:
-                {}
-              Vertex/10038:
-                {}
-              Vertex/10040:
-                {}
-              Vertex/10042:
-                {}
-              Vertex/10044:
-                {}
-              Vertex/10045:
-                {}
+            radio0_frame_id:
+              {}
+            radio1_frame_id:
+              {}
+            radio2_frame_id:
+              {}
+            radio3_frame_id:
+              {}
             rear_bumper_link:
               {}
             rear_left_wheel_link:
@@ -363,8 +274,6 @@ Visualization Manager:
               {}
             Vertex/9:
               {}
-          map_nn2:
-            {}
       Update Interval: 0
       Value: true
     - Class: rviz/Group
@@ -437,8 +346,8 @@ Visualization Manager:
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 4.944479942321777
-            Min Value: -5.01554012298584
+            Max Value: 3.127419948577881
+            Min Value: -3.585629940032959
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -648,7 +557,7 @@ Visualization Manager:
           Size (Pixels): 3
           Size (m): 0.05000000074505806
           Style: Spheres
-          Topic: /white/velodyne_points
+          Topic: /rocha/velodyne_points
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -657,12 +566,21 @@ Visualization Manager:
       Name: Sensors
     - Class: rviz/InteractiveMarkers
       Enable Transparency: true
-      Enabled: true
+      Enabled: false
       Name: Init
       Show Axes: true
       Show Descriptions: true
       Show Visual Aids: true
       Update Topic: /vineslam/initialization_marker/update
+      Value: false
+    - Class: rviz/InteractiveMarkers
+      Enable Transparency: true
+      Enabled: true
+      Name: Trajectory
+      Show Axes: false
+      Show Descriptions: true
+      Show Visual Aids: false
+      Update Topic: /rocha/trajectory_editor_nn2/update
       Value: true
   Enabled: true
   Global Options:
@@ -692,7 +610,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 32.953086853027344
+      Distance: 20.741334915161133
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -700,17 +618,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -0.7579595446586609
-        Y: -4.427074432373047
+        X: -0.3414246439933777
+        Y: -1.5694953203201294
         Z: -1.9936323951696977e-05
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5647963285446167
+      Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 4.675105571746826
+      Yaw: 4.755096912384033
     Saved: ~
 Window Geometry:
   Displays:

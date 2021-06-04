@@ -364,8 +364,8 @@ void LocalizationNode::loopOnce()
   input_data_.received_odometry_ = false;
   input_data_.received_gnss_ = false;
 
-  //  timer_->getLog();
-  //  timer_->clearLog();
+  timer_->getLog();
+  timer_->clearLog();
 }
 
 void LocalizationNode::init()

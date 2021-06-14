@@ -46,10 +46,6 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
   feature_subscriber_ = this->create_subscription<vineslam_msgs::msg::FeatureArray>(
       "/features_topic", 10,
       std::bind(&VineSLAM_ros::imageFeatureListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
-  // Semantic feature subscription
-  landmark_subscriber_ = this->create_subscription<vision_msgs::msg::Detection3DArray>(
-      "/detections_topic", 10,
-      std::bind(&VineSLAM_ros::landmarkListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
   // Scan subscription
   scan_subscriber_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
       "/scan_topic", 10,
@@ -73,7 +69,6 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
   // Publish maps and particle filter
   vineslam_report_publisher_ = this->create_publisher<vineslam_msgs::msg::Report>("/vineslam/report", 10);
   elevation_map_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/elevationMap", 10);
-  map2D_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/map2D", 10);
   map3D_features_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/SURF", 10);
   map3D_corners_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/corners", 10);
   map3D_planars_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/planars", 10);
@@ -142,6 +137,7 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
   cam2base.getBasis().getRPY(roll, pitch, yaw);
   vis_mapper_->setCam2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
   land_mapper_->setCamPitch(pitch);
+  cam2base_tf_ = Pose(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw).toTf();
 
   tf2::Stamped<tf2::Transform> laser2base_stamped;
   tf2::fromMsg(laser2base_msg, laser2base_stamped);
@@ -289,6 +285,30 @@ void LocalizationNode::loadParameters(Parameters& params)
   param = prefix + ".camera_info.fx";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.fx_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".camera_info.horizontal_fov";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.h_fov_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".camera_info.vertical_fov";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.v_fov_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".camera_info.image_width";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.img_width_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".camera_info.image_height";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.img_height_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }

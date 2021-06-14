@@ -22,6 +22,10 @@ localization_node:
     baseline: 0.12 # meters
     fx: 692.95849609375  # pixels
     cx: 692.95849609375  # pixels
+    horizontal_fov: 1.413 # radians
+    vertical_fov: 1.200 # radians
+    image_width: 1280 # px
+    image_height: 720 # px
 
   robot_dimensions:
     x: 1.00 # meters

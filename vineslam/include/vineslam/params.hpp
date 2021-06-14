@@ -10,10 +10,10 @@ struct Parameters
   // -----------------------------------
   // ------ System settings
   // -----------------------------------
-  std::string robot_model_;
-  std::string world_frame_id_;
-  std::string lidar_sensor_frame_;
-  std::string camera_sensor_frame_;
+  std::string robot_model_{};
+  std::string world_frame_id_{};
+  std::string lidar_sensor_frame_{};
+  std::string camera_sensor_frame_{};
 
   // -----------------------------------
   // ------ System flags
@@ -50,6 +50,10 @@ struct Parameters
   float baseline_{};
   float fx_{};
   float cx_{};
+  float h_fov_{};
+  float v_fov_{};
+  int img_width_{};
+  int img_height_{};
 
   // -----------------------------------
   // ------ Robot dimensions

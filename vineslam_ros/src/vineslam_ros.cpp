@@ -7,6 +7,39 @@ namespace vineslam
 // ----- Callbacks and observation functions
 // --------------------------------------------------------------------------------
 
+void VineSLAM_ros::occupancyMapListener(const nav_msgs::msg::OccupancyGrid::SharedPtr msg)
+{
+  RCLCPP_ERROR(this->get_logger(), "\n\n\n\n Receiving and processing map \n\n\n\n");
+
+  // Set the 3D voxel map from the 2D occupancy grid map
+  float z_min = grid_map_->origin_.z_ + grid_map_->resolution_z_;
+  float z_max = grid_map_->origin_.z_ + grid_map_->height_ - grid_map_->resolution_z_;
+  for (unsigned int x = 0; x < msg->info.width; x++)
+  {
+    for (unsigned int y = 0; y < msg->info.height; y++)
+    {
+      if (msg->data[x + msg->info.width * y] == 100)
+      {
+        for (unsigned int z = z_min; z < z_max;)
+        {
+          if (grid_map_->isInside(x, y, z))
+          {
+            if ((*grid_map_)(x, y, z).data == nullptr)
+            {
+              (*grid_map_)(x, y, z).data = new CellData();
+            }
+
+            *(*grid_map_)(x, y, z).data->is_occupied_from_sat_ = true;
+          }
+          z += grid_map_->resolution_z_;
+        }
+      }
+    }
+  }
+
+  RCLCPP_ERROR(this->get_logger(), "\n\n\n\n Done \n\n\n\n");
+}
+
 void VineSLAM_ros::imageFeatureListener(const vineslam_msgs::msg::FeatureArray::SharedPtr features)
 {
   std::vector<vineslam::ImageFeature> img_features;
@@ -28,31 +61,48 @@ void VineSLAM_ros::imageFeatureListener(const vineslam_msgs::msg::FeatureArray::
   input_data_.received_image_features_ = true;
 }
 
-void VineSLAM_ros::landmarkListener(const vision_msgs::msg::Detection3DArray::SharedPtr dets)
+void VineSLAM_ros::landmarkListener(const vision_msgs::msg::Detection2DArray::SharedPtr dets)
 {
   // Declaration of the arrays that will constitute the SLAM observations
   std::vector<int> labels;
   std::vector<float> bearings;
+  std::vector<float> pitches;
   std::vector<float> depths;
+  std::vector<Vec> vecs;
 
   // -------------------------------------------------------------------------------
   // ---- Compute range-bearing representation of semantic features
   // -------------------------------------------------------------------------------
-  for (const auto& detection : (*dets).detections)
+  for (const auto& detection : dets->detections)
   {
-    vision_msgs::msg::BoundingBox3D l_bbox = detection.bbox;
+    vision_msgs::msg::BoundingBox2D l_bbox = detection.bbox;
 
-    float x = l_bbox.center.position.z;
-    float y = -(static_cast<float>(l_bbox.center.position.x) - params_.cx_) * (x / params_.fx_);
+    // Compute the pitch and yaw of each landmark
+    int col = l_bbox.center.x;
+    int row = l_bbox.center.y;
+    float l_bearing = (-params_.h_fov_ / params_.img_width_) * (params_.img_width_ / 2 - col);
+    float l_pitch = (-params_.v_fov_ / params_.img_height_) * (params_.img_height_ / 2 - row);
 
-    auto depth = static_cast<float>(sqrt(pow(x, 2) + pow(y, 2)));
-    float theta = atan2(y, x);
+    // Transform the landmark orientations into the robot referential frame
+    Tf l_measurement_tf = Pose(0.0, 0.0, 0.0, 0.0, l_pitch, l_bearing).toTf();
+    Tf l_measurement_base = cam2base_tf_.inverse() * l_measurement_tf;
 
-    // Insert the measures in the observations arrays
-    //    labels.push_back(detection.results[0].id);
-    labels.push_back(0);
-    depths.push_back(depth);
-    bearings.push_back(theta);
+    // Transform the landmark orientations into the map referential frame
+    Tf l_measurement_map = robot_pose_.toTf() * l_measurement_base;
+    Pose l_measurement(l_measurement_map.R_array_, l_measurement_map.t_array_);
+
+    std::cout << col << " -> " << l_bearing * RAD_TO_DEGREE << "\n";
+    std::cout << row << " -> " << l_pitch * RAD_TO_DEGREE << "\n";
+    std::cout << l_measurement.x_ << ", " << l_measurement.y_ << ", " << l_measurement.z_ << ", "
+              << l_measurement.R_ * RAD_TO_DEGREE << ", " << l_measurement.P_ * RAD_TO_DEGREE << ", "
+              << l_measurement.Y_ * RAD_TO_DEGREE << "\n";
+
+    // Transform landmark orientations into a line/arrow
+    // ... x = cos(yaw)*cos(pitch)
+    // ... y = sin(yaw)*cos(pitch)
+    // ... z = sin(pitch)
+    Vec l_vec(std::cos(l_bearing) * std::cos(l_pitch), std::sin(l_bearing) * std::cos(l_pitch), std::sin(l_pitch));
+    vecs.push_back(l_vec);
   }
 
   input_data_.land_labels_ = labels;

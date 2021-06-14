@@ -25,6 +25,10 @@ struct CellData
   // List of candidate landmarks, features, and points at each cell
   std::vector<Corner>* candidate_corner_features_{ nullptr };
   std::vector<Planar>* candidate_planar_features_{ nullptr };
+
+  // Occupation flags
+  bool* is_occupied_from_sat_{ nullptr };  // true if the occupancy grid extracted from satellite image tells the cell
+                                           // is occupied
 };
 
 struct Cell

@@ -14,7 +14,7 @@ void VineSLAM_ros::publishDenseInfo(const float& rate)
     publishReport();
 
     // Publish the 2D map
-    publish2DMap();
+    publishSemanticMap();
     // Publish 3D maps
     publish3DMap();
     publishElevationMap();
@@ -86,7 +86,12 @@ void VineSLAM_ros::publishRobotBox(const Pose& robot_pose) const
   robot_box_publisher_->publish(robot_cube);
 }
 
-void VineSLAM_ros::publish2DMap() const
+void VineSLAM_ros::publishLocalSemanticMap() const
+{
+
+}
+
+void VineSLAM_ros::publishSemanticMap() const
 {
   visualization_msgs::msg::MarkerArray marker_array;
   visualization_msgs::msg::Marker marker;
@@ -162,7 +167,7 @@ void VineSLAM_ros::publish2DMap() const
     id++;
   }
 
-  map2D_publisher_->publish(marker_array);
+  semantic_map_publisher_->publish(marker_array);
 }
 
 void VineSLAM_ros::publishElevationMap() const

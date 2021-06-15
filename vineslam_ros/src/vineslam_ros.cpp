@@ -11,31 +11,69 @@ void VineSLAM_ros::occupancyMapListener(const nav_msgs::msg::OccupancyGrid::Shar
 {
   RCLCPP_ERROR(this->get_logger(), "\n\n\n\n Receiving and processing map \n\n\n\n");
 
+  // Create the occupancy grid map that will be published
+  nav_msgs::msg::OccupancyGrid sat_occ_grid;
+  sat_occ_grid.header.stamp = header_.stamp;
+  sat_occ_grid.header.frame_id = params_.world_frame_id_;
+  sat_occ_grid.info = msg->info;
+  std::vector<int8_t> map_data(sat_occ_grid.info.width * sat_occ_grid.info.height, 0);
+
+  // Compute the difference between the satellite map origin and the slam's
+  double sat_datum_utm_x, sat_datum_utm_y, map_datum_utm_x, map_datum_utm_y;
+  std::string map_datum_utm_zone, sat_datum_utm_zone;
+  Convertions::GNSS2UTM(params_.map_datum_lat_, params_.map_datum_long_, map_datum_utm_x, map_datum_utm_y,
+                        map_datum_utm_zone);
+  Convertions::GNSS2UTM(params_.sat_datum_lat_, params_.sat_datum_long_, sat_datum_utm_x, sat_datum_utm_y,
+                        sat_datum_utm_zone);
+
+  Pose sat_map_diff(sat_datum_utm_x - map_datum_utm_x, sat_datum_utm_y - map_datum_utm_y, 0);
+
   // Set the 3D voxel map from the 2D occupancy grid map
-  float z_min = grid_map_->origin_.z_ + grid_map_->resolution_z_;
-  float z_max = grid_map_->origin_.z_ + grid_map_->height_ - grid_map_->resolution_z_;
   for (unsigned int x = 0; x < msg->info.width; x++)
   {
     for (unsigned int y = 0; y < msg->info.height; y++)
     {
       if (msg->data[x + msg->info.width * y] == 100)
       {
-        for (unsigned int z = z_min; z < z_max;)
-        {
-          if (grid_map_->isInside(x, y, z))
-          {
-            if ((*grid_map_)(x, y, z).data == nullptr)
-            {
-              (*grid_map_)(x, y, z).data = new CellData();
-            }
+        // Convert the grid map indexes to real world coordinates
+        float xx = x * msg->info.resolution + msg->info.origin.position.x;
+        float yy = y * msg->info.resolution + msg->info.origin.position.y;
 
-            *(*grid_map_)(x, y, z).data->is_occupied_from_sat_ = true;
+        // Transform the map occupied cells using the map datum heading
+        float tf_xx = xx * std::cos(-(params_.map_datum_head_ + 3 * M_PI / 2)) -
+                      yy * std::sin((-params_.map_datum_head_ + 3 * M_PI / 2)) ;//- sat_map_diff.x_;
+        float tf_yy = xx * std::sin((-params_.map_datum_head_ + 3 * M_PI / 2)) +
+                      yy * std::cos((-params_.map_datum_head_ + 3 * M_PI / 2)) ;//- sat_map_diff.y_;
+
+        if (grid_map_->isInside(tf_xx, tf_yy, 0.))
+        {
+          // Convert the real world coordinates to grid map indexes
+          unsigned int mx = std::floor(((tf_xx - ((msg->info.origin.position.x))) / msg->info.resolution));
+          unsigned int my = std::floor(((tf_yy - ((msg->info.origin.position.y))) / msg->info.resolution));
+          size_t idx = mx + msg->info.width * my;
+          if (idx < map_data.size())
+          {
+            map_data[idx] = 100;
           }
-          z += grid_map_->resolution_z_;
+
+          // Set the cell as occupied
+          if ((*grid_map_)(tf_xx, tf_yy, 0).data == nullptr)
+          {
+            (*grid_map_)(tf_xx, tf_yy, 0).data = new CellData();
+          }
+          if ((*grid_map_)(tf_xx, tf_yy, 0).data->is_occupied_from_sat_ == nullptr)
+          {
+            (*grid_map_)(tf_xx, tf_yy, 0).data->is_occupied_from_sat_ = new bool();
+          }
+
+          *(*grid_map_)(tf_xx, tf_yy, 0).data->is_occupied_from_sat_ = true;
         }
       }
     }
   }
+
+  sat_occ_grid.data = map_data;
+  processed_occ_grid_publisher_->publish(sat_occ_grid);
 
   RCLCPP_ERROR(this->get_logger(), "\n\n\n\n Done \n\n\n\n");
 }

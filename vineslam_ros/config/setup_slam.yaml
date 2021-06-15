@@ -4,7 +4,7 @@ slam_node:
   use_semantic_features: False
   use_lidar_features: True
   use_image_features: False
-  use_gps: False
+  use_gps: True
   use_imu: False
 
   lightweight_version: False
@@ -36,14 +36,19 @@ slam_node:
       longitude: -8.3073997
       altitude: 247.982
 
+    # Satellite occupancy grid map datum
+    satellite_datum:
+      latitude: 41.2052854687
+      longitude: -8.3075013047
+
     # Grid map definitions
     grid_map:
       origin:
         x: -200.0
-        y: -200.0
+        y: -50.0
         z: -5.0
       width: 400.0
-      lenght: 400.0
+      lenght: 100.0
       height: 10.0
       resolution: 0.25 # meters
       output_folder: "/home/andresaguiar/Desktop/"

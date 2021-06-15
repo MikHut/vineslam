@@ -43,6 +43,8 @@ struct Parameters
   double robot_datum_long_{};
   double robot_datum_alt_{};
   double robot_datum_head_{};
+  double sat_datum_lat_{};
+  double sat_datum_long_{};
 
   // -----------------------------------
   // ------ Camera info parameters

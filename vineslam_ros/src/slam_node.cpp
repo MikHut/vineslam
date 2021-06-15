@@ -72,6 +72,8 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
       std::bind(&VineSLAM_ros::imuDataListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
 
   // Publish maps and particle filter
+  processed_occ_grid_publisher_ =
+      this->create_publisher<nav_msgs::msg::OccupancyGrid>("/vineslam/sat_occupancy_grid", 10);
   vineslam_report_publisher_ = this->create_publisher<vineslam_msgs::msg::Report>("/vineslam/report", 10);
   elevation_map_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/elevationMap", 10);
   semantic_map_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/map2D", 10);
@@ -268,6 +270,18 @@ void SLAMNode::loadParameters(Parameters& params)
   param = prefix + ".multilayer_mapping.datum.altitude";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.map_datum_alt_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".multilayer_mapping.satellite_datum.latitude";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.sat_datum_lat_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".multilayer_mapping.satellite_datum.longitude";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.sat_datum_long_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }

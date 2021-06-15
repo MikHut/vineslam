@@ -73,7 +73,7 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
 
   // Publish maps and particle filter
   processed_occ_grid_publisher_ =
-      this->create_publisher<nav_msgs::msg::OccupancyGrid>("/vineslam/sat_occupancy_grid", 10);
+      this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/sat_occupancy_grid", 10);
   vineslam_report_publisher_ = this->create_publisher<vineslam_msgs::msg::Report>("/vineslam/report", 10);
   elevation_map_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/elevationMap", 10);
   semantic_map_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/map2D", 10);

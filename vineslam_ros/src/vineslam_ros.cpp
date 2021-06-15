@@ -9,24 +9,14 @@ namespace vineslam
 
 void VineSLAM_ros::occupancyMapListener(const nav_msgs::msg::OccupancyGrid::SharedPtr msg)
 {
-  RCLCPP_ERROR(this->get_logger(), "\n\n\n\n Receiving and processing map \n\n\n\n");
+  // Compute the difference between the satellite map origin and the slam's
+  double n, e, d;
+  Geodetic l_geodetic_converter(params_.sat_datum_lat_, params_.sat_datum_long_, params_.map_datum_alt_);
+  l_geodetic_converter.geodetic2ned(params_.map_datum_lat_, params_.map_datum_long_, params_.map_datum_alt_, n, e, d);
 
   // Create the occupancy grid map that will be published
-  nav_msgs::msg::OccupancyGrid sat_occ_grid;
-  sat_occ_grid.header.stamp = header_.stamp;
-  sat_occ_grid.header.frame_id = params_.world_frame_id_;
-  sat_occ_grid.info = msg->info;
-  std::vector<int8_t> map_data(sat_occ_grid.info.width * sat_occ_grid.info.height, 0);
-
-  // Compute the difference between the satellite map origin and the slam's
-  double sat_datum_utm_x, sat_datum_utm_y, map_datum_utm_x, map_datum_utm_y;
-  std::string map_datum_utm_zone, sat_datum_utm_zone;
-  Convertions::GNSS2UTM(params_.map_datum_lat_, params_.map_datum_long_, map_datum_utm_x, map_datum_utm_y,
-                        map_datum_utm_zone);
-  Convertions::GNSS2UTM(params_.sat_datum_lat_, params_.sat_datum_long_, sat_datum_utm_x, sat_datum_utm_y,
-                        sat_datum_utm_zone);
-
-  Pose sat_map_diff(sat_datum_utm_x - map_datum_utm_x, sat_datum_utm_y - map_datum_utm_y, 0);
+  Point map_origin(-e, -(msg->info.height * msg->info.resolution - std::fabs(n)), 0);
+  pcl::PointCloud<pcl::PointXYZ>::Ptr map_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
   // Set the 3D voxel map from the 2D occupancy grid map
   for (unsigned int x = 0; x < msg->info.width; x++)
@@ -36,24 +26,25 @@ void VineSLAM_ros::occupancyMapListener(const nav_msgs::msg::OccupancyGrid::Shar
       if (msg->data[x + msg->info.width * y] == 100)
       {
         // Convert the grid map indexes to real world coordinates
-        float xx = x * msg->info.resolution + msg->info.origin.position.x;
-        float yy = y * msg->info.resolution + msg->info.origin.position.y;
+        float xx = (x + 0.5) * msg->info.resolution + map_origin.x_;
+        float yy = (y + 0.5) * msg->info.resolution + map_origin.y_;
 
         // Transform the map occupied cells using the map datum heading
-        float tf_xx = xx * std::cos(-(params_.map_datum_head_ + 3 * M_PI / 2)) -
-                      yy * std::sin((-params_.map_datum_head_ + 3 * M_PI / 2)) ;//- sat_map_diff.x_;
-        float tf_yy = xx * std::sin((-params_.map_datum_head_ + 3 * M_PI / 2)) +
-                      yy * std::cos((-params_.map_datum_head_ + 3 * M_PI / 2)) ;//- sat_map_diff.y_;
+        float tf_xx =
+            xx * std::cos(-params_.map_datum_head_ - M_PI / 2) - yy * std::sin(-params_.map_datum_head_ - M_PI / 2);
+        float tf_yy =
+            xx * std::sin(-params_.map_datum_head_ - M_PI / 2) + yy * std::cos(-params_.map_datum_head_ - M_PI / 2);
 
         if (grid_map_->isInside(tf_xx, tf_yy, 0.))
         {
-          // Convert the real world coordinates to grid map indexes
-          unsigned int mx = std::floor(((tf_xx - ((msg->info.origin.position.x))) / msg->info.resolution));
-          unsigned int my = std::floor(((tf_yy - ((msg->info.origin.position.y))) / msg->info.resolution));
-          size_t idx = mx + msg->info.width * my;
-          if (idx < map_data.size())
+          // Insert the point in the grid map to publish
+          if ((x + msg->info.width * y) % 8 == 0)  // we do not show all the points for better performance
           {
-            map_data[idx] = 100;
+            pcl::PointXYZ l_pt;
+            l_pt.x = tf_xx;
+            l_pt.y = tf_yy;
+            l_pt.z = 0.;
+            map_cloud->push_back(l_pt);
           }
 
           // Set the cell as occupied
@@ -72,10 +63,11 @@ void VineSLAM_ros::occupancyMapListener(const nav_msgs::msg::OccupancyGrid::Shar
     }
   }
 
-  sat_occ_grid.data = map_data;
-  processed_occ_grid_publisher_->publish(sat_occ_grid);
-
-  RCLCPP_ERROR(this->get_logger(), "\n\n\n\n Done \n\n\n\n");
+  // Grid map publish
+  map_cloud->header.frame_id = params_.world_frame_id_;
+  sensor_msgs::msg::PointCloud2 map_cloud2;
+  pcl::toROSMsg(*map_cloud, map_cloud2);
+  processed_occ_grid_publisher_->publish(map_cloud2);
 }
 
 void VineSLAM_ros::imageFeatureListener(const vineslam_msgs::msg::FeatureArray::SharedPtr features)

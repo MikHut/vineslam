@@ -38,8 +38,8 @@ slam_node:
 
     # Satellite occupancy grid map datum
     satellite_datum:
-      latitude: 41.2052854687
-      longitude: -8.3075013047
+      latitude: 41.2057809184083
+      longitude: -8.30806732177734
 
     # Grid map definitions
     grid_map:

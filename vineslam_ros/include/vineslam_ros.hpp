@@ -192,7 +192,7 @@ public:
   } input_data_;
 
   // ROS publishers/services
-  rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr processed_occ_grid_publisher_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr processed_occ_grid_publisher_;
   rclcpp::Publisher<vineslam_msgs::msg::Report>::SharedPtr vineslam_report_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr grid_map_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr elevation_map_publisher_;

@@ -7,6 +7,9 @@ void VineSLAM_ros::publishDenseInfo(const float& rate)
   ros::Rate r(10);
   while (ros::ok())
   {
+    // We publish the 3D map also before the initialization for visualization purposes
+    publish3DMap();
+
     if (init_flag_)
       continue;
 
@@ -16,7 +19,6 @@ void VineSLAM_ros::publishDenseInfo(const float& rate)
     // Publish the 2D map
     publish2DMap();
     // Publish 3D maps
-    publish3DMap();
     publishElevationMap();
     publishGridMapLimits();
 

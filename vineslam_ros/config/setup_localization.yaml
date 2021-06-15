@@ -35,8 +35,8 @@ robot_dimensions:
 multilayer_mapping:
   # Grid map definitions
   grid_map:
-    map_file_path: "/home/andresaguiar/Desktop/map_feup/map_1622538912.xml"
-    elevation_map_file_path: "/home/andresaguiar/Desktop/map_feup/elevation_map_1622538912.xml"
+    map_file_path: "/home/andresaguiar/Documents/maps/VineSLAM/map_feup/map_1622538912.xml"
+    elevation_map_file_path: "/home/andresaguiar/Documents/maps/VineSLAM/map_feup/elevation_map_1622538912.xml"
     output_folder: "/home/andresaguiar/Desktop/"
 
 pf:

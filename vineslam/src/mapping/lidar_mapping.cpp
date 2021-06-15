@@ -1145,6 +1145,9 @@ void VelodyneMapper::extractFeatures(const std::vector<PlanePoint>& in_plane_pts
 
     out_planars.insert(out_planars.end(), planar_points_less_flat.begin(), planar_points_less_flat.end());
   }
+
+  free(cloudCornerLabel);
+  free(cloudPlanarLabel);
 }
 void VelodyneMapper::reset()
 {

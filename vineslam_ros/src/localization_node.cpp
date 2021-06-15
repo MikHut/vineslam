@@ -140,10 +140,10 @@ LocalizationNode::LocalizationNode(int argc, char** argv) : VineSLAM_ros("Locali
 
   // Call execution thread
   std::thread th1(&LocalizationNode::loop, this);
-  //  std::thread th2(&LocalizationNode::publishDenseInfo, this, 1.0);  // Publish dense info at 1.0Hz
+  std::thread th2(&LocalizationNode::publishDenseInfo, this, 1.0);  // Publish dense info at 1.0Hz
   std::thread th3(&LocalizationNode::broadcastTfs, this);
   th1.detach();
-  //  th2.detach();
+  th2.detach();
   th3.detach();
 
   // Spin
@@ -562,7 +562,6 @@ void LocalizationNode::process()
   robot_utm_y = datum_utm_y - (robot_pose_.x_ * std::sin(params_.map_datum_head_) +
                                robot_pose_.y_ * std::cos(params_.map_datum_head_));
   Convertions::UTMtoGNSS(robot_utm_x, robot_utm_y, datum_utm_zone, robot_latitude, robot_longitude);
-
 
   // ---------------------------------------------------------
   // ----- ROS publishers

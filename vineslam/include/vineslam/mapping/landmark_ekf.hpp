@@ -40,6 +40,9 @@ private:
   MatrixXf K_;
   MatrixXf R_;
 
+  // Number of landmark observations
+  int n_obsvs_;
+
   // Function that implements the prediction step of the Kalman Filter
   void predict();
   // Function that implements the update step of the Kalman Filter

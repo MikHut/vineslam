@@ -429,7 +429,7 @@ bool MapLayer::directInsert(const Planar& l_feature)
   return directInsert(l_feature, l_i, l_j);
 }
 
-bool MapLayer::update(const SemanticFeature& new_landmark, const SemanticFeature& old_landmark)
+bool MapLayer::update(const SemanticFeature& new_landmark, const SemanticFeature& old_landmark, const int& old_landmark_id)
 {
   // Compute grid coordinates for the floating point old Landmark location
   // .49 is to prevent bad approximations (e.g. 1.49 = 1 & 1.51 = 2)
@@ -448,7 +448,7 @@ bool MapLayer::update(const SemanticFeature& new_landmark, const SemanticFeature
   {
     for (const auto& l_landmark : *l_landmarks)
     {
-      if (l_landmark.first == old_landmark.id_)
+      if (l_landmark.first == old_landmark_id)
       {
         // Update the correspondence to the new landmark and leave the routine
         // - check if the new landmark position matches a different cell in relation
@@ -461,8 +461,8 @@ bool MapLayer::update(const SemanticFeature& new_landmark, const SemanticFeature
 
         if ((new_l_i != l_i || new_l_j != l_j))
         {
-          (*this)(l_i, l_j).data->landmarks_->erase(old_landmark.id_);
-          insert(new_landmark, old_landmark.id_);
+          (*this)(l_i, l_j).data->landmarks_->erase(old_landmark_id);
+          insert(new_landmark, old_landmark_id);
         }
         else
         {
@@ -472,7 +472,7 @@ bool MapLayer::update(const SemanticFeature& new_landmark, const SemanticFeature
             (*this)(l_i, l_j).data = new CellData();
           }
 
-          (*(*this)(l_i, l_j).data->landmarks_)[old_landmark.id_] = new_landmark;
+          (*(*this)(l_i, l_j).data->landmarks_)[old_landmark_id] = new_landmark;
         }
         return true;
       }
@@ -1514,8 +1514,14 @@ bool OccupancyMap::getLayerNumber(const float& z, int& layer_num) const
 bool OccupancyMap::insert(const SemanticFeature& l_landmark, const int& id)
 {
   int layer_num;
-  getLayerNumber(l_landmark.pos_.z_, layer_num);
-  return layers_map_[layer_num].insert(l_landmark, id);
+  if (getLayerNumber(l_landmark.pos_.z_, layer_num))
+  {
+    return layers_map_[layer_num].insert(l_landmark, id);
+  }
+  else
+  {
+    return false;
+  }
 }
 
 bool OccupancyMap::insert(const ImageFeature& l_feature)
@@ -1583,7 +1589,7 @@ bool OccupancyMap::directInsert(const Planar& l_feature)
   }
 }
 
-bool OccupancyMap::update(const SemanticFeature& new_landmark, const SemanticFeature& old_landmark)
+bool OccupancyMap::update(const SemanticFeature& new_landmark, const SemanticFeature& old_landmark, const int& old_landmark_id)
 {
   // int layer_num;
   // getLayerNumber(new_landmark.pos_.z_, layer_num);
@@ -1602,7 +1608,8 @@ bool OccupancyMap::update(const SemanticFeature& new_landmark, const SemanticFea
 
   if (old_layer_num == new_layer_num)
   {
-    return layers_map_[old_layer_num].update(old_landmark, new_landmark);
+    std::cout << "OccupancyMap::update() -> updating on same cell ... \n\n";
+    return layers_map_[old_layer_num].update(old_landmark, new_landmark, old_landmark_id);
   }
   else
   {
@@ -1624,12 +1631,10 @@ bool OccupancyMap::update(const SemanticFeature& new_landmark, const SemanticFea
       // Find the landmark and update it
       for (const auto& l_landmark : *l_landmarks)
       {
-        if (l_landmark.second.pos_.x_ == old_landmark.pos_.x_ && l_landmark.second.pos_.y_ == old_landmark.pos_.y_ &&
-            l_landmark.second.pos_.z_ == old_landmark.pos_.z_)
+        if (l_landmark.first == old_landmark_id)
         {
-          layers_map_[old_layer_num](l_i, l_j).data->landmarks_->erase(old_landmark.id_);
-
-          insert(new_landmark, new_landmark.id_);
+          // layers_map_[old_layer_num](l_i, l_j).data->landmarks_->erase(old_landmark_id);
+          // insert(new_landmark, old_landmark_id);
 
           return true;
         }

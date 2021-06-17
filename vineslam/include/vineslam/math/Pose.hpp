@@ -95,9 +95,11 @@ struct Pose
     {
       stdev.x_ += std::pow(pose.x_ - mean.x_, 2);
       stdev.y_ += std::pow(pose.y_ - mean.y_, 2);
+      stdev.z_ += std::pow(pose.z_ - mean.z_, 2);
     }
     stdev.x_ = std::sqrt(stdev.x_ / static_cast<float>(poses.size()));
     stdev.y_ = std::sqrt(stdev.y_ / static_cast<float>(poses.size()));
+    stdev.z_ = std::sqrt(stdev.z_ / static_cast<float>(poses.size()));
 
     // Save pose and gaussian distribution
     (*this) = mean;

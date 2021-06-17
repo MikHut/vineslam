@@ -167,7 +167,7 @@ public:
 
   // Since Landmark map is built with a KF, Landmarks position change in each
   // iteration. This routine updates the position of a given Landmark
-  bool update(const SemanticFeature& new_landmark, const SemanticFeature& old_landmark);
+  bool update(const SemanticFeature& new_landmark, const SemanticFeature& old_landmark, const int& old_landmark_id);
 
   // Updates a corner 3D feature location
   bool update(const Corner& old_corner, const Corner& new_corner);
@@ -384,7 +384,7 @@ public:
 
   // Since Landmark map is built with a KF, Landmarks position change in each
   // iteration. This routine updates the position of a given Landmark
-  bool update(const SemanticFeature& new_landmark, const SemanticFeature& old_landmark);
+  bool update(const SemanticFeature& new_landmark, const SemanticFeature& old_landmark, const int& old_landmark_id);
 
   // Updates a corner 3D feature location
   bool update(const Corner& old_corner, const Corner& new_corner);

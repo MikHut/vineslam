@@ -4,6 +4,8 @@ namespace vineslam
 {
 KF::KF(const Parameters& params, const VectorXf& X0, const VectorXf& g, const VectorXf& z) : X0_(X0), X_(X0)
 {
+  n_obsvs_ = 1;  // initialization of the number of landmark observations
+
   // Initialize the process covariance P
   computeR(g, z);
   P_ = R_;
@@ -14,6 +16,8 @@ void KF::process(const VectorXf& s, const VectorXf& g, const VectorXf& z)
   computeR(g, z);
   predict();
   correct(s, z);
+
+  n_obsvs_++;  // increment the number of observations of the landmark
 }
 
 void KF::computeR(const VectorXf& g, const VectorXf& z)
@@ -36,6 +40,9 @@ void KF::computeR(const VectorXf& g, const VectorXf& z)
   //
   //  R_ = Rot * R_ * Rot.transpose();
   R_ = MatrixXf::Identity(3, 3);
+  R_(0, 0) = g[0] / n_obsvs_;
+  R_(1, 1) = g[1] / n_obsvs_;
+  R_(2, 2) = g[2] / n_obsvs_;
 }
 
 void KF::predict()
@@ -49,7 +56,7 @@ void KF::correct(const VectorXf& s, const VectorXf& z)
 {
   // Apply the observation model using the current state vector
   float d = std::sqrt(std::pow(X_[0] - s[0], 2) + std::pow(X_[1] - s[1], 2) + std::pow(X_[2] - s[2], 2));
-  float yaw = std::atan2(X_[1] - s[1], X_[0] - s[0]) - s[3];
+  float yaw = std::atan2(X_[1] - s[1], X_[0] - s[0]) - s[5];
   float pitch = std::atan2(X_[2] - s[2], std::sqrt(std::pow(X_[0] - s[0], 2) + std::pow(X_[1] - s[1], 2))) - s[4];
 
   VectorXf z_(3, 1);
@@ -79,10 +86,8 @@ void KF::correct(const VectorXf& s, const VectorXf& z)
   z_diff[2] = Const::normalizeAngle(z_diff[2]);
 
   // Update the state vector and the process covariance matrix
-  std::cout << "KF::correct() !!!\n";
-  std::cout << X_ << "\n";
+  Eigen::Vector3f tmp;
   X_ = X_ + K_ * z_diff;
-  std::cout << X_ << "\n";
   P_ = (MatrixXf::Identity(3, 3) - K_ * G) * P_;
 }
 

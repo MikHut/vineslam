@@ -219,6 +219,7 @@ void VineSLAM_ros::gpsListener(const sensor_msgs::msg::NavSatFix::SharedPtr msg)
     input_data_.gnss_raw_pose_.y_ = -e;
     input_data_.gnss_raw_pose_.z_ = u;
 
+    std::cout << "\n\n\n" << params_.map_datum_head_ << "\n\n\n";
     if (estimate_heading_)
     {
       getGNSSHeading();

@@ -164,14 +164,15 @@ void LandmarkMapper::predict(const Pose& pose, const std::vector<float>& bearing
       Gaussian<Point, Point> gauss = filters[correspondence.first - 1].getStdev();
 
       // Update the estimation on the map
-      // grid_map.update(SemanticFeature(X_out, gauss, labels[i]), correspondence.second);
+      grid_map.update(SemanticFeature(X_out, gauss, labels[i]), correspondence.second, correspondence.first);
     }
   }
 }
 
 std::pair<int, SemanticFeature> LandmarkMapper::findCorr(const Point& pos, const int& label, OccupancyMap& grid_map)
 {
-  float best_aprox = 0.5;
+  float best_aprox = (label == 1) ? 0.5 : 0.3; // for trunks we support a larger correspondence
+                                               // tolerance (0.5 meters in this case)
   std::pair<int, SemanticFeature> correspondence;
   correspondence.first = -1;
 

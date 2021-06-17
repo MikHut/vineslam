@@ -33,7 +33,6 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
 
   // Declare the Mappers and Localizer objects
   localizer_ = new Localizer(params_);
-  land_mapper_ = new LandmarkMapper(params_);
   vis_mapper_ = new VisualMapper();
 #if LIDAR_SENSOR == 0
   lid_mapper_ = new VelodyneMapper(params_);
@@ -136,7 +135,6 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
   tf2Scalar roll, pitch, yaw;
   cam2base.getBasis().getRPY(roll, pitch, yaw);
   vis_mapper_->setCam2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
-  land_mapper_->setCamPitch(pitch);
   cam2base_tf_ = Pose(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw).toTf();
 
   tf2::Stamped<tf2::Transform> laser2base_stamped;
@@ -425,7 +423,7 @@ void LocalizationNode::loopOnce()
   // Check if we have all the necessary data
   bool can_continue = (input_data_.received_image_features_ || (!params_.use_image_features_)) &&
                       input_data_.received_scans_ &&
-                      (input_data_.received_landmarks_ || !params_.use_semantic_features_) &&
+                      // (input_data_.received_landmarks_ || !params_.use_semantic_features_) &&
                       (input_data_.received_gnss_ || !params_.use_gps_);
 
   if (!can_continue)
@@ -464,13 +462,6 @@ void LocalizationNode::init()
   // ---------------------------------------------------------
   // ----- Initialize the multi-layer maps
   // ---------------------------------------------------------
-
-  // - 2D semantic feature map
-  if (params_.use_semantic_features_)
-  {
-    land_mapper_->init(robot_pose_, input_data_.land_bearings_, input_data_.land_depths_, input_data_.land_labels_,
-                       *grid_map_);
-  }
 
   // - 3D PCL corner map estimation
   std::vector<Corner> l_corners;
@@ -555,14 +546,6 @@ void LocalizationNode::process()
   // ---------------------------------------------------------
   // ----- Build local maps to use in the localization
   // ---------------------------------------------------------
-  // - Compute 2D local map of semantic features on robot's referential frame
-  std::vector<SemanticFeature> l_landmarks;
-  if (params_.use_semantic_features_)
-  {
-    timer_->tick("landmark_mapper::localMap()");
-    land_mapper_->localMap(input_data_.land_bearings_, input_data_.land_depths_, l_landmarks);
-    timer_->tock();
-  }
 
   // - Compute 3D PCL corners and ground plane on robot's referential frame
   std::vector<Corner> l_corners;
@@ -597,7 +580,6 @@ void LocalizationNode::process()
   // * Point cloud corners and planars
   // * SURF 3D image features
   // * GPS (if we're using it)
-  obsv_.landmarks_ = l_landmarks;
   obsv_.corners_ = l_corners;
   obsv_.planars_ = l_planars;
   obsv_.ground_plane_ = l_ground_plane;

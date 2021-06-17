@@ -97,12 +97,8 @@ void VineSLAM_ros::landmarkListener(const vision_msgs::msg::Detection2DArray::Sh
   std::vector<int> labels;
   std::vector<float> bearings;
   std::vector<float> pitches;
-  std::vector<float> depths;
-  std::vector<Vec> vecs;
 
-  // -------------------------------------------------------------------------------
-  // ---- Compute range-bearing representation of semantic features
-  // -------------------------------------------------------------------------------
+  // Compute range-bearing representation of semantic features
   for (const auto& detection : dets->detections)
   {
     vision_msgs::msg::BoundingBox2D l_bbox = detection.bbox;
@@ -111,33 +107,27 @@ void VineSLAM_ros::landmarkListener(const vision_msgs::msg::Detection2DArray::Sh
     int col = l_bbox.center.x;
     int row = l_bbox.center.y;
     float l_bearing = (-params_.h_fov_ / params_.img_width_) * (params_.img_width_ / 2 - col);
-    float l_pitch = (-params_.v_fov_ / params_.img_height_) * (params_.img_height_ / 2 - row);
+    float l_pitch = 0;
+    if (std::stoi(detection.results[0].id) != 1)  // not a trunk
+    {
+      l_pitch = (-params_.v_fov_ / params_.img_height_) * (params_.img_height_ / 2 - row);
+    }
 
     // Transform the landmark orientations into the robot referential frame
     Tf l_measurement_tf = Pose(0.0, 0.0, 0.0, 0.0, l_pitch, l_bearing).toTf();
     Tf l_measurement_base = cam2base_tf_.inverse() * l_measurement_tf;
+    Pose l_measurement(l_measurement_base.R_array_, l_measurement_base.t_array_);
 
-    // Transform the landmark orientations into the map referential frame
-    Tf l_measurement_map = robot_pose_.toTf() * l_measurement_base;
-    Pose l_measurement(l_measurement_map.R_array_, l_measurement_map.t_array_);
-
-    std::cout << col << " -> " << l_bearing * RAD_TO_DEGREE << "\n";
-    std::cout << row << " -> " << l_pitch * RAD_TO_DEGREE << "\n";
-    std::cout << l_measurement.x_ << ", " << l_measurement.y_ << ", " << l_measurement.z_ << ", "
-              << l_measurement.R_ * RAD_TO_DEGREE << ", " << l_measurement.P_ * RAD_TO_DEGREE << ", "
-              << l_measurement.Y_ * RAD_TO_DEGREE << "\n";
-
-    // Transform landmark orientations into a line/arrow
-    // ... x = cos(yaw)*cos(pitch)
-    // ... y = sin(yaw)*cos(pitch)
-    // ... z = sin(pitch)
-    Vec l_vec(std::cos(l_bearing) * std::cos(l_pitch), std::sin(l_bearing) * std::cos(l_pitch), std::sin(l_pitch));
-    vecs.push_back(l_vec);
+    // Save the observation
+    std::cout << std::stoi(detection.results[0].id) <<  "----- \n";
+    labels.push_back(std::stoi(detection.results[0].id));
+    bearings.push_back(l_measurement.Y_);
+    pitches.push_back(l_measurement.P_);
   }
 
   input_data_.land_labels_ = labels;
+  input_data_.land_pitches_ = pitches;
   input_data_.land_bearings_ = bearings;
-  input_data_.land_depths_ = depths;
 
   input_data_.received_landmarks_ = true;
 }

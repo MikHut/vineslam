@@ -40,23 +40,12 @@ private:
   MatrixXf K_;
   MatrixXf R_;
 
-  // Input parameters
-  float baseline_;
-  float delta_d_;
-  float fx_;
-
   // Function that implements the prediction step of the Kalman Filter
   void predict();
   // Function that implements the update step of the Kalman Filter
   void correct(const VectorXf& s, const VectorXf& z);
   // Function that calculates the current observations covariance matrix
   void computeR(const VectorXf& g, const VectorXf& z);
-
-  // Calculates the disparity error using the disparity noise model
-  float dispError(const float& depth) const
-  {
-    return std::pow(depth, 2) / (baseline_ * fx_) * delta_d_;
-  }
 };
 
 }  // namespace vineslam

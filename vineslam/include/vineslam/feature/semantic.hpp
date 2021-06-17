@@ -34,21 +34,19 @@ struct SemanticInfo
     switch (label)
     {
       case 0:
-        m_type = "Trunk";
-        m_desc = "Vine trunk. A static landmark";
+        m_type = "Tiny Grape Bunch";
+        m_desc = "Grape bunch in an early stage.";
         m_ch = 0;
 
         *this = SemanticInfo(m_type, m_desc, m_ch);
         break;
       case 1:
-        type_ = "Leaf";
-        m_desc = "Leaf from a vine trunk. A dynamic landmark";
+        type_ = "Trunk";
+        m_desc = "Vineyard trunk.";
         m_ch = 1;
 
         *this = SemanticInfo(type_, m_desc, m_ch);
         break;
-      default:
-        *this = SemanticInfo("Trunk", "Vine trunk", 0);
     }
   }
 
@@ -68,6 +66,7 @@ struct SemanticFeature : public Feature
     pos_ = pos;
     gauss_ = gauss;
     info_ = SemanticInfo(label);
+    label_ = label;
   }
   // Class constructor
   // - initializes its pose, standard deviation
@@ -92,6 +91,7 @@ struct SemanticFeature : public Feature
 
   Gaussian<Point, Point> gauss_;
   SemanticInfo info_;
+  int label_;
 };
 
 }  // namespace vineslam

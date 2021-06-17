@@ -86,9 +86,89 @@ void VineSLAM_ros::publishRobotBox(const Pose& robot_pose) const
   robot_box_publisher_->publish(robot_cube);
 }
 
-void VineSLAM_ros::publishLocalSemanticMap() const
+void VineSLAM_ros::publishLocalSemanticMap(const Pose& origin, const std::vector<SemanticFeature>& landmarks) const
 {
+  // Create and configure markers
+  visualization_msgs::msg::MarkerArray marker_array;
+  visualization_msgs::msg::Marker arrow;
+  visualization_msgs::msg::Marker point;
 
+  arrow.header.frame_id = params_.world_frame_id_;
+  arrow.header.stamp = rclcpp::Time();
+  arrow.ns = "/arrows";
+  arrow.type = visualization_msgs::msg::Marker::ARROW;
+  arrow.action = visualization_msgs::msg::Marker::ADD;
+  arrow.pose.position.x = origin.x_;
+  arrow.pose.position.y = origin.y_;
+  arrow.pose.position.z = origin.z_;
+  arrow.scale.x = 0.8;
+  arrow.scale.y = 0.1;
+  arrow.scale.z = 0.1;
+  arrow.color.r = 0.0;
+  arrow.color.g = 1.0;
+  arrow.color.b = 1.0;
+  arrow.color.a = 1.0;
+  arrow.lifetime = rclcpp::Duration(500000000);
+
+  point.header.frame_id = "base_link";
+  point.header.stamp = rclcpp::Time();
+  point.ns = "/points";
+  point.type = visualization_msgs::msg::Marker::CUBE;
+  point.action = visualization_msgs::msg::Marker::ADD;
+  point.lifetime = rclcpp::Duration(500000000);
+
+  uint32_t id = 0;
+
+  // Add vector markers
+  uint32_t n_obsv = input_data_.land_labels_.size();
+  for (uint32_t i = 0; i < n_obsv; i++)
+  {
+    tf2::Quaternion q;
+    q.setRPY(0., input_data_.land_pitches_[i], input_data_.land_bearings_[i]);
+
+    arrow.id = id++;
+    arrow.pose.orientation.x = q.getX();
+    arrow.pose.orientation.y = q.getY();
+    arrow.pose.orientation.z = q.getZ();
+    arrow.pose.orientation.w = q.getW();
+    marker_array.markers.push_back(arrow);
+  }
+
+  // Add point markers
+  for (const auto& landmark : landmarks)
+  {
+    point.id = id++;
+    point.pose.position.x = landmark.pos_.x_;
+    point.pose.position.y = landmark.pos_.y_;
+    point.pose.position.z = landmark.pos_.z_;
+
+    if (landmark.label_ == 1)  // trunk
+    {
+      point.color.r = 0.0;
+      point.color.g = 0.0;
+      point.color.b = 1.0;
+      point.color.a = 0.7;
+      point.scale.x = 0.15;
+      point.scale.y = 0.15;
+      point.scale.z = 0.30;
+    }
+    else  // not a trunk
+    {
+      point.color.r = 0.0;
+      point.color.g = 1.0;
+      point.color.b = 0.0;
+      point.color.a = 0.7;
+      point.scale.x = 0.15;
+      point.scale.y = 0.15;
+      point.scale.z = 0.15;
+    }
+
+
+    marker_array.markers.push_back(point);
+  }
+
+  // Publish the marker array
+  semantic_local_publisher_->publish(marker_array);
 }
 
 void VineSLAM_ros::publishSemanticMap() const
@@ -99,19 +179,12 @@ void VineSLAM_ros::publishSemanticMap() const
 
   // Define marker layout
   marker.ns = "/markers";
-  marker.type = visualization_msgs::msg::Marker::CYLINDER;
+  marker.type = visualization_msgs::msg::Marker::CUBE;
   marker.action = visualization_msgs::msg::Marker::ADD;
-  marker.scale.x = 0.1;
-  marker.scale.y = 0.1;
-  marker.scale.z = 0.3;
   marker.pose.orientation.x = 0.0;
   marker.pose.orientation.y = 0.0;
   marker.pose.orientation.z = 0.0;
   marker.pose.orientation.w = 1.0;
-  marker.color.r = 0.0f;
-  marker.color.g = 0.0f;
-  marker.color.b = 1.0f;
-  marker.color.a = 1.0;
   marker.lifetime = rclcpp::Duration(970000000);
 
   // Define marker layout
@@ -127,7 +200,7 @@ void VineSLAM_ros::publishSemanticMap() const
   ellipse.color.a = 1.0f;
   ellipse.lifetime = rclcpp::Duration(970000000);
 
-  std::map<int, SemanticFeature> l_landmarks = (*grid_map_)(0).getLandmarks();
+  std::map<int, SemanticFeature> l_landmarks = grid_map_->getLandmarks();
 
   // Publish markers
   int id = 1;
@@ -141,26 +214,47 @@ void VineSLAM_ros::publishSemanticMap() const
     marker.pose.position.x = l_sfeature.second.pos_.x_;
     marker.pose.position.y = l_sfeature.second.pos_.y_;
     marker.pose.position.z = l_sfeature.second.pos_.z_;
+    if (l_sfeature.second.label_ == 1)  // trunk
+    {
+      marker.color.r = 0.0;
+      marker.color.g = 0.0;
+      marker.color.b = 1.0;
+      marker.color.a = 0.7;
+      marker.scale.x = 0.15;
+      marker.scale.y = 0.15;
+      marker.scale.z = 0.50;
+      marker.pose.position.z += marker.scale.z / 2;
+    }
+    else  // not a trunk
+    {
+      marker.color.r = 0.0;
+      marker.color.g = 1.0;
+      marker.color.b = 0.0;
+      marker.color.a = 0.7;
+      marker.scale.x = 0.15;
+      marker.scale.y = 0.15;
+      marker.scale.z = 0.15;
+    }
 
     marker_array.markers.push_back(marker);
 
     // Draw sfeature standard deviation
-    tf2::Quaternion q;
-    q.setRPY(0, 0, l_sfeature.second.gauss_.theta_);
-
-    ellipse.ns = "/ellipse";
-    ellipse.id = id;
-    ellipse.header.stamp = rclcpp::Time();
-    ellipse.header.frame_id = params_.world_frame_id_;
-    ellipse.pose.position.x = l_sfeature.second.pos_.x_;
-    ellipse.pose.position.y = l_sfeature.second.pos_.y_;
-    ellipse.pose.position.z = l_sfeature.second.pos_.z_;
-    ellipse.scale.x = 3 * l_sfeature.second.gauss_.stdev_.x_;
-    ellipse.scale.y = 3 * l_sfeature.second.gauss_.stdev_.y_;
-    ellipse.pose.orientation.x = q.x();
-    ellipse.pose.orientation.y = q.y();
-    ellipse.pose.orientation.z = q.z();
-    ellipse.pose.orientation.w = q.w();
+    //    tf2::Quaternion q;
+    //    q.setRPY(0, 0, l_sfeature.second.gauss_.theta_);
+    //
+    //    ellipse.ns = "/ellipse";
+    //    ellipse.id = id;
+    //    ellipse.header.stamp = rclcpp::Time();
+    //    ellipse.header.frame_id = params_.world_frame_id_;
+    //    ellipse.pose.position.x = l_sfeature.second.pos_.x_;
+    //    ellipse.pose.position.y = l_sfeature.second.pos_.y_;
+    //    ellipse.pose.position.z = l_sfeature.second.pos_.z_;
+    //    ellipse.scale.x = 3 * l_sfeature.second.gauss_.stdev_.x_;
+    //    ellipse.scale.y = 3 * l_sfeature.second.gauss_.stdev_.y_;
+    //    ellipse.pose.orientation.x = q.x();
+    //    ellipse.pose.orientation.y = q.y();
+    //    ellipse.pose.orientation.z = q.z();
+    //    ellipse.pose.orientation.w = q.w();
 
     marker_array.markers.push_back(ellipse);
 

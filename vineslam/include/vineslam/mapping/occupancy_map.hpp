@@ -167,7 +167,7 @@ public:
 
   // Since Landmark map is built with a KF, Landmarks position change in each
   // iteration. This routine updates the position of a given Landmark
-  bool update(const SemanticFeature& new_landmark, const int& id, const float& i, const float& j);
+  bool update(const SemanticFeature& new_landmark, const SemanticFeature& old_landmark);
 
   // Updates a corner 3D feature location
   bool update(const Corner& old_corner, const Corner& new_corner);
@@ -384,7 +384,7 @@ public:
 
   // Since Landmark map is built with a KF, Landmarks position change in each
   // iteration. This routine updates the position of a given Landmark
-  bool update(const SemanticFeature& new_landmark, const int& id, const float& i, const float& j);
+  bool update(const SemanticFeature& new_landmark, const SemanticFeature& old_landmark);
 
   // Updates a corner 3D feature location
   bool update(const Corner& old_corner, const Corner& new_corner);
@@ -414,6 +414,20 @@ public:
   bool getLayerNumber(const float& z, int& layer_num) const;
 
   // Getter functions
+  std::map<int, SemanticFeature> getLandmarks()
+  {
+    std::map<int, SemanticFeature> out_landmarks;
+    for (const auto& layer : layers_map_)
+    {
+      std::map<int, SemanticFeature> l_landmarks = layer.second.getLandmarks();
+      for (const auto landmark : l_landmarks)
+      {
+        out_landmarks[landmark.first] = landmark.second;
+      }
+    }
+
+    return out_landmarks;
+  }
   std::vector<Corner> getCorners()
   {
     std::vector<Corner> out_corners;

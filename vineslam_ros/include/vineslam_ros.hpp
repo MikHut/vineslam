@@ -67,7 +67,7 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
 
-#define LIDAR_VERSION 0 // 0 -> velodyne, 1 -> livox
+#define LIDAR_VERSION 0  // 0 -> velodyne, 1 -> livox
 
 namespace vineslam
 {
@@ -123,7 +123,7 @@ public:
   // Global thread to publish maps and other info
   void publishDenseInfo(const float& rate);
   // Publish semantic features map
-  void publishLocalSemanticMap() const;
+  void publishLocalSemanticMap(const Pose& origin, const std::vector<SemanticFeature>& landmarks) const;
   void publishSemanticMap() const;
   // Publish the elevation map
   void publishElevationMap() const;
@@ -165,6 +165,8 @@ public:
     std::vector<int> land_labels_;
     // Landmark bearings array
     std::vector<float> land_bearings_;
+    // Landmark pitches array
+    std::vector<float> land_pitches_;
     // Landmark depths array
     std::vector<float> land_depths_;
     // Image features

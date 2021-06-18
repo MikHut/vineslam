@@ -240,7 +240,7 @@ void LandmarkMapper::predict(const Pose& pose, const std::vector<float>& bearing
 
 std::pair<int, SemanticFeature> LandmarkMapper::findCorr(const Point& pos, const int& label, OccupancyMap& grid_map)
 {
-  float best_aprox = (label == 1) ? 0.5 : 0.3;  // for trunks we support a larger correspondence
+  float best_aprox = (label == 1) ? 0.5 : 0.1;  // for trunks we support a larger correspondence
                                                 // tolerance (0.5 meters in this case)
   std::pair<int, SemanticFeature> correspondence;
   correspondence.first = -1;
@@ -294,8 +294,6 @@ std::pair<int, SemanticFeature> LandmarkMapper::findCorr(const Point& pos, const
     }
   }
 
-  std::cout << "LandmakrMapper::findCorr() !!! " << correspondence.first << ", " << correspondence.second.label_
-            << "\n\n";
   return correspondence;
 }
 
@@ -317,8 +315,8 @@ void LandmarkMapper::localMap(const Pose& cam_origin_pose, const std::vector<int
     Pose l_measurement(l_measurement_map.R_array_, l_measurement_map.t_array_);
 
     // Find the position of the landmark by intersection with the satellite occupancy grid map (saved in 'grid_map')
-    float multiplier = 0.3;
-    float increment = 0.25;
+    float multiplier = 0.2;
+    float increment = 0.1;
     bool found_occupied_cell = false;
     while (!found_occupied_cell && multiplier < 1.75)
     {
@@ -336,9 +334,9 @@ void LandmarkMapper::localMap(const Pose& cam_origin_pose, const std::vector<int
       {
         if (grid_map(l_pt.x_, l_pt.y_, 0).data != nullptr)
         {
-          if (grid_map(l_pt.x_, l_pt.y_, 0).data->is_occupied_from_sat_ != nullptr)
+          if (grid_map(l_pt.x_, l_pt.y_, 0).data->is_occupied_ != nullptr)
           {
-            if (*(grid_map(l_pt.x_, l_pt.y_, 0).data->is_occupied_from_sat_) == true)
+            if (*(grid_map(l_pt.x_, l_pt.y_, 0).data->is_occupied_) == true)
             {
               found_occupied_cell = true;
               SemanticFeature l_landmark;

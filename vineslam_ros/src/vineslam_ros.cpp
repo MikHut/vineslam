@@ -52,12 +52,12 @@ void VineSLAM_ros::occupancyMapListener(const nav_msgs::msg::OccupancyGrid::Shar
           {
             (*grid_map_)(tf_xx, tf_yy, 0).data = new CellData();
           }
-          if ((*grid_map_)(tf_xx, tf_yy, 0).data->is_occupied_from_sat_ == nullptr)
+          if ((*grid_map_)(tf_xx, tf_yy, 0).data->is_occupied_ == nullptr)
           {
-            (*grid_map_)(tf_xx, tf_yy, 0).data->is_occupied_from_sat_ = new bool();
+            (*grid_map_)(tf_xx, tf_yy, 0).data->is_occupied_ = new bool();
           }
 
-          *(*grid_map_)(tf_xx, tf_yy, 0).data->is_occupied_from_sat_ = true;
+          *(*grid_map_)(tf_xx, tf_yy, 0).data->is_occupied_ = true;
         }
       }
     }

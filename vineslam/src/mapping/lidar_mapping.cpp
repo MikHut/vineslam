@@ -110,6 +110,16 @@ void LidarMapper::globalCornerMap(const Pose& robot_pose, const std::vector<Corn
     {
       Corner new_corner(l_pt, corner.which_plane_);
       new_corners.push_back(new_corner);
+
+      // Set the occupancy of the 0 altitude map layer using the corner features
+      if (grid_map(l_pt.x_, l_pt.y_, 0).data != nullptr)
+      {
+        if (grid_map(l_pt.x_, l_pt.y_, 0).data->is_occupied_ == nullptr)
+        {
+          grid_map(l_pt.x_, l_pt.y_, 0).data->is_occupied_ = new bool();
+        }
+        *grid_map(l_pt.x_, l_pt.y_, 0).data->is_occupied_ = true;
+      }
     }
   }
 
@@ -1145,7 +1155,6 @@ void VelodyneMapper::extractFeatures(const std::vector<PlanePoint>& in_plane_pts
 
     out_planars.insert(out_planars.end(), planar_points_less_flat.begin(), planar_points_less_flat.end());
   }
-
 
   free(cloudCornerLabel);
   free(cloudPlanarLabel);

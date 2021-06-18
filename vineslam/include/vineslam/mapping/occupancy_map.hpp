@@ -27,8 +27,7 @@ struct CellData
   std::vector<Planar>* candidate_planar_features_{ nullptr };
 
   // Occupation flags
-  bool* is_occupied_from_sat_{ nullptr };  // true if the occupancy grid extracted from satellite image tells the cell
-                                           // is occupied
+  bool* is_occupied_{ nullptr };  // true if the occupancy grid cell is occupied
 };
 
 struct Cell

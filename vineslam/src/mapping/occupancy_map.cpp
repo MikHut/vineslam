@@ -1608,7 +1608,6 @@ bool OccupancyMap::update(const SemanticFeature& new_landmark, const SemanticFea
 
   if (old_layer_num == new_layer_num)
   {
-    std::cout << "OccupancyMap::update() -> updating on same cell ... \n\n";
     return layers_map_[old_layer_num].update(new_landmark, old_landmark, old_landmark_id);
   }
   else
@@ -1633,12 +1632,8 @@ bool OccupancyMap::update(const SemanticFeature& new_landmark, const SemanticFea
       {
         if (l_landmark.first == old_landmark_id)
         {
-          std::cout << "TEST erase<->insert:\n";
-          std::cout << layers_map_[old_layer_num](l_i, l_j).data->landmarks_->size() << ", ";
           layers_map_[old_layer_num](l_i, l_j).data->landmarks_->erase(old_landmark_id);
-          std::cout << layers_map_[old_layer_num](l_i, l_j).data->landmarks_->size() << ", ";
           insert(new_landmark, old_landmark_id);
-          std::cout << layers_map_[old_layer_num](l_i, l_j).data->landmarks_->size() << "\n";
 
           return true;
         }

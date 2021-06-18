@@ -18,15 +18,18 @@ namespace vineslam
 class KF
 {
 public:
-  KF(){};
+  KF() = default;
   // Class constructor
   // - Receives the initial state and the parameters
   // - initializes the covariance matrix
-  KF(const Parameters& params, const VectorXf& X0, const VectorXf& g, const VectorXf& z);
+  void init3D(const Parameters& params, const VectorXf& X0, const VectorXf& g, const VectorXf& z);
+  void init2D(const Parameters& params, const VectorXf& X0, const VectorXf& g, const VectorXf& z);
   // Function that processes all the Kalman Filter routines
-  void process(const VectorXf& s, const VectorXf& g, const VectorXf& z);
+  void process3D(const VectorXf& s, const VectorXf& g, const VectorXf& z);
+  void process2D(const VectorXf& s, const VectorXf& g, const VectorXf& z);
   // Function that outputs the current state of the Kalman Filter
-  Point getState() const;
+  Point getState3D() const;
+  Point getState2D() const;
   // Function that outputs the current standard deviation of the
   // Kalman Filter
   Gaussian<Point, Point> getStdev() const;
@@ -40,23 +43,17 @@ private:
   MatrixXf K_;
   MatrixXf R_;
 
-  // Input parameters
-  float baseline_;
-  float delta_d_;
-  float fx_;
+  // Number of landmark observations
+  int n_obsvs_;
 
   // Function that implements the prediction step of the Kalman Filter
   void predict();
   // Function that implements the update step of the Kalman Filter
-  void correct(const VectorXf& s, const VectorXf& z);
+  void correct3D(const VectorXf& s, const VectorXf& z);
+  void correct2D(const VectorXf& s, const VectorXf& z);
   // Function that calculates the current observations covariance matrix
-  void computeR(const VectorXf& g, const VectorXf& z);
-
-  // Calculates the disparity error using the disparity noise model
-  float dispError(const float& depth) const
-  {
-    return std::pow(depth, 2) / (baseline_ * fx_) * delta_d_;
-  }
+  void computeR3D(const VectorXf& g, const VectorXf& z);
+  void computeR2D(const VectorXf& g, const VectorXf& z);
 };
 
 }  // namespace vineslam

@@ -1,0 +1,3 @@
+map_server:
+  ros__parameters:
+    yaml_filename: "/home/andresaguiar/Documents/maps/VineSLAM/map_aveleda_27_05_2021_light/scaled_map_bhz8z.yaml"

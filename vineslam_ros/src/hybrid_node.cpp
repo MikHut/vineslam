@@ -46,10 +46,6 @@ HybridNode::HybridNode() : VineSLAM_ros("HybridNode")
   feature_subscriber_ = this->create_subscription<vineslam_msgs::msg::FeatureArray>(
       "/features_topic", 10,
       std::bind(&VineSLAM_ros::imageFeatureListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
-  // Semantic feature subscription
-  landmark_subscriber_ = this->create_subscription<vision_msgs::msg::Detection3DArray>(
-      "/detections_topic", 10,
-      std::bind(&VineSLAM_ros::landmarkListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
   // Scan subscription
   scan_subscriber_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
       "/scan_topic", 10,
@@ -73,7 +69,6 @@ HybridNode::HybridNode() : VineSLAM_ros("HybridNode")
   // Publish maps and particle filter
   vineslam_report_publisher_ = this->create_publisher<vineslam_msgs::msg::Report>("/vineslam/report", 10);
   elevation_map_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/elevationMap", 10);
-  map2D_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/map2D", 10);
   map3D_features_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/SURF", 10);
   map3D_corners_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/corners", 10);
   map3D_planars_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/planars", 10);
@@ -143,7 +138,7 @@ HybridNode::HybridNode() : VineSLAM_ros("HybridNode")
   tf2Scalar roll, pitch, yaw;
   cam2base.getBasis().getRPY(roll, pitch, yaw);
   vis_mapper_->setCam2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
-  land_mapper_->setCamPitch(pitch);
+  cam2base_tf_ = Pose(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw).toTf();
 
   tf2::Stamped<tf2::Transform> laser2base_stamped;
   tf2::fromMsg(laser2base_msg, laser2base_stamped);
@@ -306,6 +301,30 @@ void HybridNode::loadParameters(Parameters& params)
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
+  param = prefix + ".camera_info.horizontal_fov";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.h_fov_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".camera_info.vertical_fov";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.v_fov_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".camera_info.image_width";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.img_width_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".camera_info.image_height";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.img_height_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
   param = prefix + ".robot_dimensions.x";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.robot_dim_x_))
@@ -419,7 +438,7 @@ void HybridNode::loopOnce()
   // Check if we have all the necessary data
   bool can_continue = (input_data_.received_image_features_ || (!params_.use_image_features_)) &&
                       input_data_.received_scans_ &&
-                      (input_data_.received_landmarks_ || !params_.use_semantic_features_) &&
+                      // (input_data_.received_landmarks_ || !params_.use_semantic_features_) &&
                       (input_data_.received_gnss_ || !params_.use_gps_);
 
   if (!can_continue)
@@ -462,8 +481,8 @@ void HybridNode::init()
   // - 2D semantic feature map
   if (params_.use_semantic_features_)
   {
-    land_mapper_->init(robot_pose_, input_data_.land_bearings_, input_data_.land_depths_, input_data_.land_labels_,
-                       *grid_map_);
+    land_mapper_->init(robot_pose_, input_data_.land_bearings_, input_data_.land_pitches_, input_data_.land_depths_,
+                       input_data_.land_labels_, *grid_map_);
   }
 
   // - 3D PCL corner map estimation
@@ -556,14 +575,6 @@ void HybridNode::process()
   // ---------------------------------------------------------
   // ----- Build local maps to use in the localization
   // ---------------------------------------------------------
-  // - Compute 2D local map of semantic features on robot's referential frame
-  std::vector<SemanticFeature> l_landmarks;
-  if (params_.use_semantic_features_)
-  {
-    timer_->tick("landmark_mapper::localMap()");
-    land_mapper_->localMap(input_data_.land_bearings_, input_data_.land_depths_, l_landmarks);
-    timer_->tock();
-  }
 
   // - Compute 3D PCL corners and ground plane on robot's referential frame
   std::vector<Corner> l_corners;
@@ -598,7 +609,6 @@ void HybridNode::process()
   // * Point cloud corners and planars
   // * SURF 3D image features
   // * GPS (if we're using it)
-  obsv_.landmarks_ = l_landmarks;
   obsv_.corners_ = l_corners;
   obsv_.planars_ = l_planars;
   obsv_.ground_plane_ = l_ground_plane;
@@ -646,10 +656,40 @@ void HybridNode::process()
   // ---------------------------------------------------------
   if (params_.register_maps_ == true)
   {
-    land_mapper_->process(robot_pose_, l_landmarks, input_data_.land_labels_, *grid_map_);
-    vis_mapper_->registerMaps(robot_pose_, l_surf_features, *grid_map_);
-    lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, l_ground_plane, *grid_map_, *elevation_map_);
-    grid_map_->downsamplePlanars();
+    // Compute 2D local map of semantic features on robot's referential frame
+    // We do this after the localization process since we only use semantic features in the mapping stage (!)
+    std::vector<SemanticFeature> l_landmarks;
+    Tf cam_origin_tf = robot_pose_.toTf() * cam2base_tf_.inverse();
+    Pose cam_origin_pose(cam_origin_tf.R_array_, cam_origin_tf.t_array_);
+    if (params_.use_semantic_features_)
+    {
+      timer_->tick("landmark_mapper::localMap()");
+      land_mapper_->localMap(cam_origin_pose, input_data_.land_labels_, input_data_.land_bearings_,
+                             input_data_.land_pitches_, l_landmarks, *grid_map_, robot_pose_);
+      timer_->tock();
+      timer_->tick("landmark_mapper::process()");
+      land_mapper_->process(robot_pose_, l_landmarks, input_data_.land_labels_, *grid_map_);
+      timer_->tock();
+    }
+
+    if (params_.use_image_features_)
+    {
+      timer_->tick("visual_mapper::registerMaps()");
+      vis_mapper_->registerMaps(robot_pose_, l_surf_features, *grid_map_);
+      timer_->tock();
+    }
+
+    if (params_.use_lidar_features_)
+    {
+      timer_->tick("lidar_mapper::registerMaps()");
+      lid_mapper_->registerMaps(robot_pose_, l_corners, l_planars, l_planes, l_ground_plane, *grid_map_,
+                                *elevation_map_);
+      timer_->tock();
+
+      timer_->tick("grid_map::downsamplePlanars()");
+      grid_map_->downsamplePlanars();
+      timer_->tock();
+    }
   }
 
   // ---------------------------------------------------------

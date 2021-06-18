@@ -3,6 +3,7 @@ import yaml
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
+from launch.actions import ExecuteProcess
 from launch.substitutions import LaunchConfiguration
 
 
@@ -39,7 +40,7 @@ def generate_launch_description():
         package='tf2_ros',
         executable='static_transform_publisher',
         name='cam2base',
-        arguments=['0.343', '0.079', '0.820', '-0.002', '0.100', '-0.004', '0.995', 'base_link',
+        arguments=['0.000', '0.350', '0.500', '0.000', '0.000', '0.707', '0.707', 'base_link',
                    config['slam_node']['camera_sensor_frame']]
     )
     ld.add_action(tf1)
@@ -66,6 +67,7 @@ def generate_launch_description():
             ('/features_topic', '/image_feature_array'),
             ('/detections_topic', '/tpu/detections'),
             ('/scan_topic', '/agrobv18/velodyne_points'),
+            ('/occupancy_map', '/map')
         ],
         output={
             'stdout': 'screen',
@@ -129,6 +131,19 @@ def generate_launch_description():
             ]
         )
         ld.add_action(extractor)
+
+    # Map server
+    map_server_config_path = os.path.join(
+        get_package_share_directory('vineslam_ros'),
+        'config',
+        'map_server_params.yaml'
+    )
+    map_server_cmd = Node(
+        package='nav2_map_server',
+        executable='map_server',
+        output='screen',
+        parameters=[map_server_config_path])
+    ld.add_action(map_server_cmd)
 
     # Rviz
     rviz = Node(

@@ -1,14 +1,16 @@
 slam_node:
   robot_model: rocha  # {agrob, rocha}
   world_frame_id: map_nn2
-  use_semantic_features: False
+  use_semantic_features: True
   use_lidar_features: True
   use_image_features: False
   use_gps: True
   use_imu: False
 
+  lightweight_version: False
+
   lidar_sensor_frame: velodyne
-  camera_sensor_frame: zed_camera_left_optical_frame
+  camera_sensor_frame: camera_frame
 
   save_logs: True
   logs_folder: "/home/andresaguiar/Documents/vineslam_logs/"
@@ -17,6 +19,10 @@ slam_node:
     baseline: 0.12 # meters
     fx: 692.95849609375  # pixels
     cx: 692.95849609375  # pixels
+    horizontal_fov: 1.413 # radians
+    vertical_fov: 1.200 # radians
+    image_width: 1280 # px
+    image_height: 720 # px
 
   robot_dimensions:
     x: 1.00 # meters
@@ -30,14 +36,19 @@ slam_node:
       longitude: -8.3073997
       altitude: 247.982
 
+    # Satellite occupancy grid map datum
+    satellite_datum:
+      latitude: 41.2057809184083
+      longitude: -8.30806732177734
+
     # Grid map definitions
     grid_map:
       origin:
         x: -200.0
-        y: -200.0
+        y: -50.0
         z: -5.0
       width: 400.0
-      lenght: 400.0
+      lenght: 100.0
       height: 10.0
       resolution: 0.25 # meters
       output_folder: "/home/andresaguiar/Desktop/"

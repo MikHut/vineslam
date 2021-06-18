@@ -4,10 +4,10 @@ localization_node:
   use_semantic_features: False
   use_lidar_features: True
   use_image_features: False
-  use_gps: True
+  use_gps: False
   use_imu: False
 
-  lightweight_version: True # it does not use planar features
+  lightweight_version: True
 
   lidar_sensor_frame: velodyne
   camera_sensor_frame: zed_camera_left_optical_frame
@@ -22,6 +22,10 @@ localization_node:
     baseline: 0.12 # meters
     fx: 692.95849609375  # pixels
     cx: 692.95849609375  # pixels
+    horizontal_fov: 1.413 # radians
+    vertical_fov: 1.200 # radians
+    image_width: 1280 # px
+    image_height: 720 # px
 
   robot_dimensions:
     x: 1.00 # meters
@@ -32,8 +36,8 @@ localization_node:
   multilayer_mapping:
     # Grid map definitions
     grid_map:
-      map_file_path: "/home/andresaguiar/Desktop/map_aveleda_27_05_2021/map_1622207539.xml"
-      elevation_map_file_path: "/home/andresaguiar/Desktop/map_aveleda_27_05_2021/elevation_map_1622207539.xml"
+      map_file_path: "/home/andresaguiar/Desktop/map_feup/map_1622538912.xml"
+      elevation_map_file_path: "/home/andresaguiar/Desktop/map_feup/elevation_map_1622538912.xml"
       output_folder: "/home/andresaguiar/Desktop/"
 
   pf:
@@ -45,4 +49,4 @@ localization_node:
     sigma_zz: 0.3 # meters
     sigma_RR: 0.3 # radians
     sigma_PP: 0.3 # radians
-    sigma_YY: 0.5 # radians
+    sigma_YY: 0.1 # radians

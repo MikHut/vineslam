@@ -41,6 +41,7 @@
 #include <geometry_msgs/msg/pose_array.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
+#include <nav_msgs/msg/occupancy_grid.hpp>
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/image.hpp>
@@ -49,15 +50,14 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2/utils.h>
-#include <vision_msgs/msg/detection3_d.hpp>
-#include <vision_msgs/msg/detection3_d_array.hpp>
+#include <vision_msgs/msg/detection2_d.hpp>
+#include <vision_msgs/msg/detection2_d_array.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <visualization_msgs/msg/interactive_marker.hpp>
 #include <visualization_msgs/msg/interactive_marker_control.hpp>
 #include <visualization_msgs/msg/interactive_marker_feedback.hpp>
 #include <interactive_markers/interactive_marker_server.hpp>
 #include <interactive_markers/menu_handler.hpp>
-#include <nav_msgs/msg/occupancy_grid.hpp>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_cloud.h>
 #include <pcl/filters/filter.h>
@@ -66,6 +66,8 @@
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
+
+#define LIDAR_VERSION 0  // 0 -> velodyne, 1 -> livox
 
 namespace vineslam
 {
@@ -81,7 +83,7 @@ public:
   void imageFeatureListener(const vineslam_msgs::msg::FeatureArray::SharedPtr features);
 
   // Landmark detection callback function
-  void landmarkListener(const vision_msgs::msg::Detection3DArray::SharedPtr dets);
+  void landmarkListener(const vision_msgs::msg::Detection2DArray::SharedPtr dets);
 
   // Scan callback function
   void scanListener(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
@@ -92,6 +94,9 @@ public:
   // GPS callback function
   void gpsListener(const sensor_msgs::msg::NavSatFix::SharedPtr msg);
   //  void gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
+
+  // Occupancy grid map callback function
+  void occupancyMapListener(const nav_msgs::msg::OccupancyGrid::SharedPtr msg);
 
   // IMU callback functions
   void imuListener(const geometry_msgs::msg::Vector3Stamped::SharedPtr msg);
@@ -117,8 +122,9 @@ public:
 
   // Global thread to publish maps and other info
   void publishDenseInfo(const float& rate);
-  // Publish 2D semantic features map
-  void publish2DMap() const;
+  // Publish semantic features map
+  void publishLocalSemanticMap(const Pose& origin, const std::vector<SemanticFeature>& landmarks) const;
+  void publishSemanticMap() const;
   // Publish the elevation map
   void publishElevationMap() const;
   // Publish the 3D maps
@@ -159,6 +165,8 @@ public:
     std::vector<int> land_labels_;
     // Landmark bearings array
     std::vector<float> land_bearings_;
+    // Landmark pitches array
+    std::vector<float> land_pitches_;
     // Landmark depths array
     std::vector<float> land_depths_;
     // Image features
@@ -186,10 +194,11 @@ public:
   } input_data_;
 
   // ROS publishers/services
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr processed_occ_grid_publisher_;
   rclcpp::Publisher<vineslam_msgs::msg::Report>::SharedPtr vineslam_report_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr grid_map_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr elevation_map_publisher_;
-  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr map2D_publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr semantic_map_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr robot_box_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map3D_features_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map3D_corners_publisher_;
@@ -201,6 +210,7 @@ public:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr corners_local_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr planars_local_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr planes_local_publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr semantic_local_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr gps_pose_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr gps_fix_publisher_;
 
@@ -238,6 +248,9 @@ public:
   bool init_flag_;
   bool init_gps_;
   bool init_odom_;
+
+  // Sensor transformations
+  Tf cam2base_tf_;
 
   // Logs vars
   uint32_t n_saved_logs_;

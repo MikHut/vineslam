@@ -7,6 +7,69 @@ namespace vineslam
 // ----- Callbacks and observation functions
 // --------------------------------------------------------------------------------
 
+void VineSLAM_ros::occupancyMapListener(const nav_msgs::msg::OccupancyGrid::SharedPtr msg)
+{
+  // Compute the difference between the satellite map origin and the slam's
+  double n, e, d;
+  Geodetic l_geodetic_converter(params_.sat_datum_lat_, params_.sat_datum_long_, params_.map_datum_alt_);
+  l_geodetic_converter.geodetic2ned(params_.map_datum_lat_, params_.map_datum_long_, params_.map_datum_alt_, n, e, d);
+
+  // Create the occupancy grid map that will be published
+  Point map_origin(-e, -(msg->info.height * msg->info.resolution - std::fabs(n)), 0);
+  pcl::PointCloud<pcl::PointXYZ>::Ptr map_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+
+  // Set the 3D voxel map from the 2D occupancy grid map
+  for (unsigned int x = 0; x < msg->info.width; x++)
+  {
+    for (unsigned int y = 0; y < msg->info.height; y++)
+    {
+      if (msg->data[x + msg->info.width * y] == 100)
+      {
+        // Convert the grid map indexes to real world coordinates
+        float xx = (x + 0.5) * msg->info.resolution + map_origin.x_;
+        float yy = (y + 0.5) * msg->info.resolution + map_origin.y_;
+
+        // Transform the map occupied cells using the map datum heading
+        float tf_xx =
+            xx * std::cos(-params_.map_datum_head_ - M_PI / 2) - yy * std::sin(-params_.map_datum_head_ - M_PI / 2);
+        float tf_yy =
+            xx * std::sin(-params_.map_datum_head_ - M_PI / 2) + yy * std::cos(-params_.map_datum_head_ - M_PI / 2);
+
+        if (grid_map_->isInside(tf_xx, tf_yy, 0.))
+        {
+          // Insert the point in the grid map to publish
+          if ((x + msg->info.width * y) % 8 == 0)  // we do not show all the points for better performance
+          {
+            pcl::PointXYZ l_pt;
+            l_pt.x = tf_xx;
+            l_pt.y = tf_yy;
+            l_pt.z = 0.;
+            map_cloud->push_back(l_pt);
+          }
+
+          // Set the cell as occupied
+          if ((*grid_map_)(tf_xx, tf_yy, 0).data == nullptr)
+          {
+            (*grid_map_)(tf_xx, tf_yy, 0).data = new CellData();
+          }
+          if ((*grid_map_)(tf_xx, tf_yy, 0).data->is_occupied_ == nullptr)
+          {
+            (*grid_map_)(tf_xx, tf_yy, 0).data->is_occupied_ = new bool();
+          }
+
+          *(*grid_map_)(tf_xx, tf_yy, 0).data->is_occupied_ = true;
+        }
+      }
+    }
+  }
+
+  // Grid map publish
+  map_cloud->header.frame_id = params_.world_frame_id_;
+  sensor_msgs::msg::PointCloud2 map_cloud2;
+  pcl::toROSMsg(*map_cloud, map_cloud2);
+  processed_occ_grid_publisher_->publish(map_cloud2);
+}
+
 void VineSLAM_ros::imageFeatureListener(const vineslam_msgs::msg::FeatureArray::SharedPtr features)
 {
   std::vector<vineslam::ImageFeature> img_features;
@@ -28,36 +91,43 @@ void VineSLAM_ros::imageFeatureListener(const vineslam_msgs::msg::FeatureArray::
   input_data_.received_image_features_ = true;
 }
 
-void VineSLAM_ros::landmarkListener(const vision_msgs::msg::Detection3DArray::SharedPtr dets)
+void VineSLAM_ros::landmarkListener(const vision_msgs::msg::Detection2DArray::SharedPtr dets)
 {
   // Declaration of the arrays that will constitute the SLAM observations
   std::vector<int> labels;
   std::vector<float> bearings;
-  std::vector<float> depths;
+  std::vector<float> pitches;
 
-  // -------------------------------------------------------------------------------
-  // ---- Compute range-bearing representation of semantic features
-  // -------------------------------------------------------------------------------
-  for (const auto& detection : (*dets).detections)
+  // Compute range-bearing representation of semantic features
+  for (const auto& detection : dets->detections)
   {
-    vision_msgs::msg::BoundingBox3D l_bbox = detection.bbox;
+    vision_msgs::msg::BoundingBox2D l_bbox = detection.bbox;
 
-    float x = l_bbox.center.position.z;
-    float y = -(static_cast<float>(l_bbox.center.position.x) - params_.cx_) * (x / params_.fx_);
+    // Compute the pitch and yaw of each landmark
+    int col = l_bbox.center.x;
+    int row = l_bbox.center.y;
+    float l_bearing = (-params_.h_fov_ / params_.img_width_) * (params_.img_width_ / 2 - col);
+    float l_pitch = 0;
+    if (std::stoi(detection.results[0].id) != 1)  // not a trunk
+    {
+      l_pitch = (-params_.v_fov_ / params_.img_height_) * (params_.img_height_ / 2 - row);
+    }
 
-    auto depth = static_cast<float>(sqrt(pow(x, 2) + pow(y, 2)));
-    float theta = atan2(y, x);
+    // Transform the landmark orientations into the robot referential frame
+    Tf l_measurement_tf = Pose(0.0, 0.0, 0.0, 0.0, l_pitch, l_bearing).toTf();
+    Tf l_measurement_base = cam2base_tf_.inverse() * l_measurement_tf;
+    Pose l_measurement(l_measurement_base.R_array_, l_measurement_base.t_array_);
 
-    // Insert the measures in the observations arrays
-    //    labels.push_back(detection.results[0].id);
-    labels.push_back(0);
-    depths.push_back(depth);
-    bearings.push_back(theta);
+    // Save the observation
+    std::cout << std::stoi(detection.results[0].id) <<  "----- \n";
+    labels.push_back(std::stoi(detection.results[0].id));
+    bearings.push_back(l_measurement.Y_);
+    pitches.push_back(l_measurement.P_);
   }
 
   input_data_.land_labels_ = labels;
+  input_data_.land_pitches_ = pitches;
   input_data_.land_bearings_ = bearings;
-  input_data_.land_depths_ = depths;
 
   input_data_.received_landmarks_ = true;
 }
@@ -149,6 +219,7 @@ void VineSLAM_ros::gpsListener(const sensor_msgs::msg::NavSatFix::SharedPtr msg)
     input_data_.gnss_raw_pose_.y_ = -e;
     input_data_.gnss_raw_pose_.z_ = u;
 
+    std::cout << "\n\n\n" << params_.map_datum_head_ << "\n\n\n";
     if (estimate_heading_)
     {
       getGNSSHeading();
@@ -523,6 +594,32 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
   }
   pcl::io::savePCDFileASCII(params_.map_output_folder_ + "planars_map_" + std::to_string(timestamp) + ".pcd",
                             planars_cloud);
+
+  pcl::PointCloud<pcl::PointXYZ> elevation_cloud;
+  for (float i = xmin; i < xmax - elevation_map_->resolution_;)
+  {
+    for (float j = ymin; j < ymax - elevation_map_->resolution_;)
+    {
+      float z = (*elevation_map_)(i, j);
+      if (z == 0)
+      {
+        j += elevation_map_->resolution_;
+        continue;
+      }
+      else
+      {
+        pcl::PointXYZ pt;
+        pt.x = i + elevation_map_->resolution_ / 2;
+        pt.y = j + elevation_map_->resolution_ / 2;
+        pt.z = z;
+        elevation_cloud.push_back(pt);
+      }
+      j += elevation_map_->resolution_;
+    }
+    i += elevation_map_->resolution_;
+  }
+  pcl::io::savePCDFileASCII(params_.map_output_folder_ + "elevation_map_" + std::to_string(timestamp) + ".pcd",
+                            elevation_cloud);
 
   RCLCPP_INFO(this->get_logger(), "Maps saved.");
 

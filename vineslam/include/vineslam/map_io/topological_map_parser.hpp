@@ -18,6 +18,27 @@ public:
   // Receives the occupancy grid map and writes it to a xml file
   bool parseFile(TopologicalMap* topological_map);
 
+  // Tags to parse the file
+  const std::string s_header{ "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" };
+  const std::string s_map_file{ "map" };
+  const std::string s_tab{ "   " };
+  const std::string s_endl{ "\n" };
+  const std::string s_vertex{ "vertex" };
+  const std::string s_index{ "index" };
+  const std::string s_circle{ "circle" };
+  const std::string s_x{ "x" };
+  const std::string s_y{ "y" };
+  const std::string s_radius{ "radius" };
+  const std::string s_rectangle{ "rectangle" };
+  const std::string s_x1{ "x1" };
+  const std::string s_y1{ "y1" };
+  const std::string s_x2{ "x2" };
+  const std::string s_y2{ "y2" };
+  const std::string s_edges{ "edges" };
+  const std::string s_edge{ "edge" };
+  const std::string s_v1{ "v1" };
+  const std::string s_v2{ "v2" };
+
 private:
   // Build a xml tag (open) from a string
   static std::string openTag(const std::string& m_tag);

@@ -2,26 +2,25 @@
 
 namespace vineslam
 {
-
 TopologicalMapParser::TopologicalMapParser(const Parameters& params)
 {
   file_path_ = params.topological_map_input_file_;
 }
 
-bool TopologicalMapParser::parseFile(TopologicalMap *topological_map)
+bool TopologicalMapParser::parseFile(TopologicalMap* topological_map)
 {
-/*  // Create input file
+  // Create input file
   std::ifstream xmlfile(file_path_);
   if (!xmlfile.is_open())
   {
-    ROS_INFO("Input file not found.");
-    return;
+    std::cout << "Input file not found." << std::endl;
+    return false;
   }
 
   // Declare necessary variables
-  Vertex v;
+  Node v;
   uint32_t v1, v2;
-  std::vector<Vertex> vertexes;
+  std::vector<Node> vertexes;
   std::multimap<uint32_t, uint32_t> edges;
   bool readingdata = true;
   int state = 0;
@@ -40,15 +39,11 @@ bool TopologicalMapParser::parseFile(TopologicalMap *topological_map)
     switch (state)
     {
       case 0:  // new vertex
-        if (tag == openTag(s_map_file))
-        {
-          map_file = getString(line);
-        }
-        else if (tag == openTag(s_vertex))
+        if (tag == openTag(s_vertex))
         {
           state = 1;
-          v = Vertex();
-          v.rectangle.resize(2);
+          v = Node();
+          v.rectangle_.resize(2);
         }
         else if (tag == openTag(s_edge))
         {
@@ -64,35 +59,31 @@ bool TopologicalMapParser::parseFile(TopologicalMap *topological_map)
       case 1:
         if (tag == openTag(s_index))
         {
-          v.index = getInt(line);
+          v.index_ = getInt(line);
         }
         else if (tag == openTag(s_x))
         {
-          v.circle.x = getFloat(line);
+          v.center_.x_ = getFloat(line);
         }
         else if (tag == openTag(s_y))
         {
-          v.circle.y = getFloat(line);
-        }
-        else if (tag == openTag(s_radius))
-        {
-          v.circle.radius = getFloat(line);
+          v.center_.y_ = getFloat(line);
         }
         else if (tag == openTag(s_x1))
         {
-          v.rectangle[0].x = getFloat(line);
+          v.rectangle_[0].x_ = getFloat(line);
         }
         else if (tag == openTag(s_y1))
         {
-          v.rectangle[0].y = getFloat(line);
+          v.rectangle_[0].y_ = getFloat(line);
         }
         else if (tag == openTag(s_x2))
         {
-          v.rectangle[1].x = getFloat(line);
+          v.rectangle_[1].x_ = getFloat(line);
         }
         else if (tag == openTag(s_y2))
         {
-          v.rectangle[1].y = getFloat(line);
+          v.rectangle_[1].y_ = getFloat(line);
         }
         else if (tag == closeTag(s_vertex))
         {
@@ -122,21 +113,25 @@ bool TopologicalMapParser::parseFile(TopologicalMap *topological_map)
   // Insert vertexes into the graph
   for (const auto& v : vertexes)
   {
-    vertex_t u = boost::add_vertex(v, map);
-    graph_vertex.push_back(u);
+    vertex_t u = boost::add_vertex(v, topological_map->map_);
+    topological_map->graph_vertexes_.push_back(u);
   }
 
   // Insert edges into the graph
   Edge edge;
-  edge.i = 1;
+  edge.i_ = 1;
   for (const auto& e : edges)
   {
-    if (!boost::edge(graph_vertex[e.first], graph_vertex[e.second], map).second)
+    if (!boost::edge(topological_map->graph_vertexes_[e.first], topological_map->graph_vertexes_[e.second],
+                     topological_map->map_)
+             .second)
     {
-      boost::add_edge(graph_vertex[e.first], graph_vertex[e.second], edge, map);
-      boost::add_edge(graph_vertex[e.first], graph_vertex[e.second], edge, map);
+      boost::add_edge(topological_map->graph_vertexes_[e.first], topological_map->graph_vertexes_[e.second], edge,
+                      topological_map->map_);
+      boost::add_edge(topological_map->graph_vertexes_[e.first], topological_map->graph_vertexes_[e.second], edge,
+                      topological_map->map_);
     }
-  }*/
+  }
 }
 
 // ---------------------------------------------------------------

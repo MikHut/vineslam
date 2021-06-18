@@ -146,7 +146,8 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
   logs_ = "\n";
 
   auto before = std::chrono::high_resolution_clock::now();
-  if (use_semantic_features_)
+  // if (use_semantic_features_)
+  if (0)
   {
     t_->tick("pf::semantic()");
     highLevel(landmarks, grid_map, semantic_weights);

@@ -1592,8 +1592,8 @@ bool OccupancyMap::directInsert(const Planar& l_feature)
 bool OccupancyMap::update(const SemanticFeature& new_landmark, const SemanticFeature& old_landmark, const int& old_landmark_id)
 {
   // int layer_num;
-  // getLayerNumber(new_landmark.pos_.z_, layer_num);
-  // return layers_map_[layer_num].update(new_landmark, id, i, j);
+  // getLayerNumber(0, layer_num);
+  // return layers_map_[layer_num].update(new_landmark, old_landmark_id, old_landmark_id);
 
   int old_layer_num;
   int new_layer_num;
@@ -1609,7 +1609,7 @@ bool OccupancyMap::update(const SemanticFeature& new_landmark, const SemanticFea
   if (old_layer_num == new_layer_num)
   {
     std::cout << "OccupancyMap::update() -> updating on same cell ... \n\n";
-    return layers_map_[old_layer_num].update(old_landmark, new_landmark, old_landmark_id);
+    return layers_map_[old_layer_num].update(new_landmark, old_landmark, old_landmark_id);
   }
   else
   {
@@ -1633,8 +1633,12 @@ bool OccupancyMap::update(const SemanticFeature& new_landmark, const SemanticFea
       {
         if (l_landmark.first == old_landmark_id)
         {
-          // layers_map_[old_layer_num](l_i, l_j).data->landmarks_->erase(old_landmark_id);
-          // insert(new_landmark, old_landmark_id);
+          std::cout << "TEST erase<->insert:\n";
+          std::cout << layers_map_[old_layer_num](l_i, l_j).data->landmarks_->size() << ", ";
+          layers_map_[old_layer_num](l_i, l_j).data->landmarks_->erase(old_landmark_id);
+          std::cout << layers_map_[old_layer_num](l_i, l_j).data->landmarks_->size() << ", ";
+          insert(new_landmark, old_landmark_id);
+          std::cout << layers_map_[old_layer_num](l_i, l_j).data->landmarks_->size() << "\n";
 
           return true;
         }

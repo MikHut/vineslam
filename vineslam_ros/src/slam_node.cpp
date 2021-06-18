@@ -635,7 +635,7 @@ void SLAMNode::process()
   input_data_.imu_data_pose_ = Pose(0, 0, 0, 0, 0, 0);
 
   // ---------------------------------------------------------
-  // ----- Register multi-layer map (if performing SLAM)
+  // ----- Register multi-layer map 
   // ---------------------------------------------------------
   // Compute 2D local map of semantic features on robot's referential frame
   // We do this after the localization process since we only use semantic features in the mapping stage (!)

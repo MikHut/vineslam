@@ -647,9 +647,12 @@ void SLAMNode::process()
     timer_->tick("landmark_mapper::localMap()");
     land_mapper_->localMap(cam_origin_pose, input_data_.land_labels_, input_data_.land_bearings_,
                            input_data_.land_pitches_, l_landmarks, *grid_map_, robot_pose_);
+    // land_mapper_->localMap(cam_origin_pose, input_data_.land_labels_, input_data_.land_bearings_,
+    //                        input_data_.land_pitches_, l_landmarks, grid_map_->planes_, robot_pose_);
     timer_->tock();
     timer_->tick("landmark_mapper::process()");
     land_mapper_->process(robot_pose_, l_landmarks, input_data_.land_labels_, *grid_map_);
+    std::cout << "# landmarks mapped: " << grid_map_->getLandmarks().size() << "\n";
     timer_->tock();
   }
 

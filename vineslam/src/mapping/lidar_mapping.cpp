@@ -945,16 +945,16 @@ bool VelodyneMapper::checkPlaneConsistency(const SemiPlane& plane, const SemiPla
   //        idx = i;
   //      }
   //    }
-  //    d1 = min_dist;
+  //    d1 = min_dist;pts.begin() + idx);
+  //      d0 = d1;
+  //    }
   //    if (std::fabs(d1 - d0) > 0.2 && d0 != 0)  // We found a hole in this case ...
   //    {
   //      return false;
   //    }
   //    else
   //    {
-  //      pts.erase(pts.begin() + idx);
-  //      d0 = d1;
-  //    }
+  //      pts.erase(
   //  }
 
   // C - Make sure that the plane is not horizontal

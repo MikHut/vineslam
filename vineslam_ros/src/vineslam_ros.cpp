@@ -119,7 +119,6 @@ void VineSLAM_ros::landmarkListener(const vision_msgs::msg::Detection2DArray::Sh
     Pose l_measurement(l_measurement_base.R_array_, l_measurement_base.t_array_);
 
     // Save the observation
-    std::cout << std::stoi(detection.results[0].id) <<  "----- \n";
     labels.push_back(std::stoi(detection.results[0].id));
     bearings.push_back(l_measurement.Y_);
     pitches.push_back(l_measurement.P_);

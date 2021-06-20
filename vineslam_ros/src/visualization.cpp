@@ -213,7 +213,6 @@ void VineSLAM_ros::publishSemanticMap() const
     marker.header.frame_id = params_.world_frame_id_;
     marker.pose.position.x = l_sfeature.second.pos_.x_;
     marker.pose.position.y = l_sfeature.second.pos_.y_;
-    marker.pose.position.z = l_sfeature.second.pos_.z_;
     if (l_sfeature.second.label_ == 1)  // trunk
     {
       marker.color.r = 0.0;
@@ -223,7 +222,7 @@ void VineSLAM_ros::publishSemanticMap() const
       marker.scale.x = 0.15;
       marker.scale.y = 0.15;
       marker.scale.z = 0.50;
-      marker.pose.position.z += marker.scale.z / 2;
+      marker.pose.position.z = robot_pose_.z_ + marker.scale.z / 2;
     }
     else  // not a trunk
     {
@@ -231,9 +230,10 @@ void VineSLAM_ros::publishSemanticMap() const
       marker.color.g = 1.0;
       marker.color.b = 0.0;
       marker.color.a = 0.7;
-      marker.scale.x = 0.15;
-      marker.scale.y = 0.15;
-      marker.scale.z = 0.15;
+      marker.scale.x = 0.08;
+      marker.scale.y = 0.08;
+      marker.scale.z = 0.08;
+      marker.pose.position.z = l_sfeature.second.pos_.z_;
     }
 
     marker_array.markers.push_back(marker);

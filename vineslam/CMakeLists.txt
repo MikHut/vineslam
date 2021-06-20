@@ -12,6 +12,7 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(Boost REQUIRED)
 
 include_directories(include)
 
@@ -29,6 +30,7 @@ add_library(vineslam
         src/map_io/map_parser.cpp
         src/map_io/elevation_map_writer.cpp
         src/map_io/elevation_map_parser.cpp
+        src/map_io/topological_map_parser.cpp
         include/vineslam/extern/thread_pool.cpp)
 
 ament_export_targets(export_vineslam HAS_LIBRARY_TARGET)
@@ -36,11 +38,13 @@ ament_export_targets(export_vineslam HAS_LIBRARY_TARGET)
 ament_export_dependencies(
         ament_cmake
         Eigen3
+        Boost
 )
 
 ament_target_dependencies(vineslam
         ament_cmake
-        ${Eigen3_LIBRARIES})
+        ${Eigen3_LIBRARIES}
+        ${Boost_LIBRARIES})
 
 install(TARGETS vineslam
         EXPORT export_vineslam

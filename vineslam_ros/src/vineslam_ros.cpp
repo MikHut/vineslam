@@ -579,8 +579,11 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
     pt.z = c.pos_.z_;
     corners_cloud.push_back(pt);
   }
-  pcl::io::savePCDFileASCII(params_.map_output_folder_ + "corners_map_" + std::to_string(timestamp) + ".pcd",
-                            corners_cloud);
+  if (!corners_cloud.empty())
+  {
+    pcl::io::savePCDFileASCII(params_.map_output_folder_ + "corners_map_" + std::to_string(timestamp) + ".pcd",
+                              corners_cloud);
+  }
 
   pcl::PointCloud<pcl::PointXYZ> planars_cloud;
   for (const auto& p : planars)
@@ -591,8 +594,11 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
     pt.z = p.pos_.z_;
     planars_cloud.push_back(pt);
   }
-  pcl::io::savePCDFileASCII(params_.map_output_folder_ + "planars_map_" + std::to_string(timestamp) + ".pcd",
-                            planars_cloud);
+  if (!planars_cloud.empty())
+  {
+    pcl::io::savePCDFileASCII(params_.map_output_folder_ + "planars_map_" + std::to_string(timestamp) + ".pcd",
+                              planars_cloud);
+  }
 
   pcl::PointCloud<pcl::PointXYZ> elevation_cloud;
   for (float i = xmin; i < xmax - elevation_map_->resolution_;)
@@ -617,8 +623,11 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
     }
     i += elevation_map_->resolution_;
   }
-  pcl::io::savePCDFileASCII(params_.map_output_folder_ + "elevation_map_" + std::to_string(timestamp) + ".pcd",
-                            elevation_cloud);
+  if (!elevation_cloud.empty())
+  {
+    pcl::io::savePCDFileASCII(params_.map_output_folder_ + "elevation_map_" + std::to_string(timestamp) + ".pcd",
+                              elevation_cloud);
+  }
 
   RCLCPP_INFO(this->get_logger(), "Maps saved.");
 

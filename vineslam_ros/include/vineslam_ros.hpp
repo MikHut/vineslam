@@ -125,6 +125,7 @@ public:
   // Publish semantic features map
   void publishLocalSemanticMap(const Pose& origin, const std::vector<SemanticFeature>& landmarks) const;
   void publishSemanticMap() const;
+  void publishSemanticMapFromArray(const std::map<int, SemanticFeature>& landmarks) const;
   // Publish the elevation map
   void publishElevationMap() const;
   // Publish the 3D maps

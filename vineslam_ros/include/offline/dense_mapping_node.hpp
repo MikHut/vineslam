@@ -59,6 +59,9 @@ private:
 
   // ROS services
   rclcpp::Service<vineslam_ros::srv::SaveMap>::SharedPtr save_map_srv_;
+
+  // SLAM map information
+  std::map<int, SemanticFeature> semantic_features_;
 };
 
 }  // namespace vineslam

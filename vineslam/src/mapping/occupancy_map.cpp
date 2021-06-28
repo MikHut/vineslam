@@ -1470,7 +1470,7 @@ OccupancyMap::OccupancyMap(const Parameters& params, const Pose& origin_offset, 
   origin_.y_ = params.gridmap_origin_y_ + origin_offset.y_;
   origin_.z_ = params.gridmap_origin_z_;
   resolution_ = params.gridmap_resolution_;
-  resolution_z_ = resolution_ / 1;
+  resolution_z_ = resolution_ / 8;
   width_ = params.gridmap_width_;
   lenght_ = params.gridmap_lenght_;
   height_ = params.gridmap_height_;

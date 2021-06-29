@@ -33,6 +33,7 @@ bool MapParser::parseHeader(Parameters* params)
     std::string tag = getTag(line);
     tag.erase(std::remove_if(tag.begin(), tag.end(), isspace), tag.end());
 
+
     if (tag == openTag(INFO) || tag == openTag(ORIGIN) || tag == openTag(DATUM))
     {
       continue;
@@ -166,6 +167,11 @@ bool MapParser::parseFile(OccupancyMap* grid_map)
           semantic_feature.pos_.y_ = getFloat(line);
           semantic_feature.gauss_.mean_.y_ = semantic_feature.pos_.y_;
         }
+        else if (tag == openTag(Z_COORDINATE))
+        {
+          semantic_feature.pos_.z_ = getFloat(line);
+          semantic_feature.gauss_.mean_.z_ = semantic_feature.pos_.z_;
+        }
         else if (tag == openTag(STDX))
         {
           semantic_feature.gauss_.stdev_.x_ = getFloat(line);
@@ -181,6 +187,7 @@ bool MapParser::parseFile(OccupancyMap* grid_map)
         else if (tag == openTag(LABEL))
         {
           int c = getInt(line);
+          semantic_feature.label_ = c;
           semantic_feature.info_ = SemanticInfo(c);
         }
         else if (tag == closeTag(LTAG))
@@ -451,7 +458,15 @@ float MapParser::getFloat(const std::string& line)
 
   std::string val_str = sub_str.substr(0, last_it);
 
-  return std::stof(val_str);
+  double tmp = std::stod(val_str);
+  if (tmp > std::numeric_limits<float>::min() && tmp < std::numeric_limits<float>::max())
+  {
+    return static_cast<float>(tmp);
+  }
+  else
+  {
+    return 0;
+  }
 }
 
 int MapParser::getInt(const std::string& line)

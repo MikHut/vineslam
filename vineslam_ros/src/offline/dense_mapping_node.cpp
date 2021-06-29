@@ -234,7 +234,6 @@ void MappingNode::loop()
     poses_publisher_->publish(marker_array);
 
     // Publish landmarks
-    RCLCPP_ERROR(this->get_logger(), "%d", semantic_features_.size());
     publishSemanticMapFromArray(semantic_features_);
 
     // Read pcd file

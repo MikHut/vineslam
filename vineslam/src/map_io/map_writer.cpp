@@ -46,7 +46,7 @@ void MapWriter::writeToFile(OccupancyMap* grid_map, const Parameters& params)
     float xmin = layer.second.origin_.x_;
     float xmax = xmin + layer.second.width_;
     float ymin = layer.second.origin_.y_;
-    float ymax = xmin + layer.second.lenght_;
+    float ymax = ymin + layer.second.lenght_;
     float z = static_cast<float>(layer.first) * grid_map->resolution_z_ + grid_map->origin_.z_;
     for (float i = xmin; i < xmax - grid_map->resolution_;)
     {
@@ -122,12 +122,14 @@ void MapWriter::writeToFile(OccupancyMap* grid_map, const Parameters& params)
                     << ENDL;
             xmlfile << TAB << TAB << TAB << TAB << open(Y_COORDINATE) << landmark.second.pos_.y_ << close(Y_COORDINATE)
                     << ENDL;
+            xmlfile << TAB << TAB << TAB << TAB << open(Z_COORDINATE) << landmark.second.pos_.z_ << close(Z_COORDINATE)
+                    << ENDL;
             xmlfile << TAB << TAB << TAB << TAB << open(STDX) << landmark.second.gauss_.stdev_.x_ << close(STDX)
                     << ENDL;
             xmlfile << TAB << TAB << TAB << TAB << open(STDY) << landmark.second.gauss_.stdev_.y_ << close(STDY)
                     << ENDL;
             xmlfile << TAB << TAB << TAB << TAB << open(ANGLE) << landmark.second.gauss_.theta_ << close(ANGLE) << ENDL;
-            xmlfile << TAB << TAB << TAB << TAB << open(LABEL) << landmark.second.info_.character_ << close(LABEL)
+            xmlfile << TAB << TAB << TAB << TAB << open(LABEL) << landmark.second.label_ << close(LABEL)
                     << ENDL;
             xmlfile << TAB << TAB << TAB << close(LTAG) << ENDL;
           }

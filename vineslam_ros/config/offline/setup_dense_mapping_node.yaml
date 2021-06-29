@@ -11,7 +11,7 @@ dense_mapping_node:
 
     # Grid map definitions
     grid_map:
-      map_file_path: "/home/andresaguiar/Documents/maps/VineSLAM/map_aveleda_27_05_2021_v2/.xml"
+      map_file_path: "/home/andresaguiar/Documents/maps/VineSLAM/map_aveleda_27_05_2021_v2/map_1624961732.xml"
       origin:
         x: -110.0
         y: -110.0

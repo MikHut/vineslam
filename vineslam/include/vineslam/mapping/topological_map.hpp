@@ -4,6 +4,7 @@
 
 #include <vineslam/math/Point.hpp>
 #include <vineslam/mapping/occupancy_map.hpp>
+#include <vineslam/math/Geodetic.hpp>
 
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graph_traits.hpp>
@@ -14,15 +15,27 @@ namespace vineslam
 // Vertex of a node
 struct PlaceVertices
 {
-  uint16_t x_;
-  uint16_t y_;
+  float x_;
+  float y_;
+
+  double lon_;
+  double lat_;
+};
+
+struct Vertex
+{
+  float x_;
+  float y_;
+
+  double lat_;
+  double lon_;
 };
 
 // Graph node
 struct Node
 {
   uint32_t index_;
-  Point center_;
+  Vertex center_;
   std::vector<PlaceVertices> rectangle_;
 
   OccupancyMap* map_;
@@ -45,9 +58,12 @@ class TopologicalMap
 public:
   TopologicalMap() = default;
 
+  // Compute the enu location of all the graph vertexes
+  void polar2Enu(const double& datum_lat, const double& datum_lon, const double& datum_alt, const double& datum_head);
+
   // Instanciate a graph
   Graph map_;
-
+  // Vector of vertexes
   std::vector<vertex_t> graph_vertexes_;
 
 private:

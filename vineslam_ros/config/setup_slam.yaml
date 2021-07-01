@@ -41,6 +41,10 @@ slam_node:
       latitude: 41.2057809184083
       longitude: -8.30806732177734
 
+    # Topological map definitions
+    topological_map:
+      input_file: "/home/andresaguiar/ROS/catkin_ws_ros1/src/agrob_pp/agrob_topologic/agrob_topologic_graph/data/topological_map.xml"
+
     # Grid map definitions
     grid_map:
       origin:

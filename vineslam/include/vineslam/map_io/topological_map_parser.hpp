@@ -28,12 +28,18 @@ public:
   const std::string s_circle{ "circle" };
   const std::string s_x{ "x" };
   const std::string s_y{ "y" };
+  const std::string s_lat{ "lat" };
+  const std::string s_lon{ "lon" };
   const std::string s_radius{ "radius" };
   const std::string s_rectangle{ "rectangle" };
   const std::string s_x1{ "x1" };
   const std::string s_y1{ "y1" };
   const std::string s_x2{ "x2" };
   const std::string s_y2{ "y2" };
+  const std::string s_lat_1{ "lat_1" };
+  const std::string s_lon_1{ "lon_1" };
+  const std::string s_lat_2{ "lat_2" };
+  const std::string s_lon_2{ "lon_2" };
   const std::string s_edges{ "edges" };
   const std::string s_edge{ "edge" };
   const std::string s_v1{ "v1" };

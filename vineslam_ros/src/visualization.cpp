@@ -17,6 +17,7 @@ void VineSLAM_ros::publishDenseInfo(const float& rate)
     publishSemanticMap();
     // Publish 3D maps
     publish3DMap();
+    publishTopologicalMap();
     publishElevationMap();
     publishGridMapLimits();
 
@@ -1055,6 +1056,83 @@ void VineSLAM_ros::make6DofMarker(visualization_msgs::msg::InteractiveMarker& im
   control.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::ROTATE_AXIS;
   control.orientation_mode = visualization_msgs::msg::InteractiveMarkerControl::FIXED;
   imarker.controls.push_back(control);
+}
+
+void VineSLAM_ros::publishTopologicalMap()
+{
+  visualization_msgs::msg::MarkerArray marker_array;
+  visualization_msgs::msg::Marker line_strip;
+  visualization_msgs::msg::Marker circle;
+  visualization_msgs::msg::Marker rectangle;
+
+  // Define markers layout
+  circle.header.stamp = rclcpp::Time();
+  circle.header.frame_id = params_.world_frame_id_;
+  circle.ns = "/circles";
+  circle.type = visualization_msgs::msg::Marker::CYLINDER;
+  circle.action = visualization_msgs::msg::Marker::ADD;
+  circle.scale.x = 0.8;
+  circle.scale.y = 0.8;
+  circle.scale.z = 0.1;
+  circle.pose.orientation.x = 0.0;
+  circle.pose.orientation.y = 0.0;
+  circle.pose.orientation.z = 0.0;
+  circle.pose.orientation.w = 1.0;
+  circle.color.r = 0.0f;
+  circle.color.g = 0.0f;
+  circle.color.b = 1.0f;
+  circle.color.a = 1.0f;
+  circle.header.stamp = rclcpp::Time();
+  rectangle.header.frame_id = params_.world_frame_id_;
+  rectangle.ns = "/rectangles";
+  rectangle.type = visualization_msgs::msg::Marker::CUBE;
+  rectangle.action = visualization_msgs::msg::Marker::ADD;
+  rectangle.color.r = 0.0f;
+  rectangle.color.g = 1.0f;
+  rectangle.color.b = 0.0f;
+  rectangle.color.a = 0.4f;
+  line_strip.header.stamp = rclcpp::Time();
+  line_strip.header.frame_id = params_.world_frame_id_;
+  line_strip.ns = "/lines";
+  line_strip.type = visualization_msgs::msg::Marker::LINE_STRIP;
+  line_strip.action = visualization_msgs::msg::Marker::ADD;
+  line_strip.scale.x = 0.1;
+  line_strip.scale.y = 0.1;
+  line_strip.scale.z = 0.1;
+  line_strip.color.r = 1.0f;
+  line_strip.color.g = 0.0f;
+  line_strip.color.b = 0.0f;
+  line_strip.color.a = 1.0;
+
+  topological_map_->polar2Enu(params_.map_datum_lat_, params_.map_datum_long_, params_.map_datum_alt_,
+                              params_.map_datum_head_);
+  int id = 0;
+  for (size_t i = 0; i < topological_map_->graph_vertexes_.size(); i++)
+  {
+    geometry_msgs::msg::Point center;
+    center.x = topological_map_->map_[topological_map_->graph_vertexes_[i]].center_.x_;
+    center.y = topological_map_->map_[topological_map_->graph_vertexes_[i]].center_.y_;
+
+    rectangle.id = id;
+    rectangle.pose.position.x = center.x;
+    rectangle.pose.position.y = center.y;
+    rectangle.scale.x = std::fabs(topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[0].x_ -
+                                  topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[1].x_);
+    rectangle.scale.y = std::fabs(topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[0].y_ -
+                                  topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[1].y_);
+    rectangle.scale.z = 0.1;
+
+    circle.id = id++;
+    circle.pose.position.x = center.x;
+    circle.pose.position.y = center.y;
+    // line_strip.points.push_back(center);
+
+    marker_array.markers.push_back(circle);
+    marker_array.markers.push_back(rectangle);
+  }
+  marker_array.markers.push_back(line_strip);
+
+  topological_map_publisher_->publish(marker_array);
 }
 
 }  // namespace vineslam

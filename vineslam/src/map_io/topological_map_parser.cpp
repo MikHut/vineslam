@@ -61,35 +61,36 @@ bool TopologicalMapParser::parseFile(TopologicalMap* topological_map)
         {
           v.index_ = getInt(line);
         }
-        else if (tag == openTag(s_x))
+        else if (tag == openTag(s_lat))
         {
-          v.center_.x_ = getFloat(line);
+          v.center_.lat_ = getFloat(line);
         }
-        else if (tag == openTag(s_y))
+        else if (tag == openTag(s_lon))
         {
-          v.center_.y_ = getFloat(line);
+          v.center_.lon_ = getFloat(line);
         }
-        else if (tag == openTag(s_x1))
+        else if (tag == openTag(s_lat_1))
         {
-          v.rectangle_[0].x_ = getFloat(line);
+          v.rectangle_[0].lat_ = getFloat(line);
         }
-        else if (tag == openTag(s_y1))
+        else if (tag == openTag(s_lon_1))
         {
-          v.rectangle_[0].y_ = getFloat(line);
+          v.rectangle_[0].lon_ = getFloat(line);
         }
-        else if (tag == openTag(s_x2))
+        else if (tag == openTag(s_lat_2))
         {
-          v.rectangle_[1].x_ = getFloat(line);
+          v.rectangle_[1].lat_ = getFloat(line);
         }
-        else if (tag == openTag(s_y2))
+        else if (tag == openTag(s_lon_2))
         {
-          v.rectangle_[1].y_ = getFloat(line);
+          v.rectangle_[1].lon_ = getFloat(line);
         }
         else if (tag == closeTag(s_vertex))
         {
           vertexes.push_back(v);
           state = 0;
         }
+
         break;
       case 2:
         if (tag == openTag(s_v1))
@@ -132,6 +133,8 @@ bool TopologicalMapParser::parseFile(TopologicalMap* topological_map)
                       topological_map->map_);
     }
   }
+
+  return true;
 }
 
 // ---------------------------------------------------------------

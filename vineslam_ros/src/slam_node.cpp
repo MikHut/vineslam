@@ -75,6 +75,8 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   processed_occ_grid_publisher_ =
       this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/sat_occupancy_grid", 10);
   vineslam_report_publisher_ = this->create_publisher<vineslam_msgs::msg::Report>("/vineslam/report", 10);
+  topological_map_publisher_ =
+      this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/topologicalMap", 10);
   elevation_map_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/elevationMap", 10);
   semantic_map_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/map2D", 10);
   map3D_features_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/SURF", 10);
@@ -165,6 +167,10 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   RCLCPP_INFO(this->get_logger(), "Allocating map memory!");
   grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0), 20, 5);
   elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
+
+  topological_map_ = new TopologicalMap();
+  TopologicalMapParser topological_map_parser(params_);
+  topological_map_parser.parseFile(topological_map_);
   RCLCPP_INFO(this->get_logger(), "Done!");
 
   // Call execution threads
@@ -389,6 +395,12 @@ void SLAMNode::loadParameters(Parameters& params)
   param = prefix + ".multilayer_mapping.grid_map.output_folder";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.map_output_folder_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".multilayer_mapping.topological_map.input_file";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.topological_map_input_file_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
@@ -635,7 +647,7 @@ void SLAMNode::process()
   input_data_.imu_data_pose_ = Pose(0, 0, 0, 0, 0, 0);
 
   // ---------------------------------------------------------
-  // ----- Register multi-layer map 
+  // ----- Register multi-layer map
   // ---------------------------------------------------------
   // Compute 2D local map of semantic features on robot's referential frame
   // We do this after the localization process since we only use semantic features in the mapping stage (!)

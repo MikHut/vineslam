@@ -1087,10 +1087,6 @@ void VineSLAM_ros::publishTopologicalMap()
   rectangle.ns = "/rectangles";
   rectangle.type = visualization_msgs::msg::Marker::CUBE;
   rectangle.action = visualization_msgs::msg::Marker::ADD;
-  rectangle.color.r = 0.0f;
-  rectangle.color.g = 1.0f;
-  rectangle.color.b = 0.0f;
-  rectangle.color.a = 0.4f;
   line_strip.header.stamp = rclcpp::Time();
   line_strip.header.frame_id = params_.world_frame_id_;
   line_strip.ns = "/lines";
@@ -1114,6 +1110,10 @@ void VineSLAM_ros::publishTopologicalMap()
     center.y = topological_map_->map_[topological_map_->graph_vertexes_[i]].center_.y_;
 
     rectangle.id = id;
+    rectangle.color.b = (static_cast<float>(i) / static_cast<float>(topological_map_->graph_vertexes_.size()));
+    rectangle.color.g = 0.5;
+    rectangle.color.r = 0.3;
+    rectangle.color.a = 0.5;
     rectangle.pose.position.x = center.x;
     rectangle.pose.position.y = center.y;
     rectangle.scale.x = std::fabs(topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[0].x_ -

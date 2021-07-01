@@ -57,7 +57,7 @@ void VineSLAM_ros::occupancyMapListener(const nav_msgs::msg::OccupancyGrid::Shar
             (*grid_map_)(tf_xx, tf_yy, 0).data->is_occupied_ = new bool();
           }
 
-          *(*grid_map_)(tf_xx, tf_yy, 0).data->is_occupied_ = true;
+          // *(*grid_map_)(tf_xx, tf_yy, 0).data->is_occupied_ = true;
         }
       }
     }

@@ -61,6 +61,9 @@ public:
   // Compute the enu location of all the graph vertexes
   void polar2Enu(const double& datum_lat, const double& datum_lon, const double& datum_alt, const double& datum_head);
 
+  // Compute the adjacent vertexes of a specific vertex
+  void getAdjacentList(vertex_t v, std::vector<uint32_t>* adj_index);
+
   // Instanciate a graph
   Graph map_;
   // Vector of vertexes

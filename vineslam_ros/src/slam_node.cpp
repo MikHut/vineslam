@@ -763,7 +763,10 @@ void SLAMNode::process()
       pcl_pt.intensity = pt.intensity_;
       cloud.push_back(pcl_pt);
     }
-    pcl::io::savePCDFileASCII(params_.logs_folder_ + pcl_file, cloud);
+    if (!cloud.empty())
+    {
+      pcl::io::savePCDFileASCII(params_.logs_folder_ + pcl_file, cloud);
+    }
 
     p_saved_pose_ = robot_pose_;
   }

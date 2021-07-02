@@ -46,18 +46,6 @@ void VineSLAM_ros::occupancyMapListener(const nav_msgs::msg::OccupancyGrid::Shar
             l_pt.z = 0.;
             map_cloud->push_back(l_pt);
           }
-
-          // Set the cell as occupied
-          if ((*grid_map_)(tf_xx, tf_yy, 0).data == nullptr)
-          {
-            (*grid_map_)(tf_xx, tf_yy, 0).data = new CellData();
-          }
-          if ((*grid_map_)(tf_xx, tf_yy, 0).data->is_occupied_ == nullptr)
-          {
-            (*grid_map_)(tf_xx, tf_yy, 0).data->is_occupied_ = new bool();
-          }
-
-          // *(*grid_map_)(tf_xx, tf_yy, 0).data->is_occupied_ = true;
         }
       }
     }
@@ -218,7 +206,6 @@ void VineSLAM_ros::gpsListener(const sensor_msgs::msg::NavSatFix::SharedPtr msg)
     input_data_.gnss_raw_pose_.y_ = -e;
     input_data_.gnss_raw_pose_.z_ = u;
 
-    std::cout << "\n\n\n" << params_.map_datum_head_ << "\n\n\n";
     if (estimate_heading_)
     {
       getGNSSHeading();

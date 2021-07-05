@@ -12,6 +12,7 @@ find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(topological_map_io REQUIRED)
 find_package(vineslam REQUIRED)
 find_package(vineslam_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
@@ -43,6 +44,7 @@ set(dependencies
         "ament_index_cpp"
         "vineslam"
         "vineslam_msgs"
+        "topological_map_io"
         "rclcpp"
         "std_msgs"
         "sensor_msgs"

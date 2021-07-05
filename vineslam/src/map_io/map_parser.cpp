@@ -33,7 +33,6 @@ bool MapParser::parseHeader(Parameters* params)
     std::string tag = getTag(line);
     tag.erase(std::remove_if(tag.begin(), tag.end(), isspace), tag.end());
 
-
     if (tag == openTag(INFO) || tag == openTag(ORIGIN) || tag == openTag(DATUM))
     {
       continue;
@@ -459,7 +458,7 @@ float MapParser::getFloat(const std::string& line)
   std::string val_str = sub_str.substr(0, last_it);
 
   double tmp = std::stod(val_str);
-  if (tmp > std::numeric_limits<float>::min() && tmp < std::numeric_limits<float>::max())
+  if (std::abs(tmp) > std::numeric_limits<float>::min() && std::abs(tmp) < std::numeric_limits<float>::max())
   {
     return static_cast<float>(tmp);
   }

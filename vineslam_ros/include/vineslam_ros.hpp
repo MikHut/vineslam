@@ -19,7 +19,6 @@
 #include <vineslam/map_io/map_parser.hpp>
 #include <vineslam/map_io/elevation_map_writer.hpp>
 #include <vineslam/map_io/elevation_map_parser.hpp>
-#include <vineslam/map_io/topological_map_parser.hpp>
 #include <vineslam/utils/save_data.hpp>
 #include <vineslam/utils/Timer.hpp>
 // ----------------------------
@@ -29,6 +28,8 @@
 #include <vineslam_msgs/msg/feature_array.hpp>
 // ----------------------------
 #include <vineslam_ros/srv/save_map.hpp>
+// ----------------------------
+#include <topological_map_io/topological_map_io.hpp>
 // ----------------------------
 
 // std

@@ -1109,12 +1109,12 @@ void VineSLAM_ros::publishTopologicalMap()
     geometry_msgs::msg::Point c1, c2, c3, c4;
     c1.x = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[0].x_;
     c1.y = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[0].y_;
-    c2.x = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[0].x_;
+    c2.x = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[1].x_;
     c2.y = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[1].y_;
-    c3.x = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[1].x_;
-    c3.y = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[1].y_;
-    c4.x = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[1].x_;
-    c4.y = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[0].y_;
+    c3.x = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[2].x_;
+    c3.y = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[2].y_;
+    c4.x = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[3].x_;
+    c4.y = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[3].y_;
     line_strip.points.push_back(c1);
     line_strip.points.push_back(c2);
     line_strip.points.push_back(c3);

@@ -40,7 +40,7 @@ def generate_launch_description():
         package='tf2_ros',
         executable='static_transform_publisher',
         name='cam2base',
-        arguments=['0.000', '0.350', '0.500', '0.000', '0.000', '0.707', '0.707', 'base_link',
+        arguments=['0.000', '0.350', '0.90', '0.000', '0.000', '0.707', '0.707', 'base_link',
                    config['slam_node']['camera_sensor_frame']]
     )
     ld.add_action(tf1)
@@ -77,8 +77,7 @@ def generate_launch_description():
     ld.add_action(vineslam)
 
     if config['slam_node']['use_semantic_features'] == True or config['slam_node']['use_image_features']:
-        depth_topic = '/zed/zed_node/depth/depth_registered'
-        image_topic = '/zed/zed_node/left/image'
+        image_topic = '/rgb_left_depth_publisher/color/image'
 
         # Image republish
         republish = Node(
@@ -97,14 +96,15 @@ def generate_launch_description():
             executable='run_detection_model',
             name='run_detection_model',
             parameters=[
-                {
-                    'model_file': '/home/andresaguiar/ROS/ros2_ws/src/tpu-object-detection/object_detection/models/mv1/edgetpu_cpp_model_output_tflite_graph_edgetpu.tflite'},
-                {
-                    'labels_file': '/home/andresaguiar/ROS/ros2_ws/src/tpu-object-detection/object_detection/models/mv1/edgetpu_cpp_model_labels.txt'}
+                {'model_file': '/home/andresaguiar/ROS/ros2_ws/src/tpu-object-detection/object_detection/models/mv1_grape/frozen_model_edgetpu.tflite'},
+                {'labels_file': '/home/andresaguiar/ROS/ros2_ws/src/tpu-object-detection/object_detection/models/mv1_grape/edgetpu_cpp_model_labels.txt'},
+                {'score_threshold': 0.5},
+                {'tile_sizes': '300x300'},
+                {'tile_overlap': 15},
+                {'iou_threshold': 0.1}
             ],
             remappings=[
                 ('/input_rgb_image', image_topic),
-                ('/input_depth_image', depth_topic),
             ]
         )
         ld.add_action(detector)

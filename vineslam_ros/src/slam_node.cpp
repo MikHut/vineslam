@@ -75,6 +75,8 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   processed_occ_grid_publisher_ =
       this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/sat_occupancy_grid", 10);
   vineslam_report_publisher_ = this->create_publisher<vineslam_msgs::msg::Report>("/vineslam/report", 10);
+  topological_map_publisher_ =
+      this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/topologicalMap", 10);
   elevation_map_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/elevationMap", 10);
   semantic_map_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/map2D", 10);
   map3D_features_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/SURF", 10);
@@ -165,6 +167,54 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   RCLCPP_INFO(this->get_logger(), "Allocating map memory!");
   grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0), 20, 5);
   elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
+
+  // Load topological map
+  topological_map_ = new TopologicalMap();
+  agrob_map_io::TopologicalMapIO file_io_handler(params_.topological_map_input_file_);
+
+  std::vector<agrob_map_io::Vertex> l_vertexes;
+  std::multimap<uint32_t, uint32_t> l_edges;
+  std::string tmp;
+  file_io_handler.parse(l_vertexes, l_edges, tmp);
+
+  // Insert vertexes into the graph
+  for (const auto& l_v : l_vertexes)
+  {
+    vineslam::Node v;
+    v.index_ = l_v.index_;
+    v.center_.x_ = l_v.center_x_;
+    v.center_.y_ = l_v.center_y_;
+    v.center_.lat_ = l_v.center_lat_;
+    v.center_.lon_ = l_v.center_lon_;
+    v.rectangle_.resize(2);
+    v.rectangle_[0].x_ = l_v.rectangle_x1_;
+    v.rectangle_[0].y_ = l_v.rectangle_y1_;
+    v.rectangle_[0].lat_ = l_v.rectangle_lat1_;
+    v.rectangle_[0].lon_ = l_v.rectangle_lon1_;
+    v.rectangle_[1].x_ = l_v.rectangle_x2_;
+    v.rectangle_[1].y_ = l_v.rectangle_y2_;
+    v.rectangle_[1].lat_ = l_v.rectangle_lat2_;
+    v.rectangle_[1].lon_ = l_v.rectangle_lon2_;
+
+    vertex_t u = boost::add_vertex(v, topological_map_->map_);
+    topological_map_->graph_vertexes_.push_back(u);
+  }
+
+  // Insert edges into the graph
+  Edge edge;
+  edge.i_ = 1;
+  for (const auto& e : l_edges)
+  {
+    if (!boost::edge(topological_map_->graph_vertexes_[e.first], topological_map_->graph_vertexes_[e.second],
+                     topological_map_->map_)
+             .second)
+    {
+      boost::add_edge(topological_map_->graph_vertexes_[e.first], topological_map_->graph_vertexes_[e.second], edge,
+                      topological_map_->map_);
+      boost::add_edge(topological_map_->graph_vertexes_[e.first], topological_map_->graph_vertexes_[e.second], edge,
+                      topological_map_->map_);
+    }
+  }
   RCLCPP_INFO(this->get_logger(), "Done!");
 
   // Call execution threads
@@ -389,6 +439,12 @@ void SLAMNode::loadParameters(Parameters& params)
   param = prefix + ".multilayer_mapping.grid_map.output_folder";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.map_output_folder_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".multilayer_mapping.topological_map.input_file";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.topological_map_input_file_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
@@ -635,7 +691,7 @@ void SLAMNode::process()
   input_data_.imu_data_pose_ = Pose(0, 0, 0, 0, 0, 0);
 
   // ---------------------------------------------------------
-  // ----- Register multi-layer map 
+  // ----- Register multi-layer map
   // ---------------------------------------------------------
   // Compute 2D local map of semantic features on robot's referential frame
   // We do this after the localization process since we only use semantic features in the mapping stage (!)
@@ -647,9 +703,12 @@ void SLAMNode::process()
     timer_->tick("landmark_mapper::localMap()");
     land_mapper_->localMap(cam_origin_pose, input_data_.land_labels_, input_data_.land_bearings_,
                            input_data_.land_pitches_, l_landmarks, *grid_map_, robot_pose_);
+    // land_mapper_->localMap(cam_origin_pose, input_data_.land_labels_, input_data_.land_bearings_,
+    //                        input_data_.land_pitches_, l_landmarks, grid_map_->planes_, robot_pose_);
     timer_->tock();
     timer_->tick("landmark_mapper::process()");
     land_mapper_->process(robot_pose_, l_landmarks, input_data_.land_labels_, *grid_map_);
+    std::cout << "# landmarks mapped: " << grid_map_->getLandmarks().size() << "\n";
     timer_->tock();
   }
 
@@ -748,7 +807,10 @@ void SLAMNode::process()
       pcl_pt.intensity = pt.intensity_;
       cloud.push_back(pcl_pt);
     }
-    pcl::io::savePCDFileASCII(params_.logs_folder_ + pcl_file, cloud);
+    if (!cloud.empty())
+    {
+      pcl::io::savePCDFileASCII(params_.logs_folder_ + pcl_file, cloud);
+    }
 
     p_saved_pose_ = robot_pose_;
   }

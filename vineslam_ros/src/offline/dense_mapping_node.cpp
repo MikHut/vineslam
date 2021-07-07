@@ -20,16 +20,89 @@ MappingNode::MappingNode() : VineSLAM_ros("MappingNode")
   // Allocate map memory
   RCLCPP_INFO(this->get_logger(), "Allocating map memory!");
   grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0), 20, 1);
+  elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
+  RCLCPP_INFO(this->get_logger(), "Done!");
+
+  // Extract SLAM map info
+  RCLCPP_INFO(this->get_logger(), "Extracting SLAM map information.");
+  OccupancyMap* l_grid_map;
+  Parameters l_params;
+  l_params.map_input_file_ = params_.map_input_file_;
+  MapParser map_parser(l_params);
+
+  if (!map_parser.parseHeader(&l_params))
+  {
+    RCLCPP_ERROR(this->get_logger(), "Map input file not found.");
+    return;
+  }
+  else
+  {
+    l_grid_map = new OccupancyMap(l_params, Pose(0, 0, 0, 0, 0, 0), 1, 1);
+  }
+
+  if (!map_parser.parseFile(&(*l_grid_map)))
+  {
+    RCLCPP_ERROR(this->get_logger(), "Map input file not found.");
+    return;
+  }
+
+  // Parse the necessary parameters from the loaded grid map
+  params_.map_datum_lat_ = l_params.map_datum_lat_;
+  params_.map_datum_long_ = l_params.map_datum_long_;
+  params_.map_datum_alt_ = l_params.map_datum_alt_;
+  params_.map_datum_head_ = l_params.map_datum_head_;
+
+  semantic_features_ = l_grid_map->getLandmarks();
+  RCLCPP_INFO(this->get_logger(), "%d\n\n", semantic_features_.size());
+  free(l_grid_map);
   RCLCPP_INFO(this->get_logger(), "Done!");
 
   // Define publishers
   poses_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/poses", 10);
   map3D_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/dense_map3D", 10);
   mesh_publisher_ = this->create_publisher<visualization_msgs::msg::Marker>("/vineslam/mesh", 10);
+  semantic_map_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/semantic_map", 10);
+
+  // Define services
+  save_map_srv_ = this->create_service<vineslam_ros::srv::SaveMap>(
+      "/vineslam/save_map", std::bind(&VineSLAM_ros::saveMap, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1,
+                                      std::placeholders::_2));
+
+  // Static transforms
+  RCLCPP_INFO(this->get_logger(), "Waiting for static transforms...");
+  tf2_ros::Buffer tf_buffer(this->get_clock());
+  tf2_ros::TransformListener tfListener(tf_buffer);
+  geometry_msgs::msg::TransformStamped laser2base_msg;
+  bool got_laser2base = false;
+  while (!got_laser2base && rclcpp::ok())
+  {
+    try
+    {
+      laser2base_msg = tf_buffer.lookupTransform(params_.lidar_sensor_frame_, "base_link", rclcpp::Time(0));
+    }
+    catch (tf2::TransformException& ex)
+    {
+      RCLCPP_WARN(this->get_logger(), "%s", ex.what());
+      rclcpp::sleep_for(std::chrono::nanoseconds(1000000000));
+      continue;
+    }
+    got_laser2base = true;
+  }
+  tf2::Stamped<tf2::Transform> laser2base_stamped;
+  tf2::fromMsg(laser2base_msg, laser2base_stamped);
+
+  tf2::Transform laser2base = laser2base_stamped;  //.inverse();
+  tf2Scalar roll, pitch, yaw;
+  tf2::Vector3 t = laser2base.getOrigin();
+  laser2base.getBasis().getRPY(roll, pitch, yaw);
+
+  laser_to_base_tf_ = Pose(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw).toTf();
+  RCLCPP_INFO(this->get_logger(), "Received!");
 
   // Call the execution loop
   idx_ = 0;
-  loop();
+  std::thread th(&MappingNode::loop, this);
+  th.detach();
 }
 
 void MappingNode::loadParameters(Parameters& params)
@@ -49,6 +122,12 @@ void MappingNode::loadParameters(Parameters& params)
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
+  param = prefix + ".lidar_sensor_frame";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.lidar_sensor_frame_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
   param = prefix + ".multilayer_mapping.datum.latitude";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.map_datum_lat_))
@@ -64,6 +143,12 @@ void MappingNode::loadParameters(Parameters& params)
   param = prefix + ".multilayer_mapping.datum.altitude";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.map_datum_alt_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".multilayer_mapping.grid_map.map_file_path";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.map_input_file_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
@@ -186,6 +271,9 @@ void MappingNode::loop()
     marker_array.markers.push_back(marker);
     poses_publisher_->publish(marker_array);
 
+    // Publish landmarks
+    publishSemanticMapFromArray(semantic_features_);
+
     // Read pcd file
     pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZI>);
     if (pcl::io::loadPCDFile<pcl::PointXYZI>(params_.logs_folder_ + "pcl_file_" + std::to_string(idx_) + ".pcd",
@@ -204,6 +292,7 @@ void MappingNode::loop()
       f.pos_.y_ = pt.y;
       f.pos_.z_ = pt.z;
       f.pos_.intensity_ = pt.intensity;
+      f.pos_ = f.pos_ * laser_to_base_tf_.inverse();
       points.push_back(f);
     }
 
@@ -243,6 +332,7 @@ void MappingNode::loop()
     poses_publisher_->publish(marker_array);
     mesh_publisher_->publish(ros_mesh);
     map3D_publisher_->publish(map2);
+    publishSemanticMapFromArray(semantic_features_);
     rclcpp::sleep_for(std::chrono::milliseconds(mil_secs));
   }
 }

@@ -46,18 +46,6 @@ void VineSLAM_ros::occupancyMapListener(const nav_msgs::msg::OccupancyGrid::Shar
             l_pt.z = 0.;
             map_cloud->push_back(l_pt);
           }
-
-          // Set the cell as occupied
-          if ((*grid_map_)(tf_xx, tf_yy, 0).data == nullptr)
-          {
-            (*grid_map_)(tf_xx, tf_yy, 0).data = new CellData();
-          }
-          if ((*grid_map_)(tf_xx, tf_yy, 0).data->is_occupied_ == nullptr)
-          {
-            (*grid_map_)(tf_xx, tf_yy, 0).data->is_occupied_ = new bool();
-          }
-
-          *(*grid_map_)(tf_xx, tf_yy, 0).data->is_occupied_ = true;
         }
       }
     }
@@ -119,7 +107,6 @@ void VineSLAM_ros::landmarkListener(const vision_msgs::msg::Detection2DArray::Sh
     Pose l_measurement(l_measurement_base.R_array_, l_measurement_base.t_array_);
 
     // Save the observation
-    std::cout << std::stoi(detection.results[0].id) <<  "----- \n";
     labels.push_back(std::stoi(detection.results[0].id));
     bearings.push_back(l_measurement.Y_);
     pitches.push_back(l_measurement.P_);
@@ -219,7 +206,6 @@ void VineSLAM_ros::gpsListener(const sensor_msgs::msg::NavSatFix::SharedPtr msg)
     input_data_.gnss_raw_pose_.y_ = -e;
     input_data_.gnss_raw_pose_.z_ = u;
 
-    std::cout << "\n\n\n" << params_.map_datum_head_ << "\n\n\n";
     if (estimate_heading_)
     {
       getGNSSHeading();
@@ -580,8 +566,11 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
     pt.z = c.pos_.z_;
     corners_cloud.push_back(pt);
   }
-  pcl::io::savePCDFileASCII(params_.map_output_folder_ + "corners_map_" + std::to_string(timestamp) + ".pcd",
-                            corners_cloud);
+  if (!corners_cloud.empty())
+  {
+    pcl::io::savePCDFileASCII(params_.map_output_folder_ + "corners_map_" + std::to_string(timestamp) + ".pcd",
+                              corners_cloud);
+  }
 
   pcl::PointCloud<pcl::PointXYZ> planars_cloud;
   for (const auto& p : planars)
@@ -592,8 +581,11 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
     pt.z = p.pos_.z_;
     planars_cloud.push_back(pt);
   }
-  pcl::io::savePCDFileASCII(params_.map_output_folder_ + "planars_map_" + std::to_string(timestamp) + ".pcd",
-                            planars_cloud);
+  if (!planars_cloud.empty())
+  {
+    pcl::io::savePCDFileASCII(params_.map_output_folder_ + "planars_map_" + std::to_string(timestamp) + ".pcd",
+                              planars_cloud);
+  }
 
   pcl::PointCloud<pcl::PointXYZ> elevation_cloud;
   for (float i = xmin; i < xmax - elevation_map_->resolution_;)
@@ -618,8 +610,11 @@ bool VineSLAM_ros::saveMap(vineslam_ros::srv::SaveMap::Request::SharedPtr,
     }
     i += elevation_map_->resolution_;
   }
-  pcl::io::savePCDFileASCII(params_.map_output_folder_ + "elevation_map_" + std::to_string(timestamp) + ".pcd",
-                            elevation_cloud);
+  if (!elevation_cloud.empty())
+  {
+    pcl::io::savePCDFileASCII(params_.map_output_folder_ + "elevation_map_" + std::to_string(timestamp) + ".pcd",
+                              elevation_cloud);
+  }
 
   RCLCPP_INFO(this->get_logger(), "Maps saved.");
 

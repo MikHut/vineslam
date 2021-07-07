@@ -5,6 +5,7 @@
 #include <vineslam/feature/visual.hpp>
 #include <vineslam/feature/three_dimensional.hpp>
 #include <vineslam/localization/localizer.hpp>
+#include <vineslam/mapping/topological_map.hpp>
 #include <vineslam/mapping/occupancy_map.hpp>
 #include <vineslam/mapping/elevation_map.hpp>
 #include <vineslam/mapping/landmark_mapping.hpp>
@@ -27,6 +28,8 @@
 #include <vineslam_msgs/msg/feature_array.hpp>
 // ----------------------------
 #include <vineslam_ros/srv/save_map.hpp>
+// ----------------------------
+#include <topological_map_io/topological_map_io.hpp>
 // ----------------------------
 
 // std
@@ -125,10 +128,13 @@ public:
   // Publish semantic features map
   void publishLocalSemanticMap(const Pose& origin, const std::vector<SemanticFeature>& landmarks) const;
   void publishSemanticMap() const;
+  void publishSemanticMapFromArray(const std::map<int, SemanticFeature>& landmarks) const;
   // Publish the elevation map
   void publishElevationMap() const;
   // Publish the 3D maps
   void publish3DMap();
+  // Publish the topological maps
+  void publishTopologicalMap();
   // Publish the 3D PCL planes
   void publish3DMap(const std::vector<Plane>& planes,
                     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub);
@@ -196,6 +202,7 @@ public:
   // ROS publishers/services
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr processed_occ_grid_publisher_;
   rclcpp::Publisher<vineslam_msgs::msg::Report>::SharedPtr vineslam_report_publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr topological_map_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr grid_map_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr elevation_map_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr semantic_map_publisher_;
@@ -219,6 +226,7 @@ public:
   Localizer* localizer_;
   ElevationMap* elevation_map_;
   OccupancyMap* grid_map_;
+  TopologicalMap* topological_map_;
   LandmarkMapper* land_mapper_;
   VisualMapper* vis_mapper_;
 #if LIDAR_SENSOR == 0

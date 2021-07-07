@@ -17,6 +17,7 @@ void VineSLAM_ros::publishDenseInfo(const float& rate)
     publishSemanticMap();
     // Publish 3D maps
     publish3DMap();
+    publishTopologicalMap();
     publishElevationMap();
     publishGridMapLimits();
 
@@ -163,7 +164,6 @@ void VineSLAM_ros::publishLocalSemanticMap(const Pose& origin, const std::vector
       point.scale.z = 0.15;
     }
 
-
     marker_array.markers.push_back(point);
   }
 
@@ -213,7 +213,6 @@ void VineSLAM_ros::publishSemanticMap() const
     marker.header.frame_id = params_.world_frame_id_;
     marker.pose.position.x = l_sfeature.second.pos_.x_;
     marker.pose.position.y = l_sfeature.second.pos_.y_;
-    marker.pose.position.z = l_sfeature.second.pos_.z_;
     if (l_sfeature.second.label_ == 1)  // trunk
     {
       marker.color.r = 0.0;
@@ -223,7 +222,7 @@ void VineSLAM_ros::publishSemanticMap() const
       marker.scale.x = 0.15;
       marker.scale.y = 0.15;
       marker.scale.z = 0.50;
-      marker.pose.position.z += marker.scale.z / 2;
+      marker.pose.position.z = l_sfeature.second.pos_.z_;
     }
     else  // not a trunk
     {
@@ -231,32 +230,124 @@ void VineSLAM_ros::publishSemanticMap() const
       marker.color.g = 1.0;
       marker.color.b = 0.0;
       marker.color.a = 0.7;
-      marker.scale.x = 0.15;
-      marker.scale.y = 0.15;
-      marker.scale.z = 0.15;
+      marker.scale.x = 0.08;
+      marker.scale.y = 0.08;
+      marker.scale.z = 0.08;
+      marker.pose.position.z = l_sfeature.second.pos_.z_;
     }
 
     marker_array.markers.push_back(marker);
 
     // Draw sfeature standard deviation
-    //    tf2::Quaternion q;
-    //    q.setRPY(0, 0, l_sfeature.second.gauss_.theta_);
-    //
-    //    ellipse.ns = "/ellipse";
-    //    ellipse.id = id;
-    //    ellipse.header.stamp = rclcpp::Time();
-    //    ellipse.header.frame_id = params_.world_frame_id_;
-    //    ellipse.pose.position.x = l_sfeature.second.pos_.x_;
-    //    ellipse.pose.position.y = l_sfeature.second.pos_.y_;
-    //    ellipse.pose.position.z = l_sfeature.second.pos_.z_;
-    //    ellipse.scale.x = 3 * l_sfeature.second.gauss_.stdev_.x_;
-    //    ellipse.scale.y = 3 * l_sfeature.second.gauss_.stdev_.y_;
-    //    ellipse.pose.orientation.x = q.x();
-    //    ellipse.pose.orientation.y = q.y();
-    //    ellipse.pose.orientation.z = q.z();
-    //    ellipse.pose.orientation.w = q.w();
+    // tf2::Quaternion q;
+    // q.setRPY(0, 0, l_sfeature.second.gauss_.theta_);
+
+    // ellipse.ns = "/ellipse";
+    // ellipse.id = id;
+    // ellipse.header.stamp = rclcpp::Time();
+    // ellipse.header.frame_id = params_.world_frame_id_;
+    // ellipse.pose.position.x = l_sfeature.second.pos_.x_;
+    // ellipse.pose.position.y = l_sfeature.second.pos_.y_;
+    // ellipse.pose.position.z = l_sfeature.second.pos_.z_;
+    // ellipse.scale.x = 3 * l_sfeature.second.gauss_.stdev_.x_;
+    // ellipse.scale.y = 3 * l_sfeature.second.gauss_.stdev_.y_;
+    // ellipse.pose.orientation.x = q.x();
+    // ellipse.pose.orientation.y = q.y();
+    // ellipse.pose.orientation.z = q.z();
+    // ellipse.pose.orientation.w = q.w();
 
     marker_array.markers.push_back(ellipse);
+
+    id++;
+  }
+
+  semantic_map_publisher_->publish(marker_array);
+}
+
+void VineSLAM_ros::publishSemanticMapFromArray(const std::map<int, SemanticFeature>& landmarks) const
+{
+  visualization_msgs::msg::MarkerArray marker_array;
+  visualization_msgs::msg::Marker marker;
+  visualization_msgs::msg::Marker ellipse;
+
+  // Define marker layout
+  marker.ns = "/markers";
+  marker.type = visualization_msgs::msg::Marker::CUBE;
+  marker.action = visualization_msgs::msg::Marker::ADD;
+  marker.pose.orientation.x = 0.0;
+  marker.pose.orientation.y = 0.0;
+  marker.pose.orientation.z = 0.0;
+  marker.pose.orientation.w = 1.0;
+  marker.lifetime = rclcpp::Duration(970000000);
+
+  // Define marker layout
+  ellipse.ns = "/ellipses";
+  ellipse.type = visualization_msgs::msg::Marker::CYLINDER;
+  ellipse.action = visualization_msgs::msg::Marker::ADD;
+  ellipse.scale.z = 0.01f;
+  ellipse.pose.orientation.x = 0.0f;
+  ellipse.pose.orientation.y = 0.0f;
+  ellipse.color.r = 0.0f;
+  ellipse.color.g = 1.0f;
+  ellipse.color.b = 0.0f;
+  ellipse.color.a = 1.0f;
+  ellipse.lifetime = rclcpp::Duration(970000000);
+
+  // Publish markers
+  int id = 1;
+  for (const auto& l_sfeature : landmarks)
+  {
+    // Draw sfeature mean
+    marker.ns = "/marker";
+    marker.id = id;
+    marker.header.stamp = rclcpp::Time();
+    marker.header.frame_id = params_.world_frame_id_;
+    marker.pose.position.x = l_sfeature.second.pos_.x_;
+    marker.pose.position.y = l_sfeature.second.pos_.y_;
+    if (l_sfeature.second.label_ == 1)  // trunk
+    {
+      marker.color.r = 0.0;
+      marker.color.g = 0.0;
+      marker.color.b = 1.0;
+      marker.color.a = 0.7;
+      marker.scale.x = 0.15;
+      marker.scale.y = 0.15;
+      marker.scale.z = 0.50;
+      marker.pose.position.z = l_sfeature.second.pos_.z_;
+    }
+    else  // not a trunk
+    {
+      marker.color.r = 0.0;
+      marker.color.g = 1.0;
+      marker.color.b = 0.0;
+      marker.color.a = 0.7;
+      marker.scale.x = 0.08;
+      marker.scale.y = 0.08;
+      marker.scale.z = 0.08;
+      marker.pose.position.z = l_sfeature.second.pos_.z_;
+    }
+
+    marker_array.markers.push_back(marker);
+
+    // Draw sfeature standard deviation
+    // tf2::Quaternion q;
+    // q.setRPY(0, 0, l_sfeature.second.gauss_.theta_);
+
+    // ellipse.ns = "/ellipse";
+    // ellipse.id = id;
+    // ellipse.header.stamp = rclcpp::Time();
+    // ellipse.header.frame_id = params_.world_frame_id_;
+    // ellipse.pose.position.x = l_sfeature.second.pos_.x_;
+    // ellipse.pose.position.y = l_sfeature.second.pos_.y_;
+    // ellipse.pose.position.z = l_sfeature.second.pos_.z_;
+    // ellipse.scale.x = 3 * l_sfeature.second.gauss_.stdev_.x_;
+    // ellipse.scale.y = 3 * l_sfeature.second.gauss_.stdev_.y_;
+    // ellipse.pose.orientation.x = q.x();
+    // ellipse.pose.orientation.y = q.y();
+    // ellipse.pose.orientation.z = q.z();
+    // ellipse.pose.orientation.w = q.w();
+
+    // marker_array.markers.push_back(ellipse);
 
     id++;
   }
@@ -965,6 +1056,114 @@ void VineSLAM_ros::make6DofMarker(visualization_msgs::msg::InteractiveMarker& im
   control.interaction_mode = visualization_msgs::msg::InteractiveMarkerControl::ROTATE_AXIS;
   control.orientation_mode = visualization_msgs::msg::InteractiveMarkerControl::FIXED;
   imarker.controls.push_back(control);
+}
+
+void VineSLAM_ros::publishTopologicalMap()
+{
+  visualization_msgs::msg::MarkerArray marker_array;
+  visualization_msgs::msg::Marker line_strip;
+  visualization_msgs::msg::Marker circle;
+
+  // Define markers layout
+  circle.header.stamp = rclcpp::Time();
+  circle.header.frame_id = params_.world_frame_id_;
+  circle.ns = "/circles";
+  circle.type = visualization_msgs::msg::Marker::SPHERE;
+  circle.action = visualization_msgs::msg::Marker::ADD;
+  circle.scale.x = 0.8;
+  circle.scale.y = 0.8;
+  circle.scale.z = 0.8;
+  circle.pose.orientation.x = 0.0;
+  circle.pose.orientation.y = 0.0;
+  circle.pose.orientation.z = 0.0;
+  circle.pose.orientation.w = 1.0;
+  circle.color.r = 0.0f;
+  circle.color.g = 0.0f;
+  circle.color.b = 1.0f;
+  circle.color.a = 1.0f;
+  circle.header.stamp = rclcpp::Time();
+  line_strip.header.stamp = rclcpp::Time();
+  line_strip.header.frame_id = params_.world_frame_id_;
+  line_strip.ns = "/lines";
+  line_strip.type = visualization_msgs::msg::Marker::LINE_STRIP;
+  line_strip.action = visualization_msgs::msg::Marker::ADD;
+  line_strip.scale.x = 0.3;
+
+  topological_map_->polar2Enu(params_.map_datum_lat_, params_.map_datum_long_, params_.map_datum_alt_,
+                              params_.map_datum_head_);
+  int id = 0;                    // marker identifier
+  std::vector<int> connections;  // array to store the drawn connections
+  for (size_t i = 0; i < topological_map_->graph_vertexes_.size(); i++)
+  {
+    // Draw circle at the vertexes
+    circle.id = id++;
+    circle.pose.position.x = topological_map_->map_[topological_map_->graph_vertexes_[i]].center_.x_;
+    circle.pose.position.y = topological_map_->map_[topological_map_->graph_vertexes_[i]].center_.y_;
+
+    // Draw rectangles to observe the area of each node (using line strips)
+    line_strip.id = id++;
+    line_strip.color.b = (static_cast<float>(i) / static_cast<float>(topological_map_->graph_vertexes_.size()));
+    line_strip.color.g = 0.5;
+    line_strip.color.r = 0.3;
+    line_strip.color.a = 0.5;
+    geometry_msgs::msg::Point c1, c2, c3, c4;
+    c1.x = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[0].x_;
+    c1.y = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[0].y_;
+    c2.x = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[1].x_;
+    c2.y = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[1].y_;
+    c3.x = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[2].x_;
+    c3.y = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[2].y_;
+    c4.x = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[3].x_;
+    c4.y = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[3].y_;
+    line_strip.points.push_back(c1);
+    line_strip.points.push_back(c2);
+    line_strip.points.push_back(c3);
+    line_strip.points.push_back(c4);
+    line_strip.points.push_back(c1);
+
+    // Save markers
+    marker_array.markers.push_back(circle);
+    marker_array.markers.push_back(line_strip);
+
+    // Clear the line strip to use in the next iteration
+    line_strip.points.clear();
+
+    // Compute the adjacent vertexes and draw the connections
+    std::vector<uint32_t> adj_list;
+    topological_map_->getAdjacentList(topological_map_->graph_vertexes_[i], &adj_list);
+    for (auto it : adj_list)
+    {
+      // We do not re-draw connections, so we check if this connection was already drawn
+      int v1_index = topological_map_->map_[it].index_;
+      int v2_index = topological_map_->map_[topological_map_->graph_vertexes_[i]].index_;
+      int connection = std::stoi(std::to_string(v1_index) + std::to_string(v2_index));
+      if (std::find(connections.begin(), connections.end(), connection) == connections.end())
+      {
+        connections.push_back(connection);
+
+        line_strip.id = id++;
+        geometry_msgs::msg::Point v1, v2;
+        v1.x = topological_map_->map_[it].center_.x_;
+        v1.y = topological_map_->map_[it].center_.y_;
+        v2.x = topological_map_->map_[topological_map_->graph_vertexes_[i]].center_.x_;
+        v2.y = topological_map_->map_[topological_map_->graph_vertexes_[i]].center_.y_;
+        line_strip.points.push_back(v1);
+        line_strip.points.push_back(v2);
+
+        // Save line strip
+        marker_array.markers.push_back(line_strip);
+
+        // Clear the line strip to use in the next iteration
+        line_strip.points.clear();
+      }
+    }
+
+    // Clear the line strip to use in the next iteration
+    line_strip.points.clear();
+  }
+  // marker_array.markers.push_back(line_strip);
+
+  topological_map_publisher_->publish(marker_array);
 }
 
 }  // namespace vineslam

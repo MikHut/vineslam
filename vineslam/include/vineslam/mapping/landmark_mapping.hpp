@@ -40,6 +40,9 @@ public:
   void localMap(const Pose& cam_origin_pose, const std::vector<int>& labels, const std::vector<float>& bearings,
                 const std::vector<float>& pitches, std::vector<SemanticFeature>& landmarks, OccupancyMap& grid_map,
                 Pose robot_pose) const;
+  void localMap(const Pose& cam_origin_pose, const std::vector<int>& labels, const std::vector<float>& bearings,
+                const std::vector<float>& pitches, std::vector<SemanticFeature>& landmarks,
+                const std::vector<SemiPlane>& planes, Pose robot_pose) const;
 
 private:
   // Input parameters

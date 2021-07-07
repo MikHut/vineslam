@@ -31,21 +31,29 @@ def generate_launch_description():
 
     ld = LaunchDescription()
 
-    log_level = DeclareLaunchArgument("log_level", default_value=["info"], description="Logging level")
-    ld.add_action(log_level)
+    tf = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='velodyne2base',
+        arguments=['0.000', '0.000', '0.650', '-0.000', '0.000', '-0.000', '1.000', 'base_link',
+                   config['dense_mapping_node']['lidar_sensor_frame']]
+    )
+    ld.add_action(tf)
 
     # ------------------------------------------------------------
     # ---- Declare ros nodes
     # ------------------------------------------------------------
 
     # VineSLAM node
-    logger = LaunchConfiguration("log_level")
     vineslam = Node(
         package='vineslam_ros',
         executable='dense_mapping_node',
         name='dense_mapping_node',
         parameters=[config],
-        arguments=['--ros-args', '--log-level', logger]
+        output={
+            'stdout': 'screen',
+            'stderr': 'screen',
+        },
     )
     ld.add_action(vineslam)
 

@@ -12,6 +12,7 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(Boost REQUIRED)
 
 include_directories(include)
 
@@ -36,11 +37,13 @@ ament_export_targets(export_vineslam HAS_LIBRARY_TARGET)
 ament_export_dependencies(
         ament_cmake
         Eigen3
+        Boost
 )
 
 ament_target_dependencies(vineslam
         ament_cmake
-        ${Eigen3_LIBRARIES})
+        ${Eigen3_LIBRARIES}
+        ${Boost_LIBRARIES})
 
 install(TARGETS vineslam
         EXPORT export_vineslam

@@ -31,6 +31,15 @@ def generate_launch_description():
 
     ld = LaunchDescription()
 
+    tf = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='velodyne2base',
+        arguments=['0.000', '0.000', '0.650', '-0.000', '0.000', '-0.000', '1.000', 'base_link',
+                   config['dense_mapping_node']['lidar_sensor_frame']]
+    )
+    ld.add_action(tf)
+
     # ------------------------------------------------------------
     # ---- Declare ros nodes
     # ------------------------------------------------------------

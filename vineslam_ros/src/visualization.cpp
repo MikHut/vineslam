@@ -222,7 +222,7 @@ void VineSLAM_ros::publishSemanticMap() const
       marker.scale.x = 0.15;
       marker.scale.y = 0.15;
       marker.scale.z = 0.50;
-      marker.pose.position.z = robot_pose_.z_ + marker.scale.z / 2;
+      marker.pose.position.z = l_sfeature.second.pos_.z_;
     }
     else  // not a trunk
     {
@@ -239,22 +239,22 @@ void VineSLAM_ros::publishSemanticMap() const
     marker_array.markers.push_back(marker);
 
     // Draw sfeature standard deviation
-    tf2::Quaternion q;
-    q.setRPY(0, 0, l_sfeature.second.gauss_.theta_);
+    // tf2::Quaternion q;
+    // q.setRPY(0, 0, l_sfeature.second.gauss_.theta_);
 
-    ellipse.ns = "/ellipse";
-    ellipse.id = id;
-    ellipse.header.stamp = rclcpp::Time();
-    ellipse.header.frame_id = params_.world_frame_id_;
-    ellipse.pose.position.x = l_sfeature.second.pos_.x_;
-    ellipse.pose.position.y = l_sfeature.second.pos_.y_;
-    ellipse.pose.position.z = l_sfeature.second.pos_.z_;
-    ellipse.scale.x = 3 * l_sfeature.second.gauss_.stdev_.x_;
-    ellipse.scale.y = 3 * l_sfeature.second.gauss_.stdev_.y_;
-    ellipse.pose.orientation.x = q.x();
-    ellipse.pose.orientation.y = q.y();
-    ellipse.pose.orientation.z = q.z();
-    ellipse.pose.orientation.w = q.w();
+    // ellipse.ns = "/ellipse";
+    // ellipse.id = id;
+    // ellipse.header.stamp = rclcpp::Time();
+    // ellipse.header.frame_id = params_.world_frame_id_;
+    // ellipse.pose.position.x = l_sfeature.second.pos_.x_;
+    // ellipse.pose.position.y = l_sfeature.second.pos_.y_;
+    // ellipse.pose.position.z = l_sfeature.second.pos_.z_;
+    // ellipse.scale.x = 3 * l_sfeature.second.gauss_.stdev_.x_;
+    // ellipse.scale.y = 3 * l_sfeature.second.gauss_.stdev_.y_;
+    // ellipse.pose.orientation.x = q.x();
+    // ellipse.pose.orientation.y = q.y();
+    // ellipse.pose.orientation.z = q.z();
+    // ellipse.pose.orientation.w = q.w();
 
     marker_array.markers.push_back(ellipse);
 
@@ -313,7 +313,7 @@ void VineSLAM_ros::publishSemanticMapFromArray(const std::map<int, SemanticFeatu
       marker.scale.x = 0.15;
       marker.scale.y = 0.15;
       marker.scale.z = 0.50;
-      marker.pose.position.z = marker.scale.z / 2;
+      marker.pose.position.z = l_sfeature.second.pos_.z_;
     }
     else  // not a trunk
     {

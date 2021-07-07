@@ -62,6 +62,9 @@ private:
 
   // SLAM map information
   std::map<int, SemanticFeature> semantic_features_;
+
+  // Sensors to base_link tfs
+  Tf laser_to_base_tf_;
 };
 
 }  // namespace vineslam

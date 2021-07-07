@@ -53,6 +53,7 @@ MappingNode::MappingNode() : VineSLAM_ros("MappingNode")
   params_.map_datum_head_ = l_params.map_datum_head_;
 
   semantic_features_ = l_grid_map->getLandmarks();
+  RCLCPP_INFO(this->get_logger(), "%d\n\n", semantic_features_.size());
   free(l_grid_map);
   RCLCPP_INFO(this->get_logger(), "Done!");
 
@@ -66,6 +67,37 @@ MappingNode::MappingNode() : VineSLAM_ros("MappingNode")
   save_map_srv_ = this->create_service<vineslam_ros::srv::SaveMap>(
       "/vineslam/save_map", std::bind(&VineSLAM_ros::saveMap, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1,
                                       std::placeholders::_2));
+
+  // Static transforms
+  RCLCPP_INFO(this->get_logger(), "Waiting for static transforms...");
+  tf2_ros::Buffer tf_buffer(this->get_clock());
+  tf2_ros::TransformListener tfListener(tf_buffer);
+  geometry_msgs::msg::TransformStamped laser2base_msg;
+  bool got_laser2base = false;
+  while (!got_laser2base && rclcpp::ok())
+  {
+    try
+    {
+      laser2base_msg = tf_buffer.lookupTransform(params_.lidar_sensor_frame_, "base_link", rclcpp::Time(0));
+    }
+    catch (tf2::TransformException& ex)
+    {
+      RCLCPP_WARN(this->get_logger(), "%s", ex.what());
+      rclcpp::sleep_for(std::chrono::nanoseconds(1000000000));
+      continue;
+    }
+    got_laser2base = true;
+  }
+  tf2::Stamped<tf2::Transform> laser2base_stamped;
+  tf2::fromMsg(laser2base_msg, laser2base_stamped);
+
+  tf2::Transform laser2base = laser2base_stamped;  //.inverse();
+  tf2Scalar roll, pitch, yaw;
+  tf2::Vector3 t = laser2base.getOrigin();
+  laser2base.getBasis().getRPY(roll, pitch, yaw);
+
+  laser_to_base_tf_ = Pose(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw).toTf();
+  RCLCPP_INFO(this->get_logger(), "Received!");
 
   // Call the execution loop
   idx_ = 0;
@@ -87,6 +119,12 @@ void MappingNode::loadParameters(Parameters& params)
   param = prefix + ".logs_folder";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.logs_folder_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".lidar_sensor_frame";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.lidar_sensor_frame_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
@@ -254,6 +292,7 @@ void MappingNode::loop()
       f.pos_.y_ = pt.y;
       f.pos_.z_ = pt.z;
       f.pos_.intensity_ = pt.intensity;
+      f.pos_ = f.pos_ * laser_to_base_tf_.inverse();
       points.push_back(f);
     }
 

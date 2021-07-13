@@ -285,7 +285,7 @@ void PF::gps(const Pose& gps_pose, std::vector<float>& ws)
   {
     // - GPS [x, y] weight
     float w_gps;
-    //    float dist = particle.p_.distance(gps_pose);
+    // float dist = particle.p_.distance(gps_pose);
     float dist = particle.p_.distanceXY(gps_pose);
     w_gps = (normalizer_gps * static_cast<float>(std::exp(-1. / sigma_gps_ * dist)));
 

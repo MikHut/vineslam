@@ -20,6 +20,7 @@
 #include <pcl_msgs/msg/polygon_mesh.hpp>
 #include <pcl/common/common.h>
 #include <pcl/point_types.h>
+#include <pcl/io/ply_io.h>
 
 namespace vineslam
 {

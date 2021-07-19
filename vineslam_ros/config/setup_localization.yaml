@@ -4,8 +4,8 @@ localization_node:
   use_semantic_features: False
   use_lidar_features: True
   use_image_features: False
-  use_gps: False
-  use_imu: False
+  use_gps: True
+  use_imu: True
 
   lightweight_version: True
 
@@ -14,9 +14,9 @@ localization_node:
 
   # Robot initial guess position in polar coordinates
   robot:
-    latitude: 41.205507499999996
-    longitude: -8.3073997
-    altitude: 247.982
+    latitude: 41.16666452664269
+    longitude: -7.5550953842432085
+    altitude: 294.75472108864517
 
   camera_info:
     baseline: 0.12 # meters
@@ -36,8 +36,8 @@ localization_node:
   multilayer_mapping:
     # Grid map definitions
     grid_map:
-      map_file_path: "/home/andresaguiar/Desktop/map_feup/map_1622538912.xml"
-      elevation_map_file_path: "/home/andresaguiar/Desktop/map_feup/elevation_map_1622538912.xml"
+      map_file_path: "/home/andresaguiar/Documents/maps/VineSLAM/map_aveleda_27_05_2021/map_1622207539.xml"
+      elevation_map_file_path: "/home/andresaguiar/Documents/maps/VineSLAM/map_aveleda_27_05_2021/elevation_map_1622207539.xml"
       output_folder: "/home/andresaguiar/Desktop/"
 
   pf:

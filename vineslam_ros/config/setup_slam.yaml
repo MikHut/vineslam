@@ -1,11 +1,11 @@
 slam_node:
   robot_model: rocha  # {agrob, rocha}
   world_frame_id: map_nn2
-  use_semantic_features: True
+  use_semantic_features: False
   use_lidar_features: True
   use_image_features: False
   use_gps: True
-  use_imu: False
+  use_imu: True
 
   lightweight_version: False
 
@@ -32,9 +32,9 @@ slam_node:
   multilayer_mapping:
     # Datum
     datum:
-      latitude: 41.205507499999996
-      longitude: -8.3073997
-      altitude: 247.982
+      latitude: 41.16666452664269
+      longitude: -7.5550953842432085
+      altitude: 294.7547210886451
 
     # Satellite occupancy grid map datum
     satellite_datum:
@@ -48,12 +48,12 @@ slam_node:
     # Grid map definitions
     grid_map:
       origin:
-        x: -200.0
-        y: -50.0
-        z: -5.0
-      width: 400.0
-      lenght: 100.0
-      height: 10.0
+        x: -110.0
+        y: -110.0
+        z: -18.0
+      width: 220.0
+      lenght: 220.0
+      height: 25.0
       resolution: 0.25 # meters
       output_folder: "/home/andresaguiar/Desktop/"
 
@@ -66,4 +66,5 @@ slam_node:
     sigma_zz: 0.3 # meters
     sigma_RR: 0.3 # radians
     sigma_PP: 0.3 # radians
-    sigma_YY: 1.5 # radians
+    sigma_YY: 0.7 # radians
+    # sigma_YY: 1.5 # radians

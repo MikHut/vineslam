@@ -2,11 +2,8 @@
 
 std_msgs/Header header
 
-## Particles before resampling
-Particle[] b_particles
-
-## Particles after resampling
-Particle[] a_particles
+## Particles 
+Particle[] particles
 
 ## VineSLAM logs
 std_msgs/String log
@@ -16,3 +13,6 @@ std_msgs/Bool use_semantic_features
 std_msgs/Bool use_lidar_features
 std_msgs/Bool use_image_features
 std_msgs/Bool use_gps
+
+# GNSS heading
+float32 gps_heading

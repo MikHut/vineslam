@@ -67,7 +67,10 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
 
   // Publish maps and particle filter
   vineslam_report_publisher_ = this->create_publisher<vineslam_msgs::msg::Report>("/vineslam/report", 10);
+  topological_map_publisher_ =
+      this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/topologicalMap", 10);
   elevation_map_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/elevationMap", 10);
+  semantic_map_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/map2D", 10);
   map3D_features_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/SURF", 10);
   map3D_corners_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/corners", 10);
   map3D_planars_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/planars", 10);
@@ -177,6 +180,54 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
   {
     RCLCPP_ERROR(this->get_logger(), "Map input file not found.");
     return;
+  }
+
+  // Load topological map
+  topological_map_ = new TopologicalMap();
+  agrob_map_io::TopologicalMapIO file_io_handler(params_.topological_map_input_file_);
+
+  std::vector<agrob_map_io::Vertex> l_vertexes;
+  std::multimap<uint32_t, uint32_t> l_edges;
+  std::string tmp;
+  file_io_handler.parse(l_vertexes, l_edges, tmp);
+
+  // Insert vertexes into the graph
+  for (const auto& l_v : l_vertexes)
+  {
+    vineslam::Node v;
+    v.index_ = l_v.index_;
+    v.center_.x_ = l_v.center_x_;
+    v.center_.y_ = l_v.center_y_;
+    v.center_.lat_ = l_v.center_lat_;
+    v.center_.lon_ = l_v.center_lon_;
+    v.rectangle_.resize(2);
+    v.rectangle_[0].x_ = l_v.rectangle_x1_;
+    v.rectangle_[0].y_ = l_v.rectangle_y1_;
+    v.rectangle_[0].lat_ = l_v.rectangle_lat1_;
+    v.rectangle_[0].lon_ = l_v.rectangle_lon1_;
+    v.rectangle_[1].x_ = l_v.rectangle_x2_;
+    v.rectangle_[1].y_ = l_v.rectangle_y2_;
+    v.rectangle_[1].lat_ = l_v.rectangle_lat2_;
+    v.rectangle_[1].lon_ = l_v.rectangle_lon2_;
+
+    vertex_t u = boost::add_vertex(v, topological_map_->map_);
+    topological_map_->graph_vertexes_.push_back(u);
+  }
+
+  // Insert edges into the graph
+  Edge edge;
+  edge.i_ = 1;
+  for (const auto& e : l_edges)
+  {
+    if (!boost::edge(topological_map_->graph_vertexes_[e.first], topological_map_->graph_vertexes_[e.second],
+                     topological_map_->map_)
+             .second)
+    {
+      boost::add_edge(topological_map_->graph_vertexes_[e.first], topological_map_->graph_vertexes_[e.second], edge,
+                      topological_map_->map_);
+      boost::add_edge(topological_map_->graph_vertexes_[e.first], topological_map_->graph_vertexes_[e.second], edge,
+                      topological_map_->map_);
+    }
   }
 
   RCLCPP_INFO(this->get_logger(), "Ready for execution...");

@@ -580,7 +580,7 @@ void SLAMNode::init()
 #elif LIDAR_SENSOR == 1
     lid_mapper_->localMap(input_data_.scan_pts_, header_.stamp.sec, l_corners, l_planars, l_planes, l_ground_plane);
 #endif
-    //    l_planes = {};
+    l_planes = {};
   }
 
   // - 3D image feature map estimation
@@ -630,7 +630,7 @@ void SLAMNode::process()
 #elif LIDAR_SENSOR == 1
     lid_mapper_->localMap(input_data_.scan_pts_, header_.stamp.sec, l_corners, l_planars, l_planes, l_ground_plane);
 #endif
-    //    l_planes = {};
+    l_planes = {};
     timer_->tock();
   }
 

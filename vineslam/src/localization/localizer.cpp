@@ -85,8 +85,6 @@ void Localizer::process(const Pose& wheel_odom_inc, const Observation& obsv, Occ
   // - Save pf logs
   auto after = std::chrono::high_resolution_clock::now();
   std::chrono::duration<float, std::milli> duration = after - before;
-
-  logs_ = pf_->logs_ + "Time elapsed on PF (msecs): " + std::to_string(duration.count()) + "\n\n";
 }
 
 Pose Localizer::getPose() const

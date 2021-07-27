@@ -249,53 +249,6 @@ void VineSLAM_ros::imuDataListener(const sensor_msgs::msg::Imu::SharedPtr msg)
   p_imu_observation_timestamp_ = c_imu_observation_timestamp;
 }
 
-void VineSLAM_ros::publishReport() const
-{
-  // Publish particle poses (after and before resampling)
-  // - Get the particles
-  std::vector<Particle> particles;
-  (*localizer_).getParticles(particles);
-  // - Convert them to ROS pose array and fill the vineslam report msgs
-  vineslam_msgs::msg::Report report;
-  geometry_msgs::msg::PoseArray ros_poses;
-  ros_poses.header.stamp = rclcpp::Time();
-  ros_poses.header.frame_id = params_.world_frame_id_;
-  report.header.stamp = ros_poses.header.stamp;
-  report.header.frame_id = ros_poses.header.frame_id;
-  for (const auto& particle : particles)
-  {
-    tf2::Quaternion l_q;
-    l_q.setRPY(particle.p_.R_, particle.p_.P_, particle.p_.Y_);
-    l_q.normalize();
-
-    geometry_msgs::msg::Pose l_pose;
-    l_pose.position.x = particle.p_.x_;
-    l_pose.position.y = particle.p_.y_;
-    l_pose.position.z = particle.p_.z_;
-    l_pose.orientation.x = l_q.x();
-    l_pose.orientation.y = l_q.y();
-    l_pose.orientation.z = l_q.z();
-    l_pose.orientation.w = l_q.w();
-
-    ros_poses.poses.push_back(l_pose);
-
-    vineslam_msgs::msg::Particle particle_info;
-    particle_info.id = particle.id_;
-    particle_info.pose = l_pose;
-    particle_info.w = particle.w_;
-
-    report.particles.push_back(particle_info);
-  }
-  poses_publisher_->publish(ros_poses);
-
-  report.log.data = localizer_->logs_;
-  report.use_semantic_features.data = params_.use_semantic_features_;
-  report.use_lidar_features.data = params_.use_lidar_features_;
-  report.use_gps.data = params_.use_gps_;
-  report.gps_heading = params_.map_datum_head_;
-  vineslam_report_publisher_->publish(report);
-}
-
 void VineSLAM_ros::computeInnovation(const Pose& wheel_odom_inc, const Pose& imu_rot_inc, Pose& output_pose)
 {
   double diff_yaw = std::fabs(wheel_odom_inc.Y_ - imu_rot_inc.Y_);

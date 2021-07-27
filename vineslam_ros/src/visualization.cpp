@@ -10,9 +10,6 @@ void VineSLAM_ros::publishDenseInfo(const float& rate)
     if (init_flag_)
       continue;
 
-    // Publishes the VineSLAM report
-    publishReport();
-
     // Publish the 2D map
     publishSemanticMap();
     // Publish 3D maps
@@ -421,23 +418,11 @@ void VineSLAM_ros::publishElevationMap() const
 
 void VineSLAM_ros::publish3DMap()
 {
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr feature_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
   pcl::PointCloud<pcl::PointXYZI>::Ptr corner_cloud(new pcl::PointCloud<pcl::PointXYZI>);
   pcl::PointCloud<pcl::PointXYZI>::Ptr planar_cloud(new pcl::PointCloud<pcl::PointXYZI>);
 
-  std::vector<ImageFeature> surf_features = grid_map_->getImageFeatures();
   std::vector<Corner> corner_features = grid_map_->getCorners();
   std::vector<Planar> planar_features = grid_map_->getPlanars();
-
-  for (const auto& feature : surf_features)
-  {
-    pcl::PointXYZRGB l_pt(feature.r_, feature.g_, feature.b_);
-    l_pt.x = feature.pos_.x_;
-    l_pt.y = feature.pos_.y_;
-    l_pt.z = feature.pos_.z_;
-
-    feature_cloud->points.push_back(l_pt);
-  }
 
   for (const auto& corner : corner_features)
   {
@@ -460,11 +445,6 @@ void VineSLAM_ros::publish3DMap()
   }
 
   publish3DMap(Pose(0, 0, 0, 0, 0, 0), grid_map_->planes_, map3D_planes_publisher_);
-
-  feature_cloud->header.frame_id = params_.world_frame_id_;
-  sensor_msgs::msg::PointCloud2 feature_cloud2;
-  pcl::toROSMsg(*feature_cloud, feature_cloud2);
-  map3D_features_publisher_->publish(feature_cloud2);
 
   corner_cloud->header.frame_id = params_.world_frame_id_;
   sensor_msgs::msg::PointCloud2 corner_cloud2;

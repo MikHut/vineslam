@@ -56,9 +56,6 @@ public:
   // Setters
   void changeGPSFlag(const bool& val);
 
-  // Localization logs
-  std::string logs_;
-
   // Particle filter object
   PF* pf_{};
 private:

@@ -9,7 +9,6 @@
 #include <vineslam/mapping/occupancy_map.hpp>
 #include <vineslam/mapping/elevation_map.hpp>
 #include <vineslam/mapping/landmark_mapping.hpp>
-#include <vineslam/mapping/visual_mapping.hpp>
 #include <vineslam/mapping/lidar_mapping.hpp>
 #include <vineslam/math/Point.hpp>
 #include <vineslam/math/Pose.hpp>
@@ -21,11 +20,6 @@
 #include <vineslam/map_io/elevation_map_parser.hpp>
 #include <vineslam/utils/save_data.hpp>
 #include <vineslam/utils/Timer.hpp>
-// ----------------------------
-#include <vineslam_msgs/msg/particle.hpp>
-#include <vineslam_msgs/msg/report.hpp>
-#include <vineslam_msgs/msg/feature.hpp>
-#include <vineslam_msgs/msg/feature_array.hpp>
 // ----------------------------
 #include <vineslam_ros/srv/save_map.hpp>
 // ----------------------------
@@ -93,7 +87,6 @@ public:
 
   // GPS callback function
   void gpsListener(const sensor_msgs::msg::NavSatFix::SharedPtr msg);
-  //  void gpsListener(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
 
   // Occupancy grid map callback function
   void occupancyMapListener(const nav_msgs::msg::OccupancyGrid::SharedPtr msg);
@@ -158,8 +151,6 @@ public:
   void publishGridMapLimits() const;
   // Publishes a box containing the zone occupied by the robot
   void publishRobotBox(const Pose& robot_pose) const;
-  // Publishes a VineSLAM state report for debug purposes
-  void publishReport() const;
 
   // VineSLAM input data
   struct InputData
@@ -195,13 +186,11 @@ public:
 
   // ROS publishers/services
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr processed_occ_grid_publisher_;
-  rclcpp::Publisher<vineslam_msgs::msg::Report>::SharedPtr vineslam_report_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr topological_map_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr grid_map_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr elevation_map_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr semantic_map_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr robot_box_publisher_;
-  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map3D_features_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map3D_corners_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map3D_planars_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr map3D_planes_publisher_;
@@ -222,7 +211,6 @@ public:
   OccupancyMap* grid_map_;
   TopologicalMap* topological_map_;
   LandmarkMapper* land_mapper_;
-  VisualMapper* vis_mapper_;
 #if LIDAR_SENSOR == 0
   VelodyneMapper* lid_mapper_;
 #elif LIDAR_SENSOR == 1

@@ -135,9 +135,6 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
   std::vector<float> gps_weights(particles_size_, 0.);
   std::vector<float> imu_weights(particles_size_, 0.);
 
-  logs_ = "\n";
-
-  auto before = std::chrono::high_resolution_clock::now();
   // if (use_semantic_features_)
   if (0)
   {
@@ -145,58 +142,32 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
     highLevel(landmarks, grid_map, semantic_weights);
     t_->tock();
   }
-  auto after = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<float, std::milli> duration = after - before;
-  logs_ += "Time elapsed on PF - high-level features (msecs): " + std::to_string(duration.count()) + "\n";
 
   if (use_lidar_features_)
   {
-    before = std::chrono::high_resolution_clock::now();
     t_->tick("pf::corners()");
     mediumLevelCorners(corners, grid_map, corner_weights);
     t_->tock();
-    after = std::chrono::high_resolution_clock::now();
-    duration = after - before;
-    logs_ += "Time elapsed on PF - corner features (msecs): " + std::to_string(duration.count()) + " (" +
-             std::to_string(corners.size()) + ")\n";
 
-    before = std::chrono::high_resolution_clock::now();
     t_->tick("pf::planars()");
     mediumLevelPlanars(planars, grid_map, planar_weights);
     t_->tock();
-    after = std::chrono::high_resolution_clock::now();
-    duration = after - before;
-    logs_ += "Time elapsed on PF - planar features (msecs): " + std::to_string(duration.count()) + " (" +
-             std::to_string(planars.size()) + ")\n";
 
-    before = std::chrono::high_resolution_clock::now();
     t_->tick("pf::planes()");
     mediumLevelPlanes({ ground_plane }, grid_map, ground_weights);
     mediumLevelPlanes(planes, grid_map, planes_weights);
     t_->tock();
-    after = std::chrono::high_resolution_clock::now();
-    duration = after - before;
-    logs_ += "Time elapsed on PF - ground plane (msecs): " + std::to_string(duration.count()) + "\n";
-    before = std::chrono::high_resolution_clock::now();
   }
 
-  before = std::chrono::high_resolution_clock::now();
   if (use_gps_)
   {
     gps(gps_pose, gps_weights);
   }
-  after = std::chrono::high_resolution_clock::now();
-  duration = after - before;
-  logs_ += "Time elapsed on PF - gps (msecs): " + std::to_string(duration.count()) + "\n";
 
-  before = std::chrono::high_resolution_clock::now();
   if (use_imu_)
   {
     imu(imu_pose, imu_weights);
   }
-  after = std::chrono::high_resolution_clock::now();
-  duration = after - before;
-  logs_ += "Time elapsed on PF - imu (msecs): " + std::to_string(duration.count()) + "\n";
 
   // Multi-modal weights normalization
   float semantic_max = *std::max_element(semantic_weights.begin(), semantic_weights.end());

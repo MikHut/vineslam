@@ -86,9 +86,6 @@ public:
   // Profiler
   Timer* t_;
 
-  // Logs
-  std::string logs_;
-
   // Observations to use
   bool use_semantic_features_;
   bool use_lidar_features_;

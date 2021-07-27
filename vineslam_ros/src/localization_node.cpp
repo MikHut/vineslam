@@ -33,7 +33,6 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
 
   // Declare the Mappers and Localizer objects
   localizer_ = new Localizer(params_);
-  vis_mapper_ = new VisualMapper();
 #if LIDAR_SENSOR == 0
   lid_mapper_ = new VelodyneMapper(params_);
 #elif LIDAR_SENSOR == 1
@@ -41,10 +40,6 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
 #endif
   timer_ = new Timer("VineSLAM subfunctions");
 
-  // Image feature subscription
-  feature_subscriber_ = this->create_subscription<vineslam_msgs::msg::FeatureArray>(
-      "/features_topic", 10,
-      std::bind(&VineSLAM_ros::imageFeatureListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
   // Scan subscription
   scan_subscriber_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
       "/scan_topic", 10,
@@ -66,9 +61,10 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
       std::bind(&VineSLAM_ros::imuDataListener, dynamic_cast<VineSLAM_ros*>(this), std::placeholders::_1));
 
   // Publish maps and particle filter
-  vineslam_report_publisher_ = this->create_publisher<vineslam_msgs::msg::Report>("/vineslam/report", 10);
+  topological_map_publisher_ =
+      this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/topologicalMap", 10);
   elevation_map_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/elevationMap", 10);
-  map3D_features_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/SURF", 10);
+  semantic_map_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/map2D", 10);
   map3D_corners_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/corners", 10);
   map3D_planars_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/vineslam/map3D/planars", 10);
   map3D_planes_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/vineslam/map3D/planes", 10);
@@ -134,7 +130,6 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
   tf2::Vector3 t = cam2base.getOrigin();
   tf2Scalar roll, pitch, yaw;
   cam2base.getBasis().getRPY(roll, pitch, yaw);
-  vis_mapper_->setCam2Base(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw);
   cam2base_tf_ = Pose(t.getX(), t.getY(), t.getZ(), roll, pitch, yaw).toTf();
 
   tf2::Stamped<tf2::Transform> laser2base_stamped;
@@ -179,6 +174,54 @@ LocalizationNode::LocalizationNode() : VineSLAM_ros("LocalizationNode")
     return;
   }
 
+  // Load topological map
+  topological_map_ = new TopologicalMap();
+  agrob_map_io::TopologicalMapIO file_io_handler(params_.topological_map_input_file_);
+
+  std::vector<agrob_map_io::Vertex> l_vertexes;
+  std::multimap<uint32_t, uint32_t> l_edges;
+  std::string tmp;
+  file_io_handler.parse(l_vertexes, l_edges, tmp);
+
+  // Insert vertexes into the graph
+  for (const auto& l_v : l_vertexes)
+  {
+    vineslam::Node v;
+    v.index_ = l_v.index_;
+    v.center_.x_ = l_v.center_x_;
+    v.center_.y_ = l_v.center_y_;
+    v.center_.lat_ = l_v.center_lat_;
+    v.center_.lon_ = l_v.center_lon_;
+    v.rectangle_.resize(2);
+    v.rectangle_[0].x_ = l_v.rectangle_x1_;
+    v.rectangle_[0].y_ = l_v.rectangle_y1_;
+    v.rectangle_[0].lat_ = l_v.rectangle_lat1_;
+    v.rectangle_[0].lon_ = l_v.rectangle_lon1_;
+    v.rectangle_[1].x_ = l_v.rectangle_x2_;
+    v.rectangle_[1].y_ = l_v.rectangle_y2_;
+    v.rectangle_[1].lat_ = l_v.rectangle_lat2_;
+    v.rectangle_[1].lon_ = l_v.rectangle_lon2_;
+
+    vertex_t u = boost::add_vertex(v, topological_map_->map_);
+    topological_map_->graph_vertexes_.push_back(u);
+  }
+
+  // Insert edges into the graph
+  Edge edge;
+  edge.i_ = 1;
+  for (const auto& e : l_edges)
+  {
+    if (!boost::edge(topological_map_->graph_vertexes_[e.first], topological_map_->graph_vertexes_[e.second],
+                     topological_map_->map_)
+             .second)
+    {
+      boost::add_edge(topological_map_->graph_vertexes_[e.first], topological_map_->graph_vertexes_[e.second], edge,
+                      topological_map_->map_);
+      boost::add_edge(topological_map_->graph_vertexes_[e.first], topological_map_->graph_vertexes_[e.second], edge,
+                      topological_map_->map_);
+    }
+  }
+
   RCLCPP_INFO(this->get_logger(), "Ready for execution...");
 
   // Call execution thread
@@ -196,12 +239,6 @@ void LocalizationNode::loadParameters(Parameters& params)
   std::string param;
 
   // Load params
-  param = prefix + ".robot_model";
-  this->declare_parameter(param);
-  if (!this->get_parameter(param, params.robot_model_))
-  {
-    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
-  }
   param = prefix + ".camera_sensor_frame";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.camera_sensor_frame_))
@@ -232,9 +269,9 @@ void LocalizationNode::loadParameters(Parameters& params)
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
-  param = prefix + ".use_image_features";
+  param = prefix + ".use_vertical_planes";
   this->declare_parameter(param);
-  if (!this->get_parameter(param, params.use_image_features_))
+  if (!this->get_parameter(param, params.use_vertical_planes_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
@@ -244,9 +281,21 @@ void LocalizationNode::loadParameters(Parameters& params)
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
+  param = prefix + ".use_gps_altitude";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.use_gps_altitude_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
   param = prefix + ".use_imu";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.use_imu_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
+  param = prefix + ".use_gyroscope";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.use_gyroscope_))
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
@@ -399,7 +448,6 @@ void LocalizationNode::loadParameters(Parameters& params)
 void LocalizationNode::loop()
 {
   // Reset information flags
-  input_data_.received_image_features_ = false;
   input_data_.received_scans_ = false;
   input_data_.received_landmarks_ = false;
   input_data_.received_odometry_ = false;
@@ -421,8 +469,7 @@ void LocalizationNode::loop()
 void LocalizationNode::loopOnce()
 {
   // Check if we have all the necessary data
-  bool can_continue = (input_data_.received_image_features_ || (!params_.use_image_features_)) &&
-                      input_data_.received_scans_ &&
+  bool can_continue = input_data_.received_scans_ &&
                       // (input_data_.received_landmarks_ || !params_.use_semantic_features_) &&
                       (input_data_.received_gnss_ || !params_.use_gps_);
 
@@ -441,7 +488,6 @@ void LocalizationNode::loopOnce()
   }
 
   // Reset information flags
-  input_data_.received_image_features_ = false;
   input_data_.received_scans_ = false;
   input_data_.received_landmarks_ = false;
   input_data_.received_odometry_ = false;
@@ -471,18 +517,24 @@ void LocalizationNode::init()
   if (params_.use_lidar_features_)
   {
 #if LIDAR_SENSOR == 0
-    lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+    if (params_.use_vertical_planes_)
+    {
+      lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+    }
+    else
+    {
+      lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_ground_plane);
+    }
 #elif LIDAR_SENSOR == 1
-    lid_mapper_->localMap(input_data_.scan_pts_, header_.stamp.sec, l_corners, l_planars, l_planes, l_ground_plane);
+    if (params_.use_vertical_planes_)
+    {
+      lid_mapper_->localMap(input_data_.scan_pts_, header_.stamp.sec, l_corners, l_planars, l_planes, l_ground_plane);
+    }
+    else
+    {
+      lid_mapper_->localMap(input_data_.scan_pts_, header_.stamp.sec, l_corners, l_planars, l_ground_plane);
+    }
 #endif
-    //    l_planes = {};
-  }
-
-  // - 3D image feature map estimation
-  std::vector<ImageFeature> l_surf_features;
-  if (params_.use_image_features_)
-  {
-    vis_mapper_->localMap(input_data_.image_features_, l_surf_features);
   }
 
   RCLCPP_INFO(this->get_logger(), "Localization has started.");
@@ -556,20 +608,24 @@ void LocalizationNode::process()
   {
     timer_->tick("lidar_mapper::localMap()");
 #if LIDAR_SENSOR == 0
-    lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+    if (params_.use_vertical_planes_)
+    {
+      lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+    }
+    else
+    {
+      lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_ground_plane);
+    }
 #elif LIDAR_SENSOR == 1
-    lid_mapper_->localMap(input_data_.scan_pts_, header_.stamp.sec, l_corners, l_planars, l_planes, l_ground_plane);
+    if (params_.use_vertical_planes_)
+    {
+      lid_mapper_->localMap(input_data_.scan_pts_, header_.stamp.sec, l_corners, l_planars, l_planes, l_ground_plane);
+    }
+    else
+    {
+      lid_mapper_->localMap(input_data_.scan_pts_, header_.stamp.sec, l_corners, l_planars, l_ground_plane);
+    }
 #endif
-    //    l_planes = {};
-    timer_->tock();
-  }
-
-  // - Compute 3D image features on robot's referential frame
-  std::vector<ImageFeature> l_surf_features;
-  if (params_.use_image_features_)
-  {
-    timer_->tick("visual_mapper::localMap()");
-    vis_mapper_->localMap(input_data_.image_features_, l_surf_features);
     timer_->tock();
   }
 
@@ -578,13 +634,11 @@ void LocalizationNode::process()
   // ---------------------------------------------------------
   // * High level landmarks (if we're using them)
   // * Point cloud corners and planars
-  // * SURF 3D image features
   // * GPS (if we're using it)
   obsv_.corners_ = l_corners;
   obsv_.planars_ = l_planars;
   obsv_.ground_plane_ = l_ground_plane;
   obsv_.planes_ = l_planes;
-  obsv_.surf_features_ = l_surf_features;
   obsv_.gps_pose_ = input_data_.gnss_pose_;
   obsv_.imu_pose_ = input_data_.imu_pose_;
 
@@ -600,7 +654,7 @@ void LocalizationNode::process()
 
   // Fuse odometry and gyroscope to get the innovation pose
   Pose innovation;
-  if (params_.use_imu_)
+  if (params_.use_gyroscope_)
   {
     computeInnovation(odom_inc, input_data_.imu_data_pose_, innovation);
   }
@@ -680,53 +734,34 @@ void LocalizationNode::broadcastTfs()
     q.normalize();
     Convertions::pose2TransformStamped(q, tf2::Vector3(robot_pose_.x_, robot_pose_.y_, robot_pose_.z_), base2map_msg);
 
-    if (params_.robot_model_ == "agrob")  // in this configuration we broadcast a map->base_link tf
-    {
-      tf_broadcaster_->sendTransform(base2map_msg);
+    geometry_msgs::msg::TransformStamped odom2base_msg;
+    tf2_ros::Buffer tf_buffer(this->get_clock());
+    tf2_ros::TransformListener tfListener(tf_buffer);
 
-      // ---- odom2map
-      geometry_msgs::msg::TransformStamped map2odom_msg;
-      map2odom_msg.header.stamp = header_.stamp;
-      map2odom_msg.header.frame_id = "odom";
-      map2odom_msg.child_frame_id = params_.world_frame_id_;
-      q.setRPY(init_odom_pose_.R_, init_odom_pose_.P_, init_odom_pose_.Y_);
-      q.normalize();
-      Convertions::pose2TransformStamped(q, tf2::Vector3(init_odom_pose_.x_, init_odom_pose_.y_, init_odom_pose_.z_),
-                                         map2odom_msg);
-      tf_broadcaster_->sendTransform(map2odom_msg);
-      // ----
+    try
+    {
+      odom2base_msg = tf_buffer.lookupTransform("odom", "base_link", rclcpp::Time(0), rclcpp::Duration(300000000));
+
+      tf2::Stamped<tf2::Transform> odom2base_tf, base2map_tf, odom2map_tf;
+      tf2::fromMsg(odom2base_msg, odom2base_tf);
+      tf2::fromMsg(base2map_msg, base2map_tf);
+
+      geometry_msgs::msg::TransformStamped odom2map_msg;
+
+      tf2::Transform t = odom2base_tf * base2map_tf.inverse();
+      odom2map_tf.setRotation(t.getRotation());
+      odom2map_tf.setOrigin(t.getOrigin());
+      Convertions::pose2TransformStamped(odom2map_tf.getRotation(), odom2map_tf.getOrigin(), odom2map_msg);
+
+      odom2map_msg.header.stamp = header_.stamp;
+      odom2map_msg.header.frame_id = "odom";
+      odom2map_msg.child_frame_id = params_.world_frame_id_;
+
+      tf_broadcaster_->sendTransform(odom2map_msg);
     }
-    else  // in this configuration we broadcast a odom->map tf
+    catch (tf2::TransformException& ex)
     {
-      geometry_msgs::msg::TransformStamped odom2base_msg;
-      tf2_ros::Buffer tf_buffer(this->get_clock());
-      tf2_ros::TransformListener tfListener(tf_buffer);
-
-      try
-      {
-        odom2base_msg = tf_buffer.lookupTransform("odom", "base_link", rclcpp::Time(0), rclcpp::Duration(300000000));
-
-        tf2::Stamped<tf2::Transform> odom2base_tf, base2map_tf, odom2map_tf;
-        tf2::fromMsg(odom2base_msg, odom2base_tf);
-        tf2::fromMsg(base2map_msg, base2map_tf);
-
-        geometry_msgs::msg::TransformStamped odom2map_msg;
-
-        tf2::Transform t = odom2base_tf * base2map_tf.inverse();
-        odom2map_tf.setRotation(t.getRotation());
-        odom2map_tf.setOrigin(t.getOrigin());
-        Convertions::pose2TransformStamped(odom2map_tf.getRotation(), odom2map_tf.getOrigin(), odom2map_msg);
-
-        odom2map_msg.header.stamp = header_.stamp;
-        odom2map_msg.header.frame_id = "odom";
-        odom2map_msg.child_frame_id = params_.world_frame_id_;
-
-        tf_broadcaster_->sendTransform(odom2map_msg);
-      }
-      catch (tf2::TransformException& ex)
-      {
-        RCLCPP_WARN(this->get_logger(), "%s", ex.what());
-      }
+      RCLCPP_WARN(this->get_logger(), "%s", ex.what());
     }
 
     rclcpp::sleep_for(std::chrono::milliseconds(mil_secs));
@@ -778,7 +813,23 @@ void LocalizationNode::iMenuCallback(const visualization_msgs::msg::InteractiveM
     if (params_.use_lidar_features_)
     {
 #if LIDAR_SENSOR == 0
-      lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+      if (params_.use_vertical_planes_)
+      {
+        lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_planes, l_ground_plane);
+      }
+      else
+      {
+        lid_mapper_->localMap(input_data_.scan_pts_, l_corners, l_planars, l_ground_plane);
+      }
+#elif LIDAR_SENSOR == 1
+      if (params_.use_vertical_planes_)
+      {
+        lid_mapper_->localMap(input_data_.scan_pts_, header_.stamp.sec, l_corners, l_planars, l_planes, l_ground_plane);
+      }
+      else
+      {
+        lid_mapper_->localMap(input_data_.scan_pts_, header_.stamp.sec, l_corners, l_planars, l_ground_plane);
+      }
 #endif
     }
 

@@ -19,7 +19,6 @@ include_directories(include)
 add_library(vineslam
         src/mapping/landmark_mapping.cpp
         src/mapping/landmark_ekf.cpp
-        src/mapping/visual_mapping.cpp
         src/mapping/lidar_mapping.cpp
         src/mapping/occupancy_map.cpp
         src/mapping/topological_map.cpp

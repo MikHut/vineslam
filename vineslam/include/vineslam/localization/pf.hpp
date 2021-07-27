@@ -2,11 +2,9 @@
 
 // Include class objects
 #include <vineslam/params.hpp>
-#include <vineslam/feature/visual.hpp>
 #include <vineslam/feature/semantic.hpp>
 #include <vineslam/feature/three_dimensional.hpp>
 #include <vineslam/mapping/occupancy_map.hpp>
-#include <vineslam/matcher/icp.hpp>
 #include <vineslam/math/Point.hpp>
 #include <vineslam/math/Pose.hpp>
 #include <vineslam/math/Const.hpp>
@@ -66,7 +64,7 @@ public:
   // Update particles weights using the multi-layer map
   void update(const std::vector<SemanticFeature>& landmarks, const std::vector<Corner>& corners,
               const std::vector<Planar>& planars, const std::vector<SemiPlane>& planes, const SemiPlane& ground_plane,
-              const std::vector<ImageFeature>& surf_features, const Pose& gps_pose, const Pose& imu_pose,
+               const Pose& gps_pose, const Pose& imu_pose,
               OccupancyMap* grid_map);
   // Update 'beam model of range finders'
   void updateModel(const float& z_k, const float& z_k_asterisc, const float& z_dist, const float& sigma_hit,
@@ -88,14 +86,11 @@ public:
   // Profiler
   Timer* t_;
 
-  // Logs
-  std::string logs_;
-
   // Observations to use
   bool use_semantic_features_;
   bool use_lidar_features_;
-  bool use_image_features_;
   bool use_gps_;
+  bool use_gps_altitude_;
   bool use_imu_;
 
   // Filter settings
@@ -107,7 +102,6 @@ public:
   float sigma_plane_matching_centroid_;
   float sigma_gps_;
   float sigma_imu_;
-  int number_clusters_;
 
 private:
   // Samples a zero-mean gaussian distribution with a given standard deviation
@@ -122,26 +116,13 @@ private:
   void mediumLevelPlanars(const std::vector<Planar>& planars, OccupancyMap* grid_map, std::vector<float>& ws);
   // - Medium ground plane layer
   void mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* grid_map, std::vector<float>& ws);
-  // - Low level image features layer
-  void lowLevel(const std::vector<ImageFeature>& surf_features, OccupancyMap* grid_map, std::vector<float>& ws);
-  // -------- (Low level) K-means based particle clustering
-  void cluster(std::map<int, Gaussian<Pose, Pose>>& gauss_map);
-  // -------- (Low level) Scan match on clustered particles
-  void scanMatch(const std::vector<ImageFeature>& features, OccupancyMap* grid_map,
-                 std::map<int, Gaussian<Pose, Pose>>& gauss_map, std::vector<float>& ws);
   // - GPS
   void gps(const Pose& gps_pose, std::vector<float>& ws);
   // - IMU
   void imu(const Pose& imu_pose, std::vector<float>& ws);
 
-  // Iterative closest point member
-  ICP<ImageFeature>* icp_;
-
   // Number of particles
   uint32_t particles_size_;
-
-  // Ground plane observed on the previous frame
-  Plane prev_ground_plane_;
 
   // Parameters structure
   Parameters params_;

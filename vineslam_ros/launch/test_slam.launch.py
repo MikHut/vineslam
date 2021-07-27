@@ -61,14 +61,13 @@ def generate_launch_description():
         parameters=[config],
         remappings=[
             ('/odom_topic', '/agrobv18/husky_velocity_controller/odom'),
-            ('/gps_topic', '/agrobv18/gps2/fix'),
+            ('/gps_topic', '/agrobv18/gps/fix'),
             ('/imu_topic', '/agrobv18/imu_um6/rpy'),
             ('/imu_data_topic', '/agrobv18/imu_um6/data'),
             ('/features_topic', '/image_feature_array'),
             ('/detections_topic', '/tpu/detections'),
             ('/scan_topic', '/agrobv18/velodyne_points'),
-            ('/occupancy_map', '/map')
-        ],
+       ],
         output={
             'stdout': 'screen',
             'stderr': 'screen',
@@ -76,7 +75,8 @@ def generate_launch_description():
     )
     ld.add_action(vineslam)
 
-    if config['slam_node']['use_semantic_features'] == True or config['slam_node']['use_image_features']:
+    if config['slam_node']['use_semantic_features']:
+        # Detector node
         image_topic = '/rgb_left_depth_publisher/color/image'
 
         # Image republish
@@ -87,10 +87,7 @@ def generate_launch_description():
             arguments=['compressed', 'in/compressed:=' + image_topic + '/compressed', 'raw', 'out:=' + image_topic]
         )
         ld.add_action(republish)
-
-    if config['slam_node']['use_semantic_features']:
-        # Detector node
-
+        
         detector = Node(
             package='object_detection',
             executable='run_detection_model',
@@ -108,29 +105,6 @@ def generate_launch_description():
             ]
         )
         ld.add_action(detector)
-
-    if config['slam_node']['use_image_features']:
-        vfe_config_path = os.path.join(
-            get_package_share_directory('vfe'),
-            'config',
-            'setup.yaml'
-        )
-
-        with open(vfe_config_path, 'r') as f:
-            vfe_config = yaml.safe_load(f)
-
-        # vfe node
-        extractor = Node(
-            package='vfe',
-            executable='vfe',
-            name='vfe',
-            parameters=[vfe_config],
-            remappings=[
-                ('/input_rgb_image', image_topic),
-                ('/input_depth_image', depth_topic),
-            ]
-        )
-        ld.add_action(extractor)
 
     # Map server
     map_server_config_path = os.path.join(

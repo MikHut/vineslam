@@ -56,8 +56,8 @@ void Localizer::process(const Pose& wheel_odom_inc, const Observation& obsv, Occ
     // ------------------------------------------------------------------------------
     // ---------------- Update particles weights using multi-layer map
     // ------------------------------------------------------------------------------
-    pf_->update(obsv.landmarks_, obsv.corners_, obsv.planars_, obsv.planes_, obsv.ground_plane_, obsv.surf_features_,
-                obsv.gps_pose_, obsv.imu_pose_, grid_map);
+    pf_->update(obsv.landmarks_, obsv.corners_, obsv.planars_, obsv.planes_, obsv.ground_plane_, obsv.gps_pose_,
+                obsv.imu_pose_, grid_map);
 
     // ------------------------------------------------------------------------------
     // ---------------- Normalize particle weights
@@ -85,8 +85,6 @@ void Localizer::process(const Pose& wheel_odom_inc, const Observation& obsv, Occ
   // - Save pf logs
   auto after = std::chrono::high_resolution_clock::now();
   std::chrono::duration<float, std::milli> duration = after - before;
-
-  logs_ = pf_->logs_ + "Time elapsed on PF (msecs): " + std::to_string(duration.count()) + "\n\n";
 }
 
 Pose Localizer::getPose() const

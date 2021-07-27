@@ -7,16 +7,10 @@ PF::PF(const Parameters& params, const Pose& initial_pose) : params_(params)
   // - General parameters
   use_semantic_features_ = params.use_semantic_features_;
   use_lidar_features_ = params.use_lidar_features_;
-  use_image_features_ = params.use_image_features_;
   use_gps_ = params.use_gps_;
+  use_gps_altitude_ = params.use_gps_altitude_;
   use_imu_ = params.use_imu_;
   particles_size_ = params.number_particles_;
-
-  // Initialize and set ICP parameters
-  icp_ = new ICP<ImageFeature>();
-  icp_->setTolerance(1e-5);
-  icp_->setMaxIterations(20);
-  icp_->setRejectOutliersFlag(false);
 
   // Initialize thread pool
   thread_pool_ = new lama::ThreadPool;
@@ -52,7 +46,6 @@ PF::PF(const Parameters& params, const Pose& initial_pose) : params_(params)
   sigma_plane_matching_centroid_ = 0.10;
   sigma_gps_ = 0.05;
   sigma_imu_ = 5 * DEGREE_TO_RAD;
-  number_clusters_ = 3;
 }
 
 // Samples a zero mean Gaussian
@@ -131,8 +124,7 @@ void PF::motionModel(const Pose& odom_inc)
 
 void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector<Corner>& corners,
                 const std::vector<Planar>& planars, const std::vector<SemiPlane>& planes, const SemiPlane& ground_plane,
-                const std::vector<ImageFeature>& surf_features, const Pose& gps_pose, const Pose& imu_pose,
-                OccupancyMap* grid_map)
+                const Pose& gps_pose, const Pose& imu_pose, OccupancyMap* grid_map)
 {
   std::vector<float> semantic_weights(particles_size_, 0.);
   std::vector<float> corner_weights(particles_size_, 0.);
@@ -143,9 +135,6 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
   std::vector<float> gps_weights(particles_size_, 0.);
   std::vector<float> imu_weights(particles_size_, 0.);
 
-  logs_ = "\n";
-
-  auto before = std::chrono::high_resolution_clock::now();
   // if (use_semantic_features_)
   if (0)
   {
@@ -153,68 +142,32 @@ void PF::update(const std::vector<SemanticFeature>& landmarks, const std::vector
     highLevel(landmarks, grid_map, semantic_weights);
     t_->tock();
   }
-  auto after = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<float, std::milli> duration = after - before;
-  logs_ += "Time elapsed on PF - high-level features (msecs): " + std::to_string(duration.count()) + "\n";
 
   if (use_lidar_features_)
   {
-    before = std::chrono::high_resolution_clock::now();
     t_->tick("pf::corners()");
     mediumLevelCorners(corners, grid_map, corner_weights);
     t_->tock();
-    after = std::chrono::high_resolution_clock::now();
-    duration = after - before;
-    logs_ += "Time elapsed on PF - corner features (msecs): " + std::to_string(duration.count()) + " (" +
-             std::to_string(corners.size()) + ")\n";
 
-    before = std::chrono::high_resolution_clock::now();
     t_->tick("pf::planars()");
     mediumLevelPlanars(planars, grid_map, planar_weights);
     t_->tock();
-    after = std::chrono::high_resolution_clock::now();
-    duration = after - before;
-    logs_ += "Time elapsed on PF - planar features (msecs): " + std::to_string(duration.count()) + " (" +
-             std::to_string(planars.size()) + ")\n";
 
-    before = std::chrono::high_resolution_clock::now();
     t_->tick("pf::planes()");
     mediumLevelPlanes({ ground_plane }, grid_map, ground_weights);
     mediumLevelPlanes(planes, grid_map, planes_weights);
     t_->tock();
-    after = std::chrono::high_resolution_clock::now();
-    duration = after - before;
-    logs_ += "Time elapsed on PF - ground plane (msecs): " + std::to_string(duration.count()) + "\n";
-    before = std::chrono::high_resolution_clock::now();
   }
 
-  if (use_image_features_)
-  {
-    t_->tick("pf::image_features()");
-    lowLevel(surf_features, grid_map, surf_weights);
-    t_->tock();
-  }
-  after = std::chrono::high_resolution_clock::now();
-  duration = after - before;
-  logs_ += "Time elapsed on PF - icp (msecs): " + std::to_string(duration.count()) + "\n";
-
-  before = std::chrono::high_resolution_clock::now();
   if (use_gps_)
   {
     gps(gps_pose, gps_weights);
   }
-  after = std::chrono::high_resolution_clock::now();
-  duration = after - before;
-  logs_ += "Time elapsed on PF - gps (msecs): " + std::to_string(duration.count()) + "\n";
 
-  before = std::chrono::high_resolution_clock::now();
   if (use_imu_)
   {
     imu(imu_pose, imu_weights);
   }
-  after = std::chrono::high_resolution_clock::now();
-  duration = after - before;
-  logs_ += "Time elapsed on PF - imu (msecs): " + std::to_string(duration.count()) + "\n";
 
   // Multi-modal weights normalization
   float semantic_max = *std::max_element(semantic_weights.begin(), semantic_weights.end());
@@ -285,9 +238,15 @@ void PF::gps(const Pose& gps_pose, std::vector<float>& ws)
   for (const auto& particle : particles_)
   {
     // - GPS [x, y] weight
-    float w_gps;
-    //    float dist = particle.p_.distance(gps_pose);
-    float dist = particle.p_.distanceXY(gps_pose);
+    float w_gps, dist;
+    if (use_gps_altitude_)
+    {
+      dist = particle.p_.distance(gps_pose);
+    }
+    else
+    {
+      dist = particle.p_.distanceXY(gps_pose);
+    }
     w_gps = (normalizer_gps * static_cast<float>(std::exp(-1. / sigma_gps_ * dist)));
 
     ws[particle.id_] = w_gps;
@@ -711,348 +670,6 @@ void PF::mediumLevelPlanes(const std::vector<SemiPlane>& planes, OccupancyMap* g
 #if NUM_THREADS > 1
   thread_pool_->wait();
 #endif
-}
-
-void PF::lowLevel(const std::vector<ImageFeature>& surf_features, OccupancyMap* grid_map, std::vector<float>& ws)
-{
-  // ------------------------------------------------------------------------------
-  // ---------------- Cluster particles
-  // ------------------------------------------------------------------------------
-  std::map<int, Gaussian<Pose, Pose>> gauss_map;
-  cluster(gauss_map);
-
-  // ------------------------------------------------------------------------------
-  // ---------------- Scan match
-  // ------------------------------------------------------------------------------
-  scanMatch(surf_features, grid_map, gauss_map, ws);
-}
-
-void PF::cluster(std::map<int, Gaussian<Pose, Pose>>& gauss_map)
-{
-  // -------------------------------------------------------------------------------
-  // ------ (1) Initialize the clusters - kmean++
-  // ------ (1) from: https://www.geeksforgeeks.org/ml-k-means-algorithm/
-  // -------------------------------------------------------------------------------
-  // -- Select first centroid randomly
-  std::vector<Pose> centroids;
-  std::vector<Pose> m_centroids;
-  int n = particles_size_;
-  srand(time(nullptr));  // need to set the random seed
-  centroids.push_back(particles_[rand() % n].p_);
-  // -- Compute remaining k - 1 centroids
-  for (int i = 1; i < number_clusters_; i++)
-  {
-    std::vector<float> min_dists;
-    for (const auto& particle : particles_)
-    {
-      // Find minimum distance to already computed centroid
-      float min_dist = std::numeric_limits<float>::max();
-      for (auto& centroid : centroids)
-      {
-        float m_dist = particle.p_.distance(centroid);
-        if (m_dist < min_dist)
-        {
-          min_dist = m_dist;
-        }
-      }
-      min_dists.push_back(min_dist);
-    }
-    // Select data point with maximum distance as our next centroid
-    auto it = std::max_element(min_dists.begin(), min_dists.end());
-    int idx = std::distance(min_dists.begin(), it);
-    centroids.push_back(particles_[idx].p_);
-  }
-  // -- Initialize equal-sized cluster
-  std::vector<std::map<int, float>> heap(number_clusters_);
-  for (int i = 0; i < number_clusters_; i++)
-  {
-    for (const auto& particle : particles_)
-    {
-      float dist = centroids[i].distance(particle.p_);
-      heap[i][particle.id_] = dist;
-    }
-  }
-  std::vector<int> num_per_cluster(number_clusters_, 0);
-  int max_num = static_cast<int>(static_cast<float>(particles_size_) / static_cast<float>(number_clusters_));
-  for (auto& particle : particles_)
-  {
-    float min_dist = std::numeric_limits<float>::max();
-    for (int i = 0; i < number_clusters_; i++)
-    {
-      float dist = heap[i][particle.id_];
-      if (dist < min_dist && num_per_cluster[i] < max_num)
-      {
-        particle.which_cluster_ = i;
-        min_dist = dist;
-      }
-    }
-    num_per_cluster[particle.which_cluster_]++;
-  }
-
-  int swaps = 0;
-  int k_iterations = 20;
-  for (int i = 0; i < k_iterations; i++)
-  {
-    // -----------------------------------------------------------------------------
-    // ------ (2) Re-compute the centroids
-    // -----------------------------------------------------------------------------
-    num_per_cluster = std::vector<int>(number_clusters_, 0);
-    for (const auto& particle : particles_)
-    {
-      centroids[particle.which_cluster_].x_ += particle.p_.x_;
-      centroids[particle.which_cluster_].y_ += particle.p_.y_;
-      centroids[particle.which_cluster_].z_ += particle.p_.z_;
-
-      num_per_cluster[particle.which_cluster_]++;
-    }
-
-    for (int j = 0; j < number_clusters_; j++)
-    {
-      if (num_per_cluster[j] == 0)
-      {
-        centroids[j] = Pose(0., 0., 0., 0., 0., 0.);
-        continue;
-      }
-      else
-      {
-        centroids[j].x_ /= num_per_cluster[j];
-        centroids[j].y_ /= num_per_cluster[j];
-        centroids[j].z_ /= num_per_cluster[j];
-      }
-    }
-
-    // -----------------------------------------------------------------------------
-    // ------ (3) Assign the particles to clusters
-    // ------ (3) Equal-size K-means from https://stackoverflow.com/a/8810231
-    // -----------------------------------------------------------------------------
-    std::map<int, int> swap;
-    for (auto& particle : particles_)
-    {
-      float min_dist = std::numeric_limits<float>::max();
-      int which_cluster = -1;
-      for (int cluster = 0; cluster < number_clusters_; cluster++)
-      {
-        float m_dist = particle.p_.distance(centroids[cluster]);
-        if (m_dist < min_dist)
-        {
-          min_dist = m_dist;
-          which_cluster = cluster;
-        }
-      }
-
-      if (which_cluster != particle.which_cluster_)
-      {
-        auto it = swap.find(particle.which_cluster_);
-        if (num_per_cluster[particle.which_cluster_] >
-            static_cast<float>(particles_size_) / static_cast<float>(number_clusters_))
-        {
-          num_per_cluster[which_cluster]++;
-          num_per_cluster[particle.which_cluster_]--;
-          particle.which_cluster_ = which_cluster;
-          swaps++;
-        }
-        else if (it != swap.end() && particles_[it->second].which_cluster_ == which_cluster &&
-                 it->second != particle.id_)
-        {
-          particles_[it->second].which_cluster_ = particle.which_cluster_;
-          particle.which_cluster_ = which_cluster;
-          swap.erase(particle.which_cluster_);
-          swaps++;
-        }
-        else
-        {
-          swap[which_cluster] = particle.id_;
-        }
-      }
-    }
-
-    if (swaps == 0)
-    {
-      break;
-    }
-    else
-    {
-      swaps = 0;
-    }
-  }
-
-  // -----------------------------------------------------------------------------
-  // ------ (4) Compute weighted Gaussian approximation of each cluster
-  // -----------------------------------------------------------------------------
-  // ---- Weighted mean
-  // - For the orientations - Mean of circular quantities
-  // (https://en.wikipedia.org/wiki/Mean_of_circular_quantities)
-  std::vector<Pose> means(number_clusters_, Pose(0., 0., 0., 0., 0., 0.));
-  std::vector<Pose> means_sin(number_clusters_, Pose(0., 0., 0., 0., 0., 0.));
-  std::vector<Pose> means_cos(number_clusters_, Pose(0., 0., 0., 0., 0., 0.));
-  std::vector<float> sums(number_clusters_, 0.);
-  for (const auto& particle : particles_)
-  {
-    means[particle.which_cluster_].x_ += (particle.w_ * particle.p_.x_);
-    means[particle.which_cluster_].y_ += (particle.w_ * particle.p_.y_);
-    means[particle.which_cluster_].z_ += (particle.w_ * particle.p_.z_);
-    means_sin[particle.which_cluster_].R_ += (particle.w_ * std::sin(particle.p_.R_));
-    means_cos[particle.which_cluster_].R_ += (particle.w_ * std::cos(particle.p_.R_));
-    means_sin[particle.which_cluster_].P_ += (particle.w_ * std::sin(particle.p_.P_));
-    means_cos[particle.which_cluster_].P_ += (particle.w_ * std::cos(particle.p_.P_));
-    means_sin[particle.which_cluster_].Y_ += (particle.w_ * std::sin(particle.p_.Y_));
-    means_cos[particle.which_cluster_].Y_ += (particle.w_ * std::cos(particle.p_.Y_));
-
-    sums[particle.which_cluster_] += particle.w_;
-  }
-  for (int cluster = 0; cluster < number_clusters_; cluster++)
-  {
-    if (sums[cluster] > 0.)
-    {
-      means[cluster].x_ /= sums[cluster];
-      means[cluster].y_ /= sums[cluster];
-      means[cluster].z_ /= sums[cluster];
-      means[cluster].R_ = std::atan2(means_sin[cluster].R_ / sums[cluster], means_cos[cluster].R_ / sums[cluster]);
-      means[cluster].P_ = std::atan2(means_sin[cluster].P_ / sums[cluster], means_cos[cluster].P_ / sums[cluster]);
-      means[cluster].Y_ = std::atan2(means_sin[cluster].Y_ / sums[cluster], means_cos[cluster].Y_ / sums[cluster]);
-    }
-  }
-
-  // ---- Weighted standard deviation
-  std::vector<Pose> stds(number_clusters_, Pose(0., 0., 0., 0., 0., 0.));
-  std::vector<float> non_zero(number_clusters_, 0.);
-  for (const auto& particle : particles_)
-  {
-    float w_x = particle.w_ * ((particle.p_.x_ - means[particle.which_cluster_].x_) *
-                               (particle.p_.x_ - means[particle.which_cluster_].x_));
-    float w_y = particle.w_ * ((particle.p_.y_ - means[particle.which_cluster_].y_) *
-                               (particle.p_.y_ - means[particle.which_cluster_].y_));
-    float w_z = particle.w_ * ((particle.p_.x_ - means[particle.which_cluster_].x_) *
-                               (particle.p_.x_ - means[particle.which_cluster_].z_));
-    float w_roll = particle.w_ * ((particle.p_.R_ - means[particle.which_cluster_].R_) *
-                                  (particle.p_.R_ - means[particle.which_cluster_].R_));
-    float w_pitch = particle.w_ * ((particle.p_.P_ - means[particle.which_cluster_].P_) *
-                                   (particle.p_.P_ - means[particle.which_cluster_].P_));
-    float w_yaw = particle.w_ * ((particle.p_.Y_ - means[particle.which_cluster_].Y_) *
-                                 (particle.p_.Y_ - means[particle.which_cluster_].Y_));
-
-    stds[particle.which_cluster_].x_ += w_x;
-    stds[particle.which_cluster_].y_ += w_y;
-    stds[particle.which_cluster_].z_ += w_z;
-    stds[particle.which_cluster_].R_ += w_roll;
-    stds[particle.which_cluster_].P_ += w_pitch;
-    stds[particle.which_cluster_].Y_ += w_yaw;
-
-    non_zero[particle.which_cluster_] = (particle.w_ > 0.) ?
-                                            (non_zero[particle.which_cluster_] + static_cast<float>(1.)) :
-                                            non_zero[particle.which_cluster_];
-  }
-  for (int cluster = 0; cluster < number_clusters_; cluster++)
-  {
-    if (sums[cluster] > 0. && non_zero[cluster] > 1.)
-    {
-      stds[cluster].x_ = std::sqrt(stds[cluster].x_ / ((non_zero[cluster] - 1) / non_zero[cluster] * sums[cluster]));
-      stds[cluster].y_ = std::sqrt(stds[cluster].y_ / ((non_zero[cluster] - 1) / non_zero[cluster] * sums[cluster]));
-      stds[cluster].z_ = std::sqrt(stds[cluster].z_ / ((non_zero[cluster] - 1) / non_zero[cluster] * sums[cluster]));
-      stds[cluster].R_ = std::sqrt(stds[cluster].R_ / ((non_zero[cluster] - 1) / non_zero[cluster] * sums[cluster]));
-      stds[cluster].P_ = std::sqrt(stds[cluster].P_ / ((non_zero[cluster] - 1) / non_zero[cluster] * sums[cluster]));
-      stds[cluster].Y_ = std::sqrt(stds[cluster].Y_ / ((non_zero[cluster] - 1) / non_zero[cluster] * sums[cluster]));
-
-      Gaussian<Pose, Pose> m_gaussian(means[cluster], stds[cluster]);
-      gauss_map[cluster] = m_gaussian;
-    }
-  }
-}
-
-void PF::scanMatch(const std::vector<ImageFeature>& features, OccupancyMap* grid_map,
-                   std::map<int, Gaussian<Pose, Pose>>& gauss_map, std::vector<float>& ws)
-{
-  float normalizer_icp = static_cast<float>(1.) / (sigma_feature_matching_ * std::sqrt(M_2PI));
-
-  std::map<int, Tf> tfs;
-  // -------------------------------------------------------------------------------
-  // ------- 3D scan matching using low level features
-  // -------------------------------------------------------------------------------
-  // - Set target point clouds (common to all clusters)
-  icp_->setInputTarget(grid_map);
-  icp_->setInputSource(features);
-  // - Perform scan matching for each cluster
-  bool valid_it = false;
-  std::map<int, float> cluster_ws;
-  for (auto& it : gauss_map)
-  {
-    // Convert cluster pose to [R|t]
-    std::array<float, 3> trans = { it.second.mean_.x_, it.second.mean_.y_, it.second.mean_.z_ };
-    std::array<float, 9> Rot{};
-    it.second.mean_.toRotMatrix(Rot);
-
-    // --------------- Perform scan matching ---------------------
-    std::vector<ImageFeature> aligned;
-    float rms_error;
-    Tf m_tf;
-    Tf final_tf;
-    Tf original_tf(Rot, trans);
-    // - First guess: each particle drawn by odometry motion model
-    // - Only use scan match if it does no fail
-    if (icp_->align(original_tf, rms_error, aligned))
-    {
-      // ---------------------------------------------------------------------------
-      // ------------ Get homogeneous transformation result
-      // ---------------------------------------------------------------------------
-      icp_->getTransform(m_tf);
-
-      final_tf = original_tf.inverse() * m_tf;
-
-      // ---------------------------------------------------------------------------
-      // ----------- Compute scan match weights
-      // ---------------------------------------------------------------------------
-      // - Get the correspondences errors both spatial and for the descriptors
-      std::vector<float> serror;
-      icp_->getErrors(serror);
-
-      // - Prevent single correspondence - standard deviation = 0
-      if (serror.size() <= 1)
-      {
-        final_tf.R_array_ = std::array<float, 9>{ 1., 0., 0., 0., 1., 0., 0., 0., 1. };
-        final_tf.t_array_ = std::array<float, 3>{ 0., 0., 0. };
-        ws[it.first] = 0.;
-      }
-      else
-      {
-        // - Compute weight
-        float w = 0.;
-        for (float i : serror)
-        {
-          w += static_cast<float>(normalizer_icp * exp(-1. / sigma_feature_matching_ * i));
-        }
-
-        cluster_ws[it.first] = w;
-        valid_it = true;
-      }
-    }
-    else
-    {
-      final_tf = Tf::unitary();
-      ws[it.first] = 0.;
-    }
-
-    // Get delta transform
-    tfs[it.first] = final_tf;
-  }
-
-  // -------------------------------------------------------------------------------
-  // ------- Apply ICP result to the clusters and update particles weights
-  // -------------------------------------------------------------------------------
-  if (valid_it)
-  {
-    for (auto& particle : particles_)
-    {
-      // - ICP result application
-      Tf m_tf = tfs[particle.which_cluster_];
-
-      particle.tf_ = particle.tf_ * m_tf;
-      particle.p_ = Pose(particle.tf_.R_array_, particle.tf_.t_array_);
-      particle.p_.normalize();
-
-      // Update particle weight
-      ws[particle.id_] = cluster_ws[particle.which_cluster_];
-    }
-  }
 }
 
 void PF::normalizeWeights()

@@ -1,13 +1,15 @@
 hybrid_node:
-  robot_model: rocha  # {agrob, rocha}
   world_frame_id: map_nn2
-  use_semantic_features: False
-  use_lidar_features: True
-  use_image_features: False
-  use_gps: False
-  use_imu: False
 
-  register_maps: True # whether to register or not newly observed features
+  use_semantic_features: True
+  use_lidar_features: True
+  use_vertical_planes: True
+  use_imu: False
+  use_gyroscope: False
+  use_gps: True
+  use_gps_altitude: True
+
+  register_maps: True # wether to register or not newly observed features
 
   lidar_sensor_frame: velodyne
   camera_sensor_frame: zed_camera_left_optical_frame

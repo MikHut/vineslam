@@ -10,7 +10,6 @@ struct Parameters
   // -----------------------------------
   // ------ System settings
   // -----------------------------------
-  std::string robot_model_{};
   std::string world_frame_id_{};
   std::string lidar_sensor_frame_{};
   std::string camera_sensor_frame_{};
@@ -20,9 +19,11 @@ struct Parameters
   // -----------------------------------
   bool use_semantic_features_{};
   bool use_lidar_features_{};
-  bool use_image_features_{};
+  bool use_vertical_planes_{};
   bool use_gps_{};
+  bool use_gps_altitude_{};
   bool use_imu_{};
+  bool use_gyroscope_{};
   bool register_maps_{};
   bool lightweight_version_{};
 

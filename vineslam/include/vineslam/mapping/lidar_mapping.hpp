@@ -120,6 +120,8 @@ public:
   // Builds local map given the current 3D point cloud - for velodyne
   void localMap(const std::vector<Point>& pcl, std::vector<Corner>& out_corners, std::vector<Planar>& out_planars,
                 std::vector<SemiPlane>& out_planes, SemiPlane& out_groundplane);
+  void localMap(const std::vector<Point>& pcl, std::vector<Corner>& out_corners, std::vector<Planar>& out_planars,
+                SemiPlane& out_groundplane);
 
 private:
   // Method to reset all the global variables and members
@@ -256,11 +258,13 @@ public:
   // Builds local map given the current 3D point cloud - for velodyne
   void localMap(const std::vector<Point>& pcl, const double& time_stamp, std::vector<Corner>& out_corners,
                 std::vector<Planar>& out_planars, std::vector<SemiPlane>& out_planes, SemiPlane& out_groundplane);
+  void localMap(const std::vector<Point>& pcl, const double& time_stamp, std::vector<Corner>& out_corners,
+                std::vector<Planar>& out_planars, SemiPlane& out_groundplane);
 
 private:
   Pt_infos* findPtInfo(const Point& pt);
-  void getFeatures(std::vector<Point>& pc_corners, std::vector<Point>& pc_surface,
-                   std::vector<Point>& pc_full_res, float minimum_blur = 0.0, float maximum_blur = 0.3);
+  void getFeatures(std::vector<Point>& pc_corners, std::vector<Point>& pc_surface, std::vector<Point>& pc_full_res,
+                   float minimum_blur = 0.0, float maximum_blur = 0.3);
   void setIntensity(Point& pt, const E_intensity_type& i_type = e_I_motion_blur);
   std::vector<std::vector<Point>> extractLaserFeatures(const std::vector<Point>& laser_cloud_in, double time_stamp);
   void addMaskOfPoint(Pt_infos* pt_infos, const E_point_type& pt_type, int neighbor_count = 0);

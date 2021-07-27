@@ -58,27 +58,6 @@ void VineSLAM_ros::occupancyMapListener(const nav_msgs::msg::OccupancyGrid::Shar
   processed_occ_grid_publisher_->publish(map_cloud2);
 }
 
-void VineSLAM_ros::imageFeatureListener(const vineslam_msgs::msg::FeatureArray::SharedPtr features)
-{
-  std::vector<vineslam::ImageFeature> img_features;
-  for (const auto& in_feature : features->features)
-  {
-    vineslam::ImageFeature l_ft;
-    l_ft.u_ = in_feature.u;
-    l_ft.v_ = in_feature.v;
-    l_ft.r_ = in_feature.r;
-    l_ft.g_ = in_feature.g;
-    l_ft.b_ = in_feature.b;
-    l_ft.pos_ = Point(in_feature.x, in_feature.y, in_feature.z);
-    l_ft.laplacian_ = in_feature.laplacian;
-    l_ft.signature_ = in_feature.signature;
-    img_features.push_back(l_ft);
-  }
-
-  input_data_.image_features_ = img_features;
-  input_data_.received_image_features_ = true;
-}
-
 void VineSLAM_ros::landmarkListener(const vision_msgs::msg::Detection2DArray::SharedPtr dets)
 {
   // Declaration of the arrays that will constitute the SLAM observations
@@ -312,7 +291,6 @@ void VineSLAM_ros::publishReport() const
   report.log.data = localizer_->logs_;
   report.use_semantic_features.data = params_.use_semantic_features_;
   report.use_lidar_features.data = params_.use_lidar_features_;
-  report.use_image_features.data = params_.use_image_features_;
   report.use_gps.data = params_.use_gps_;
   report.gps_heading = params_.map_datum_head_;
   vineslam_report_publisher_->publish(report);

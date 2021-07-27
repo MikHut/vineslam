@@ -23,7 +23,6 @@ namespace vineslam
 struct Observation
 {
   std::vector<SemanticFeature> landmarks_;
-  std::vector<ImageFeature> surf_features_;
   std::vector<Planar> planars_;
   std::vector<Corner> corners_;
   std::vector<SemiPlane> planes_;

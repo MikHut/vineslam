@@ -82,9 +82,6 @@ public:
   {
   }
 
-  // Stereo camera images callback function
-  void imageFeatureListener(const vineslam_msgs::msg::FeatureArray::SharedPtr features);
-
   // Landmark detection callback function
   void landmarkListener(const vision_msgs::msg::Detection2DArray::SharedPtr dets);
 
@@ -175,8 +172,6 @@ public:
     std::vector<float> land_pitches_;
     // Landmark depths array
     std::vector<float> land_depths_;
-    // Image features
-    std::vector<ImageFeature> image_features_;
     // Wheel odometry pose
     Pose wheel_odom_pose_;
     // Previous wheel odometry pose
@@ -193,7 +188,6 @@ public:
 
     // Observation flags
     bool received_landmarks_;
-    bool received_image_features_;
     bool received_odometry_;
     bool received_gnss_;
     bool received_scans_;

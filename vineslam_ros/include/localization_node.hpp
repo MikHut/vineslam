@@ -43,8 +43,6 @@ private:
   boost::shared_ptr<interactive_markers::InteractiveMarkerServer> im_server_;
 
   // ROS subscribers
-  ros::Subscriber feature_subscriber_;
-  ros::Subscriber landmark_subscriber_;
   ros::Subscriber scan_subscriber_;
   ros::Subscriber odom_subscriber_;
   ros::Subscriber gps_subscriber_;

@@ -110,6 +110,16 @@ void LidarMapper::globalCornerMap(const Pose& robot_pose, const std::vector<Corn
     {
       Corner new_corner(l_pt, corner.which_plane_);
       new_corners.push_back(new_corner);
+
+      // Set the occupancy of the 0 altitude map layer using the corner features
+      if (grid_map(l_pt.x_, l_pt.y_, 0).data != nullptr)
+      {
+        if (grid_map(l_pt.x_, l_pt.y_, 0).data->is_occupied_ == nullptr)
+        {
+          grid_map(l_pt.x_, l_pt.y_, 0).data->is_occupied_ = new bool();
+        }
+        *grid_map(l_pt.x_, l_pt.y_, 0).data->is_occupied_ = true;
+      }
     }
   }
 
@@ -552,11 +562,11 @@ VelodyneMapper::VelodyneMapper(const Parameters& params)
   picked_num_ = 2;
   if (params.lightweight_version_ == true)
   {
-    planes_th_ = static_cast<float>(85.) * DEGREE_TO_RAD;
+    planes_th_ = static_cast<float>(83.) * DEGREE_TO_RAD;
   }
   else
   {
-    planes_th_ = static_cast<float>(60) * DEGREE_TO_RAD;
+    planes_th_ = static_cast<float>(60.) * DEGREE_TO_RAD;
   }
   ground_th_ = static_cast<float>(3.) * DEGREE_TO_RAD;
   edge_threshold_ = 0.1;
@@ -935,16 +945,16 @@ bool VelodyneMapper::checkPlaneConsistency(const SemiPlane& plane, const SemiPla
   //        idx = i;
   //      }
   //    }
-  //    d1 = min_dist;
+  //    d1 = min_dist;pts.begin() + idx);
+  //      d0 = d1;
+  //    }
   //    if (std::fabs(d1 - d0) > 0.2 && d0 != 0)  // We found a hole in this case ...
   //    {
   //      return false;
   //    }
   //    else
   //    {
-  //      pts.erase(pts.begin() + idx);
-  //      d0 = d1;
-  //    }
+  //      pts.erase(
   //  }
 
   // C - Make sure that the plane is not horizontal
@@ -1301,6 +1311,124 @@ void VelodyneMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>
   }
 }
 
+void VelodyneMapper::localMap(const std::vector<Point>& pcl, std::vector<Corner>& out_corners,
+                              std::vector<Planar>& out_planars, SemiPlane& out_groundplane)
+{
+  // Build velodyne to base_link transformation matrix
+  Pose tf_pose(laser2base_x_, laser2base_y_, laser2base_z_, laser2base_roll_, laser2base_pitch_, laser2base_yaw_);
+  Tf tf;
+  std::array<float, 9> tf_rot{};
+  tf_pose.toRotMatrix(tf_rot);
+  tf = Tf(tf_rot, std::array<float, 3>{ tf_pose.x_, tf_pose.y_, tf_pose.z_ });
+
+  // Reset global variables and members
+  reset();
+
+  // Range image projection
+  const size_t cloud_size = pcl.size();
+  std::vector<Point> transformed_pcl(vertical_scans_ * horizontal_scans_);
+  for (size_t i = 0; i < cloud_size; ++i)
+  {
+    Point l_pt = pcl[i];
+
+    float range = l_pt.norm3D();
+
+    // find the row and column index in the image for this point
+    float vertical_angle = std::atan2(l_pt.z_, std::sqrt(l_pt.x_ * l_pt.x_ + l_pt.y_ * l_pt.y_));
+
+    int row_idx = static_cast<int>((vertical_angle + vertical_angle_bottom_) / ang_res_y_);
+    ang_res_y_ = static_cast<float>(2.) * DEGREE_TO_RAD;
+    if (row_idx < 0 || row_idx >= vertical_scans_)
+    {
+      continue;
+    }
+
+    float horizon_angle = std::atan2(l_pt.x_, l_pt.y_);  // this is not an error
+
+    int column_idx = static_cast<int>(-round((horizon_angle - M_PI_2) / ang_res_x_) + horizontal_scans_ / 2.);
+
+    if (column_idx >= horizontal_scans_)
+    {
+      column_idx -= horizontal_scans_;
+    }
+
+    if (column_idx < 0 || column_idx >= horizontal_scans_)
+    {
+      continue;
+    }
+
+    if (range > 50.0 || (std::fabs(l_pt.x_) < 0.9 && std::fabs(l_pt.y_) < 0.4))
+    {
+      continue;
+    }
+
+    range_mat_(row_idx, column_idx) = range;
+
+    size_t idx = column_idx + row_idx * horizontal_scans_;
+    transformed_pcl[idx] = l_pt;
+  }
+
+  // - Ground plane processing
+  Plane unfiltered_gplane, filtered_gplane;
+  // A - Extraction
+  flatGroundRemoval(transformed_pcl, unfiltered_gplane);
+  // B - Filtering
+  Ransac::process(unfiltered_gplane.points_, filtered_gplane, 100, 0.01, true);
+  // C - Centroid calculation
+  for (const auto& pt : filtered_gplane.points_)
+  {
+    filtered_gplane.centroid_ = filtered_gplane.centroid_ + pt;
+  }
+  filtered_gplane.centroid_ = filtered_gplane.centroid_ / static_cast<float>(filtered_gplane.points_.size());
+  // D - Bounding polygon
+  ConvexHull::process(filtered_gplane, out_groundplane);
+  for (auto& pt : out_groundplane.points_)
+  {
+    pt = pt * tf.inverse();
+  }
+  for (auto& pt : out_groundplane.extremas_)
+  {
+    pt = pt * tf.inverse();
+  }
+  out_groundplane.centroid_ = out_groundplane.centroid_ * tf.inverse();
+  // E - Check plane consistency (set to null if not consistent)
+  if (out_groundplane.area_ < 4.)
+  {
+    out_groundplane = SemiPlane();
+  }
+
+  // -------------------------------------------------------------------------------
+  // ----- Mark raw ground points
+  // -------------------------------------------------------------------------------
+  Plane non_flat_ground;
+  groundRemoval(transformed_pcl, non_flat_ground);
+  for (const auto& index : non_flat_ground.indexes_)
+  {
+    int i = static_cast<int>(index.x_);
+    int j = static_cast<int>(index.y_);
+
+    ground_mat_(i, j) = 1;
+    label_mat_(i, j) = -1;
+  }
+
+  // - Planes that are not the ground
+  std::vector<PlanePoint> cloud_seg;
+  cloudSegmentation(transformed_pcl, cloud_seg);
+
+  //- Corners feature extraction
+  extractFeatures(cloud_seg, out_corners, out_planars);
+
+  // - Convert local maps to base link
+  for (auto& corner : out_corners)
+  {
+    corner.pos_ = corner.pos_ * tf.inverse();
+  }
+  for (auto& planar : out_planars)
+  {
+    planar.pos_ = planar.pos_ * tf.inverse();
+  }
+}
+
 // -------------------------------------------------------------------
 // ----- Livox functions
 // -------------------------------------------------------------------
@@ -1454,6 +1582,105 @@ void LivoxMapper::localMap(const std::vector<Point>& pcl, const double& time_sta
       pt = pt * tf.inverse();
     }
     plane.centroid_ = plane.centroid_ * tf.inverse();
+  }
+}
+
+void LivoxMapper::localMap(const std::vector<Point>& pcl, const double& time_stamp, std::vector<Corner>& out_corners,
+                           std::vector<Planar>& out_planars, SemiPlane& out_groundplane)
+{
+  // Build velodyne to base_link transformation matrix
+  Pose tf_pose(laser2base_x_, laser2base_y_, laser2base_z_, laser2base_roll_, laser2base_pitch_, laser2base_yaw_);
+  Tf tf;
+  std::array<float, 9> tf_rot{};
+  tf_pose.toRotMatrix(tf_rot);
+  tf = Tf(tf_rot, std::array<float, 3>{ tf_pose.x_, tf_pose.y_, tf_pose.z_ });
+
+  // Extract livox features
+  std::vector<std::vector<Point>> laser_cloud_scans = extractLaserFeatures(pcl, time_stamp);
+  std::vector<Point> tmp_corners, tmp_planars, tmp_full;
+  getFeatures(tmp_corners, tmp_planars, tmp_full);
+
+  // Range image projection
+  const size_t cloud_size = pcl.size();
+  std::vector<Point> transformed_pcl(vertical_scans_ * horizontal_scans_);
+  for (size_t i = 0; i < cloud_size; ++i)
+  {
+    Point l_pt = pcl[i];
+
+    float range = l_pt.norm3D();
+
+    // find the row and column index in the image for this point
+    float vertical_angle = std::atan2(l_pt.z_, std::sqrt(l_pt.x_ * l_pt.x_ + l_pt.y_ * l_pt.y_));
+
+    int row_idx = static_cast<int>((vertical_angle + vertical_angle_bottom_) / ang_res_y_);
+    if (row_idx < 0 || row_idx >= vertical_scans_)
+    {
+      continue;
+    }
+
+    float horizon_angle = std::atan2(l_pt.x_, l_pt.y_);  // this is not an error
+
+    int column_idx = static_cast<int>(-round((horizon_angle - M_PI_2) / ang_res_x_) + horizontal_scans_ / 2.);
+
+    if (column_idx >= horizontal_scans_)
+    {
+      column_idx -= horizontal_scans_;
+    }
+
+    if (column_idx < 0 || column_idx >= horizontal_scans_)
+    {
+      continue;
+    }
+
+    if (range > 50.0 || (std::fabs(l_pt.x_) < 0.9 && std::fabs(l_pt.y_) < 0.4))
+    {
+      continue;
+    }
+
+    size_t idx = column_idx + row_idx * horizontal_scans_;
+    transformed_pcl[idx] = l_pt;
+  }
+
+  // Extract ground plane
+  Plane unfiltered_gplane, filtered_gplane;
+  flatGroundRemoval(transformed_pcl, unfiltered_gplane);
+  // B - Filtering
+  Ransac::process(unfiltered_gplane.points_, filtered_gplane, 100, 0.01, true);
+  // C - Centroid calculation
+  for (const auto& pt : filtered_gplane.points_)
+  {
+    filtered_gplane.centroid_ = filtered_gplane.centroid_ + pt;
+  }
+  filtered_gplane.centroid_ = filtered_gplane.centroid_ / static_cast<float>(filtered_gplane.points_.size());
+  // D - Bounding polygon
+  ConvexHull::process(filtered_gplane, out_groundplane);
+
+  // Convert features to VineSLAM type and project them to the base_link
+  for (const auto& pt : tmp_corners)
+  {
+    Corner c(Point(pt.x_, pt.y_, pt.z_), 0);
+    c.pos_ = c.pos_ * tf.inverse();
+    out_corners.push_back(c);
+  }
+  for (const auto& pt : tmp_planars)
+  {
+    Planar p(Point(pt.x_, pt.y_, pt.z_), 0);
+    p.pos_ = p.pos_ * tf.inverse();
+    out_planars.push_back(p);
+  }
+  for (auto& pt : out_groundplane.points_)
+  {
+    pt = pt * tf.inverse();
+  }
+  for (auto& pt : out_groundplane.extremas_)
+  {
+    pt = pt * tf.inverse();
+  }
+  out_groundplane.centroid_ = out_groundplane.centroid_ * tf.inverse();
+  // E - Check plane consistency (set to null if not consistent)
+  if (out_groundplane.area_ < 4.)
+  {
+    out_groundplane = SemiPlane();
   }
 }
 

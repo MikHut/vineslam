@@ -10,19 +10,20 @@ struct Parameters
   // -----------------------------------
   // ------ System settings
   // -----------------------------------
-  std::string robot_model_;
-  std::string world_frame_id_;
-  std::string lidar_sensor_frame_;
-  std::string camera_sensor_frame_;
+  std::string world_frame_id_{};
+  std::string lidar_sensor_frame_{};
+  std::string camera_sensor_frame_{};
 
   // -----------------------------------
   // ------ System flags
   // -----------------------------------
   bool use_semantic_features_{};
   bool use_lidar_features_{};
-  bool use_image_features_{};
+  bool use_vertical_planes_{};
   bool use_gps_{};
+  bool use_gps_altitude_{};
   bool use_imu_{};
+  bool use_gyroscope_{};
   bool register_maps_{};
   bool lightweight_version_{};
 
@@ -31,12 +32,6 @@ struct Parameters
   // -----------------------------------
   bool save_logs_{};
   std::string logs_folder_{};
-
-  // -----------------------------------
-  // ------ On-board sensors transformations to base link
-  // -----------------------------------
-  std::vector<float> cam2base_;
-  std::vector<float> vel2base_;
 
   // -----------------------------------
   // ------ Map origin - datum
@@ -49,6 +44,8 @@ struct Parameters
   double robot_datum_long_{};
   double robot_datum_alt_{};
   double robot_datum_head_{};
+  double sat_datum_lat_{};
+  double sat_datum_long_{};
 
   // -----------------------------------
   // ------ Camera info parameters
@@ -56,6 +53,10 @@ struct Parameters
   float baseline_{};
   float fx_{};
   float cx_{};
+  float h_fov_{};
+  float v_fov_{};
+  int img_width_{};
+  int img_height_{};
 
   // -----------------------------------
   // ------ Robot dimensions
@@ -78,6 +79,7 @@ struct Parameters
   std::string map_output_folder_;
   std::string map_input_file_;
   std::string elevation_map_input_file_;
+  std::string topological_map_input_file_;
 
   // -----------------------------------
   // ------ Particle filter parameters

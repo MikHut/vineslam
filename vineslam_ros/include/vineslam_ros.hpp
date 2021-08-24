@@ -1,14 +1,10 @@
 #pragma once
 
 // vineslam members
-#include <vineslam/feature/semantic.hpp>
-#include <vineslam/feature/visual.hpp>
 #include <vineslam/feature/three_dimensional.hpp>
 #include <vineslam/localization/localizer.hpp>
 #include <vineslam/mapping/occupancy_map.hpp>
 #include <vineslam/mapping/elevation_map.hpp>
-#include <vineslam/mapping/landmark_mapping.hpp>
-#include <vineslam/mapping/visual_mapping.hpp>
 #include <vineslam/mapping/lidar_mapping.hpp>
 #include <vineslam/math/Point.hpp>
 #include <vineslam/math/Pose.hpp>
@@ -20,12 +16,6 @@
 #include <vineslam/map_io/elevation_map_parser.hpp>
 #include <vineslam/utils/save_data.hpp>
 #include <vineslam/utils/Timer.hpp>
-// ----------------------------
-#include <vineslam_msgs/particle.h>
-#include <vineslam_msgs/report.h>
-#include <vineslam_msgs/Feature.h>
-#include <vineslam_msgs/FeatureArray.h>
-// ----------------------------
 
 // std
 #include <iostream>
@@ -77,9 +67,6 @@ public:
   {
   }
 
-  // Stereo camera images callback function
-  void imageFeatureListener(const vineslam_msgs::FeatureArrayConstPtr& features);
-
   // Landmark detection callback function
   void landmarkListener(const vision_msgs::Detection3DArrayConstPtr& dets);
 
@@ -91,7 +78,6 @@ public:
 
   // GPS callback function
   void gpsListener(const sensor_msgs::NavSatFixConstPtr& msg);
-  //  void gpsListener(const geometry_msgs::PoseWithCovarianceStampedConstPtr& msg);
 
   // IMU callback functions
   void imuListener(const geometry_msgs::Vector3StampedConstPtr& msg);
@@ -137,8 +123,6 @@ public:
   void publishGridMapLimits() const;
   // Publishes a box containing the zone occupied by the robot
   void publishRobotBox(const Pose& robot_pose) const;
-  // Publishes a VineSLAM state report for debug purposes
-  void publishReport() const;
 
   // VineSLAM input data
   struct InputData
@@ -149,8 +133,6 @@ public:
     std::vector<float> land_bearings_;
     // Landmark depths array
     std::vector<float> land_depths_;
-    // Image features
-    std::vector<ImageFeature> image_features_;
     // Wheel odometry pose
     Pose wheel_odom_pose_;
     // Previous wheel odometry pose
@@ -167,19 +149,16 @@ public:
 
     // Observation flags
     bool received_landmarks_;
-    bool received_image_features_;
     bool received_odometry_;
     bool received_gnss_;
     bool received_scans_;
   } input_data_;
 
   // ROS publishers/services
-  ros::Publisher vineslam_report_publisher_;
   ros::Publisher grid_map_publisher_;
   ros::Publisher elevation_map_publisher_;
   ros::Publisher map2D_publisher_;
   ros::Publisher robot_box_publisher_;
-  ros::Publisher map3D_features_publisher_;
   ros::Publisher map3D_corners_publisher_;
   ros::Publisher map3D_planars_publisher_;
   ros::Publisher map3D_planes_publisher_;
@@ -197,8 +176,6 @@ public:
   Localizer* localizer_;
   ElevationMap* elevation_map_;
   OccupancyMap* grid_map_;
-  LandmarkMapper* land_mapper_;
-  VisualMapper* vis_mapper_;
 #if LIDAR_SENSOR == 0
   VelodyneMapper* lid_mapper_;
 #elif LIDAR_SENSOR == 1

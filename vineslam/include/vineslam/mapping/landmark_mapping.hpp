@@ -32,23 +32,20 @@ public:
 
   // Initializes the map
   // - Invocated only once to insert the first observations on the map
-  void init(const Pose& pose, const std::vector<float>& bearings, const std::vector<float>& depths,
-            const std::vector<int>& labels, OccupancyMap& grid_map);
+  void init(const Pose& pose, const std::vector<float>& bearings, const std::vector<float>& pitches,
+            const std::vector<float>& depths, const std::vector<int>& labels, OccupancyMap& grid_map);
 
   // Computes a local map on camera's referential given a set of range-bearing
   // observations
-  void localMap(const std::vector<float>& bearings, const std::vector<float>& depths,
-                std::vector<SemanticFeature>& landmarks) const;
-
-  // Setters
-  void setCamPitch(const float& pitch)
-  {
-    cam_pitch_ = pitch;
-  }
+  void localMap(const Pose& cam_origin_pose, const std::vector<int>& labels, const std::vector<float>& bearings,
+                const std::vector<float>& pitches, std::vector<SemanticFeature>& landmarks, OccupancyMap& grid_map,
+                Pose robot_pose) const;
+  void localMap(const Pose& cam_origin_pose, const std::vector<int>& labels, const std::vector<float>& bearings,
+                const std::vector<float>& pitches, std::vector<SemanticFeature>& landmarks,
+                const std::vector<SemiPlane>& planes, Pose robot_pose) const;
 
 private:
   // Input parameters
-  float cam_pitch_;
   int filter_frequency_;
   float stdev_threshold_;
   Parameters params_;
@@ -63,19 +60,16 @@ private:
   std::vector<KF> filters;
 
   // Estimates landmark positions based on the current observations
-  void predict(const Pose& pose, const std::vector<float>& bearings, const std::vector<float>& depths,
-               const std::vector<int>& labels, OccupancyMap& grid_map);
+  void predict(const Pose& pose, const std::vector<float>& bearings, const std::vector<float>& pitches,
+               const std::vector<float>& depths, const std::vector<int>& labels, OccupancyMap& grid_map);
 
   // Filters semantic map based on the mapping uncertainty
   // - old landmarks that have high uncertainty are removed
   void filter(OccupancyMap& grid_map) const;
 
-  // Computes a local map, on robot's frame
-  static std::vector<Point> base2map(const Pose& pose, const std::vector<SemanticFeature>& landmarks);
-
   // Searches from correspondences between observations and landmarks
   // already mapped
-  static std::pair<int, Point> findCorr(const Point& l_pos, OccupancyMap& grid_map);
+  static std::pair<int, SemanticFeature> findCorr(const Point& l_pos, const int& label, OccupancyMap& grid_map);
 };
 
 }  // namespace vineslam

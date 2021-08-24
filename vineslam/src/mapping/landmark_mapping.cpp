@@ -11,8 +11,8 @@ LandmarkMapper::LandmarkMapper(Parameters params) : params_(std::move(params))
   it_ = 0;
 }
 
-void LandmarkMapper::init(const Pose& pose, const std::vector<float>& bearings, const std::vector<float>& depths,
-                          const std::vector<int>& labels, OccupancyMap& grid_map)
+void LandmarkMapper::init(const Pose& pose, const std::vector<float>& bearings, const std::vector<float>& pitches,
+                          const std::vector<float>& depths, const std::vector<int>& labels, OccupancyMap& grid_map)
 {
   int n_obsv = bearings.size();
   Gaussian<Point, Point> robot_gauss;
@@ -30,29 +30,65 @@ void LandmarkMapper::init(const Pose& pose, const std::vector<float>& bearings, 
   // - proportional to the pose signal and the distance to the robot
   for (int i = 0; i < n_obsv; i++)
   {
-    // Construct the observations vector
-    Eigen::VectorXf z(2, 1);
-    z << depths[i], bearings[i];
+    if (labels[i] != 1)  // not a trunk - 3D case
+    {
+      // Construct the observations vector
+      Eigen::VectorXf z(3, 1);
+      z << depths[i], bearings[i], pitches[i];
 
-    // Calculate
-    // - the initial estimation of the landmark on map's referential frame
-    float th = Const::normalizeAngle(bearings[i]);
-    Point X_cam(depths[i] * std::cos(th), depths[i] * std::sin(th), 0.);
-    Point X;
-    X.x_ = X_cam.x_ * Rot[0] + X_cam.y_ * Rot[1] + X_cam.z_ * Rot[2] + trans.x_;
-    X.y_ = X_cam.x_ * Rot[3] + X_cam.y_ * Rot[4] + X_cam.z_ * Rot[5] + trans.y_;
-    X.z_ = 0.;
+      // Calculate
+      // - the initial estimation of the landmark on map's referential frame
+      float yaw = Const::normalizeAngle(bearings[i]);
+      float pitch = Const::normalizeAngle(pitches[i]);
+      Point X_cam;
+      X_cam.x_ = (depths[i] * (std::cos(yaw) * std::cos(pitch)));
+      X_cam.y_ = (depths[i] * (std::sin(yaw) * std::cos(pitch)));
+      X_cam.z_ = (depths[i] * (std::sin(pitch)));
 
-    // Push back a Kalman Filter object for the respective landmark
-    KF kf(params_, X.toEig2D(), robot_gauss.stdev_.toEig2D(), z);
-    filters.push_back(kf);
+      Point X;
+      X.x_ = X_cam.x_ * Rot[0] + X_cam.y_ * Rot[1] + X_cam.z_ * Rot[2] + trans.x_;
+      X.y_ = X_cam.x_ * Rot[3] + X_cam.y_ * Rot[4] + X_cam.z_ * Rot[5] + trans.y_;
+      X.z_ = X_cam.x_ * Rot[6] + X_cam.y_ * Rot[7] + X_cam.z_ * Rot[8] + trans.z_;
 
-    // Insert the landmark on the map, with a single observation
-    // and get the correspondent standard deviation
-    id_++;
-    Point pos(X.x_, X.y_, 0.);
-    Gaussian<Point, Point> std = filters[filters.size() - 1].getStdev();
-    grid_map.insert(SemanticFeature(pos, std, labels[i]), id_);
+      // Push back a Kalman Filter object for the respective landmark
+      KF kf;
+      kf.init3D(params_, X.toEig3D(), robot_gauss.stdev_.toEig3D(), z);
+      filters.push_back(kf);
+
+      // Insert the landmark on the map, with a single observation
+      // and get the correspondent standard deviation
+      id_++;
+      Point pos(X.x_, X.y_, X.z_);
+      Gaussian<Point, Point> std = filters[filters.size() - 1].getStdev();
+      grid_map.insert(SemanticFeature(pos, std, labels[i]), id_);
+    }
+    else  // trunk - 2D case
+    {
+      // Construct the observations vector
+      Eigen::VectorXf z(2, 1);
+      z << depths[i], bearings[i];
+
+      // Calculate
+      // - the initial estimation of the landmark on map's referential frame
+      float th = Const::normalizeAngle(bearings[i]);
+      Point X_cam(depths[i] * std::cos(th), depths[i] * std::sin(th), 0.);
+      Point X;
+      X.x_ = X_cam.x_ * Rot[0] + X_cam.y_ * Rot[1] + X_cam.z_ * Rot[2] + trans.x_;
+      X.y_ = X_cam.x_ * Rot[3] + X_cam.y_ * Rot[4] + X_cam.z_ * Rot[5] + trans.y_;
+      X.z_ = 0.;
+
+      // Push back a Kalman Filter object for the respective landmark
+      KF kf;
+      kf.init2D(params_, X.toEig2D(), robot_gauss.stdev_.toEig2D(), z);
+      filters.push_back(kf);
+
+      // Insert the landmark on the map, with a single observation
+      // and get the correspondent standard deviation
+      id_++;
+      Point pos(X.x_, X.y_, 0.);
+      Gaussian<Point, Point> std = filters[filters.size() - 1].getStdev();
+      grid_map.insert(SemanticFeature(pos, std, labels[i]), id_);
+    }
   }
 
   // Update iterator
@@ -62,57 +98,33 @@ void LandmarkMapper::init(const Pose& pose, const std::vector<float>& bearings, 
 void LandmarkMapper::process(const Pose& pose, const std::vector<SemanticFeature>& landmarks,
                              const std::vector<int>& labels, OccupancyMap& grid_map)
 {
-  // Compute local map on robot's referential frame
-  std::vector<Point> l_map = base2map(pose, landmarks);
+  std::cout << "LandmakrMapper::process() !!! \n\n";
   // Convert local map to bearings and depths
-  std::vector<float> bearings_(landmarks.size());
-  std::vector<float> depths_(landmarks.size());
-  for (size_t i = 0; i < l_map.size(); i++)
+  std::vector<float> bearings(landmarks.size());
+  std::vector<float> pitches(landmarks.size());
+  std::vector<float> depths(landmarks.size());
+  for (size_t i = 0; i < landmarks.size(); i++)
   {
-    depths_[i] = std::sqrt(pow(l_map[i].x_, 2) + pow(l_map[i].y_, 2));
-    bearings_[i] = std::atan2(l_map[i].y_, l_map[i].x_) - pose.Y_;
+    Point pt = landmarks[i].pos_;
+    depths[i] = std::sqrt(std::pow(pt.x_, 2) + std::pow(pt.y_, 2) + std::pow(pt.z_, 2));
+    bearings[i] = std::atan2(pt.y_, pt.x_) - pose.Y_;
+    pitches[i] = std::atan2(pt.z_, std::sqrt(std::pow(pt.x_, 2) + std::pow(pt.y_, 2))) - pose.P_;
   }
   // Estimate global map
-  predict(pose, bearings_, depths_, labels, grid_map);
+  predict(pose, bearings, pitches, depths, labels, grid_map);
 
   // Update iterator
   it_++;
 
   // Filter semantic map at a given frequency
-  if (it_ % filter_frequency_ == 0)
-    filter(grid_map);
+  //  if (it_ % filter_frequency_ == 0)
+  //    filter(grid_map);
 }
 
-std::vector<Point> LandmarkMapper::base2map(const Pose& pose, const std::vector<SemanticFeature>& landmarks)
+void LandmarkMapper::predict(const Pose& pose, const std::vector<float>& bearings, const std::vector<float>& pitches,
+                             const std::vector<float>& depths, const std::vector<int>& labels, OccupancyMap& grid_map)
 {
-  // Convert 6-DOF pose to homogenous transformation
-  std::array<float, 9> Rot{};
-  Point trans = pose.getXYZ();
-  pose.toRotMatrix(Rot);
-
-  std::vector<Point> landmarks_;
-  for (const auto& landmark : landmarks)
-  {
-    Point X_cam(landmark.pos_.x_, landmark.pos_.y_, 0.);
-
-    // Convert landmark to map's referential frame
-    Point X_map;
-    X_map.x_ = X_cam.x_ * Rot[0] + X_cam.y_ * Rot[1] + X_cam.z_ * Rot[2] + trans.x_;
-    X_map.y_ = X_cam.x_ * Rot[3] + X_cam.y_ * Rot[4] + X_cam.z_ * Rot[5] + trans.y_;
-    X_map.z_ = 0.;
-
-    // Convert landmark to robot's referential frame and insert
-    // on array of landmarks
-    Point X_robot = X_map - pose.getXYZ();
-    landmarks_.push_back(X_robot);
-  }
-
-  return landmarks_;
-}
-
-void LandmarkMapper::predict(const Pose& pose, const std::vector<float>& bearings, const std::vector<float>& depths,
-                             const std::vector<int>& labels, OccupancyMap& grid_map)
-{
+  std::cout << "LandmakrMapper::predict() !!! \n\n";
   int n_obsv = bearings.size();
   Gaussian<Point, Point> robot_gauss;
   pose.getDist(robot_gauss);
@@ -124,66 +136,120 @@ void LandmarkMapper::predict(const Pose& pose, const std::vector<float>& bearing
 
   for (int i = 0; i < n_obsv; i++)
   {
-    // Calculate the landmark position on map's referential frame
-    // based on the ith observation
-    float th = Const::normalizeAngle(bearings[i]);
-    Point X_cam(depths[i] * std::cos(th), depths[i] * std::sin(th), 0.);
-    Point X;
-    X.x_ = X_cam.x_ * Rot[0] + X_cam.y_ * Rot[1] + X_cam.z_ * Rot[2] + trans.x_;
-    X.y_ = X_cam.x_ * Rot[3] + X_cam.y_ * Rot[4] + X_cam.z_ * Rot[5] + trans.y_;
-    X.z_ = 0.;
-
-    // Construct the observations vector
-    VectorXf z(2, 1);
-    z << depths[i], bearings[i];
-
-    // Check if the landmark already exists in the map
-    std::pair<int, Point> correspondence = findCorr(X, grid_map);
-    // If not, initialize the landmark on the map, as well as the
-    // correspondent Kalman Filter
-    if (correspondence.first < 0)
+    if (labels[i] != 1)  // not a trunk - 3D case
     {
-      Eigen::MatrixXd R(2, 2);
+      // Calculate the landmark position on map's referential frame
+      // based on the ith observation
+      float yaw = Const::normalizeAngle(bearings[i]);
+      float pitch = Const::normalizeAngle(pitches[i]);
+      Point X_cam;
+      X_cam.x_ = (depths[i] * (std::cos(yaw) * std::cos(pitch)));
+      X_cam.y_ = (depths[i] * (std::sin(yaw) * std::cos(pitch)));
+      X_cam.z_ = (depths[i] * (std::sin(pitch)));
 
-      // Initialize the Kalman Filter
-      KF kf(params_, X.toEig2D(), robot_gauss.stdev_.toEig2D(), z);
-      filters.push_back(kf);
+      Point X;
+      X.x_ = X_cam.x_ * Rot[0] + X_cam.y_ * Rot[1] + X_cam.z_ * Rot[2] + trans.x_;
+      X.y_ = X_cam.x_ * Rot[3] + X_cam.y_ * Rot[4] + X_cam.z_ * Rot[5] + trans.y_;
+      X.z_ = X_cam.x_ * Rot[6] + X_cam.y_ * Rot[7] + X_cam.z_ * Rot[8] + trans.z_;
 
-      // Insert the landmark on the map, with a single observation
-      id_++;
-      Gaussian<Point, Point> gauss = filters[filters.size() - 1].getStdev();
-      grid_map.insert(SemanticFeature(X, gauss, labels[i]), id_);
+      // Construct the observations vector
+      VectorXf z(3, 1);
+      z << depths[i], bearings[i], pitches[i];
+
+      // Check if the landmark already exists in the map
+      std::pair<int, SemanticFeature> correspondence = findCorr(X, labels[i], grid_map);
+      // If not, initialize the landmark on the map, as well as the
+      // correspondent Kalman Filter
+      if (correspondence.first < 0)
+      {
+        // Initialize the Kalman Filter
+        KF kf;
+        kf.init3D(params_, X.toEig3D(), robot_gauss.stdev_.toEig3D(), z);
+        filters.push_back(kf);
+
+        // Insert the landmark on the map, with a single observation
+        id_++;
+        Gaussian<Point, Point> gauss = filters[filters.size() - 1].getStdev();
+        grid_map.insert(SemanticFeature(X, gauss, labels[i]), id_);
+      }
+      // If so, update the landmark position estimation using a Kalman
+      // Filter call
+      else
+      {
+        // Invocate the Kalman Filter
+        filters[correspondence.first - 1].process3D(pose.toEig3D(), robot_gauss.stdev_.toEig3D(), z);
+        // Get the state vector and the standard deviation associated
+        // with the estimation
+        Point X_out = filters[correspondence.first - 1].getState3D();
+        Gaussian<Point, Point> gauss = filters[correspondence.first - 1].getStdev();
+
+        // Update the estimation on the map
+        grid_map.update(SemanticFeature(X_out, gauss, labels[i]), correspondence.second, correspondence.first);
+      }
     }
-    // If so, update the landmark position estimation using a Kalman
-    // Filter call
-    else
+    else  // trunk - 2D case
     {
-      // Invocate the Kalman Filter
-      filters[correspondence.first - 1].process(pose.toEig2D(), robot_gauss.stdev_.toEig2D(), z);
-      // Get the state vector and the standard deviation associated
-      // with the estimation
-      Point X_out = filters[correspondence.first - 1].getState();
-      Gaussian<Point, Point> gauss = filters[correspondence.first - 1].getStdev();
+      // Calculate the landmark position on map's referential frame
+      // based on the ith observation
+      float th = Const::normalizeAngle(bearings[i]);
+      Point X_cam(depths[i] * std::cos(th), depths[i] * std::sin(th), 0.);
+      Point X;
+      X.x_ = X_cam.x_ * Rot[0] + X_cam.y_ * Rot[1] + X_cam.z_ * Rot[2] + trans.x_;
+      X.y_ = X_cam.x_ * Rot[3] + X_cam.y_ * Rot[4] + X_cam.z_ * Rot[5] + trans.y_;
+      X.z_ = 0.;
 
-      // Update the estimation on the map
-      grid_map.update(SemanticFeature(X_out, gauss, labels[i]), correspondence.first, correspondence.second.x_,
-                      correspondence.second.y_);
+      // Construct the observations vector
+      VectorXf z(2, 1);
+      z << depths[i], bearings[i];
+
+      // Check if the landmark already exists in the map
+      std::pair<int, SemanticFeature> correspondence = findCorr(X, labels[i], grid_map);
+      // If not, initialize the landmark on the map, as well as the
+      // correspondent Kalman Filter
+      if (correspondence.first < 0)
+      {
+        Eigen::MatrixXd R(2, 2);
+
+        // Initialize the Kalman Filter
+        KF kf;
+        kf.init2D(params_, X.toEig2D(), robot_gauss.stdev_.toEig2D(), z);
+        filters.push_back(kf);
+
+        // Insert the landmark on the map, with a single observation
+        id_++;
+        Gaussian<Point, Point> gauss = filters[filters.size() - 1].getStdev();
+        grid_map.insert(SemanticFeature(X, gauss, labels[i]), id_);
+      }
+      // If so, update the landmark position estimation using a Kalman
+      // Filter call
+      else
+      {
+        // Invocate the Kalman Filter
+        filters[correspondence.first - 1].process2D(pose.toEig2D(), robot_gauss.stdev_.toEig2D(), z);
+        // Get the state vector and the standard deviation associated
+        // with the estimation
+        Point X_out = filters[correspondence.first - 1].getState2D();
+        Gaussian<Point, Point> gauss = filters[correspondence.first - 1].getStdev();
+
+        // Update the estimation on the map
+        grid_map.update(SemanticFeature(X_out, gauss, labels[i]), correspondence.second, correspondence.first);
+      }
     }
   }
 }
 
-std::pair<int, Point> LandmarkMapper::findCorr(const Point& pos, OccupancyMap& grid_map)
+std::pair<int, SemanticFeature> LandmarkMapper::findCorr(const Point& pos, const int& label, OccupancyMap& grid_map)
 {
-  int best_correspondence = -1;
-  float best_aprox = 0.5;
-
-  Point correspondence;
+  float best_aprox = (label == 1) ? 0.5 : 0.25;  // for trunks we support a larger correspondence
+                                                // tolerance (0.5 meters in this case)
+  std::pair<int, SemanticFeature> correspondence;
+  correspondence.first = -1;
 
   std::map<int, SemanticFeature>* l_landmarks = nullptr;
 
-  if (grid_map(pos.x_, pos.y_, 0).data != nullptr)
+  if (grid_map(pos.x_, pos.y_, pos.z_).data != nullptr)
   {
-    l_landmarks = grid_map(pos.x_, pos.y_, 0).data->landmarks_;
+    l_landmarks = grid_map(pos.x_, pos.y_, pos.z_).data->landmarks_;
   }
 
   if (l_landmarks != nullptr)
@@ -191,21 +257,20 @@ std::pair<int, Point> LandmarkMapper::findCorr(const Point& pos, OccupancyMap& g
     // Search on current cell first
     for (const auto& l_landmark : *l_landmarks)
     {
-      float dist = pos.distanceXY(l_landmark.second.pos_);
+      float dist = pos.distance(l_landmark.second.pos_);
 
-      if (dist < best_aprox)
+      if (dist < best_aprox && l_landmark.second.label_ == label)
       {
-        correspondence = l_landmark.second.pos_;
-        best_correspondence = l_landmark.first;
+        correspondence = l_landmark;
         best_aprox = dist;
       }
     }
   }
 
   // Search on adjacent cells then
-  int number_layers = (best_correspondence == -1) ? 2 : 1;
+  int number_layers = (correspondence.first == -1) ? 2 : 1;
   std::vector<Cell> adjacents;
-  grid_map.getAdjacent(pos.x_, pos.y_, 0., number_layers, adjacents);
+  grid_map.getAdjacent(pos.x_, pos.y_, pos.z_, number_layers, adjacents);
   for (const auto& l_cell : adjacents)
   {
     std::map<int, SemanticFeature>* ll_landmarks = nullptr;
@@ -219,43 +284,149 @@ std::pair<int, Point> LandmarkMapper::findCorr(const Point& pos, OccupancyMap& g
     {
       for (const auto& l_landmark : *ll_landmarks)
       {
-        float dist = pos.distanceXY(l_landmark.second.pos_);
-        if (dist < best_aprox)
+        float dist = pos.distance(l_landmark.second.pos_);
+        if (dist < best_aprox && l_landmark.second.label_ == label)
         {
-          correspondence = l_landmark.second.pos_;
-          best_correspondence = l_landmark.first;
+          correspondence = l_landmark;
           best_aprox = dist;
         }
       }
     }
   }
 
-  return std::pair<int, Point>(best_correspondence, correspondence);
+  return correspondence;
 }
 
-void LandmarkMapper::localMap(const std::vector<float>& bearings, const std::vector<float>& depths,
-                              std::vector<SemanticFeature>& landmarks) const
+void LandmarkMapper::localMap(const Pose& cam_origin_pose, const std::vector<int>& labels,
+                              const std::vector<float>& bearings, const std::vector<float>& pitches,
+                              std::vector<SemanticFeature>& landmarks, OccupancyMap& grid_map, Pose robot_pose) const
 {
-  Pose pitch_comp(0., 0., 0., 0., -cam_pitch_, 0.);
-  std::array<float, 9> Rot{};
-  pitch_comp.toRotMatrix(Rot);
-
-  landmarks.resize(bearings.size());
-  for (size_t i = 0; i < bearings.size(); i++)
+  // Transform the landmark orientations into the map referential frame
+  uint32_t n_obsv = labels.size();
+  for (uint32_t i = 0; i < n_obsv; i++)
   {
-    // Calculate the estimation of the landmark position on
-    // camera's referential frame
-    float th = Const::normalizeAngle(bearings[i]);
-    Point X_cam(depths[i] * std::cos(th), depths[i] * std::sin(th), 0.);
+    int label = labels[i];
+    float bearing = bearings[i];
+    float pitch = pitches[i];
 
-    // Compensate camera inclination
-    Point X_robot;
-    X_robot.x_ = X_cam.x_ * Rot[0] + X_cam.y_ * Rot[1] + X_cam.z_ * Rot[2];
-    X_robot.y_ = X_cam.x_ * Rot[3] + X_cam.y_ * Rot[4] + X_cam.z_ * Rot[5];
-    X_robot.z_ = X_cam.z_;
+    // Transform the landmark orientation to the map reference frame
+    Tf l_measurement_base = Pose(0., 0., 0., 0., pitch, bearing).toTf();
+    Tf l_measurement_map = robot_pose.toTf() * l_measurement_base;
+    Pose l_measurement(l_measurement_map.R_array_, l_measurement_map.t_array_);
 
-    // Insert on output struct
-    landmarks[i].pos_ = X_robot;
+    // Find the position of the landmark by intersection with the satellite occupancy grid map (saved in 'grid_map')
+    float multiplier = 0.2;
+    float increment = 0.1;
+    bool found_occupied_cell = false;
+    while (!found_occupied_cell && multiplier < 1.75)
+    {
+      // Point projection along a line
+      // ... x = cos(yaw)*cos(pitch)
+      // ... y = sin(yaw)*cos(pitch)
+      // ... z = sin(pitch)
+      Point l_pt;
+      l_pt.x_ = cam_origin_pose.x_ + (multiplier * (std::cos(l_measurement.Y_) * std::cos(l_measurement.P_)));
+      l_pt.y_ = cam_origin_pose.y_ + (multiplier * (std::sin(l_measurement.Y_) * std::cos(l_measurement.P_)));
+      l_pt.z_ = cam_origin_pose.z_ + (multiplier * (std::sin(l_measurement.P_)));
+
+      // Save landmark info if we found an intersection with the satellite occupancy grid map
+      if (grid_map.isInside(l_pt.x_, l_pt.y_, 0.) && grid_map.isInside(l_pt.x_, l_pt.y_, l_pt.z_))
+      {
+        if (grid_map(l_pt.x_, l_pt.y_, 0).data != nullptr && grid_map(l_pt.x_, l_pt.y_, l_pt.z_).data != nullptr)
+        {
+          if (grid_map(l_pt.x_, l_pt.y_, 0).data->is_occupied_ != nullptr)
+          {
+            if (*(grid_map(l_pt.x_, l_pt.y_, 0).data->is_occupied_) == true)
+            {
+              if (grid_map(l_pt.x_, l_pt.y_, l_pt.z_).data->planar_features_ != nullptr)
+              {
+                if (!grid_map(l_pt.x_, l_pt.y_, l_pt.z_).data->planar_features_->empty())
+                {
+                  // We found an occupied cell, so our landmark will be inside this voxel
+                  // To compute an approximation of its position we compute the average of all the points
+                  // inside of it
+                  found_occupied_cell = true;
+                  Point mean_pt(0., 0., 0.);
+                  for (const auto& pt : *grid_map(l_pt.x_, l_pt.y_, l_pt.z_).data->planar_features_)
+                  {
+                    mean_pt.x_ += pt.pos_.x_;
+                    mean_pt.y_ += pt.pos_.y_;
+                    mean_pt.z_ += pt.pos_.z_;
+                  }
+                  mean_pt.x_ /= grid_map(l_pt.x_, l_pt.y_, l_pt.z_).data->planar_features_->size();
+                  mean_pt.y_ /= grid_map(l_pt.x_, l_pt.y_, l_pt.z_).data->planar_features_->size();
+                  mean_pt.z_ /= grid_map(l_pt.x_, l_pt.y_, l_pt.z_).data->planar_features_->size();
+
+                  SemanticFeature l_landmark;
+                  l_landmark.pos_ =
+                      mean_pt - robot_pose.getXYZ();  // we want the landmark in the local robot referential
+                  l_landmark.info_ = SemanticInfo(label);
+                  l_landmark.label_ = label;
+
+                  landmarks.push_back(l_landmark);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      multiplier += increment;
+    }
+  }
+}
+
+void LandmarkMapper::localMap(const Pose& cam_origin_pose, const std::vector<int>& labels,
+                              const std::vector<float>& bearings, const std::vector<float>& pitches,
+                              std::vector<SemanticFeature>& landmarks, const std::vector<SemiPlane>& planes,
+                              Pose robot_pose) const
+{
+  // Transform the landmark orientations into the map referential frame
+  uint32_t n_obsv = labels.size();
+  for (uint32_t i = 0; i < n_obsv; i++)
+  {
+    int label = labels[i];
+    float bearing = bearings[i];
+    float pitch = pitches[i];
+
+    // Transform the landmark orientation to the map reference frame
+    Tf l_measurement_base = Pose(0., 0., 0., 0., pitch, bearing).toTf();
+    Tf l_measurement_map = robot_pose.toTf() * l_measurement_base;
+    Pose l_measurement(l_measurement_map.R_array_, l_measurement_map.t_array_);
+
+    // Compute the intersection between the landmark ray and the semiplanes
+    for (const auto& plane : planes)
+    {
+      // Make sure that the plane is not horizontal
+      float dot = Vec(plane.a_, plane.b_, plane.c_).dot(Vec(0., 0., 1.));
+      if (std::fabs(dot) > 1.0)
+      {
+        continue;
+      }
+
+      // Compute the ray vector of the landmark
+      Vec ray_vector(std::cos(l_measurement.Y_) * std::cos(l_measurement.P_),
+                     std::sin(l_measurement.Y_) * std::cos(l_measurement.P_), std::sin(l_measurement.P_));
+
+      // Calculate the intersection between the ray and the plane
+      Point diff = cam_origin_pose.getXYZ() - plane.centroid_;
+      double prod1 = Vec(diff.x_, diff.y_, diff.z_).dot(Vec(plane.a_, plane.b_, plane.c_));
+      double prod2 = ray_vector.dot(Vec(plane.a_, plane.b_, plane.c_));
+      double prod3 = prod1 / prod2;
+      Vec ray_vector_multiplied(ray_vector.x_ * prod3, ray_vector.y_ * prod3, ray_vector.z_ * prod3);
+      Point intersection = (cam_origin_pose.getXYZ() + ray_vector_multiplied);
+
+      // Validate the intersection and insert the landmark
+      if (intersection.norm3D() < 1.5)
+      {
+        SemanticFeature l_landmark;
+        l_landmark.pos_ = intersection - robot_pose.getXYZ();  // we want the landmark in the local robot referential
+        l_landmark.info_ = SemanticInfo(label);
+        l_landmark.label_ = label;
+
+        landmarks.push_back(l_landmark);
+      }
+    }
   }
 }
 

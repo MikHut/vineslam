@@ -12,7 +12,7 @@ const float RAD_TO_DEGREE = static_cast<float>(180. / M_PI);
 const float M_2PI = static_cast<float>(2. * M_PI);
 
 #define NUM_THREADS 8
-#define VERBOSE 0
+#define VERBOSE 1
 
 struct Const
 {

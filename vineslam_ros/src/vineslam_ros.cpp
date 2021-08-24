@@ -7,61 +7,6 @@ namespace vineslam
 // ----- Callbacks and observation functions
 // --------------------------------------------------------------------------------
 
-void VineSLAM_ros::imageFeatureListener(const vineslam_msgs::FeatureArrayConstPtr& features)
-{
-  std::vector<vineslam::ImageFeature> img_features;
-  for (const auto& in_feature : features->features)
-  {
-    vineslam::ImageFeature l_ft;
-    l_ft.u_ = in_feature.u;
-    l_ft.v_ = in_feature.v;
-    l_ft.r_ = in_feature.r;
-    l_ft.g_ = in_feature.g;
-    l_ft.b_ = in_feature.b;
-    l_ft.pos_ = Point(in_feature.x, in_feature.y, in_feature.z);
-    l_ft.laplacian_ = in_feature.laplacian;
-    l_ft.signature_ = in_feature.signature;
-    img_features.push_back(l_ft);
-  }
-
-  input_data_.image_features_ = img_features;
-  input_data_.received_image_features_ = true;
-}
-
-void VineSLAM_ros::landmarkListener(const vision_msgs::Detection3DArrayConstPtr& dets)
-{
-  // Declaration of the arrays that will constitute the SLAM observations
-  std::vector<int> labels;
-  std::vector<float> bearings;
-  std::vector<float> depths;
-
-  // -------------------------------------------------------------------------------
-  // ---- Compute range-bearing representation of semantic features
-  // -------------------------------------------------------------------------------
-  for (const auto& detection : (*dets).detections)
-  {
-    vision_msgs::BoundingBox3D l_bbox = detection.bbox;
-
-    float x = l_bbox.center.position.z;
-    float y = -(static_cast<float>(l_bbox.center.position.x) - params_.cx_) * (x / params_.fx_);
-
-    auto depth = static_cast<float>(sqrt(pow(x, 2) + pow(y, 2)));
-    float theta = atan2(y, x);
-
-    // Insert the measures in the observations arrays
-    //    labels.push_back(detection.results[0].id);
-    labels.push_back(0);
-    depths.push_back(depth);
-    bearings.push_back(theta);
-  }
-
-  input_data_.land_labels_ = labels;
-  input_data_.land_bearings_ = bearings;
-  input_data_.land_depths_ = depths;
-
-  input_data_.received_landmarks_ = true;
-}
-
 void VineSLAM_ros::scanListener(const sensor_msgs::PointCloud2ConstPtr& msg)
 {
   pcl::PointCloud<pcl::PointXYZI>::Ptr velodyne_pcl(new pcl::PointCloud<pcl::PointXYZI>);
@@ -211,53 +156,6 @@ void VineSLAM_ros::imuDataListener(const sensor_msgs::ImuConstPtr& msg)
   }
 
   p_imu_observation_timestamp_ = c_imu_observation_timestamp;
-}
-
-void VineSLAM_ros::publishReport() const
-{
-  // Publish particle poses (after and before resampling)
-  // - Get the particles
-  std::vector<Particle> a_particles;
-  (*localizer_).getParticles(a_particles);
-  // - Convert them to ROS pose array and fill the vineslam report msgs
-  vineslam_msgs::report report;
-  geometry_msgs::PoseArray ros_poses;
-  ros_poses.header.stamp = ros::Time::now();
-  ros_poses.header.frame_id = params_.world_frame_id_;
-  report.header.stamp = ros_poses.header.stamp;
-  report.header.frame_id = ros_poses.header.frame_id;
-  for (const auto& particle : a_particles)
-  {
-    tf2::Quaternion l_q;
-    l_q.setRPY(particle.p_.R_, particle.p_.P_, particle.p_.Y_);
-    l_q.normalize();
-
-    geometry_msgs::Pose l_pose;
-    l_pose.position.x = particle.p_.x_;
-    l_pose.position.y = particle.p_.y_;
-    l_pose.position.z = particle.p_.z_;
-    l_pose.orientation.x = l_q.x();
-    l_pose.orientation.y = l_q.y();
-    l_pose.orientation.z = l_q.z();
-    l_pose.orientation.w = l_q.w();
-
-    ros_poses.poses.push_back(l_pose);
-
-    vineslam_msgs::particle particle_info;
-    particle_info.id = particle.id_;
-    particle_info.pose = l_pose;
-    particle_info.w = particle.w_;
-
-    report.a_particles.push_back(particle_info);
-  }
-  poses_publisher_.publish(ros_poses);
-
-  report.log.data = localizer_->logs_;
-  report.use_semantic_features.data = params_.use_semantic_features_;
-  report.use_lidar_features.data = params_.use_lidar_features_;
-  report.use_image_features.data = params_.use_image_features_;
-  report.use_gps.data = params_.use_gps_;
-  vineslam_report_publisher_.publish(report);
 }
 
 void VineSLAM_ros::computeInnovation(const Pose& wheel_odom_inc, const Pose& imu_rot_inc, Pose& output_pose)

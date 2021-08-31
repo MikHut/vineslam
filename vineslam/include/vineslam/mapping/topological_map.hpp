@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include <vineslam/math/Pose.hpp>
 #include <vineslam/math/Point.hpp>
 #include <vineslam/mapping/occupancy_map.hpp>
 #include <vineslam/math/Geodetic.hpp>
@@ -64,10 +65,19 @@ public:
   // Compute the adjacent vertexes of a specific vertex
   void getAdjacentList(vertex_t v, std::vector<uint32_t>* adj_index);
 
+  // Get active nodes
+  void getActiveNodes(const Pose& robot_pose);
+
+  // Deallocate nodes that are no longer active
+  // Should also save their data into a file
+  void deallocateNodes(const Pose& robot_pose);
+
   // Instanciate a graph
   Graph map_;
   // Vector of vertexes
   std::vector<vertex_t> graph_vertexes_;
+  // Vector of vertexes corresponding to the active nodes
+  std::vector<vertex_t> active_nodes_vertexes_;
 
 private:
 };

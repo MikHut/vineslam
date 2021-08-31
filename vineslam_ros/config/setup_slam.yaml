@@ -1,7 +1,7 @@
 slam_node:
   world_frame_id: map_nn2
 
-  use_semantic_features: True
+  use_semantic_features: False
   use_lidar_features: True
   use_vertical_planes: True
   use_imu: False

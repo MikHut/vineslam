@@ -292,26 +292,6 @@ void VineSLAM_ros::publishSemanticMapFromArray(const std::map<int, SemanticFeatu
 
     marker_array.markers.push_back(marker);
 
-    // Draw sfeature standard deviation
-    // tf2::Quaternion q;
-    // q.setRPY(0, 0, l_sfeature.second.gauss_.theta_);
-
-    // ellipse.ns = "/ellipse";
-    // ellipse.id = id;
-    // ellipse.header.stamp = rclcpp::Time();
-    // ellipse.header.frame_id = params_.world_frame_id_;
-    // ellipse.pose.position.x = l_sfeature.second.pos_.x_;
-    // ellipse.pose.position.y = l_sfeature.second.pos_.y_;
-    // ellipse.pose.position.z = l_sfeature.second.pos_.z_;
-    // ellipse.scale.x = 3 * l_sfeature.second.gauss_.stdev_.x_;
-    // ellipse.scale.y = 3 * l_sfeature.second.gauss_.stdev_.y_;
-    // ellipse.pose.orientation.x = q.x();
-    // ellipse.pose.orientation.y = q.y();
-    // ellipse.pose.orientation.z = q.z();
-    // ellipse.pose.orientation.w = q.w();
-
-    // marker_array.markers.push_back(ellipse);
-
     id++;
   }
 
@@ -1033,7 +1013,6 @@ void VineSLAM_ros::publishTopologicalMap()
   line_strip.ns = "/lines";
   line_strip.type = visualization_msgs::msg::Marker::LINE_STRIP;
   line_strip.action = visualization_msgs::msg::Marker::ADD;
-  line_strip.scale.x = 0.3;
 
   topological_map_->polar2Enu(params_.map_datum_lat_, params_.map_datum_long_, params_.map_datum_alt_,
                               params_.map_datum_head_);
@@ -1048,10 +1027,6 @@ void VineSLAM_ros::publishTopologicalMap()
 
     // Draw rectangles to observe the area of each node (using line strips)
     line_strip.id = id++;
-    line_strip.color.b = (static_cast<float>(i) / static_cast<float>(topological_map_->graph_vertexes_.size()));
-    line_strip.color.g = 0.5;
-    line_strip.color.r = 0.3;
-    line_strip.color.a = 0.5;
     geometry_msgs::msg::Point c1, c2, c3, c4;
     c1.x = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[0].x_;
     c1.y = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_[0].y_;
@@ -1066,6 +1041,25 @@ void VineSLAM_ros::publishTopologicalMap()
     line_strip.points.push_back(c3);
     line_strip.points.push_back(c4);
     line_strip.points.push_back(c1);
+
+    // Select color of the rectangles - highligh active nodes (!)
+    if (std::find(topological_map_->active_nodes_vertexes_.begin(), topological_map_->active_nodes_vertexes_.end(),
+                  topological_map_->graph_vertexes_[i]) == topological_map_->active_nodes_vertexes_.end())
+    {
+      line_strip.color.b = (static_cast<float>(i) / static_cast<float>(topological_map_->graph_vertexes_.size()));
+      line_strip.color.g = 0.5;
+      line_strip.color.r = 0.3;
+      line_strip.color.a = 0.5;
+      line_strip.scale.x = 0.3;
+    }
+    else
+    {
+      line_strip.color.b = 0.0;
+      line_strip.color.g = 0.0;
+      line_strip.color.r = 1.0;
+      line_strip.color.a = 1.0;
+      line_strip.scale.x = 0.5;
+    }
 
     // Save markers
     marker_array.markers.push_back(circle);

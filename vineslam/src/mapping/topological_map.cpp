@@ -101,4 +101,29 @@ void TopologicalMap::getAdjacentList(vertex_t v, std::vector<uint32_t>* adj_inde
   }
 }
 
+void TopologicalMap::getActiveNodes(const Pose& robot_pose)
+{
+  // Reset the active nodes
+  active_nodes_vertexes_.clear();
+
+  // Go through every vertex
+  for (size_t i = 0; i < graph_vertexes_.size(); i++)
+  {
+    // Compute distance from the robot to the center of the vertex
+    Point center = Point(map_[graph_vertexes_[i]].center_.x_, map_[graph_vertexes_[i]].center_.y_, 0.);
+    double dist = center.distanceXY(robot_pose.getXYZ());
+
+    // Check if this is an active node
+    if (dist <= 30.0)
+    {
+      active_nodes_vertexes_.push_back(graph_vertexes_[i]);
+    }
+  }
+}
+
+void TopologicalMap::deallocateNodes(const Pose& robot_pose)
+{
+
+}
+
 }  // namespace vineslam

@@ -19,7 +19,7 @@ MappingNode::MappingNode() : VineSLAM_ros("MappingNode")
 
   // Allocate map memory
   RCLCPP_INFO(this->get_logger(), "Allocating map memory!");
-  grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0), 5, 1);
+  grid_map_ = new OccupancyMap(params_, Pose(0, 0, 0, 0, 0, 0), 20, 1);
   elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
   RCLCPP_INFO(this->get_logger(), "Done!");
 
@@ -353,25 +353,25 @@ void MappingNode::loopOnce(const std::vector<Planar>& points)
   // Insert points into the map
   registerPoints(robot_pose_, points, *grid_map_);
 
-  // // Push back points
-  // pcl::PointCloud<pcl::PointXYZI>::Ptr planar_cloud(new pcl::PointCloud<pcl::PointXYZI>);
-  // std::vector<Planar> all_points = grid_map_->getPlanars();
-  // for (auto point : all_points)
-  // {
-  //   pcl::PointXYZI l_pt;
-  //   l_pt.x = point.pos_.x_;
-  //   l_pt.y = point.pos_.y_;
-  //   l_pt.z = point.pos_.z_;
-  //   l_pt.intensity = point.pos_.intensity_;
+  // Push back points
+  pcl::PointCloud<pcl::PointXYZI>::Ptr planar_cloud(new pcl::PointCloud<pcl::PointXYZI>);
+  std::vector<Planar> all_points = grid_map_->getPlanars();
+  for (auto point : all_points)
+  {
+    pcl::PointXYZI l_pt;
+    l_pt.x = point.pos_.x_;
+    l_pt.y = point.pos_.y_;
+    l_pt.z = point.pos_.z_;
+    l_pt.intensity = point.pos_.intensity_;
 
-  //   planar_cloud->points.push_back(l_pt);
-  // }
+    planar_cloud->points.push_back(l_pt);
+  }
 
-  // // Publish cloud
-  // planar_cloud->header.frame_id = params_.world_frame_id_;
-  // sensor_msgs::msg::PointCloud2 planar_cloud2;
-  // pcl::toROSMsg(*planar_cloud, planar_cloud2);
-  // map3D_publisher_->publish(planar_cloud2);
+  // Publish cloud
+  planar_cloud->header.frame_id = params_.world_frame_id_;
+  sensor_msgs::msg::PointCloud2 planar_cloud2;
+  pcl::toROSMsg(*planar_cloud, planar_cloud2);
+  map3D_publisher_->publish(planar_cloud2);
 }
 
 void MappingNode::registerPoints(Pose robot_pose, const std::vector<Planar>& points, OccupancyMap& grid_map)

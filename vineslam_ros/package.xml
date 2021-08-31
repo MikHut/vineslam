@@ -23,9 +23,8 @@
     <depend>tf2_geometry_msgs</depend>
     <depend>pcl_conversions</depend>
     <depend>vineslam</depend>
-    <depend>vineslam_msgs</depend>
-    <depend>agrob_map_transform</depend>
     <depend>message_generation</depend>
+    <depend>topological_map_io</depend>
 
     <member_of_group>rosidl_interface_packages</member_of_group>
 

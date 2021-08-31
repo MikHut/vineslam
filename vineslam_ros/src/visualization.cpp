@@ -152,8 +152,8 @@ void VineSLAM_ros::publishLocalSemanticMap(const Pose& origin, const std::vector
     }
     else  // not a trunk
     {
-      point.color.r = 0.0;
-      point.color.g = 1.0;
+      point.color.r = 1.0;
+      point.color.g = 0.0;
       point.color.b = 0.0;
       point.color.a = 0.7;
       point.scale.x = 0.15;
@@ -172,7 +172,6 @@ void VineSLAM_ros::publishSemanticMap() const
 {
   visualization_msgs::msg::MarkerArray marker_array;
   visualization_msgs::msg::Marker marker;
-  visualization_msgs::msg::Marker ellipse;
 
   // Define marker layout
   marker.ns = "/markers";
@@ -183,19 +182,6 @@ void VineSLAM_ros::publishSemanticMap() const
   marker.pose.orientation.z = 0.0;
   marker.pose.orientation.w = 1.0;
   marker.lifetime = rclcpp::Duration(970000000);
-
-  // Define marker layout
-  ellipse.ns = "/ellipses";
-  ellipse.type = visualization_msgs::msg::Marker::CYLINDER;
-  ellipse.action = visualization_msgs::msg::Marker::ADD;
-  ellipse.scale.z = 0.01f;
-  ellipse.pose.orientation.x = 0.0f;
-  ellipse.pose.orientation.y = 0.0f;
-  ellipse.color.r = 0.0f;
-  ellipse.color.g = 1.0f;
-  ellipse.color.b = 0.0f;
-  ellipse.color.a = 1.0f;
-  ellipse.lifetime = rclcpp::Duration(970000000);
 
   std::map<int, SemanticFeature> l_landmarks = grid_map_->getLandmarks();
 
@@ -234,26 +220,6 @@ void VineSLAM_ros::publishSemanticMap() const
     }
 
     marker_array.markers.push_back(marker);
-
-    // Draw sfeature standard deviation
-    // tf2::Quaternion q;
-    // q.setRPY(0, 0, l_sfeature.second.gauss_.theta_);
-
-    // ellipse.ns = "/ellipse";
-    // ellipse.id = id;
-    // ellipse.header.stamp = rclcpp::Time();
-    // ellipse.header.frame_id = params_.world_frame_id_;
-    // ellipse.pose.position.x = l_sfeature.second.pos_.x_;
-    // ellipse.pose.position.y = l_sfeature.second.pos_.y_;
-    // ellipse.pose.position.z = l_sfeature.second.pos_.z_;
-    // ellipse.scale.x = 3 * l_sfeature.second.gauss_.stdev_.x_;
-    // ellipse.scale.y = 3 * l_sfeature.second.gauss_.stdev_.y_;
-    // ellipse.pose.orientation.x = q.x();
-    // ellipse.pose.orientation.y = q.y();
-    // ellipse.pose.orientation.z = q.z();
-    // ellipse.pose.orientation.w = q.w();
-
-    marker_array.markers.push_back(ellipse);
 
     id++;
   }
@@ -314,8 +280,8 @@ void VineSLAM_ros::publishSemanticMapFromArray(const std::map<int, SemanticFeatu
     }
     else  // not a trunk
     {
-      marker.color.r = 0.0;
-      marker.color.g = 1.0;
+      marker.color.r = 1.0;
+      marker.color.g = 0.0;
       marker.color.b = 0.0;
       marker.color.a = 0.7;
       marker.scale.x = 0.08;

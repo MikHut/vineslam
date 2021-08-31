@@ -14,7 +14,6 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(topological_map_io REQUIRED)
 find_package(vineslam REQUIRED)
-find_package(vineslam_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
@@ -38,12 +37,12 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 
 include_directories(
         include
+        ${topological_map_io_INCLUDE_DIRS}
         ${vineslam_INCLUDE_DIRS})
 
 set(dependencies
         "ament_index_cpp"
         "vineslam"
-        "vineslam_msgs"
         "topological_map_io"
         "rclcpp"
         "std_msgs"

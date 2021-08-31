@@ -77,6 +77,7 @@ def generate_launch_description():
 
     if config['slam_node']['use_semantic_features']:
         # Detector node
+        # image_topic = '/raspicam_node/image'
         image_topic = '/rgb_left_depth_publisher/color/image'
 
         # Image republish
@@ -93,9 +94,9 @@ def generate_launch_description():
             executable='run_detection_model',
             name='run_detection_model',
             parameters=[
-                {'model_file': '/home/andresaguiar/ROS/ros2_ws/src/tpu-object-detection/object_detection/models/mv1_grape/frozen_model_edgetpu.tflite'},
-                {'labels_file': '/home/andresaguiar/ROS/ros2_ws/src/tpu-object-detection/object_detection/models/mv1_grape/edgetpu_cpp_model_labels.txt'},
-                {'score_threshold': 0.5},
+                {'model_file': '/home/andresaguiar/Documents/dl_models/grape_trunk_mobilenet_v1/frozen_model_edgetpu.tflite'},
+                {'labels_file': '/home/andresaguiar/Documents/dl_models/grape_trunk_mobilenet_v1/edgetpu_cpp_model_labels.txt'},
+                {'score_threshold': 0.55},
                 {'tile_sizes': '300x300'},
                 {'tile_overlap': 15},
                 {'iou_threshold': 0.1}

@@ -13,8 +13,7 @@ dense_mapping_node:
 
     # Grid map definitions
     grid_map:
-      # map_file_path: "/home/andresaguiar/Desktop/map_1625657085.xml"
-      map_file_path: "/home/andresaguiar/Documents/maps/VineSLAM/map_seixo_12_07_2021/map_1626116457.xml"
+      map_file_path: "/home/andresaguiar/Desktop/map_1627644408.xml"
       origin:
         x: -110.0
         y: -110.0

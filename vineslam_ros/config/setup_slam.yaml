@@ -1,7 +1,7 @@
 slam_node:
   world_frame_id: map_nn2
 
-  use_semantic_features: False
+  use_semantic_features: True
   use_lidar_features: True
   use_vertical_planes: True
   use_imu: False
@@ -68,4 +68,4 @@ slam_node:
     sigma_zz: 0.3 # meters
     sigma_RR: 0.3 # radians
     sigma_PP: 0.3 # radians
-    sigma_YY: 0.7 # radians
+    sigma_YY: 1.5 # radians

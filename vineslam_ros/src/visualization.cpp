@@ -1014,8 +1014,6 @@ void VineSLAM_ros::publishTopologicalMap()
   line_strip.type = visualization_msgs::msg::Marker::LINE_STRIP;
   line_strip.action = visualization_msgs::msg::Marker::ADD;
 
-  topological_map_->polar2Enu(params_.map_datum_lat_, params_.map_datum_long_, params_.map_datum_alt_,
-                              params_.map_datum_head_);
   int id = 0;                    // marker identifier
   std::vector<int> connections;  // array to store the drawn connections
   for (size_t i = 0; i < topological_map_->graph_vertexes_.size(); i++)
@@ -1049,7 +1047,7 @@ void VineSLAM_ros::publishTopologicalMap()
       line_strip.color.b = (static_cast<float>(i) / static_cast<float>(topological_map_->graph_vertexes_.size()));
       line_strip.color.g = 0.5;
       line_strip.color.r = 0.3;
-      line_strip.color.a = 0.5;
+      line_strip.color.a = 0.9;
       line_strip.scale.x = 0.3;
     }
     else
@@ -1062,7 +1060,7 @@ void VineSLAM_ros::publishTopologicalMap()
     }
 
     // Save markers
-    marker_array.markers.push_back(circle);
+    // marker_array.markers.push_back(circle);
     marker_array.markers.push_back(line_strip);
 
     // Clear the line strip to use in the next iteration
@@ -1090,8 +1088,14 @@ void VineSLAM_ros::publishTopologicalMap()
         line_strip.points.push_back(v1);
         line_strip.points.push_back(v2);
 
+        line_strip.color.b = 0.0;
+        line_strip.color.g = 1.0;
+        line_strip.color.r = 1.0;
+        line_strip.color.a = 0.6;
+        line_strip.scale.x = 0.2;
+
         // Save line strip
-        marker_array.markers.push_back(line_strip);
+        // marker_array.markers.push_back(line_strip);
 
         // Clear the line strip to use in the next iteration
         line_strip.points.clear();
@@ -1101,7 +1105,45 @@ void VineSLAM_ros::publishTopologicalMap()
     // Clear the line strip to use in the next iteration
     line_strip.points.clear();
   }
-  // marker_array.markers.push_back(line_strip);
+
+  vertex_t node;
+  Point pt(5, -15, 0);
+  if (topological_map_->getNode(pt, node))
+  {
+    line_strip.id = id++;
+    geometry_msgs::msg::Point c1, c2, c3, c4;
+    c1.x = topological_map_->map_[node].rectangle_[0].x_;
+    c1.y = topological_map_->map_[node].rectangle_[0].y_;
+    c2.x = topological_map_->map_[node].rectangle_[1].x_;
+    c2.y = topological_map_->map_[node].rectangle_[1].y_;
+    c3.x = topological_map_->map_[node].rectangle_[2].x_;
+    c3.y = topological_map_->map_[node].rectangle_[2].y_;
+    c4.x = topological_map_->map_[node].rectangle_[3].x_;
+    c4.y = topological_map_->map_[node].rectangle_[3].y_;
+    line_strip.points.push_back(c1);
+    line_strip.points.push_back(c2);
+    line_strip.points.push_back(c3);
+    line_strip.points.push_back(c4);
+    line_strip.points.push_back(c1);
+    line_strip.color.b = 1.0;
+    line_strip.color.g = 0.0;
+    line_strip.color.r = 0.0;
+    line_strip.color.a = 1.0;
+    line_strip.scale.x = 1.0;
+
+    marker_array.markers.push_back(line_strip);
+  }
+  circle.id = id++;
+  circle.pose.position.x = pt.x_;
+  circle.pose.position.y = pt.y_;
+  circle.scale.x = 1.5;
+  circle.scale.y = 1.5;
+  circle.scale.z = 1.5;
+  circle.color.r = 0.0f;
+  circle.color.g = 1.0f;
+  circle.color.b = 1.0f;
+  circle.color.a = 1.0f;
+  marker_array.markers.push_back(circle);
 
   topological_map_publisher_->publish(marker_array);
 }

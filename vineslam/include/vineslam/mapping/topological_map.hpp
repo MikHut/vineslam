@@ -38,6 +38,7 @@ struct Node
   uint32_t index_;
   Vertex center_;
   std::vector<PlaceVertices> rectangle_;
+  double rectangle_orientation_;
 
   OccupancyMap* map_;
 };
@@ -71,6 +72,12 @@ public:
   // Deallocate nodes that are no longer active
   // Should also save their data into a file
   void deallocateNodes(const Pose& robot_pose);
+
+  // Get the node where a point is or should be stored
+  bool getNode(const Point& point, vertex_t& node);
+
+  // Get the cell where a point is or should be stored
+  void getCell(const Point& point, Cell* cell);
 
   // Instanciate a graph
   Graph map_;

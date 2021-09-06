@@ -47,7 +47,7 @@ void TopologicalMap::polar2Enu(const double& datum_lat, const double& datum_lon,
     map_[graph_vertexes_[i]].rectangle_[0].y_ = corrected_point.y_;
 
     // Compute the enu location of the rectangle first vertex
-    l_geodetic_converter.geodetic2ned(map_[graph_vertexes_[i]].rectangle_[0].lat_,
+    l_geodetic_converter.geodetic2ned(map_[graph_vertexes_[i]].rectangle_[1].lat_,
                                       map_[graph_vertexes_[i]].rectangle_[1].lon_, datum_alt, e, n, u);
 
     // Rotate the obtained point considering the gnss heading
@@ -60,8 +60,8 @@ void TopologicalMap::polar2Enu(const double& datum_lat, const double& datum_lon,
     map_[graph_vertexes_[i]].rectangle_[1].y_ = corrected_point.y_;
 
     // Compute the enu location of the rectangle first vertex
-    l_geodetic_converter.geodetic2ned(map_[graph_vertexes_[i]].rectangle_[1].lat_,
-                                      map_[graph_vertexes_[i]].rectangle_[1].lon_, datum_alt, e, n, u);
+    l_geodetic_converter.geodetic2ned(map_[graph_vertexes_[i]].rectangle_[2].lat_,
+                                      map_[graph_vertexes_[i]].rectangle_[2].lon_, datum_alt, e, n, u);
 
     // Rotate the obtained point considering the gnss heading
     Point enu_c3(n, -e, 0);
@@ -73,8 +73,8 @@ void TopologicalMap::polar2Enu(const double& datum_lat, const double& datum_lon,
     map_[graph_vertexes_[i]].rectangle_[2].y_ = corrected_point.y_;
 
     // Compute the enu location of the rectangle first vertex
-    l_geodetic_converter.geodetic2ned(map_[graph_vertexes_[i]].rectangle_[1].lat_,
-                                      map_[graph_vertexes_[i]].rectangle_[0].lon_, datum_alt, e, n, u);
+    l_geodetic_converter.geodetic2ned(map_[graph_vertexes_[i]].rectangle_[3].lat_,
+                                      map_[graph_vertexes_[i]].rectangle_[3].lon_, datum_alt, e, n, u);
 
     // Rotate the obtained point considering the gnss heading
     Point enu_c4(n, -e, 0);
@@ -111,10 +111,10 @@ void TopologicalMap::getActiveNodes(const Pose& robot_pose)
   {
     // Compute distance from the robot to the center of the vertex
     Point center = Point(map_[graph_vertexes_[i]].center_.x_, map_[graph_vertexes_[i]].center_.y_, 0.);
-    double dist = center.distanceXY(robot_pose.getXYZ());
+    float dist = center.distanceXY(robot_pose.getXYZ());
 
     // Check if this is an active node
-    if (dist <= 30.0)
+    if (dist <= 20.0)
     {
       active_nodes_vertexes_.push_back(graph_vertexes_[i]);
     }
@@ -123,7 +123,50 @@ void TopologicalMap::getActiveNodes(const Pose& robot_pose)
 
 void TopologicalMap::deallocateNodes(const Pose& robot_pose)
 {
+}
 
+bool TopologicalMap::getNode(const Point& point, vertex_t& node)
+{
+  // Init vars
+  float min_dist = std::numeric_limits<float>::max();
+  bool found_solution = false;
+
+  // Go through every active vertex
+  for (size_t i = 0; i < active_nodes_vertexes_.size(); i++)
+  {
+    // Compute distance from the point to the center of the vertex
+    Point center = Point(map_[active_nodes_vertexes_[i]].center_.x_, map_[active_nodes_vertexes_[i]].center_.y_, 0.);
+    float dist = center.distanceXY(point);
+
+    // Find the closest node
+    if (dist < min_dist)
+    {
+      // Check if the point lies inside the node rectangle
+      float a = std::fabs(point.x_ - map_[active_nodes_vertexes_[i]].rectangle_[0].x_);
+      float b = std::fabs(point.x_ - map_[active_nodes_vertexes_[i]].rectangle_[2].x_);
+      float c = std::fabs(point.y_ - map_[active_nodes_vertexes_[i]].rectangle_[0].y_);
+      float d = std::fabs(point.y_ - map_[active_nodes_vertexes_[i]].rectangle_[2].y_);
+
+      float calculated_area = (a + b) * (c + d);
+      float rectangle_area = (std::fabs(map_[active_nodes_vertexes_[i]].rectangle_[0].x_ -
+                                        map_[active_nodes_vertexes_[i]].rectangle_[2].x_) *
+                              std::fabs(map_[active_nodes_vertexes_[i]].rectangle_[0].y_ -
+                                        map_[active_nodes_vertexes_[i]].rectangle_[2].y_));
+
+      // We found a possible node for the point
+      if (calculated_area == rectangle_area)
+      {
+        node = active_nodes_vertexes_[i];
+        found_solution = true;
+      }
+    }
+  }
+
+  return found_solution;
+}
+
+void TopologicalMap::getCell(const Point& point, Cell* cell)
+{
 }
 
 }  // namespace vineslam

@@ -179,15 +179,16 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
     v.center_.y_ = l_v.center_y_;
     v.center_.lat_ = l_v.center_lat_;
     v.center_.lon_ = l_v.center_lon_;
-    v.rectangle_.resize(2);
-    v.rectangle_[0].x_ = l_v.rectangle_x1_;
-    v.rectangle_[0].y_ = l_v.rectangle_y1_;
-    v.rectangle_[0].lat_ = l_v.rectangle_lat1_;
-    v.rectangle_[0].lon_ = l_v.rectangle_lon1_;
-    v.rectangle_[1].x_ = l_v.rectangle_x2_;
-    v.rectangle_[1].y_ = l_v.rectangle_y2_;
-    v.rectangle_[1].lat_ = l_v.rectangle_lat2_;
-    v.rectangle_[1].lon_ = l_v.rectangle_lon2_;
+    v.rectangle_.resize(4);
+    v.rectangle_[0].lat_ = l_v.rotated_rectangle_lat1_;
+    v.rectangle_[0].lon_ = l_v.rotated_rectangle_lon1_;
+    v.rectangle_[1].lat_ = l_v.rotated_rectangle_lat2_;
+    v.rectangle_[1].lon_ = l_v.rotated_rectangle_lon2_;
+    v.rectangle_[2].lat_ = l_v.rotated_rectangle_lat3_;
+    v.rectangle_[2].lon_ = l_v.rotated_rectangle_lon3_;
+    v.rectangle_[3].lat_ = l_v.rotated_rectangle_lat4_;
+    v.rectangle_[3].lon_ = l_v.rotated_rectangle_lon4_;
+    v.rectangle_orientation_ = l_v.angle_;
 
     vertex_t u = boost::add_vertex(v, topological_map_->map_);
     topological_map_->graph_vertexes_.push_back(u);
@@ -554,6 +555,12 @@ void SLAMNode::init()
   robot_pose_ = localizer_->getPose();
 
   // ---------------------------------------------------------
+  // ----- Prepare the topological map
+  // ---------------------------------------------------------
+  topological_map_->polar2Enu(params_.map_datum_lat_, params_.map_datum_long_, params_.map_datum_alt_,
+                              params_.map_datum_head_);
+
+  // ---------------------------------------------------------
   // ----- Initialize the multi-layer maps
   // ---------------------------------------------------------
 
@@ -617,6 +624,11 @@ void SLAMNode::process()
   // ---------------------------------------------------------
   // ----- Prepare topological map
   // ---------------------------------------------------------
+  if (estimate_heading_)  // update topological map heading while we are still estimating it
+  {
+    topological_map_->polar2Enu(params_.map_datum_lat_, params_.map_datum_long_, params_.map_datum_alt_,
+                                params_.map_datum_head_);
+  }
   topological_map_->getActiveNodes(robot_pose_);
 
   // ---------------------------------------------------------
@@ -673,7 +685,6 @@ void SLAMNode::process()
   Tf c_odom_tf = input_data_.wheel_odom_pose_.toTf();
   Tf odom_inc_tf = p_odom_tf.inverse() * c_odom_tf;
   Pose odom_inc(odom_inc_tf.R_array_, odom_inc_tf.t_array_);
-  //  odom_inc.x_ = -odom_inc.x_;
   input_data_.p_wheel_odom_pose_ = input_data_.wheel_odom_pose_;
   odom_inc.normalize();
 

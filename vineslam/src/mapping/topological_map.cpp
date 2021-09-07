@@ -2,9 +2,18 @@
 
 namespace vineslam
 {
-// TopologicalMap::TopologicalMap()
-//{
-//}
+TopologicalMap::TopologicalMap() : is_initialized_(false)
+{
+}
+
+void TopologicalMap::init(OccupancyMap* input_map, const double& datum_head)
+{
+  // Store the input occupancy map into the graph-like structure
+  // ...
+
+  // Set the initialization flag
+  is_initialized_ = true;
+}
 
 void TopologicalMap::polar2Enu(const double& datum_lat, const double& datum_lon, const double& datum_alt,
                                const double& datum_head)
@@ -15,20 +24,8 @@ void TopologicalMap::polar2Enu(const double& datum_lat, const double& datum_lon,
   // Go through every vertex and compute its enu position on the map
   for (size_t i = 0; i < graph_vertexes_.size(); i++)
   {
-    // Compute the enu location of the vertex
     double e, n, u;
-    l_geodetic_converter.geodetic2ned(map_[graph_vertexes_[i]].center_.lat_, map_[graph_vertexes_[i]].center_.lon_,
-                                      datum_alt, e, n, u);
-
-    // Rotate the obtained point considering the gnss heading
-    Point enu(n, -e, 0);
-    Point corrected_point = enu;
-    corrected_point.x_ = +(enu.x_ * std::cos(+datum_head + M_PI_2) - enu.y_ * std::sin(+datum_head + M_PI_2));
-    corrected_point.y_ = -(enu.x_ * std::sin(+datum_head + M_PI_2) + enu.y_ * std::cos(+datum_head + M_PI_2));
-
-    // Save the result
-    map_[graph_vertexes_[i]].center_.x_ = corrected_point.x_;
-    map_[graph_vertexes_[i]].center_.y_ = corrected_point.y_;
+    Point corrected_point;
 
     // Resize rectangle array
     map_[graph_vertexes_[i]].rectangle_.resize(4);
@@ -84,6 +81,10 @@ void TopologicalMap::polar2Enu(const double& datum_lat, const double& datum_lon,
     // Save the result
     map_[graph_vertexes_[i]].rectangle_[3].x_ = corrected_point.x_;
     map_[graph_vertexes_[i]].rectangle_[3].y_ = corrected_point.y_;
+
+    // Set the location of the vertex center
+    map_[graph_vertexes_[i]].center_.x_ = (map_[graph_vertexes_[i]].rectangle_[0].x_ + map_[graph_vertexes_[i]].rectangle_[2].x_) / 2.;
+    map_[graph_vertexes_[i]].center_.y_ = (map_[graph_vertexes_[i]].rectangle_[0].y_ + map_[graph_vertexes_[i]].rectangle_[2].y_) / 2.;
   }
 }
 

@@ -38,6 +38,7 @@ struct Node
   uint32_t index_;
   Vertex center_;
   std::vector<PlaceVertices> rectangle_;
+  std::vector<PlaceVertices> aligned_rectangle_;
   double rectangle_orientation_;
 
   OccupancyMap* map_;
@@ -58,7 +59,12 @@ typedef boost::graph_traits<Graph>::adjacency_iterator AdjacencyIterator;
 class TopologicalMap
 {
 public:
-  TopologicalMap() = default;
+  TopologicalMap();
+
+  // Initialize the topological map
+  // - stores an occupancy map in the topological structure
+  // - updates the rectangle orientations considering the map datum
+  void init(OccupancyMap* input_map, const double& datum_head);
 
   // Compute the enu location of all the graph vertexes
   void polar2Enu(const double& datum_lat, const double& datum_lon, const double& datum_alt, const double& datum_head);
@@ -85,6 +91,8 @@ public:
   std::vector<vertex_t> graph_vertexes_;
   // Vector of vertexes corresponding to the active nodes
   std::vector<vertex_t> active_nodes_vertexes_;
+  // Flag to tell if the topological map was already initialized
+  bool is_initialized_;
 
 private:
 };

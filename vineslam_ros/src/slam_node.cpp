@@ -27,7 +27,7 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   init_odom_ = true;
 
   // Initialize variables
-  estimate_heading_ = true;
+  estimate_heading_ = params_.use_gps_;
 
   // Declare the Mappers and Localizer objects
   localizer_ = new Localizer(params_);
@@ -624,10 +624,18 @@ void SLAMNode::process()
   // ---------------------------------------------------------
   // ----- Prepare topological map
   // ---------------------------------------------------------
-  if (estimate_heading_)  // update topological map heading while we are still estimating it
+  // update topological map heading while we are still estimating it
+  // --- OR ---
+  // initialize the topological map as soon as we have estimated the final map heading OR in the first iteration if we
+  // do not use the GPS. we just do this once (!)
+  if (estimate_heading_)
   {
     topological_map_->polar2Enu(params_.map_datum_lat_, params_.map_datum_long_, params_.map_datum_alt_,
                                 params_.map_datum_head_);
+  }
+  else if ((!estimate_heading_ || !params_.use_gps_) && !topological_map_->is_initialized_)
+  {
+    topological_map_->init(grid_map_, params_.map_datum_head_);
   }
   topological_map_->getActiveNodes(robot_pose_);
 

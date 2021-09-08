@@ -150,17 +150,17 @@ public:
   // Insert a Image Feature given a Feature/Landmark location
   bool insert(const ImageFeature& l_feature);
 
-  // Insert a Image Feature using the direct grid coordinates
+  // Insert a Corner Feature using the direct grid coordinates
   bool insert(const Corner& l_feature, const int& i, const int& j);
   bool directInsert(const Corner& l_feature, const int& i, const int& j);
-  // Insert a Image Feature given a Feature/Landmark location
+  // Insert a Corner Feature given a Feature/Landmark location
   bool insert(const Corner& l_feature);
   bool directInsert(const Corner& l_feature);
 
-  // Insert a Image Feature using the direct grid coordinates
+  // Insert a Planar Feature using the direct grid coordinates
   bool insert(const Planar& l_feature, const int& i, const int& j);
   bool directInsert(const Planar& l_feature, const int& i, const int& j);
-  // Insert a Image Feature given a Feature/Landmark location
+  // Insert a Planar Feature given a Feature/Landmark location
   bool insert(const Planar& l_feature);
   bool directInsert(const Planar& l_feature);
 

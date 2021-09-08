@@ -1020,6 +1020,10 @@ void VineSLAM_ros::publishTopologicalMap()
   aligned_line_strip.type = visualization_msgs::msg::Marker::LINE_STRIP;
   aligned_line_strip.action = visualization_msgs::msg::Marker::ADD;
 
+  Point target(-5, -50, 0);
+  vertex_t node;
+  topological_map_->getNode(target, node);
+
   int id = 0;                    // marker identifier
   std::vector<int> connections;  // array to store the drawn connections
   for (size_t i = 0; i < topological_map_->graph_vertexes_.size(); i++)
@@ -1047,42 +1051,32 @@ void VineSLAM_ros::publishTopologicalMap()
     line_strip.points.push_back(c1);
 
     // Draw aligned rectangles by undoing the orientation of each one
-    geometry_msgs::msg::Point aligned_c1, aligned_c2, aligned_c3, aligned_c4;
-    double angle = topological_map_->map_[topological_map_->graph_vertexes_[i]].rectangle_orientation_ + (params_.map_datum_head_ + M_PI_2);
-    Point center(circle.pose.position.x, circle.pose.position.y, 0);
-
-    float x1 = c1.x - center.x_;
-    float y1 = c1.y - center.y_;
-    float x3 = c3.x - center.x_;
-    float y3 = c3.y - center.y_;
-
-    aligned_c1.x = x1 * std::cos(angle) - y1 * std::sin(angle);
-    aligned_c1.y = x1 * std::sin(angle) + y1 * std::cos(angle);
-    aligned_c3.x = x3 * std::cos(angle) - y3 * std::sin(angle);
-    aligned_c3.y = x3 * std::sin(angle) + y3 * std::cos(angle);
-
-    aligned_c1.x += center.x_;
-    aligned_c1.y += center.y_;
-    aligned_c3.x += center.x_;
-    aligned_c3.y += center.y_;
-    aligned_c2.x = aligned_c1.x;
-    aligned_c2.y = aligned_c3.y;
-    aligned_c4.x = aligned_c3.x;
-    aligned_c4.y = aligned_c1.y;
-
-    aligned_line_strip.id = id;
-    aligned_line_strip.points.push_back(aligned_c1);
-    aligned_line_strip.points.push_back(aligned_c2);
-    aligned_line_strip.points.push_back(aligned_c3);
-    aligned_line_strip.points.push_back(aligned_c4);
-    aligned_line_strip.points.push_back(aligned_c1);
-    aligned_line_strip.color.b = (static_cast<float>(i) / static_cast<float>(topological_map_->graph_vertexes_.size()));
-    aligned_line_strip.color.g = 0.5;
-    aligned_line_strip.color.r = 0.3;
-    aligned_line_strip.color.a = 1.0;
-    aligned_line_strip.scale.x = 0.3;
-    marker_array.markers.push_back(aligned_line_strip);
-    aligned_line_strip.points.clear();
+    if (topological_map_->map_[topological_map_->graph_vertexes_[i]].aligned_rectangle_.size() == 4)
+    {
+      aligned_line_strip.id = id;
+      geometry_msgs::msg::Point aligned_c1, aligned_c2, aligned_c3, aligned_c4;
+      aligned_c1.x = topological_map_->map_[topological_map_->graph_vertexes_[i]].aligned_rectangle_[0].x_;
+      aligned_c1.y = topological_map_->map_[topological_map_->graph_vertexes_[i]].aligned_rectangle_[0].y_;
+      aligned_c2.x = topological_map_->map_[topological_map_->graph_vertexes_[i]].aligned_rectangle_[1].x_;
+      aligned_c2.y = topological_map_->map_[topological_map_->graph_vertexes_[i]].aligned_rectangle_[1].y_;
+      aligned_c3.x = topological_map_->map_[topological_map_->graph_vertexes_[i]].aligned_rectangle_[2].x_;
+      aligned_c3.y = topological_map_->map_[topological_map_->graph_vertexes_[i]].aligned_rectangle_[2].y_;
+      aligned_c4.x = topological_map_->map_[topological_map_->graph_vertexes_[i]].aligned_rectangle_[3].x_;
+      aligned_c4.y = topological_map_->map_[topological_map_->graph_vertexes_[i]].aligned_rectangle_[3].y_;
+      aligned_line_strip.color.b =
+          (static_cast<float>(i) / static_cast<float>(topological_map_->graph_vertexes_.size()));
+      aligned_line_strip.color.g = 0.5;
+      aligned_line_strip.color.r = 0.3;
+      aligned_line_strip.color.a = 1.0;
+      aligned_line_strip.scale.x = 0.3;
+      aligned_line_strip.points.push_back(aligned_c1);
+      aligned_line_strip.points.push_back(aligned_c2);
+      aligned_line_strip.points.push_back(aligned_c3);
+      aligned_line_strip.points.push_back(aligned_c4);
+      aligned_line_strip.points.push_back(aligned_c1);
+      marker_array.markers.push_back(aligned_line_strip);
+      aligned_line_strip.points.clear();
+    }
 
     // Select color of the rectangles - highligh active nodes (!)
     if (std::find(topological_map_->active_nodes_vertexes_.begin(), topological_map_->active_nodes_vertexes_.end(),
@@ -1104,7 +1098,7 @@ void VineSLAM_ros::publishTopologicalMap()
     }
 
     // Save markers
-    marker_array.markers.push_back(circle);
+    // marker_array.markers.push_back(circle);
     marker_array.markers.push_back(line_strip);
 
     // Clear the line strip to use in the next iteration
@@ -1148,6 +1142,38 @@ void VineSLAM_ros::publishTopologicalMap()
 
     // Clear the line strip to use in the next iteration
     line_strip.points.clear();
+  }
+
+  Cell* cell = nullptr;
+  Point source = target;
+
+  circle.id = id++;
+  circle.scale.x = 0.8;
+  circle.scale.y = 0.8;
+  circle.scale.z = 0.8;
+  circle.color.r = 0.0f;
+  circle.color.g = 0.0f;
+  circle.color.b = 1.0f;
+  circle.color.a = 1.0f;
+  circle.pose.position.x = source.x_;
+  circle.pose.position.y = source.y_;
+
+  marker_array.markers.push_back(circle);
+
+  if (topological_map_->getCell(target, cell, false))
+  {
+    circle.id = id++;
+    circle.scale.x = 0.8;
+    circle.scale.y = 0.8;
+    circle.scale.z = 0.8;
+    circle.color.r = 1.0f;
+    circle.color.g = 0.0f;
+    circle.color.b = 0.0f;
+    circle.color.a = 1.0f;
+    circle.pose.position.x = target.x_;
+    circle.pose.position.y = target.y_;
+
+    marker_array.markers.push_back(circle);
   }
 
   topological_map_publisher_->publish(marker_array);

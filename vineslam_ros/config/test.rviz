@@ -4,7 +4,6 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
-        - /Global Options1
         - /TF1/Frames1
         - /Local Maps1
         - /Global maps1
@@ -31,8 +30,8 @@ Visualization Manager:
     - Alpha: 0.5
       Cell Size: 1
       Class: rviz_default_plugins/Grid
-      Color: 160; 160; 164
-      Enabled: false
+      Color: 0; 0; 0
+      Enabled: true
       Line Style:
         Line Width: 0.029999999329447746
         Value: Lines
@@ -45,7 +44,7 @@ Visualization Manager:
       Plane: XY
       Plane Cell Count: 100
       Reference Frame: <Fixed Frame>
-      Value: false
+      Value: true
     - Class: rviz_default_plugins/TF
       Enabled: false
       Frame Timeout: 15
@@ -230,6 +229,7 @@ Visualization Manager:
           Enabled: true
           Name: Topological Map
           Namespaces:
+            /alinged_lines: true
             /circles: true
             /lines: true
           Topic:
@@ -356,9 +356,9 @@ Visualization Manager:
           Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
-          Max Intensity: 40.839576721191406
+          Max Intensity: 23.218812942504883
           Min Color: 0; 0; 0
-          Min Intensity: -17.98436164855957
+          Min Intensity: -17.977737426757812
           Name: Planars Map
           Position Transformer: XYZ
           Selectable: true
@@ -534,7 +534,7 @@ Visualization Manager:
       Name: Sensors
   Enabled: true
   Global Options:
-    Background Color: 0; 0; 0
+    Background Color: 254; 254; 254
     Fixed Frame: map_nn2
     Frame Rate: 30
   Name: root
@@ -575,25 +575,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 182.9496307373047
+      Distance: 203.2816925048828
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 22.556615829467773
-        Y: -14.916706085205078
-        Z: -5.8411865234375
+        X: 4.476804733276367
+        Y: -14.438867568969727
+        Z: -6.058314323425293
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5647963285446167
+      Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 2.815476655960083
+      Yaw: 3.170475959777832
     Saved: ~
 Window Geometry:
   Displays:

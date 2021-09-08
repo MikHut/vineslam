@@ -2,10 +2,15 @@
 
 #include <vector>
 
+#include <vineslam/map_io/map_parser.hpp>
+#include <vineslam/feature/semantic.hpp>
+#include <vineslam/feature/visual.hpp>
+#include <vineslam/feature/three_dimensional.hpp>
 #include <vineslam/math/Pose.hpp>
 #include <vineslam/math/Point.hpp>
 #include <vineslam/mapping/occupancy_map.hpp>
 #include <vineslam/math/Geodetic.hpp>
+#include <vineslam/params.hpp>
 
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graph_traits.hpp>
@@ -40,8 +45,9 @@ struct Node
   std::vector<PlaceVertices> rectangle_;
   std::vector<PlaceVertices> aligned_rectangle_;
   double rectangle_orientation_;
+  bool has_file_;
 
-  OccupancyMap* map_;
+  OccupancyMap* grid_map_{ nullptr };
 };
 
 // Graph edge
@@ -59,12 +65,11 @@ typedef boost::graph_traits<Graph>::adjacency_iterator AdjacencyIterator;
 class TopologicalMap
 {
 public:
-  TopologicalMap();
+  TopologicalMap(const Parameters& params);
 
   // Initialize the topological map
   // - stores an occupancy map in the topological structure
-  // - updates the rectangle orientations considering the map datum
-  void init(OccupancyMap* input_map, const double& datum_head);
+  void init(OccupancyMap* input_map, const double& heading);
 
   // Compute the enu location of all the graph vertexes
   void polar2Enu(const double& datum_lat, const double& datum_lon, const double& datum_alt, const double& datum_head);
@@ -83,7 +88,33 @@ public:
   bool getNode(const Point& point, vertex_t& node);
 
   // Get the cell where a point is or should be stored
-  void getCell(const Point& point, Cell* cell);
+  bool getCell(Point& point, Cell* cell, bool read_only);
+
+  // Routines to obtain the features on the cell of an input feature
+  bool getFeatures(const Planar& planar, Cell* cell);
+  bool getFeatures(const Corner& corner, Cell* cell);
+  bool getFeatures(const SemanticFeature& landmark, Cell* cell);
+  bool getFeatures(const ImageFeature& image_feature, Cell* cell);
+
+  // Routines to insert features on the global map
+  bool insert(const Planar& planar);
+  bool insert(const Corner& corner);
+  bool insert(const SemanticFeature& landmark, const int& id);
+  bool insert(const ImageFeature& image_feature);
+  bool directInsert(const Planar& planar);
+  bool directInsert(const Corner& corner);
+  bool directInsert(const SemanticFeature& landmark, const int& id);
+  bool directInsert(const ImageFeature& image_feature);
+
+  // Routines to update the location of a given feature
+  bool update(const Planar& old_planar, const Planar& new_planar);
+  bool update(const Corner& old_corner, const Corner& new_corner);
+  bool update(const SemanticFeature& new_landmark, const SemanticFeature& old_landmark, const int& old_landmark_id);
+  bool update(const ImageFeature& old_image_feature, const ImageFeature& new_image_feature);
+
+  // Downsampling functions for 3D features
+  void downsampleCorners();
+  void downsamplePlanars();
 
   // Instanciate a graph
   Graph map_;
@@ -95,5 +126,13 @@ public:
   bool is_initialized_;
 
 private:
+  // Align a point by a reference using the rectangle orientation
+  void alignPoint(const Point& in_pt, const Point& reference, const float& angle, Point& out_pt);
+
+  // Allocate memory for a occupancy map of a node
+  void allocateNodeMap(const vertex_t& node, OccupancyMap* grid_map);
+
+  // Parameters class
+  Parameters params_;
 };
 }  // namespace vineslam

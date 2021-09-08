@@ -162,7 +162,7 @@ SLAMNode::SLAMNode() : VineSLAM_ros("SLAMNode")
   elevation_map_ = new ElevationMap(params_, Pose(0, 0, 0, 0, 0, 0));
 
   // Load topological map
-  topological_map_ = new TopologicalMap();
+  topological_map_ = new TopologicalMap(params_);
   agrob_map_io::TopologicalMapIO file_io_handler(params_.topological_map_input_file_);
 
   std::vector<agrob_map_io::Vertex> l_vertexes;

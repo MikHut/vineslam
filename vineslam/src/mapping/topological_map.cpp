@@ -2,16 +2,48 @@
 
 namespace vineslam
 {
-TopologicalMap::TopologicalMap() : is_initialized_(false)
+TopologicalMap::TopologicalMap(const Parameters& params)
 {
+  is_initialized_ = false;
+  params_ = params;
 }
 
-void TopologicalMap::init(OccupancyMap* input_map, const double& datum_head)
+void TopologicalMap::init(OccupancyMap* input_map, const double& heading)
 {
   // Store the input occupancy map into the graph-like structure
   // ...
 
-  // Set the initialization flag
+  // Release the temporary occupancy grid map memory
+  // ...
+
+  // Mapping between rotated and non-rotated rectangles to allocate grid map memory
+  for (size_t i = 0; i < graph_vertexes_.size(); i++)
+  {
+    map_[graph_vertexes_[i]].rectangle_orientation_ += (heading + M_PI_2);
+    Point center(map_[graph_vertexes_[i]].center_.x_, map_[graph_vertexes_[i]].center_.y_, 0);
+
+    Point p1(map_[graph_vertexes_[i]].rectangle_[0].x_, map_[graph_vertexes_[i]].rectangle_[0].y_, 0);
+    Point p3(map_[graph_vertexes_[i]].rectangle_[2].x_, map_[graph_vertexes_[i]].rectangle_[2].y_, 0);
+    Point out_p1, out_p3;
+
+    alignPoint(p1, center, map_[graph_vertexes_[i]].rectangle_orientation_, out_p1);
+    alignPoint(p3, center, map_[graph_vertexes_[i]].rectangle_orientation_, out_p3);
+
+    map_[graph_vertexes_[i]].aligned_rectangle_.resize(4);
+    map_[graph_vertexes_[i]].aligned_rectangle_[0].x_ = out_p1.x_;
+    map_[graph_vertexes_[i]].aligned_rectangle_[0].y_ = out_p1.y_;
+    map_[graph_vertexes_[i]].aligned_rectangle_[1].x_ = out_p1.x_;
+    map_[graph_vertexes_[i]].aligned_rectangle_[1].y_ = out_p3.y_;
+    map_[graph_vertexes_[i]].aligned_rectangle_[2].x_ = out_p3.x_;
+    map_[graph_vertexes_[i]].aligned_rectangle_[2].y_ = out_p3.y_;
+    map_[graph_vertexes_[i]].aligned_rectangle_[3].x_ = out_p3.x_;
+    map_[graph_vertexes_[i]].aligned_rectangle_[3].y_ = out_p1.y_;
+
+    // Set the class flags
+    map_[graph_vertexes_[i]].has_file_ = false;
+  }
+
+  // Set the class flags
   is_initialized_ = true;
 }
 
@@ -83,8 +115,10 @@ void TopologicalMap::polar2Enu(const double& datum_lat, const double& datum_lon,
     map_[graph_vertexes_[i]].rectangle_[3].y_ = corrected_point.y_;
 
     // Set the location of the vertex center
-    map_[graph_vertexes_[i]].center_.x_ = (map_[graph_vertexes_[i]].rectangle_[0].x_ + map_[graph_vertexes_[i]].rectangle_[2].x_) / 2.;
-    map_[graph_vertexes_[i]].center_.y_ = (map_[graph_vertexes_[i]].rectangle_[0].y_ + map_[graph_vertexes_[i]].rectangle_[2].y_) / 2.;
+    map_[graph_vertexes_[i]].center_.x_ =
+        (map_[graph_vertexes_[i]].rectangle_[0].x_ + map_[graph_vertexes_[i]].rectangle_[2].x_) / 2.;
+    map_[graph_vertexes_[i]].center_.y_ =
+        (map_[graph_vertexes_[i]].rectangle_[0].y_ + map_[graph_vertexes_[i]].rectangle_[2].y_) / 2.;
   }
 }
 
@@ -126,6 +160,19 @@ void TopologicalMap::deallocateNodes(const Pose& robot_pose)
 {
 }
 
+void TopologicalMap::allocateNodeMap(const vertex_t& node, OccupancyMap* grid_map)
+{
+  // Create local parameter structure to feed the occupancy grid map
+  Parameters l_params = params_;
+  l_params.gridmap_width_ = std::fabs(map_[node].aligned_rectangle_[0].x_ - map_[node].aligned_rectangle_[2].x_);
+  l_params.gridmap_lenght_ = std::fabs(map_[node].aligned_rectangle_[0].y_ - map_[node].aligned_rectangle_[2].y_);
+  l_params.gridmap_origin_x_ = map_[node].center_.x_ - l_params.gridmap_width_ / 2;
+  l_params.gridmap_origin_y_ = map_[node].center_.x_ - l_params.gridmap_height_ / 2;
+
+  // Allocate memory for the map
+  grid_map = new OccupancyMap(l_params, Pose(0, 0, 0, 0, 0, 0), 20, 5);
+}
+
 bool TopologicalMap::getNode(const Point& point, vertex_t& node)
 {
   // Init vars
@@ -142,21 +189,27 @@ bool TopologicalMap::getNode(const Point& point, vertex_t& node)
     // Find the closest node
     if (dist < min_dist)
     {
-      // Check if the point lies inside the node rectangle
-      float a = std::fabs(point.x_ - map_[active_nodes_vertexes_[i]].rectangle_[0].x_);
-      float b = std::fabs(point.x_ - map_[active_nodes_vertexes_[i]].rectangle_[2].x_);
-      float c = std::fabs(point.y_ - map_[active_nodes_vertexes_[i]].rectangle_[0].y_);
-      float d = std::fabs(point.y_ - map_[active_nodes_vertexes_[i]].rectangle_[2].y_);
+      if (map_[active_nodes_vertexes_[i]].aligned_rectangle_.size() != 4)
+      {
+        continue;
+      }
 
-      float calculated_area = (a + b) * (c + d);
-      float rectangle_area = (std::fabs(map_[active_nodes_vertexes_[i]].rectangle_[0].x_ -
-                                        map_[active_nodes_vertexes_[i]].rectangle_[2].x_) *
-                              std::fabs(map_[active_nodes_vertexes_[i]].rectangle_[0].y_ -
-                                        map_[active_nodes_vertexes_[i]].rectangle_[2].y_));
+      // Check if the point lies inside the node rectangle
+      // - transform the point to the aligned rectangles space
+      Point aligned_point;
+      alignPoint(point, center, map_[active_nodes_vertexes_[i]].rectangle_orientation_, aligned_point);
+      // - calculate the distance from the aligned point to the rectangle center component-wise
+      float dist_x = std::fabs(aligned_point.x_ - center.x_);
+      float dist_y = std::fabs(aligned_point.y_ - center.y_);
+      float size_x = std::fabs(map_[active_nodes_vertexes_[i]].aligned_rectangle_[0].x_ -
+                               map_[active_nodes_vertexes_[i]].aligned_rectangle_[2].x_);
+      float size_y = std::fabs(map_[active_nodes_vertexes_[i]].aligned_rectangle_[0].y_ -
+                               map_[active_nodes_vertexes_[i]].aligned_rectangle_[2].y_);
 
       // We found a possible node for the point
-      if (calculated_area == rectangle_area)
+      if (dist_x < size_x / 2. && dist_y < size_y / 2.)
       {
+        min_dist = dist;
         node = active_nodes_vertexes_[i];
         found_solution = true;
       }
@@ -166,7 +219,136 @@ bool TopologicalMap::getNode(const Point& point, vertex_t& node)
   return found_solution;
 }
 
-void TopologicalMap::getCell(const Point& point, Cell* cell)
+bool TopologicalMap::getCell(Point& point, Cell* cell, bool read_only = true)
+{
+  // Get the node corresponding to the input point
+  vertex_t node;
+  bool get_node = getNode(point, node);
+
+  // Check if the node is active
+  if (!get_node)
+  {
+    return false;
+  }
+
+  // Check if the OccupancyMap of the node is allocated
+  if (map_[node].grid_map_ == nullptr)
+  {
+    // if this call is read only, we have nothing to do
+    // else, we will allocate the map
+    if (read_only)
+    {
+      return false;
+    }
+    else
+    {
+      if (map_[node].has_file_)  // Map is not allocated but is saved on a file
+      {
+        // Load file to an occupancy grid map structure
+        Parameters l_params;
+        MapParser map_parser(l_params);
+        if (!map_parser.parseHeader(&l_params))
+        {
+          std::cout << "Map input file not found." << std::endl;
+          return false;
+        }
+        else
+        {
+          map_[node].grid_map_ = new OccupancyMap(l_params, Pose(0, 0, 0, 0, 0, 0), 20, 5);
+        }
+
+        if (!map_parser.parseFile(&(*map_[node].grid_map_)))
+        {
+          std::cout << "Map input file not found." << std::endl;
+          return false;
+        }
+      }
+      else  // Map is not allocated neither is saved on a file
+      {
+        // create the occupancy grid map structure
+        allocateNodeMap(node, map_[node].grid_map_);
+        map_[node].has_file_ = true;
+      }
+    }
+  }
+
+  // If we got here, the occupancy grid map was allocated. So, we can access the cell
+  Point aligned_point, center(map_[node].center_.x_, map_[node].center_.y_, 0);
+  alignPoint(point, center, map_[node].rectangle_orientation_, aligned_point);
+  point.x_ = aligned_point.x_;
+  point.y_ = aligned_point.y_;
+
+  cell = &(*map_[node].grid_map_)(point.x_, point.y_, point.z_);
+
+  return true;
+}
+
+void TopologicalMap::alignPoint(const Point& in_pt, const Point& reference, const float& angle, Point& out_pt)
+{
+  float x1 = in_pt.x_ - reference.x_;
+  float y1 = in_pt.y_ - reference.y_;
+
+  out_pt.x_ = x1 * std::cos(angle) - y1 * std::sin(angle);
+  out_pt.y_ = x1 * std::sin(angle) + y1 * std::cos(angle);
+
+  out_pt.x_ += reference.x_;
+  out_pt.y_ += reference.y_;
+}
+
+bool TopologicalMap::insert(const Planar& planar)
+{
+}
+
+bool TopologicalMap::insert(const Corner& corner)
+{
+}
+
+bool TopologicalMap::insert(const SemanticFeature& landmark, const int& id)
+{
+}
+
+bool TopologicalMap::insert(const ImageFeature& image_feature)
+{
+}
+
+bool TopologicalMap::directInsert(const Planar& planar)
+{
+}
+
+bool TopologicalMap::directInsert(const Corner& corner)
+{
+}
+
+bool TopologicalMap::directInsert(const SemanticFeature& landmark, const int& id)
+{
+}
+
+bool TopologicalMap::directInsert(const ImageFeature& image_feature)
+{
+}
+
+bool TopologicalMap::update(const Planar& old_planar, const Planar& new_planar)
+{
+}
+
+bool TopologicalMap::update(const Corner& old_corner, const Corner& new_corner)
+{
+}
+
+bool TopologicalMap::update(const SemanticFeature& new_landmark, const SemanticFeature& old_landmark,
+                            const int& old_landmark_id)
+{
+}
+
+bool TopologicalMap::update(const ImageFeature& old_image_feature, const ImageFeature& new_image_feature)
+{
+}
+
+void TopologicalMap::downsampleCorners()
+{
+}
+
+void TopologicalMap::downsamplePlanars()
 {
 }
 

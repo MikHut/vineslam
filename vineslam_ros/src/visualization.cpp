@@ -1074,7 +1074,7 @@ void VineSLAM_ros::publishTopologicalMap()
       aligned_line_strip.points.clear();
     }
 
-    // Select color of the rectangles - highligh active nodes (!)
+    // Select color of the rectangles - highligh active and allocated nodes (!)
     if (std::find(topological_map_->active_nodes_vertexes_.begin(), topological_map_->active_nodes_vertexes_.end(),
                   topological_map_->graph_vertexes_[i]) == topological_map_->active_nodes_vertexes_.end())
     {
@@ -1086,11 +1086,24 @@ void VineSLAM_ros::publishTopologicalMap()
     }
     else
     {
-      line_strip.color.b = 0.0;
-      line_strip.color.g = 0.0;
-      line_strip.color.r = 1.0;
-      line_strip.color.a = 1.0;
-      line_strip.scale.x = 0.5;
+      if (std::find(topological_map_->allocated_nodes_vertexes_.begin(),
+                    topological_map_->allocated_nodes_vertexes_.end(),
+                    topological_map_->graph_vertexes_[i]) == topological_map_->allocated_nodes_vertexes_.end())
+      {
+        line_strip.color.b = 0.0;
+        line_strip.color.g = 0.0;
+        line_strip.color.r = 1.0;
+        line_strip.color.a = 1.0;
+        line_strip.scale.x = 0.5;
+      }
+      else
+      {
+        line_strip.color.b = 0.0;
+        line_strip.color.g = 1.0;
+        line_strip.color.r = 0.0;
+        line_strip.color.a = 1.0;
+        line_strip.scale.x = 0.5;
+      }
     }
 
     // Save markers
@@ -1140,51 +1153,6 @@ void VineSLAM_ros::publishTopologicalMap()
     line_strip.points.clear();
   }
 
-  // Point pt(-5, 5);
-  // vertex_t node;
-  // if (topological_map_->getNode(pt, node))
-  // {
-  //   topological_map_->allocateNodeMap(node);
-
-  //   circle.id = id++;
-  //   circle.scale.x = 0.8;
-  //   circle.scale.y = 0.8;
-  //   circle.scale.z = 0.8;
-  //   circle.color.r = 0.0f;
-  //   circle.color.g = 0.0f;
-  //   circle.color.b = 1.0f;
-  //   circle.color.a = 1.0f;
-  //   circle.pose.position.x = pt.x_;
-  //   circle.pose.position.y = pt.y_;
-  //   marker_array.markers.push_back(circle);
-
-  //   visualization_msgs::msg::Marker grid_map_cube;
-  //   grid_map_cube.header.frame_id = params_.world_frame_id_;
-  //   grid_map_cube.header.stamp = rclcpp::Time();
-  //   grid_map_cube.id = 0;
-  //   grid_map_cube.ns = "/map_limits";
-  //   grid_map_cube.type = visualization_msgs::msg::Marker::CUBE;
-  //   grid_map_cube.action = visualization_msgs::msg::Marker::ADD;
-  //   grid_map_cube.color.a = 0.7;
-  //   grid_map_cube.color.r = 0;
-  //   grid_map_cube.color.g = 1;
-  //   grid_map_cube.color.b = 0;
-  //   grid_map_cube.pose.position.x =
-  //       topological_map_->map_[node].grid_map_->origin_.x_ + topological_map_->map_[node].grid_map_->width_ / 2;
-  //   grid_map_cube.pose.position.y =
-  //       topological_map_->map_[node].grid_map_->origin_.y_ + topological_map_->map_[node].grid_map_->lenght_ / 2;
-  //   grid_map_cube.pose.position.z =
-  //       topological_map_->map_[node].grid_map_->origin_.z_ + topological_map_->map_[node].grid_map_->height_ / 2;
-  //   grid_map_cube.pose.orientation.x = 0;
-  //   grid_map_cube.pose.orientation.y = 0;
-  //   grid_map_cube.pose.orientation.z = 0;
-  //   grid_map_cube.pose.orientation.w = 1;
-  //   grid_map_cube.scale.x = topological_map_->map_[node].grid_map_->width_;
-  //   grid_map_cube.scale.y = topological_map_->map_[node].grid_map_->lenght_;
-  //   grid_map_cube.scale.z = topological_map_->map_[node].grid_map_->height_;
-  //   marker_array.markers.push_back(grid_map_cube);
-  // }
-
   Point pt(5, -5, 2);
   vertex_t node;
   if (topological_map_->getNode(pt, node))
@@ -1222,6 +1190,20 @@ void VineSLAM_ros::publishTopologicalMap()
       circle.pose.position.y = pp.pos_.y_;
       circle.pose.position.z = pp.pos_.z_;
       marker_array.markers.push_back(circle);
+    }
+
+    Cell c;
+    if (topological_map_->getCell(p.pos_, c))
+    {
+      if (c.data != nullptr)
+      {
+        // std::vector<Planar>* planars_ptr{ nullptr };
+        // planars_ptr = c->data->planar_features_;
+        if (c.data->planar_features_ != nullptr)
+        {
+          std::cout << "Visualization ...... - " << c.data->planar_features_->size() << "\n\n\n";
+        }
+      }
     }
   }
 

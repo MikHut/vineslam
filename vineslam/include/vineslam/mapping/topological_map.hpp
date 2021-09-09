@@ -91,7 +91,7 @@ public:
   bool getNode(const Point& point, vertex_t& node);
 
   // Get the cell where a point is or should be stored
-  bool getCell(Point& point, Cell* cell, bool read_only);
+  bool getCell(Point& point, Cell& cell, bool read_only = true);
 
   // Routines to obtain the features on a given location
   std::vector<Planar> getPlanars(const float& x, const float& y, const float& z);
@@ -129,6 +129,8 @@ public:
   std::vector<vertex_t> graph_vertexes_;
   // Vector of vertexes corresponding to the active nodes
   std::vector<vertex_t> active_nodes_vertexes_;
+  // Vector of vertexes corresponding to the allocated nodes
+  std::vector<vertex_t> allocated_nodes_vertexes_;
   // Flag to tell if the topological map was already initialized
   bool is_initialized_;
 

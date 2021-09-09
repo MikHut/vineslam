@@ -158,6 +158,34 @@ void TopologicalMap::getActiveNodes(const Pose& robot_pose)
 
 void TopologicalMap::deallocateNodes(const Pose& robot_pose)
 {
+  // Go through every allocated vertex
+  for (size_t i = 0; i < allocated_nodes_vertexes_.size(); i++)
+  {
+    // Compute distance from the robot to the center of the vertex
+    Point center =
+        Point(map_[allocated_nodes_vertexes_[i]].center_.x_, map_[allocated_nodes_vertexes_[i]].center_.y_, 0.);
+    float dist = center.distanceXY(robot_pose.getXYZ());
+
+    // Check if we want to deallocate this node
+    if (dist > 20.0)
+    {
+      // Remove the node from the allocated nodes array
+      allocated_nodes_vertexes_.erase(allocated_nodes_vertexes_.begin() + i);
+
+      // Write the map to the corresponding xml file
+      // Create local parameter structure to feed the occupancy grid map
+      Parameters l_params = params_;
+      l_params.gridmap_width_ = map_[allocated_nodes_vertexes_[i]].grid_map_->width_;
+      l_params.gridmap_lenght_ = map_[allocated_nodes_vertexes_[i]].grid_map_->lenght_;
+      l_params.gridmap_origin_x_ = map_[allocated_nodes_vertexes_[i]].grid_map_->origin_.x_;
+      l_params.gridmap_origin_y_ = map_[allocated_nodes_vertexes_[i]].grid_map_->origin_.y_;
+      MapWriter mw(l_params, map_[allocated_nodes_vertexes_[i]].index_);
+      mw.writeToFile(map_[allocated_nodes_vertexes_[i]].grid_map_, l_params);
+
+      // Free the map memory
+      free(map_[allocated_nodes_vertexes_[i]].grid_map_);
+    }
+  }
 }
 
 void TopologicalMap::allocateNodeMap(const vertex_t& node)
@@ -219,7 +247,7 @@ bool TopologicalMap::getNode(const Point& point, vertex_t& node)
   return found_solution;
 }
 
-bool TopologicalMap::getCell(Point& point, Cell* cell, bool read_only = true)
+bool TopologicalMap::getCell(Point& point, Cell& cell, bool read_only)
 {
   // Get the node corresponding to the input point
   vertex_t node;
@@ -278,7 +306,7 @@ bool TopologicalMap::getCell(Point& point, Cell* cell, bool read_only = true)
   point.x_ = aligned_point.x_;
   point.y_ = aligned_point.y_;
 
-  cell = &(*map_[node].grid_map_)(point.x_, point.y_, point.z_);
+  cell = (*map_[node].grid_map_)(point.x_, point.y_, point.z_);
 
   return true;
 }
@@ -458,11 +486,17 @@ bool TopologicalMap::insert(const Planar& planar)
         std::cout << "Map input file not found." << std::endl;
         return false;
       }
+
+      // Add node to the allocated nodes array
+      allocated_nodes_vertexes_.push_back(node);
     }
     else  // Map is not allocated neither is saved on a file
     {
       // create the occupancy grid map structure
       allocateNodeMap(node);
+
+      // Add node to the allocated nodes array
+      allocated_nodes_vertexes_.push_back(node);
     }
   }
 
@@ -515,11 +549,17 @@ bool TopologicalMap::insert(const Corner& corner)
         std::cout << "Map input file not found." << std::endl;
         return false;
       }
+
+      // Add node to the allocated nodes array
+      allocated_nodes_vertexes_.push_back(node);
     }
     else  // Map is not allocated neither is saved on a file
     {
       // create the occupancy grid map structure
       allocateNodeMap(node);
+
+      // Add node to the allocated nodes array
+      allocated_nodes_vertexes_.push_back(node);
     }
   }
 
@@ -572,11 +612,17 @@ bool TopologicalMap::insert(const SemanticFeature& landmark, const int& id)
         std::cout << "Map input file not found." << std::endl;
         return false;
       }
+
+      // Add node to the allocated nodes array
+      allocated_nodes_vertexes_.push_back(node);
     }
     else  // Map is not allocated neither is saved on a file
     {
       // create the occupancy grid map structure
       allocateNodeMap(node);
+
+      // Add node to the allocated nodes array
+      allocated_nodes_vertexes_.push_back(node);
     }
   }
 
@@ -629,11 +675,17 @@ bool TopologicalMap::insert(const ImageFeature& image_feature)
         std::cout << "Map input file not found." << std::endl;
         return false;
       }
+
+      // Add node to the allocated nodes array
+      allocated_nodes_vertexes_.push_back(node);
     }
     else  // Map is not allocated neither is saved on a file
     {
       // create the occupancy grid map structure
       allocateNodeMap(node);
+
+      // Add node to the allocated nodes array
+      allocated_nodes_vertexes_.push_back(node);
     }
   }
 
@@ -686,11 +738,17 @@ bool TopologicalMap::directInsert(const Planar& planar)
         std::cout << "Map input file not found." << std::endl;
         return false;
       }
+
+      // Add node to the allocated nodes array
+      allocated_nodes_vertexes_.push_back(node);
     }
     else  // Map is not allocated neither is saved on a file
     {
       // create the occupancy grid map structure
       allocateNodeMap(node);
+
+      // Add node to the allocated nodes array
+      allocated_nodes_vertexes_.push_back(node);
     }
   }
 
@@ -743,11 +801,17 @@ bool TopologicalMap::directInsert(const Corner& corner)
         std::cout << "Map input file not found." << std::endl;
         return false;
       }
+
+      // Add node to the allocated nodes array
+      allocated_nodes_vertexes_.push_back(node);
     }
     else  // Map is not allocated neither is saved on a file
     {
       // create the occupancy grid map structure
       allocateNodeMap(node);
+
+      // Add node to the allocated nodes array
+      allocated_nodes_vertexes_.push_back(node);
     }
   }
 

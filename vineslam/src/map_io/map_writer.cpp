@@ -7,6 +7,11 @@ MapWriter::MapWriter(const Parameters& params, const std::time_t& timestamp)
   file_path_ = params.map_output_folder_ + "map_" + std::to_string(timestamp) + ".xml";
 }
 
+MapWriter::MapWriter(const Parameters& params, const uint32_t& id)
+{
+  file_path_ = params.grid_map_files_folder_ + "map_" + std::to_string(id) + ".xml";
+}
+
 void MapWriter::writeToFile(OccupancyMap* grid_map, const Parameters& params)
 {
   // Create file

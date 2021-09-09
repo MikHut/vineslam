@@ -448,6 +448,12 @@ void SLAMNode::loadParameters(Parameters& params)
   {
     RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
   }
+  param = prefix + ".multilayer_mapping.topological_map.grid_map_files_folder";
+  this->declare_parameter(param);
+  if (!this->get_parameter(param, params.grid_map_files_folder_))
+  {
+    RCLCPP_WARN(this->get_logger(), "%s not found.", param.c_str());
+  }
   param = prefix + ".pf.n_particles";
   this->declare_parameter(param);
   if (!this->get_parameter(param, params.number_particles_))
@@ -746,6 +752,11 @@ void SLAMNode::process()
     grid_map_->downsamplePlanars();
     timer_->tock();
   }
+
+  // ---------------------------------------------------------
+  // ----- Check and update topological map using the new robot pose
+  // ---------------------------------------------------------
+  topological_map_->deallocateNodes(robot_pose_);
 
   // ---------------------------------------------------------
   // ----- Conversion of pose into latitude and longitude

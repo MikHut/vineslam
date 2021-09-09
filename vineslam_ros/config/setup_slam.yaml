@@ -46,6 +46,7 @@ slam_node:
     # Topological map definitions
     topological_map:
       input_file: "/home/andresaguiar/ROS/catkin_ws_ros1/src/agrob_pp/agrob_topologic/agrob_topologic_graph/data/topological_map.xml"
+      grid_map_files_folder: "/home/andresaguiar/Documents/maps/VineSLAM/test_topological_map/"
 
     # Grid map definitions
     grid_map:

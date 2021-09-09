@@ -160,17 +160,17 @@ void TopologicalMap::deallocateNodes(const Pose& robot_pose)
 {
 }
 
-void TopologicalMap::allocateNodeMap(const vertex_t& node, OccupancyMap* grid_map)
+void TopologicalMap::allocateNodeMap(const vertex_t& node)
 {
   // Create local parameter structure to feed the occupancy grid map
   Parameters l_params = params_;
   l_params.gridmap_width_ = std::fabs(map_[node].aligned_rectangle_[0].x_ - map_[node].aligned_rectangle_[2].x_);
   l_params.gridmap_lenght_ = std::fabs(map_[node].aligned_rectangle_[0].y_ - map_[node].aligned_rectangle_[2].y_);
   l_params.gridmap_origin_x_ = map_[node].center_.x_ - l_params.gridmap_width_ / 2;
-  l_params.gridmap_origin_y_ = map_[node].center_.x_ - l_params.gridmap_height_ / 2;
+  l_params.gridmap_origin_y_ = map_[node].center_.y_ - l_params.gridmap_lenght_ / 2;
 
   // Allocate memory for the map
-  grid_map = new OccupancyMap(l_params, Pose(0, 0, 0, 0, 0, 0), 20, 5);
+  map_[node].grid_map_ = new OccupancyMap(l_params, Pose(0, 0, 0, 0, 0, 0), 20, 5);
 }
 
 bool TopologicalMap::getNode(const Point& point, vertex_t& node)
@@ -266,7 +266,7 @@ bool TopologicalMap::getCell(Point& point, Cell* cell, bool read_only = true)
       else  // Map is not allocated neither is saved on a file
       {
         // create the occupancy grid map structure
-        allocateNodeMap(node, map_[node].grid_map_);
+        allocateNodeMap(node);
         map_[node].has_file_ = true;
       }
     }
@@ -295,36 +295,474 @@ void TopologicalMap::alignPoint(const Point& in_pt, const Point& reference, cons
   out_pt.y_ += reference.y_;
 }
 
+std::vector<Planar> TopologicalMap::getPlanars(const float& x, const float& y, const float& z)
+{
+}
+
+std::vector<Corner> TopologicalMap::getCorners(const float& x, const float& y, const float& z)
+{
+}
+
+std::map<int, SemanticFeature> TopologicalMap::getSemanticFeatures(const float& x, const float& y)
+{
+}
+
+std::vector<ImageFeature> TopologicalMap::getImageFeatures(const float& x, const float& y, const float& z)
+{
+}
+
+std::vector<Planar> TopologicalMap::getPlanars()
+{
+  std::vector<Planar> planars;
+
+  // Go through every active vertex
+  for (size_t i = 0; i < active_nodes_vertexes_.size(); i++)
+  {
+    Point center(map_[active_nodes_vertexes_[i]].center_.x_, map_[active_nodes_vertexes_[i]].center_.y_, 0);
+    float angle = -map_[active_nodes_vertexes_[i]].rectangle_orientation_;
+
+    if (map_[active_nodes_vertexes_[i]].grid_map_ != nullptr)
+    {
+      std::vector<Planar> l_planars = map_[active_nodes_vertexes_[i]].grid_map_->getPlanars();
+      for (auto& ft : l_planars)
+      {
+        Point pt;
+        alignPoint(ft.pos_, center, angle, pt);
+        ft.pos_.x_ = pt.x_;
+        ft.pos_.y_ = pt.y_;
+
+        planars.push_back(ft);
+      }
+    }
+  }
+
+  return planars;
+}
+
+std::vector<Corner> TopologicalMap::getCorners()
+{
+  std::vector<Corner> corners;
+
+  // Go through every active vertex
+  for (size_t i = 0; i < active_nodes_vertexes_.size(); i++)
+  {
+    Point center(map_[active_nodes_vertexes_[i]].center_.x_, map_[active_nodes_vertexes_[i]].center_.y_, 0);
+    float angle = -map_[active_nodes_vertexes_[i]].rectangle_orientation_;
+
+    if (map_[active_nodes_vertexes_[i]].grid_map_ != nullptr)
+    {
+      std::vector<Corner> l_corners = map_[active_nodes_vertexes_[i]].grid_map_->getCorners();
+      for (auto& ft : l_corners)
+      {
+        Point pt;
+        alignPoint(ft.pos_, center, angle, pt);
+        ft.pos_.x_ = pt.x_;
+        ft.pos_.y_ = pt.y_;
+
+        corners.push_back(ft);
+      }
+    }
+  }
+
+  return corners;
+}
+
+std::map<int, SemanticFeature> TopologicalMap::getSemanticFeatures()
+{
+  std::map<int, SemanticFeature> landmarks;
+
+  // Go through every active vertex
+  for (size_t i = 0; i < active_nodes_vertexes_.size(); i++)
+  {
+    Point center(map_[active_nodes_vertexes_[i]].center_.x_, map_[active_nodes_vertexes_[i]].center_.y_, 0);
+    float angle = -map_[active_nodes_vertexes_[i]].rectangle_orientation_;
+
+    if (map_[active_nodes_vertexes_[i]].grid_map_ != nullptr)
+    {
+      std::map<int, SemanticFeature> l_landmarks = map_[active_nodes_vertexes_[i]].grid_map_->getLandmarks();
+      for (auto& ft : l_landmarks)
+      {
+        Point pt;
+        alignPoint(ft.second.pos_, center, angle, pt);
+        ft.second.pos_.x_ = pt.x_;
+        ft.second.pos_.y_ = pt.y_;
+
+        landmarks[ft.first] = ft.second;
+      }
+    }
+  }
+
+  return landmarks;
+}
+
+std::vector<ImageFeature> TopologicalMap::getImageFeatures()
+{
+  std::vector<ImageFeature> images_features;
+
+  // Go through every active vertex
+  for (size_t i = 0; i < active_nodes_vertexes_.size(); i++)
+  {
+    Point center(map_[active_nodes_vertexes_[i]].center_.x_, map_[active_nodes_vertexes_[i]].center_.y_, 0);
+    float angle = -map_[active_nodes_vertexes_[i]].rectangle_orientation_;
+
+    if (map_[active_nodes_vertexes_[i]].grid_map_ != nullptr)
+    {
+      std::vector<ImageFeature> l_image_features = map_[active_nodes_vertexes_[i]].grid_map_->getImageFeatures();
+      for (auto& ft : l_image_features)
+      {
+        Point pt;
+        alignPoint(ft.pos_, center, angle, pt);
+        ft.pos_.x_ = pt.x_;
+        ft.pos_.y_ = pt.y_;
+
+        images_features.push_back(ft);
+      }
+    }
+  }
+
+  return images_features;
+}
+
 bool TopologicalMap::insert(const Planar& planar)
 {
+  // Get the node corresponding to the input point
+  vertex_t node;
+  bool get_node = getNode(planar.pos_, node);
+
+  // Check if the node is active
+  if (!get_node)
+  {
+    return false;
+  }
+
+  // Check if the OccupancyMap of the node is allocated
+  if (map_[node].grid_map_ == nullptr)
+  {
+    if (map_[node].has_file_)  // Map is not allocated but is saved on a file
+    {
+      // Load file to an occupancy grid map structure
+      Parameters l_params;
+      MapParser map_parser(l_params);
+      if (!map_parser.parseHeader(&l_params))
+      {
+        std::cout << "Map input file not found." << std::endl;
+        return false;
+      }
+      else
+      {
+        map_[node].grid_map_ = new OccupancyMap(l_params, Pose(0, 0, 0, 0, 0, 0), 20, 5);
+      }
+
+      if (!map_parser.parseFile(&(*map_[node].grid_map_)))
+      {
+        std::cout << "Map input file not found." << std::endl;
+        return false;
+      }
+    }
+    else  // Map is not allocated neither is saved on a file
+    {
+      // create the occupancy grid map structure
+      allocateNodeMap(node);
+    }
+  }
+
+  // If we got here, the occupancy grid map was allocated
+  // So, we will transform the feature
+  Point aligned_point, center(map_[node].center_.x_, map_[node].center_.y_, 0);
+  alignPoint(planar.pos_, center, map_[node].rectangle_orientation_, aligned_point);
+  Planar transformed_ft = planar;
+  transformed_ft.pos_.x_ = aligned_point.x_;
+  transformed_ft.pos_.y_ = aligned_point.y_;
+
+  // And now we store it
+  map_[node].grid_map_->insert(transformed_ft);
+
+  return true;
 }
 
 bool TopologicalMap::insert(const Corner& corner)
 {
+  // Get the node corresponding to the input point
+  vertex_t node;
+  bool get_node = getNode(corner.pos_, node);
+
+  // Check if the node is active
+  if (!get_node)
+  {
+    return false;
+  }
+
+  // Check if the OccupancyMap of the node is allocated
+  if (map_[node].grid_map_ == nullptr)
+  {
+    if (map_[node].has_file_)  // Map is not allocated but is saved on a file
+    {
+      // Load file to an occupancy grid map structure
+      Parameters l_params;
+      MapParser map_parser(l_params);
+      if (!map_parser.parseHeader(&l_params))
+      {
+        std::cout << "Map input file not found." << std::endl;
+        return false;
+      }
+      else
+      {
+        map_[node].grid_map_ = new OccupancyMap(l_params, Pose(0, 0, 0, 0, 0, 0), 20, 5);
+      }
+
+      if (!map_parser.parseFile(&(*map_[node].grid_map_)))
+      {
+        std::cout << "Map input file not found." << std::endl;
+        return false;
+      }
+    }
+    else  // Map is not allocated neither is saved on a file
+    {
+      // create the occupancy grid map structure
+      allocateNodeMap(node);
+    }
+  }
+
+  // If we got here, the occupancy grid map was allocated
+  // So, we will transform the feature
+  Point aligned_point, center(map_[node].center_.x_, map_[node].center_.y_, 0);
+  alignPoint(corner.pos_, center, map_[node].rectangle_orientation_, aligned_point);
+  Corner transformed_ft = corner;
+  transformed_ft.pos_.x_ = aligned_point.x_;
+  transformed_ft.pos_.y_ = aligned_point.y_;
+
+  // And now we store it
+  map_[node].grid_map_->insert(transformed_ft);
+
+  return true;
 }
 
 bool TopologicalMap::insert(const SemanticFeature& landmark, const int& id)
 {
+  // Get the node corresponding to the input point
+  vertex_t node;
+  bool get_node = getNode(landmark.pos_, node);
+
+  // Check if the node is active
+  if (!get_node)
+  {
+    return false;
+  }
+
+  // Check if the OccupancyMap of the node is allocated
+  if (map_[node].grid_map_ == nullptr)
+  {
+    if (map_[node].has_file_)  // Map is not allocated but is saved on a file
+    {
+      // Load file to an occupancy grid map structure
+      Parameters l_params;
+      MapParser map_parser(l_params);
+      if (!map_parser.parseHeader(&l_params))
+      {
+        std::cout << "Map input file not found." << std::endl;
+        return false;
+      }
+      else
+      {
+        map_[node].grid_map_ = new OccupancyMap(l_params, Pose(0, 0, 0, 0, 0, 0), 20, 5);
+      }
+
+      if (!map_parser.parseFile(&(*map_[node].grid_map_)))
+      {
+        std::cout << "Map input file not found." << std::endl;
+        return false;
+      }
+    }
+    else  // Map is not allocated neither is saved on a file
+    {
+      // create the occupancy grid map structure
+      allocateNodeMap(node);
+    }
+  }
+
+  // If we got here, the occupancy grid map was allocated
+  // So, we will transform the feature
+  Point aligned_point, center(map_[node].center_.x_, map_[node].center_.y_, 0);
+  alignPoint(landmark.pos_, center, map_[node].rectangle_orientation_, aligned_point);
+  SemanticFeature transformed_ft = landmark;
+  transformed_ft.pos_.x_ = aligned_point.x_;
+  transformed_ft.pos_.y_ = aligned_point.y_;
+
+  // And now we store it
+  map_[node].grid_map_->insert(transformed_ft, transformed_ft.id_);
+
+  return true;
 }
 
 bool TopologicalMap::insert(const ImageFeature& image_feature)
 {
+  // Get the node corresponding to the input point
+  vertex_t node;
+  bool get_node = getNode(image_feature.pos_, node);
+
+  // Check if the node is active
+  if (!get_node)
+  {
+    return false;
+  }
+
+  // Check if the OccupancyMap of the node is allocated
+  if (map_[node].grid_map_ == nullptr)
+  {
+    if (map_[node].has_file_)  // Map is not allocated but is saved on a file
+    {
+      // Load file to an occupancy grid map structure
+      Parameters l_params;
+      MapParser map_parser(l_params);
+      if (!map_parser.parseHeader(&l_params))
+      {
+        std::cout << "Map input file not found." << std::endl;
+        return false;
+      }
+      else
+      {
+        map_[node].grid_map_ = new OccupancyMap(l_params, Pose(0, 0, 0, 0, 0, 0), 20, 5);
+      }
+
+      if (!map_parser.parseFile(&(*map_[node].grid_map_)))
+      {
+        std::cout << "Map input file not found." << std::endl;
+        return false;
+      }
+    }
+    else  // Map is not allocated neither is saved on a file
+    {
+      // create the occupancy grid map structure
+      allocateNodeMap(node);
+    }
+  }
+
+  // If we got here, the occupancy grid map was allocated
+  // So, we will transform the feature
+  Point aligned_point, center(map_[node].center_.x_, map_[node].center_.y_, 0);
+  alignPoint(image_feature.pos_, center, map_[node].rectangle_orientation_, aligned_point);
+  ImageFeature transformed_ft = image_feature;
+  transformed_ft.pos_.x_ = aligned_point.x_;
+  transformed_ft.pos_.y_ = aligned_point.y_;
+
+  // And now we store it
+  map_[node].grid_map_->insert(transformed_ft);
+
+  return true;
 }
 
 bool TopologicalMap::directInsert(const Planar& planar)
 {
+  // Get the node corresponding to the input point
+  vertex_t node;
+  bool get_node = getNode(planar.pos_, node);
+
+  // Check if the node is active
+  if (!get_node)
+  {
+    return false;
+  }
+
+  // Check if the OccupancyMap of the node is allocated
+  if (map_[node].grid_map_ == nullptr)
+  {
+    if (map_[node].has_file_)  // Map is not allocated but is saved on a file
+    {
+      // Load file to an occupancy grid map structure
+      Parameters l_params;
+      MapParser map_parser(l_params);
+      if (!map_parser.parseHeader(&l_params))
+      {
+        std::cout << "Map input file not found." << std::endl;
+        return false;
+      }
+      else
+      {
+        map_[node].grid_map_ = new OccupancyMap(l_params, Pose(0, 0, 0, 0, 0, 0), 20, 5);
+      }
+
+      if (!map_parser.parseFile(&(*map_[node].grid_map_)))
+      {
+        std::cout << "Map input file not found." << std::endl;
+        return false;
+      }
+    }
+    else  // Map is not allocated neither is saved on a file
+    {
+      // create the occupancy grid map structure
+      allocateNodeMap(node);
+    }
+  }
+
+  // If we got here, the occupancy grid map was allocated
+  // So, we will transform the feature
+  Point aligned_point, center(map_[node].center_.x_, map_[node].center_.y_, 0);
+  alignPoint(planar.pos_, center, map_[node].rectangle_orientation_, aligned_point);
+  Planar transformed_ft = planar;
+  transformed_ft.pos_.x_ = aligned_point.x_;
+  transformed_ft.pos_.y_ = aligned_point.y_;
+
+  // And now we store it
+  map_[node].grid_map_->directInsert(transformed_ft);
+
+  return true;
 }
 
 bool TopologicalMap::directInsert(const Corner& corner)
 {
-}
+  // Get the node corresponding to the input point
+  vertex_t node;
+  bool get_node = getNode(corner.pos_, node);
 
-bool TopologicalMap::directInsert(const SemanticFeature& landmark, const int& id)
-{
-}
+  // Check if the node is active
+  if (!get_node)
+  {
+    return false;
+  }
 
-bool TopologicalMap::directInsert(const ImageFeature& image_feature)
-{
+  // Check if the OccupancyMap of the node is allocated
+  if (map_[node].grid_map_ == nullptr)
+  {
+    if (map_[node].has_file_)  // Map is not allocated but is saved on a file
+    {
+      // Load file to an occupancy grid map structure
+      Parameters l_params;
+      MapParser map_parser(l_params);
+      if (!map_parser.parseHeader(&l_params))
+      {
+        std::cout << "Map input file not found." << std::endl;
+        return false;
+      }
+      else
+      {
+        map_[node].grid_map_ = new OccupancyMap(l_params, Pose(0, 0, 0, 0, 0, 0), 20, 5);
+      }
+
+      if (!map_parser.parseFile(&(*map_[node].grid_map_)))
+      {
+        std::cout << "Map input file not found." << std::endl;
+        return false;
+      }
+    }
+    else  // Map is not allocated neither is saved on a file
+    {
+      // create the occupancy grid map structure
+      allocateNodeMap(node);
+    }
+  }
+
+  // If we got here, the occupancy grid map was allocated
+  // So, we will transform the feature
+  Point aligned_point, center(map_[node].center_.x_, map_[node].center_.y_, 0);
+  alignPoint(corner.pos_, center, map_[node].rectangle_orientation_, aligned_point);
+  Corner transformed_ft = corner;
+  transformed_ft.pos_.x_ = aligned_point.x_;
+  transformed_ft.pos_.y_ = aligned_point.y_;
+
+  // And now we store it
+  map_[node].grid_map_->directInsert(transformed_ft);
+
+  return true;
 }
 
 bool TopologicalMap::update(const Planar& old_planar, const Planar& new_planar)

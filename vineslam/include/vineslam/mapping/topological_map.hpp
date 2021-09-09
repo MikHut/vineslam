@@ -80,6 +80,9 @@ public:
   // Get active nodes
   void getActiveNodes(const Pose& robot_pose);
 
+  // Allocate memory for a occupancy map of a node
+  void allocateNodeMap(const vertex_t& node);
+
   // Deallocate nodes that are no longer active
   // Should also save their data into a file
   void deallocateNodes(const Pose& robot_pose);
@@ -90,11 +93,17 @@ public:
   // Get the cell where a point is or should be stored
   bool getCell(Point& point, Cell* cell, bool read_only);
 
-  // Routines to obtain the features on the cell of an input feature
-  bool getFeatures(const Planar& planar, Cell* cell);
-  bool getFeatures(const Corner& corner, Cell* cell);
-  bool getFeatures(const SemanticFeature& landmark, Cell* cell);
-  bool getFeatures(const ImageFeature& image_feature, Cell* cell);
+  // Routines to obtain the features on a given location
+  std::vector<Planar> getPlanars(const float& x, const float& y, const float& z);
+  std::vector<Corner> getCorners(const float& x, const float& y, const float& z);
+  std::map<int, SemanticFeature> getSemanticFeatures(const float& x, const float& y);
+  std::vector<ImageFeature> getImageFeatures(const float& x, const float& y, const float& z);
+
+  // Routines to obtain the all the features of a given type in a map
+  std::vector<Planar> getPlanars();
+  std::vector<Corner> getCorners();
+  std::map<int, SemanticFeature> getSemanticFeatures();
+  std::vector<ImageFeature> getImageFeatures();
 
   // Routines to insert features on the global map
   bool insert(const Planar& planar);
@@ -103,8 +112,6 @@ public:
   bool insert(const ImageFeature& image_feature);
   bool directInsert(const Planar& planar);
   bool directInsert(const Corner& corner);
-  bool directInsert(const SemanticFeature& landmark, const int& id);
-  bool directInsert(const ImageFeature& image_feature);
 
   // Routines to update the location of a given feature
   bool update(const Planar& old_planar, const Planar& new_planar);
@@ -128,9 +135,6 @@ public:
 private:
   // Align a point by a reference using the rectangle orientation
   void alignPoint(const Point& in_pt, const Point& reference, const float& angle, Point& out_pt);
-
-  // Allocate memory for a occupancy map of a node
-  void allocateNodeMap(const vertex_t& node, OccupancyMap* grid_map);
 
   // Parameters class
   Parameters params_;

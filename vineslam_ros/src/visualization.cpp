@@ -1020,10 +1020,6 @@ void VineSLAM_ros::publishTopologicalMap()
   aligned_line_strip.type = visualization_msgs::msg::Marker::LINE_STRIP;
   aligned_line_strip.action = visualization_msgs::msg::Marker::ADD;
 
-  Point target(-5, -50, 0);
-  vertex_t node;
-  topological_map_->getNode(target, node);
-
   int id = 0;                    // marker identifier
   std::vector<int> connections;  // array to store the drawn connections
   for (size_t i = 0; i < topological_map_->graph_vertexes_.size(); i++)
@@ -1144,36 +1140,89 @@ void VineSLAM_ros::publishTopologicalMap()
     line_strip.points.clear();
   }
 
-  Cell* cell = nullptr;
-  Point source = target;
+  // Point pt(-5, 5);
+  // vertex_t node;
+  // if (topological_map_->getNode(pt, node))
+  // {
+  //   topological_map_->allocateNodeMap(node);
 
-  circle.id = id++;
-  circle.scale.x = 0.8;
-  circle.scale.y = 0.8;
-  circle.scale.z = 0.8;
-  circle.color.r = 0.0f;
-  circle.color.g = 0.0f;
-  circle.color.b = 1.0f;
-  circle.color.a = 1.0f;
-  circle.pose.position.x = source.x_;
-  circle.pose.position.y = source.y_;
+  //   circle.id = id++;
+  //   circle.scale.x = 0.8;
+  //   circle.scale.y = 0.8;
+  //   circle.scale.z = 0.8;
+  //   circle.color.r = 0.0f;
+  //   circle.color.g = 0.0f;
+  //   circle.color.b = 1.0f;
+  //   circle.color.a = 1.0f;
+  //   circle.pose.position.x = pt.x_;
+  //   circle.pose.position.y = pt.y_;
+  //   marker_array.markers.push_back(circle);
 
-  marker_array.markers.push_back(circle);
+  //   visualization_msgs::msg::Marker grid_map_cube;
+  //   grid_map_cube.header.frame_id = params_.world_frame_id_;
+  //   grid_map_cube.header.stamp = rclcpp::Time();
+  //   grid_map_cube.id = 0;
+  //   grid_map_cube.ns = "/map_limits";
+  //   grid_map_cube.type = visualization_msgs::msg::Marker::CUBE;
+  //   grid_map_cube.action = visualization_msgs::msg::Marker::ADD;
+  //   grid_map_cube.color.a = 0.7;
+  //   grid_map_cube.color.r = 0;
+  //   grid_map_cube.color.g = 1;
+  //   grid_map_cube.color.b = 0;
+  //   grid_map_cube.pose.position.x =
+  //       topological_map_->map_[node].grid_map_->origin_.x_ + topological_map_->map_[node].grid_map_->width_ / 2;
+  //   grid_map_cube.pose.position.y =
+  //       topological_map_->map_[node].grid_map_->origin_.y_ + topological_map_->map_[node].grid_map_->lenght_ / 2;
+  //   grid_map_cube.pose.position.z =
+  //       topological_map_->map_[node].grid_map_->origin_.z_ + topological_map_->map_[node].grid_map_->height_ / 2;
+  //   grid_map_cube.pose.orientation.x = 0;
+  //   grid_map_cube.pose.orientation.y = 0;
+  //   grid_map_cube.pose.orientation.z = 0;
+  //   grid_map_cube.pose.orientation.w = 1;
+  //   grid_map_cube.scale.x = topological_map_->map_[node].grid_map_->width_;
+  //   grid_map_cube.scale.y = topological_map_->map_[node].grid_map_->lenght_;
+  //   grid_map_cube.scale.z = topological_map_->map_[node].grid_map_->height_;
+  //   marker_array.markers.push_back(grid_map_cube);
+  // }
 
-  if (topological_map_->getCell(target, cell, false))
+  Point pt(5, -5, 2);
+  vertex_t node;
+  if (topological_map_->getNode(pt, node))
   {
+    pt.x_ = topological_map_->map_[node].rectangle_[0].x_;
+    pt.y_ = topological_map_->map_[node].rectangle_[0].y_;
+    Planar p(pt, 0);
+
     circle.id = id++;
     circle.scale.x = 0.8;
     circle.scale.y = 0.8;
     circle.scale.z = 0.8;
-    circle.color.r = 1.0f;
+    circle.color.r = 0.0f;
     circle.color.g = 0.0f;
-    circle.color.b = 0.0f;
+    circle.color.b = 1.0f;
     circle.color.a = 1.0f;
-    circle.pose.position.x = target.x_;
-    circle.pose.position.y = target.y_;
-
+    circle.pose.position.x = pt.x_;
+    circle.pose.position.y = pt.y_;
     marker_array.markers.push_back(circle);
+
+    topological_map_->insert(p);
+
+    for (auto pp : topological_map_->getPlanars())
+    {
+      circle.id = id++;
+      circle.ns = "/test_insertion";
+      circle.scale.x = 0.8;
+      circle.scale.y = 0.8;
+      circle.scale.z = 0.8;
+      circle.color.r = 0.0f;
+      circle.color.g = 0.0f;
+      circle.color.b = 1.0f;
+      circle.color.a = 1.0f;
+      circle.pose.position.x = pp.pos_.x_;
+      circle.pose.position.y = pp.pos_.y_;
+      circle.pose.position.z = pp.pos_.z_;
+      marker_array.markers.push_back(circle);
+    }
   }
 
   topological_map_publisher_->publish(marker_array);

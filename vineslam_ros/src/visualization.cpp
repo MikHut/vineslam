@@ -1174,11 +1174,37 @@ void VineSLAM_ros::publishTopologicalMap()
     marker_array.markers.push_back(circle);
 
     topological_map_->insert(p);
+    Planar other_p = p;
+    other_p.pos_.x_ = p.pos_.x_ + 0.01;
+    other_p.pos_.y_ = p.pos_.y_ - 0.01;
+    topological_map_->insert(other_p);
+    other_p.pos_.x_ = p.pos_.x_ + 0.02;
+    other_p.pos_.y_ = p.pos_.y_ - 0.02;
+    topological_map_->insert(other_p);
+
+    Planar nearest;
+    float dist;
+    if (topological_map_->findNearest(p, nearest, dist))
+    {
+      std::cout << "NEAREST:  " << nearest.pos_.x_ << ", " << nearest.pos_.y_ << "\n\n\n";
+      circle.id = id++;
+      circle.ns = "/test_find_nearest";
+      circle.scale.x = 0.8;
+      circle.scale.y = 0.8;
+      circle.scale.z = 0.8;
+      circle.color.r = 1.0f;
+      circle.color.g = 0.0f;
+      circle.color.b = 0.0f;
+      circle.color.a = 1.0f;
+      circle.pose.position.x = nearest.pos_.x_;
+      circle.pose.position.y = nearest.pos_.y_;
+      circle.pose.position.z = nearest.pos_.z_;
+      marker_array.markers.push_back(circle);
+    }
 
     for (auto pp : topological_map_->getPlanars())
     {
-      std::cout << pt.x_ << ", " << pt.y_ << ", " << pt.z_ << "\n";
-      std::cout << pp.pos_.x_ << ", " << pp.pos_.y_ << ", " << pp.pos_.z_ << "\n***\n";
+      std::cout << pp.pos_.x_ << ", " << pp.pos_.y_ << ", " << pp.pos_.z_ << "\n";
       circle.id = id++;
       circle.ns = "/test_insertion";
       circle.scale.x = 0.8;

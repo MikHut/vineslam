@@ -119,6 +119,16 @@ public:
   bool update(const SemanticFeature& new_landmark, const SemanticFeature& old_landmark, const int& old_landmark_id);
   bool update(const ImageFeature& old_image_feature, const ImageFeature& new_image_feature);
 
+  // Search routines
+  bool getAdjacent(const float& x, const float& y, const float& z, const int& layers, vertex_t& node,
+                   std::vector<Cell>& adjacent);
+  bool getAdjacentFeatures(const float& x, const float& y, const float& z, const int& layers,
+                           std::map<int, SemanticFeature>& features);
+  bool findNearest(const ImageFeature& input, ImageFeature& nearest, float& ddist);
+  bool findNearest(const Corner& input, Corner& nearest, float& sdist);
+  bool findNearest(const Planar& input, Planar& nearest, float& sdist);
+  bool findNearestOnCell(const ImageFeature& input, ImageFeature& nearest);
+
   // Downsampling functions for 3D features
   void downsampleCorners();
   void downsamplePlanars();

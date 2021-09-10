@@ -1124,6 +1124,7 @@ void TopologicalMap::downsamplePlanars()
   // Go through every allocated vertex
   for (size_t i = 0; i < allocated_nodes_vertexes_.size(); i++)
   {
+    // Downsample each grid map
     map_[allocated_nodes_vertexes_[i]].grid_map_->downsamplePlanars();
   }
 }
@@ -1133,7 +1134,230 @@ void TopologicalMap::downsampleCorners()
   // Go through every allocated vertex
   for (size_t i = 0; i < allocated_nodes_vertexes_.size(); i++)
   {
+    // Downsample each grid map
     map_[allocated_nodes_vertexes_[i]].grid_map_->downsampleCorners();
   }
 }
+
+bool TopologicalMap::getAdjacent(const float& x, const float& y, const float& z, const int& layers, vertex_t& node,
+                                 std::vector<Cell>& adjacent)
+{
+  // Get the node corresponding to the input point
+  Point pt(x, y, z);
+  bool get_node = getNode(pt, node);
+
+  // Check if the node is active
+  if (!get_node)
+  {
+    return false;
+  }
+  else
+  {
+    // Transform the input point to the local grid map
+    Point pt_tf;
+    Point center(map_[node].center_.x_, map_[node].center_.y_, 0);
+    double angle = map_[node].rectangle_orientation_;
+    alignPoint(pt, center, angle, pt_tf);
+
+    // Call the getAdjacent function of OccupancyMap
+    return map_[node].grid_map_->getAdjacent(pt_tf.x_, pt_tf.y_, pt_tf.z_, layers, adjacent);
+  }
+}
+
+bool TopologicalMap::getAdjacentFeatures(const float& x, const float& y, const float& z, const int& layers,
+                                         std::map<int, SemanticFeature>& features)
+{
+  // Get adjacent cells
+  vertex_t node;
+  std::vector<Cell> adjacent;
+  if (!getAdjacent(x, y, z, layers, node, adjacent))
+  {
+    return false;
+  }
+
+  Point center(map_[node].center_.x_, map_[node].center_.y_, 0);
+  double angle = -map_[node].rectangle_orientation_;
+
+  // Go through every cell
+  for (const auto& cell : adjacent)
+  {
+    if (cell.data != nullptr)
+    {
+      if (cell.data->landmarks_ != nullptr)
+      {
+        for (const auto& landmark : *cell.data->landmarks_)
+        {
+          // Transform the features to the global map
+          SemanticFeature l_landmark = landmark.second;
+          Point aligned_pt;
+          alignPoint(l_landmark.pos_, center, angle, aligned_pt);
+          l_landmark.pos_.x_ = aligned_pt.x_;
+          l_landmark.pos_.y_ = aligned_pt.y_;
+
+          // Save them
+          features[landmark.first] = l_landmark;
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
+bool TopologicalMap::findNearest(const Planar& input, Planar& nearest, float& sdist)
+{
+  // Get the node corresponding to the input point
+  vertex_t node;
+  bool get_node = getNode(input.pos_, node);
+
+  Point center(map_[node].center_.x_, map_[node].center_.y_, 0);
+  double angle = map_[node].rectangle_orientation_;
+
+  // Check if the node is active
+  if (!get_node)
+  {
+    return false;
+  }
+  else
+  {
+    // Transform the feature to the local map
+    Point aligned_pt;
+    alignPoint(input.pos_, center, angle, aligned_pt);
+    Planar l_input, l_nearest;
+    l_input.pos_.x_ = aligned_pt.x_;
+    l_input.pos_.y_ = aligned_pt.y_;
+    l_input.pos_.z_ = input.pos_.z_;
+
+    // Find the nearest feature
+    if (!map_[node].grid_map_->findNearest(l_input, l_nearest, sdist))
+    {
+      return false;
+    }
+    else
+    {
+      // Transform the feature back to the global map
+      alignPoint(l_nearest.pos_, center, -angle, nearest.pos_);
+    }
+  }
+
+  return true;
+}
+
+bool TopologicalMap::findNearest(const Corner& input, Corner& nearest, float& sdist)
+{
+  // Get the node corresponding to the input point
+  vertex_t node;
+  bool get_node = getNode(input.pos_, node);
+
+  Point center(map_[node].center_.x_, map_[node].center_.y_, 0);
+  double angle = map_[node].rectangle_orientation_;
+
+  // Check if the node is active
+  if (!get_node)
+  {
+    return false;
+  }
+  else
+  {
+    // Transform the feature to the local map
+    Point aligned_pt;
+    alignPoint(input.pos_, center, angle, aligned_pt);
+    Corner l_input, l_nearest;
+    l_input.pos_.x_ = aligned_pt.x_;
+    l_input.pos_.y_ = aligned_pt.y_;
+    l_input.pos_.z_ = input.pos_.z_;
+
+    // Find the nearest feature
+    if (!map_[node].grid_map_->findNearest(l_input, l_nearest, sdist))
+    {
+      return false;
+    }
+    else
+    {
+      // Transform the feature back to the global map
+      alignPoint(l_nearest.pos_, center, -angle, nearest.pos_);
+    }
+  }
+
+  return true;
+}
+
+bool TopologicalMap::findNearest(const ImageFeature& input, ImageFeature& nearest, float& ddist)
+{
+  // Get the node corresponding to the input point
+  vertex_t node;
+  bool get_node = getNode(input.pos_, node);
+
+  Point center(map_[node].center_.x_, map_[node].center_.y_, 0);
+  double angle = map_[node].rectangle_orientation_;
+
+  // Check if the node is active
+  if (!get_node)
+  {
+    return false;
+  }
+  else
+  {
+    // Transform the feature to the local map
+    Point aligned_pt;
+    alignPoint(input.pos_, center, angle, aligned_pt);
+    ImageFeature l_input, l_nearest;
+    l_input.pos_.x_ = aligned_pt.x_;
+    l_input.pos_.y_ = aligned_pt.y_;
+    l_input.pos_.z_ = input.pos_.z_;
+
+    // Find the nearest feature
+    if (!map_[node].grid_map_->findNearest(l_input, l_nearest, ddist))
+    {
+      return false;
+    }
+    else
+    {
+      // Transform the feature back to the global map
+      alignPoint(l_nearest.pos_, center, -angle, nearest.pos_);
+    }
+  }
+
+  return true;
+}
+
+bool TopologicalMap::findNearestOnCell(const ImageFeature& input, ImageFeature& nearest)
+{
+  // Get the node corresponding to the input point
+  vertex_t node;
+  bool get_node = getNode(input.pos_, node);
+
+  Point center(map_[node].center_.x_, map_[node].center_.y_, 0);
+  double angle = map_[node].rectangle_orientation_;
+
+  // Check if the node is active
+  if (!get_node)
+  {
+    return false;
+  }
+  else
+  {
+    // Transform the feature to the local map
+    Point aligned_pt;
+    alignPoint(input.pos_, center, angle, aligned_pt);
+    ImageFeature l_input, l_nearest;
+    l_input.pos_.x_ = aligned_pt.x_;
+    l_input.pos_.y_ = aligned_pt.y_;
+    l_input.pos_.z_ = input.pos_.z_;
+
+    // Find the nearest feature
+    if (!map_[node].grid_map_->findNearestOnCell(l_input, l_nearest))
+    {
+      return false;
+    }
+    else
+    {
+      // Transform the feature back to the global map
+      alignPoint(l_nearest.pos_, center, -angle, nearest.pos_);
+    }
+  }
+
+  return true;
+}
+
 }  // namespace vineslam

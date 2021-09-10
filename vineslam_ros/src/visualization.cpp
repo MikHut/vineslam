@@ -1177,6 +1177,8 @@ void VineSLAM_ros::publishTopologicalMap()
 
     for (auto pp : topological_map_->getPlanars())
     {
+      std::cout << pt.x_ << ", " << pt.y_ << ", " << pt.z_ << "\n";
+      std::cout << pp.pos_.x_ << ", " << pp.pos_.y_ << ", " << pp.pos_.z_ << "\n***\n";
       circle.id = id++;
       circle.ns = "/test_insertion";
       circle.scale.x = 0.8;
@@ -1190,20 +1192,6 @@ void VineSLAM_ros::publishTopologicalMap()
       circle.pose.position.y = pp.pos_.y_;
       circle.pose.position.z = pp.pos_.z_;
       marker_array.markers.push_back(circle);
-    }
-
-    Cell c;
-    if (topological_map_->getCell(p.pos_, c))
-    {
-      if (c.data != nullptr)
-      {
-        // std::vector<Planar>* planars_ptr{ nullptr };
-        // planars_ptr = c->data->planar_features_;
-        if (c.data->planar_features_ != nullptr)
-        {
-          std::cout << "Visualization ...... - " << c.data->planar_features_->size() << "\n\n\n";
-        }
-      }
     }
   }
 

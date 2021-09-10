@@ -91,7 +91,7 @@ public:
   bool getNode(const Point& point, vertex_t& node);
 
   // Get the cell where a point is or should be stored
-  bool getCell(Point& point, Cell& cell, bool read_only = true);
+  bool getCell(Point& point, Cell& cell, vertex_t& node, bool read_only = true);
 
   // Routines to obtain the features on a given location
   std::vector<Planar> getPlanars(const float& x, const float& y, const float& z);

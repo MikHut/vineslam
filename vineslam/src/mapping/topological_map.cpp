@@ -182,6 +182,9 @@ void TopologicalMap::deallocateNodes(const Pose& robot_pose)
       MapWriter mw(l_params, map_[allocated_nodes_vertexes_[i]].index_);
       mw.writeToFile(map_[allocated_nodes_vertexes_[i]].grid_map_, l_params);
 
+      // Set the has_file flag
+      map_[allocated_nodes_vertexes_[i]].has_file_ = true;
+
       // Free the map memory
       free(map_[allocated_nodes_vertexes_[i]].grid_map_);
     }
@@ -247,10 +250,9 @@ bool TopologicalMap::getNode(const Point& point, vertex_t& node)
   return found_solution;
 }
 
-bool TopologicalMap::getCell(Point& point, Cell& cell, bool read_only)
+bool TopologicalMap::getCell(Point& point, Cell& cell, vertex_t& node, bool read_only)
 {
   // Get the node corresponding to the input point
-  vertex_t node;
   bool get_node = getNode(point, node);
 
   // Check if the node is active
@@ -295,7 +297,6 @@ bool TopologicalMap::getCell(Point& point, Cell& cell, bool read_only)
       {
         // create the occupancy grid map structure
         allocateNodeMap(node);
-        map_[node].has_file_ = true;
       }
     }
   }
@@ -325,18 +326,154 @@ void TopologicalMap::alignPoint(const Point& in_pt, const Point& reference, cons
 
 std::vector<Planar> TopologicalMap::getPlanars(const float& x, const float& y, const float& z)
 {
+  Cell c;
+  vertex_t node;
+  Point pt(x, y, z);
+  std::vector<Planar> planars;
+
+  // Get the cell
+  if (!getCell(pt, c, node))
+  {
+    return planars;
+  }
+
+  // Get rotation parameters
+  Point center(map_[node].center_.x_, map_[node].center_.y_, 0);
+  double angle = -map_[node].rectangle_orientation_;
+
+  // Get planar features on the cell
+  if (c.data != nullptr)
+  {
+    if (c.data->planar_features_ != nullptr)
+    {
+      std::vector<Planar> l_planars = *c.data->planar_features_;
+      for (auto& ft : l_planars)
+      {
+        Point pt;
+        alignPoint(ft.pos_, center, angle, pt);
+        ft.pos_.x_ = pt.x_;
+        ft.pos_.y_ = pt.y_;
+
+        planars.push_back(ft);
+      }
+    }
+  }
+
+  return planars;
 }
 
 std::vector<Corner> TopologicalMap::getCorners(const float& x, const float& y, const float& z)
 {
+  Cell c;
+  vertex_t node;
+  Point pt(x, y, z);
+  std::vector<Corner> corners;
+
+  // Get the cell
+  if (!getCell(pt, c, node))
+  {
+    return corners;
+  }
+
+  // Get rotation parameters
+  Point center(map_[node].center_.x_, map_[node].center_.y_, 0);
+  double angle = -map_[node].rectangle_orientation_;
+
+  // Get corner features on the cell
+  if (c.data != nullptr)
+  {
+    if (c.data->corner_features_ != nullptr)
+    {
+      std::vector<Corner> l_corners = *c.data->corner_features_;
+      for (auto& ft : l_corners)
+      {
+        Point pt;
+        alignPoint(ft.pos_, center, angle, pt);
+        ft.pos_.x_ = pt.x_;
+        ft.pos_.y_ = pt.y_;
+
+        corners.push_back(ft);
+      }
+    }
+  }
+
+  return corners;
 }
 
 std::map<int, SemanticFeature> TopologicalMap::getSemanticFeatures(const float& x, const float& y)
 {
+  Cell c;
+  vertex_t node;
+  Point pt(x, y, 0);
+  std::map<int, SemanticFeature> landmarks;
+
+  // Get the cell
+  if (!getCell(pt, c, node))
+  {
+    return landmarks;
+  }
+
+  // Get rotation parameters
+  Point center(map_[node].center_.x_, map_[node].center_.y_, 0);
+  double angle = -map_[node].rectangle_orientation_;
+
+  // Get semantic features on the cell
+  if (c.data != nullptr)
+  {
+    if (c.data->landmarks_ != nullptr)
+    {
+      std::map<int, SemanticFeature> l_landmarks = *c.data->landmarks_;
+      for (auto& ft : l_landmarks)
+      {
+        Point pt;
+        alignPoint(ft.second.pos_, center, angle, pt);
+        ft.second.pos_.x_ = pt.x_;
+        ft.second.pos_.y_ = pt.y_;
+
+        landmarks[ft.first] = ft.second;
+      }
+    }
+  }
+
+  return landmarks;
 }
 
 std::vector<ImageFeature> TopologicalMap::getImageFeatures(const float& x, const float& y, const float& z)
 {
+  Cell c;
+  vertex_t node;
+  Point pt(x, y, z);
+  std::vector<ImageFeature> image_features;
+
+  // Get the cell
+  if (!getCell(pt, c, node))
+  {
+    return image_features;
+  }
+
+  // Get rotation parameters
+  Point center(map_[node].center_.x_, map_[node].center_.y_, 0);
+  double angle = -map_[node].rectangle_orientation_;
+
+  // Get image features on the cell
+  if (c.data != nullptr)
+  {
+    if (c.data->surf_features_ != nullptr)
+    {
+      std::vector<ImageFeature> l_image_features = *c.data->surf_features_;
+      for (auto& ft : l_image_features)
+      {
+        Point pt;
+        alignPoint(ft.pos_, center, angle, pt);
+        ft.pos_.x_ = pt.x_;
+        ft.pos_.y_ = pt.y_;
+
+        image_features.push_back(ft);
+      }
+    }
+  }
+
+  return image_features;
 }
 
 std::vector<Planar> TopologicalMap::getPlanars()
@@ -635,7 +772,7 @@ bool TopologicalMap::insert(const SemanticFeature& landmark, const int& id)
   transformed_ft.pos_.y_ = aligned_point.y_;
 
   // And now we store it
-  map_[node].grid_map_->insert(transformed_ft, transformed_ft.id_);
+  map_[node].grid_map_->insert(transformed_ft, id);
 
   return true;
 }
@@ -831,27 +968,172 @@ bool TopologicalMap::directInsert(const Corner& corner)
 
 bool TopologicalMap::update(const Planar& old_planar, const Planar& new_planar)
 {
+  // Get the nodes corresponding to the input features
+  vertex_t old_node, new_node;
+  bool get_old_node = getNode(old_planar.pos_, old_node);
+  bool get_new_node = getNode(new_planar.pos_, new_node);
+
+  // Check if the nodes are active
+  if (!get_old_node || !get_new_node || (map_[old_node].index_ != map_[new_node].index_))
+  {
+    return false;
+  }
+
+  // Check if the OccupancyMap of the node is allocated
+  if (map_[new_node].grid_map_ == nullptr)
+  {
+    return false;
+  }
+  else
+  {
+    // Transform the features
+    Point aligned_old_point, aligned_new_point, center(map_[new_node].center_.x_, map_[new_node].center_.y_, 0);
+    alignPoint(old_planar.pos_, center, map_[new_node].rectangle_orientation_, aligned_old_point);
+    alignPoint(new_planar.pos_, center, map_[new_node].rectangle_orientation_, aligned_new_point);
+    Planar transformed_old_ft = old_planar;
+    Planar transformed_new_ft = new_planar;
+    transformed_old_ft.pos_.x_ = aligned_old_point.x_;
+    transformed_old_ft.pos_.y_ = aligned_old_point.y_;
+    transformed_new_ft.pos_.x_ = aligned_new_point.x_;
+    transformed_new_ft.pos_.y_ = aligned_new_point.y_;
+
+    // Update the features
+    map_[new_node].grid_map_->update(transformed_old_ft, transformed_new_ft);
+  }
+
+  return true;
 }
 
 bool TopologicalMap::update(const Corner& old_corner, const Corner& new_corner)
 {
+  // Get the nodes corresponding to the input features
+  vertex_t old_node, new_node;
+  bool get_old_node = getNode(old_corner.pos_, old_node);
+  bool get_new_node = getNode(new_corner.pos_, new_node);
+
+  // Check if the nodes are active
+  if (!get_old_node || !get_new_node || (map_[old_node].index_ != map_[new_node].index_))
+  {
+    return false;
+  }
+
+  // Check if the OccupancyMap of the node is allocated
+  if (map_[new_node].grid_map_ == nullptr)
+  {
+    return false;
+  }
+  else
+  {
+    // Transform the features
+    Point aligned_old_point, aligned_new_point, center(map_[new_node].center_.x_, map_[new_node].center_.y_, 0);
+    alignPoint(old_corner.pos_, center, map_[new_node].rectangle_orientation_, aligned_old_point);
+    alignPoint(new_corner.pos_, center, map_[new_node].rectangle_orientation_, aligned_new_point);
+    Corner transformed_old_ft = old_corner;
+    Corner transformed_new_ft = new_corner;
+    transformed_old_ft.pos_.x_ = aligned_old_point.x_;
+    transformed_old_ft.pos_.y_ = aligned_old_point.y_;
+    transformed_new_ft.pos_.x_ = aligned_new_point.x_;
+    transformed_new_ft.pos_.y_ = aligned_new_point.y_;
+
+    // Update the features
+    map_[new_node].grid_map_->update(transformed_old_ft, transformed_new_ft);
+  }
+
+  return true;
 }
 
 bool TopologicalMap::update(const SemanticFeature& new_landmark, const SemanticFeature& old_landmark,
                             const int& old_landmark_id)
 {
+  // Get the nodes corresponding to the input features
+  vertex_t old_node, new_node;
+  bool get_old_node = getNode(old_landmark.pos_, old_node);
+  bool get_new_node = getNode(new_landmark.pos_, new_node);
+
+  // Check if the nodes are active
+  if (!get_old_node || !get_new_node || (map_[old_node].index_ != map_[new_node].index_))
+  {
+    return false;
+  }
+
+  // Check if the OccupancyMap of the node is allocated
+  if (map_[new_node].grid_map_ == nullptr)
+  {
+    return false;
+  }
+  else
+  {
+    // Transform the features
+    Point aligned_old_point, aligned_new_point, center(map_[new_node].center_.x_, map_[new_node].center_.y_, 0);
+    alignPoint(old_landmark.pos_, center, map_[new_node].rectangle_orientation_, aligned_old_point);
+    alignPoint(new_landmark.pos_, center, map_[new_node].rectangle_orientation_, aligned_new_point);
+    SemanticFeature transformed_old_ft = old_landmark;
+    SemanticFeature transformed_new_ft = old_landmark;
+    transformed_old_ft.pos_.x_ = aligned_old_point.x_;
+    transformed_old_ft.pos_.y_ = aligned_old_point.y_;
+    transformed_new_ft.pos_.x_ = aligned_new_point.x_;
+    transformed_new_ft.pos_.y_ = aligned_new_point.y_;
+
+    // Update the features
+    map_[new_node].grid_map_->update(transformed_new_ft, transformed_old_ft, old_landmark_id);
+  }
+
+  return true;
 }
 
 bool TopologicalMap::update(const ImageFeature& old_image_feature, const ImageFeature& new_image_feature)
 {
-}
+  // Get the nodes corresponding to the input features
+  vertex_t old_node, new_node;
+  bool get_old_node = getNode(old_image_feature.pos_, old_node);
+  bool get_new_node = getNode(new_image_feature.pos_, new_node);
 
-void TopologicalMap::downsampleCorners()
-{
+  // Check if the nodes are active
+  if (!get_old_node || !get_new_node || (map_[old_node].index_ != map_[new_node].index_))
+  {
+    return false;
+  }
+
+  // Check if the OccupancyMap of the node is allocated
+  if (map_[new_node].grid_map_ == nullptr)
+  {
+    return false;
+  }
+  else
+  {
+    // Transform the features
+    Point aligned_old_point, aligned_new_point, center(map_[new_node].center_.x_, map_[new_node].center_.y_, 0);
+    alignPoint(old_image_feature.pos_, center, map_[new_node].rectangle_orientation_, aligned_old_point);
+    alignPoint(new_image_feature.pos_, center, map_[new_node].rectangle_orientation_, aligned_new_point);
+    ImageFeature transformed_old_ft = old_image_feature;
+    ImageFeature transformed_new_ft = new_image_feature;
+    transformed_old_ft.pos_.x_ = aligned_old_point.x_;
+    transformed_old_ft.pos_.y_ = aligned_old_point.y_;
+    transformed_new_ft.pos_.x_ = aligned_new_point.x_;
+    transformed_new_ft.pos_.y_ = aligned_new_point.y_;
+
+    // Update the features
+    map_[new_node].grid_map_->update(transformed_old_ft, transformed_new_ft);
+  }
+
+  return true;
 }
 
 void TopologicalMap::downsamplePlanars()
 {
+  // Go through every allocated vertex
+  for (size_t i = 0; i < allocated_nodes_vertexes_.size(); i++)
+  {
+    map_[allocated_nodes_vertexes_[i]].grid_map_->downsamplePlanars();
+  }
 }
 
+void TopologicalMap::downsampleCorners()
+{
+  // Go through every allocated vertex
+  for (size_t i = 0; i < allocated_nodes_vertexes_.size(); i++)
+  {
+    map_[allocated_nodes_vertexes_[i]].grid_map_->downsampleCorners();
+  }
+}
 }  // namespace vineslam
